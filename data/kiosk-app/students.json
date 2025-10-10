@@ -1,0 +1,227 @@
+[
+  {
+    "id": 1,
+    "full_name": "Benjamín Pérez",
+    "course_id": 101
+  },
+  {
+    "id": 2,
+    "full_name": "Antonella Silva",
+    "course_id": 101
+  },
+  {
+    "id": 3,
+    "full_name": "Martín Morales",
+    "course_id": 101
+  },
+  {
+    "id": 4,
+    "full_name": "Mateo Vargas",
+    "course_id": 101
+  },
+  {
+    "id": 5,
+    "full_name": "Lucas Muñoz",
+    "course_id": 101
+  },
+  {
+    "id": 6,
+    "full_name": "Isabella Campos",
+    "course_id": 101
+  },
+  {
+    "id": 7,
+    "full_name": "Vicente González",
+    "course_id": 101
+  },
+  {
+    "id": 8,
+    "full_name": "Amanda Díaz",
+    "course_id": 101
+  },
+  {
+    "id": 9,
+    "full_name": "Isabella González",
+    "course_id": 101
+  },
+  {
+    "id": 10,
+    "full_name": "Benjamín Valenzuela",
+    "course_id": 101
+  },
+  {
+    "id": 11,
+    "full_name": "Catalina Rojas",
+    "course_id": 101
+  },
+  {
+    "id": 12,
+    "full_name": "Sofía Rojas",
+    "course_id": 101
+  },
+  {
+    "id": 13,
+    "full_name": "Emilia Castillo",
+    "course_id": 101
+  },
+  {
+    "id": 14,
+    "full_name": "Florencia Espinoza",
+    "course_id": 101
+  },
+  {
+    "id": 15,
+    "full_name": "Isabella González",
+    "course_id": 101
+  },
+  {
+    "id": 16,
+    "full_name": "Ignacia Fuentes",
+    "course_id": 102
+  },
+  {
+    "id": 17,
+    "full_name": "Florencia González",
+    "course_id": 102
+  },
+  {
+    "id": 18,
+    "full_name": "Martín Soto",
+    "course_id": 102
+  },
+  {
+    "id": 19,
+    "full_name": "Vicente Soto",
+    "course_id": 102
+  },
+  {
+    "id": 20,
+    "full_name": "Florencia Sepúlveda",
+    "course_id": 102
+  },
+  {
+    "id": 21,
+    "full_name": "Mateo González",
+    "course_id": 102
+  },
+  {
+    "id": 22,
+    "full_name": "Josefa Rojas",
+    "course_id": 102
+  },
+  {
+    "id": 23,
+    "full_name": "Josefa Díaz",
+    "course_id": 102
+  },
+  {
+    "id": 24,
+    "full_name": "Emilia Torres",
+    "course_id": 102
+  },
+  {
+    "id": 25,
+    "full_name": "Benjamín Díaz",
+    "course_id": 102
+  },
+  {
+    "id": 26,
+    "full_name": "Catalina Castillo",
+    "course_id": 102
+  },
+  {
+    "id": 27,
+    "full_name": "Florencia Valenzuela",
+    "course_id": 102
+  },
+  {
+    "id": 28,
+    "full_name": "Martín Díaz",
+    "course_id": 102
+  },
+  {
+    "id": 29,
+    "full_name": "Joaquín Díaz",
+    "course_id": 102
+  },
+  {
+    "id": 30,
+    "full_name": "Benjamín Araya",
+    "course_id": 102
+  },
+  {
+    "id": 31,
+    "full_name": "Josefa Morales",
+    "course_id": 201
+  },
+  {
+    "id": 32,
+    "full_name": "Agustín Fuentes",
+    "course_id": 201
+  },
+  {
+    "id": 33,
+    "full_name": "Amanda González",
+    "course_id": 201
+  },
+  {
+    "id": 34,
+    "full_name": "Lucas Espinoza",
+    "course_id": 201
+  },
+  {
+    "id": 35,
+    "full_name": "Joaquín Fuentes",
+    "course_id": 201
+  },
+  {
+    "id": 36,
+    "full_name": "Florencia Contreras",
+    "course_id": 201
+  },
+  {
+    "id": 37,
+    "full_name": "Antonella Díaz",
+    "course_id": 201
+  },
+  {
+    "id": 38,
+    "full_name": "Vicente Díaz",
+    "course_id": 201
+  },
+  {
+    "id": 39,
+    "full_name": "Florencia Díaz",
+    "course_id": 201
+  },
+  {
+    "id": 40,
+    "full_name": "Florencia Martínez",
+    "course_id": 201
+  },
+  {
+    "id": 41,
+    "full_name": "Camila Morales",
+    "course_id": 201
+  },
+  {
+    "id": 42,
+    "full_name": "Camila Valenzuela",
+    "course_id": 201
+  },
+  {
+    "id": 43,
+    "full_name": "Lucas Araya",
+    "course_id": 201
+  },
+  {
+    "id": 44,
+    "full_name": "Camila Araya",
+    "course_id": 201
+  },
+  {
+    "id": 45,
+    "full_name": "Agustín González",
+    "course_id": 201
+  }
+]

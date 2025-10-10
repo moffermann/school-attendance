@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "school-attendance"
+version = "0.1.0"
+description = "MVP para control de ingreso/salida escolar con FastAPI"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "School Attendance Team"}]
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "sqlalchemy[asyncio]>=2.0",
+  "alembic>=1.13",
+  "psycopg[binary]>=3.1",
+  "asyncpg>=0.29",
+  "pydantic>=2.6",
+  "pydantic-settings>=2.2",
+  "python-dotenv>=1.0",
+  "redis>=5.0",
+  "rq>=1.15",
+  "httpx>=0.27",
+  "boto3>=1.34",
+  "jinja2>=3.1",
+  "itsdangerous>=2.2",
+  "passlib[bcrypt]>=1.7",
+  "pyjwt[crypto]>=2.8",
+  "slowapi>=0.1.9",
+  "loguru>=0.7",
+  "structlog>=24.1",
+  "orjson>=3.9",
+  "tenacity>=8.2",
+  "python-multipart>=0.0.9",
+  "apscheduler>=3.10",
+  "aiosqlite>=0.20.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.1",
+  "pytest-asyncio>=0.23",
+  "pytest-cov>=4.1",
+  "httpx>=0.27",
+  "mypy>=1.8",
+  "ruff>=0.3",
+  "black>=24.3",
+  "types-redis>=4.6",
+  "types-requests>=2.31",
+  "requests-mock>=1.11",
+  "faker>=24.4"
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I", "B", "UP", "N", "S", "ASYNC"]
+ignore = ["E203", "S101", "B008"]
+
+[tool.mypy]
+python_version = "3.11"
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+strict_optional = true
+check_untyped_defs = true
+disallow_any_generics = true
+
+[tool.pytest.ini_options]
+addopts = "-q --disable-warnings --maxfail=1"
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+skip_empty = true
+show_missing = true

@@ -1,0 +1,7 @@
+{
+  "gate_id": "GATE-1",
+  "device_id": "DEV-01",
+  "version": "0.1.0",
+  "battery_pct": 82,
+  "online": true
+}

@@ -1,0 +1,152 @@
+[
+  {
+    "token": "nfc_ejoz9xfzaq",
+    "student_id": 38,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_8h3xqyxgo4",
+    "student_id": 24,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_b9uoe3t0hi",
+    "student_id": 9,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_cct5hgp8iy",
+    "student_id": 6,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_3x80j0g50r",
+    "student_id": 19,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_cxn22pxgx8",
+    "student_id": 21,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_wdzrmh3fnb",
+    "student_id": 27,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_dvpine9nno",
+    "student_id": 12,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_vjarji8qlh",
+    "student_id": 13,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_biawpublqd",
+    "student_id": 43,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_i07he42x6g",
+    "student_id": 35,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_26oc7t3bd4",
+    "student_id": 44,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_z1g52efuje",
+    "student_id": 33,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_ir9uy7s361",
+    "student_id": 18,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_gh9n12o0v3",
+    "student_id": 39,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_z0gu1uqxj4",
+    "student_id": 42,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_efff1gxi9d",
+    "student_id": 36,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_99vh0w1dst",
+    "student_id": 31,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_wg6nj4ogw9",
+    "student_id": 16,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_xhro199brb",
+    "student_id": 26,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_lrtvwaljze",
+    "student_id": 10,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_jbf7ny03vk",
+    "student_id": 34,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_xtufdjkdfr",
+    "student_id": 11,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_21520rn6hw",
+    "student_id": 4,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_1hs57tcozd",
+    "student_id": 15,
+    "status": "ACTIVE"
+  },
+  {
+    "token": "nfc_suha51liy8",
+    "student_id": 1,
+    "status": "REVOKED"
+  },
+  {
+    "token": "nfc_o69wezc1b3",
+    "student_id": 14,
+    "status": "REVOKED"
+  },
+  {
+    "token": "nfc_eu1z0shzbu",
+    "student_id": 20,
+    "status": "REVOKED"
+  },
+  {
+    "token": "nfc_k3xf1gp1z7",
+    "student_id": 9,
+    "status": "REVOKED"
+  },
+  {
+    "token": "nfc_fztvovke6h",
+    "student_id": 17,
+    "status": "REVOKED"
+  }
+]

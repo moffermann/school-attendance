@@ -1,0 +1,29 @@
+[
+  {
+    "id": 1,
+    "guardian_id": 1,
+    "student_id": 1,
+    "type": "IN",
+    "channel": "whatsapp",
+    "sent_at": "2025-10-10T08:05:30",
+    "status": "delivered"
+  },
+  {
+    "id": 2,
+    "guardian_id": 1,
+    "student_id": 1,
+    "type": "IN",
+    "channel": "email",
+    "sent_at": "2025-10-10T08:05:30",
+    "status": "delivered"
+  },
+  {
+    "id": 3,
+    "guardian_id": 2,
+    "student_id": 2,
+    "type": "IN",
+    "channel": "whatsapp",
+    "sent_at": "2025-10-10T08:03:30",
+    "status": "delivered"
+  }
+]

@@ -1,0 +1,107 @@
+[
+  {
+    "id": 1010,
+    "course_id": 101,
+    "weekday": 0,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  },
+  {
+    "id": 1011,
+    "course_id": 101,
+    "weekday": 1,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  },
+  {
+    "id": 1012,
+    "course_id": 101,
+    "weekday": 2,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  },
+  {
+    "id": 1013,
+    "course_id": 101,
+    "weekday": 3,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  },
+  {
+    "id": 1014,
+    "course_id": 101,
+    "weekday": 4,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  },
+  {
+    "id": 1020,
+    "course_id": 102,
+    "weekday": 0,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  },
+  {
+    "id": 1021,
+    "course_id": 102,
+    "weekday": 1,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  },
+  {
+    "id": 1022,
+    "course_id": 102,
+    "weekday": 2,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  },
+  {
+    "id": 1023,
+    "course_id": 102,
+    "weekday": 3,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  },
+  {
+    "id": 1024,
+    "course_id": 102,
+    "weekday": 4,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  },
+  {
+    "id": 2010,
+    "course_id": 201,
+    "weekday": 0,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  },
+  {
+    "id": 2011,
+    "course_id": 201,
+    "weekday": 1,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  },
+  {
+    "id": 2012,
+    "course_id": 201,
+    "weekday": 2,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  },
+  {
+    "id": 2013,
+    "course_id": 201,
+    "weekday": 3,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  },
+  {
+    "id": 2014,
+    "course_id": 201,
+    "weekday": 4,
+    "in_time": "08:00",
+    "out_time": "16:00"
+  }
+]

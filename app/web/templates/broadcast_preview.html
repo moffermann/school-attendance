@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Broadcast{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <h2>Crear comunicado</h2>
+    <form class="form" id="broadcast-form">
+      <div class="form-group">
+        <label for="subject">Asunto</label>
+        <input id="subject" name="subject" type="text" placeholder="Cambio de horario jueves" />
+      </div>
+      <div class="form-group">
+        <label for="course">Curso</label>
+        <select id="course" name="course">
+          <option value="">Todos los cursos</option>
+          {% for course in courses %}
+            <option value="{{ course.id }}">{{ course.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="message">Mensaje</label>
+        <textarea id="message" name="message" rows="4" placeholder="Estimados, recuerden que el jueves la salida será a las 12:00 hrs."></textarea>
+      </div>
+      <button type="submit" class="btn-primary">Previsualizar alcance</button>
+      <div id="broadcast-message" class="form-message" aria-live="polite"></div>
+    </form>
+  </section>
+{% endblock %}

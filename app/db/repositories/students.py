@@ -1,0 +1,31 @@
+"""Student repository stub."""
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.db.models.student import Student
+
+
+class StudentRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get(self, student_id: int) -> Student | None:
+        return await self.session.get(Student, student_id)
+
+    async def list_by_ids(self, student_ids: list[int]) -> list[Student]:
+        if not student_ids:
+            return []
+        stmt = select(Student).where(Student.id.in_(student_ids))
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_by_course(self, course_id: int) -> list[Student]:
+        stmt = (
+            select(Student)
+            .where(Student.course_id == course_id)
+            .options(selectinload(Student.guardians))
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())

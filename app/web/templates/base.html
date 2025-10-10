@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}School Attendance{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/main.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>School Attendance</h1>
+      <nav>
+        {% if current_user %}
+          <span>Hola, {{ current_user.full_name }}</span>
+          <a href="/">Tablero</a>
+          <a href="/schedules">Horarios</a>
+          <a href="/broadcast">Broadcast</a>
+          <a href="/parents/preferences">Preferencias</a>
+          <a href="/alerts">Alertas</a>
+          <a href="/photos">Evidencias</a>
+          <a href="/logout">Salir</a>
+        {% else %}
+          <a href="/login">Iniciar sesión</a>
+        {% endif %}
+      </nav>
+    </header>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+    <script>
+      window.API_TOKEN = {{ (api_token or '') | tojson }};
+    </script>
+    <script src="/static/js/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard · School Attendance{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <h2>Resumen de hoy</h2>
+    <div class="stats-grid">
+      <div class="stat">
+        <span class="stat-label">Alumnos activos</span>
+        <span class="stat-value">{{ stats.students }}</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Eventos hoy</span>
+        <span class="stat-value">{{ stats.events_today }}</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Últimos eventos</h2>
+    {% if recent_events %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Alumno</th>
+            <th>Tipo</th>
+            <th>Puerta</th>
+            <th>Dispositivo</th>
+            <th>Hora</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for event in recent_events %}
+            <tr>
+              <td>{{ event.student_name }}</td>
+              <td>{{ event.type }}</td>
+              <td>{{ event.gate_id }}</td>
+              <td>{{ event.device_id }}</td>
+              <td>{{ event.occurred_at.strftime('%H:%M') }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No hay eventos registrados aún.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Alertas de “no ingreso”</h2>
+    {% if no_show_alerts %}
+      <ul class="alert-list">
+        {% for alert in no_show_alerts %}
+          <li>
+            <strong>{{ alert.guardian }}</strong>
+            <span>Curso: {{ alert.course }}</span>
+            <div>Estudiantes sin ingreso: {{ alert.students | join(', ') }}</div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No hay alertas pendientes.</p>
+    {% endif %}
+  </section>
+{% endblock %}

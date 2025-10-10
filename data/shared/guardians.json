@@ -1,0 +1,695 @@
+[
+  {
+    "id": 1,
+    "full_name": "Alonso Pérez",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56990266167",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "alonso.pérez@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      1
+    ]
+  },
+  {
+    "id": 2,
+    "full_name": "Tomás Silva",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56983630431",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "tomás.silva@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      2
+    ]
+  },
+  {
+    "id": 3,
+    "full_name": "Mateo Pérez",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56956594901",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "mateo.pérez@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      3
+    ]
+  },
+  {
+    "id": 4,
+    "full_name": "Sofía Campos",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56950226206",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "sofía.campos@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      4
+    ]
+  },
+  {
+    "id": 5,
+    "full_name": "Emilia Castillo",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56984926622",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "emilia.castillo@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      5
+    ]
+  },
+  {
+    "id": 6,
+    "full_name": "Ignacia Contreras",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56971207902",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "ignacia.contreras@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      6
+    ]
+  },
+  {
+    "id": 7,
+    "full_name": "Tomás Soto",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56980660770",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "tomás.soto@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      7
+    ]
+  },
+  {
+    "id": 8,
+    "full_name": "Agustín Sepúlveda",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56947254384",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "agustín.sepúlveda@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      8
+    ]
+  },
+  {
+    "id": 9,
+    "full_name": "Lucas Fuentes",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56985456006",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "lucas.fuentes@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      9
+    ]
+  },
+  {
+    "id": 10,
+    "full_name": "Josefa Contreras",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56945100037",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "josefa.contreras@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      10,
+      11
+    ]
+  },
+  {
+    "id": 11,
+    "full_name": "Benjamín Sepúlveda",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56997062213",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "benjamín.sepúlveda@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      12
+    ]
+  },
+  {
+    "id": 12,
+    "full_name": "Ignacia González",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56963300450",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "ignacia.gonzález@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      13
+    ]
+  },
+  {
+    "id": 13,
+    "full_name": "Tomás Muñoz",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56973954453",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "tomás.muñoz@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      14,
+      15
+    ]
+  },
+  {
+    "id": 14,
+    "full_name": "Sofía Flores",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56995185693",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "sofía.flores@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      16
+    ]
+  },
+  {
+    "id": 15,
+    "full_name": "Benjamín Flores",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56964306027",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "benjamín.flores@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      17,
+      18
+    ]
+  },
+  {
+    "id": 16,
+    "full_name": "Emilia Flores",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56951820351",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "emilia.flores@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      19,
+      20
+    ]
+  },
+  {
+    "id": 17,
+    "full_name": "Joaquín Valenzuela",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56991985307",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "joaquín.valenzuela@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      21
+    ]
+  },
+  {
+    "id": 18,
+    "full_name": "Florencia Flores",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56995414110",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "florencia.flores@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      22,
+      23
+    ]
+  },
+  {
+    "id": 19,
+    "full_name": "Camila Silva",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56995749414",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "camila.silva@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      24
+    ]
+  },
+  {
+    "id": 20,
+    "full_name": "Amanda Vargas",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56956365398",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "amanda.vargas@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      25
+    ]
+  },
+  {
+    "id": 21,
+    "full_name": "Ignacia Campos",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56984841369",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "ignacia.campos@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      26,
+      27
+    ]
+  },
+  {
+    "id": 22,
+    "full_name": "Camila Pérez",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56973172347",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "camila.pérez@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      28,
+      29
+    ]
+  },
+  {
+    "id": 23,
+    "full_name": "Agustín Castillo",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56954235122",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "agustín.castillo@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      30
+    ]
+  },
+  {
+    "id": 24,
+    "full_name": "Amanda Morales",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56958767563",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "amanda.morales@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      31
+    ]
+  },
+  {
+    "id": 25,
+    "full_name": "Diego Pérez",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56974670267",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "diego.pérez@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      32
+    ]
+  },
+  {
+    "id": 26,
+    "full_name": "Isabella Silva",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56988323392",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "isabella.silva@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      33
+    ]
+  },
+  {
+    "id": 27,
+    "full_name": "Alonso Valenzuela",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56990879568",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "alonso.valenzuela@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      34,
+      35
+    ]
+  },
+  {
+    "id": 28,
+    "full_name": "Alonso Castillo",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56970076484",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "alonso.castillo@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      36
+    ]
+  },
+  {
+    "id": 29,
+    "full_name": "Isabella Sepúlveda",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56954871082",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "isabella.sepúlveda@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      37
+    ]
+  },
+  {
+    "id": 30,
+    "full_name": "Vicente Sepúlveda",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56984557602",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "vicente.sepúlveda@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      38,
+      39
+    ]
+  },
+  {
+    "id": 31,
+    "full_name": "Alonso Valenzuela",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56975629567",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "alonso.valenzuela@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      40
+    ]
+  },
+  {
+    "id": 32,
+    "full_name": "Martín Valenzuela",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56962199028",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "martín.valenzuela@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      41
+    ]
+  },
+  {
+    "id": 33,
+    "full_name": "Florencia Martínez",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56960577120",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "florencia.martínez@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      42
+    ]
+  },
+  {
+    "id": 34,
+    "full_name": "Vicente Rojas",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56988404572",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "vicente.rojas@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      43
+    ]
+  },
+  {
+    "id": 35,
+    "full_name": "Camila Rojas",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56989853904",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "camila.rojas@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      44
+    ]
+  },
+  {
+    "id": 36,
+    "full_name": "Antonella Contreras",
+    "contacts": [
+      {
+        "type": "whatsapp",
+        "value": "+56989566919",
+        "verified": true
+      },
+      {
+        "type": "email",
+        "value": "antonella.contreras@correo.cl",
+        "verified": true
+      }
+    ],
+    "student_ids": [
+      45
+    ]
+  }
+]

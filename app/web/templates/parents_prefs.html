@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Preferencias{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <h2>Apoderados</h2>
+    {% if guardians %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>WhatsApp</th>
+            <th>Email</th>
+            <th>Preferencias</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for guardian in guardians %}
+            <tr>
+              <td>{{ guardian.full_name }}</td>
+              <td>{{ guardian.contacts.get('whatsapp', '—') }}</td>
+              <td>{{ guardian.contacts.get('email', '—') }}</td>
+              <td>
+                {% if guardian.notification_prefs %}
+                  <ul>
+                    {% for key, prefs in guardian.notification_prefs.items() %}
+                      <li><strong>{{ key }}</strong>: {{ prefs | length }} canales activos</li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  No configurado
+                {% endif %}
+              </td>
+              <td>
+                <button class="btn-secondary" data-guardian-id="{{ guardian.id }}" data-prefs="{{ (guardian.notification_prefs or {}) | tojson | e }}" data-name="{{ guardian.full_name }}">Editar</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <form class="form mt-3" id="prefs-form" hidden>
+        <h3 id="prefs-title">Editar preferencias</h3>
+        <input type="hidden" id="prefs-guardian-id" />
+        {% for template in ['INGRESO_OK','SALIDA_OK','NO_INGRESO_UMBRAL','CAMBIO_HORARIO'] %}
+          <fieldset class="form-group">
+            <legend>{{ template.replace('_',' ') }}</legend>
+            <label><input type="checkbox" data-template="{{ template }}" value="WHATSAPP" /> WhatsApp</label>
+            <label><input type="checkbox" data-template="{{ template }}" value="EMAIL" /> Email</label>
+          </fieldset>
+        {% endfor %}
+        <button type="submit" class="btn-primary">Guardar</button>
+        <div id="prefs-message" class="form-message" aria-live="polite"></div>
+      </form>
+    {% else %}
+      <p>No hay apoderados registrados.</p>
+    {% endif %}
+  </section>
+{% endblock %}

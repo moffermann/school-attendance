@@ -1,0 +1,407 @@
+[
+  {
+    "id": 1,
+    "student_id": 8,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T09:14:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_xlta8i.jpg"
+  },
+  {
+    "id": 2,
+    "student_id": 5,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:03:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_9si5ga.jpg"
+  },
+  {
+    "id": 3,
+    "student_id": 12,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T09:30:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 4,
+    "student_id": 10,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:25:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 5,
+    "student_id": 9,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:07:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_90o7y2.jpg"
+  },
+  {
+    "id": 6,
+    "student_id": 13,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T09:55:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_1tdgnn.jpg"
+  },
+  {
+    "id": 7,
+    "student_id": 14,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:10:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_pl9eka.jpg"
+  },
+  {
+    "id": 8,
+    "student_id": 2,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T09:44:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_4scoss.jpg"
+  },
+  {
+    "id": 9,
+    "student_id": 7,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:43:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 10,
+    "student_id": 15,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:58:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_rjedkt.jpg"
+  },
+  {
+    "id": 11,
+    "student_id": 8,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:44:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 12,
+    "student_id": 2,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:25:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 13,
+    "student_id": 15,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:17:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 14,
+    "student_id": 12,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:32:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 15,
+    "student_id": 5,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:34:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 16,
+    "student_id": 23,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:43:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_brcl47.jpg"
+  },
+  {
+    "id": 17,
+    "student_id": 30,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T09:11:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_15f4w0.jpg"
+  },
+  {
+    "id": 18,
+    "student_id": 17,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T09:42:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_gkv05s.jpg"
+  },
+  {
+    "id": 19,
+    "student_id": 25,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:29:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 20,
+    "student_id": 16,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T09:26:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 21,
+    "student_id": 22,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:17:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 22,
+    "student_id": 21,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:45:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 23,
+    "student_id": 20,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:53:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_h3hj5s.jpg"
+  },
+  {
+    "id": 24,
+    "student_id": 26,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T09:53:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_44p39j.jpg"
+  },
+  {
+    "id": 25,
+    "student_id": 27,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:58:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_6ier0v.jpg"
+  },
+  {
+    "id": 26,
+    "student_id": 29,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:53:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 27,
+    "student_id": 16,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:37:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 28,
+    "student_id": 20,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:37:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 29,
+    "student_id": 27,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:42:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 30,
+    "student_id": 28,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:31:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 31,
+    "student_id": 44,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:44:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_pyo0cu.jpg"
+  },
+  {
+    "id": 32,
+    "student_id": 33,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T09:24:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 33,
+    "student_id": 38,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T09:06:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 34,
+    "student_id": 39,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T09:50:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_qvzfv8.jpg"
+  },
+  {
+    "id": 35,
+    "student_id": 43,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T09:40:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 36,
+    "student_id": 36,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:27:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 37,
+    "student_id": 40,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T09:50:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 38,
+    "student_id": 37,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T09:36:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_lklfyp.jpg"
+  },
+  {
+    "id": 39,
+    "student_id": 34,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:14:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_3q3qa3.jpg"
+  },
+  {
+    "id": 40,
+    "student_id": 45,
+    "type": "IN",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-10T08:04:00",
+    "device_id": "DEV-01",
+    "photo_ref": "photos/p_2wt1q3.jpg"
+  },
+  {
+    "id": 41,
+    "student_id": 34,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:24:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 42,
+    "student_id": 37,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:36:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 43,
+    "student_id": 38,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:22:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 44,
+    "student_id": 32,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:36:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  },
+  {
+    "id": 45,
+    "student_id": 45,
+    "type": "OUT",
+    "gate_id": "GATE-1",
+    "ts": "2025-10-09T16:18:00",
+    "device_id": "DEV-01",
+    "photo_ref": null
+  }
+]

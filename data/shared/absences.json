@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "student_id": 45,
+    "type": "SICK",
+    "start": "2025-10-13",
+    "end": "2025-10-13",
+    "comment": "Licencia médica",
+    "attachment_name": "certificado.pdf",
+    "status": "REJECTED"
+  },
+  {
+    "id": 2,
+    "student_id": 19,
+    "type": "SICK",
+    "start": "2025-10-14",
+    "end": "2025-10-15",
+    "comment": "Licencia médica",
+    "attachment_name": "certificado.pdf",
+    "status": "REJECTED"
+  },
+  {
+    "id": 3,
+    "student_id": 2,
+    "type": "SICK",
+    "start": "2025-10-13",
+    "end": "2025-10-13",
+    "comment": "Licencia médica",
+    "attachment_name": "certificado.pdf",
+    "status": "REJECTED"
+  },
+  {
+    "id": 4,
+    "student_id": 43,
+    "type": "SICK",
+    "start": "2025-10-13",
+    "end": "2025-10-13",
+    "comment": "Licencia médica",
+    "attachment_name": "certificado.pdf",
+    "status": "REJECTED"
+  },
+  {
+    "id": 5,
+    "student_id": 26,
+    "type": "PERSONAL",
+    "start": "2025-10-11",
+    "end": "2025-10-12",
+    "comment": "Licencia médica",
+    "attachment_name": "certificado.pdf",
+    "status": "PENDING"
+  }
+]

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Horarios{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <h2>Nueva regla de horario</h2>
+    <form class="form" id="schedule-form">
+      <div class="form-group">
+        <label for="course-id">Curso</label>
+        <select id="course-id" required>
+          <option value="">Selecciona un curso</option>
+          {% for course in courses %}
+            <option value="{{ course.id }}">{{ course.name }} ({{ course.grade }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="weekday">Día</label>
+        <select id="weekday" required>
+          {% for label, value in {'Lunes':0,'Martes':1,'Miércoles':2,'Jueves':3,'Viernes':4}.items() %}
+            <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="in-time">Hora de entrada</label>
+        <input type="time" id="in-time" value="08:00" required />
+      </div>
+      <div class="form-group">
+        <label for="out-time">Hora de salida</label>
+        <input type="time" id="out-time" value="13:30" required />
+      </div>
+      <button type="submit" class="btn-primary">Crear horario</button>
+      <div id="schedule-message" class="form-message" aria-live="polite"></div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Horarios por curso</h2>
+    {% if schedules %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Curso</th>
+            <th>Grado</th>
+            <th>Día</th>
+            <th>Entrada</th>
+            <th>Salida</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in schedules %}
+            <tr>
+              <td>{{ row.name }}</td>
+              <td>{{ row.grade }}</td>
+              <td>{{ ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'][row.weekday] }}</td>
+              <td>{{ row.in_time.strftime('%H:%M') }}</td>
+              <td>{{ row.out_time.strftime('%H:%M') }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No hay horarios configurados.</p>
+    {% endif %}
+  </section>
+{% endblock %}

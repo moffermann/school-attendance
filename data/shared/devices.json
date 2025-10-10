@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "gate_id": "GATE-1",
+    "device_id": "DEV-01",
+    "version": "0.1.0",
+    "last_sync": "2025-10-10T14:37:16.095122",
+    "pending_count": 2,
+    "battery_pct": 78,
+    "status": "ACTIVE"
+  },
+  {
+    "id": 2,
+    "gate_id": "GATE-2",
+    "device_id": "DEV-02",
+    "version": "0.1.0",
+    "last_sync": "2025-10-10T14:25:16.095136",
+    "pending_count": 0,
+    "battery_pct": 34,
+    "status": "LOW_BATTERY"
+  }
+]

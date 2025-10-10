@@ -1,0 +1,19 @@
+[
+  {
+    "id": 1,
+    "scope": "GLOBAL",
+    "date": "2025-10-10",
+    "in_time": "09:00",
+    "out_time": null,
+    "reason": "Acto aniversario colegio"
+  },
+  {
+    "id": 2,
+    "scope": "COURSE",
+    "course_id": 201,
+    "date": "2025-10-12",
+    "in_time": "10:00",
+    "out_time": "15:00",
+    "reason": "Salida pedagógica 2ºA"
+  }
+]

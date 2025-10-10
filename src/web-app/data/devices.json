@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "gate_id": "GATE-1",
+    "device_id": "DEV-01",
+    "version": "1.2.3",
+    "last_sync": "2025-10-10T08:45:00",
+    "pending_count": 2,
+    "battery_pct": 85,
+    "status": "ACTIVE"
+  },
+  {
+    "id": 2,
+    "gate_id": "GATE-2",
+    "device_id": "DEV-02",
+    "version": "1.2.3",
+    "last_sync": "2025-10-10T08:50:00",
+    "pending_count": 0,
+    "battery_pct": 45,
+    "status": "ACTIVE"
+  },
+  {
+    "id": 3,
+    "gate_id": "GATE-3",
+    "device_id": "DEV-03",
+    "version": "1.1.0",
+    "last_sync": "2025-10-10T07:30:00",
+    "pending_count": 15,
+    "battery_pct": 92,
+    "status": "QUEUE"
+  }
+]

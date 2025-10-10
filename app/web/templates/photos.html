@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Evidencias Fotográficas{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <h2>Fotos recientes</h2>
+    {% if photo_events %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Alumno</th>
+            <th>Curso</th>
+            <th>Fecha/Hora</th>
+            <th>Dispositivo</th>
+            <th>Foto</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in photo_events %}
+            <tr>
+              <td>{{ item.student_name }}</td>
+              <td>{{ item.course_name }}</td>
+              <td>{{ item.event.occurred_at }}</td>
+              <td>{{ item.event.device_id }}</td>
+              <td>
+                {% if item.url %}
+                  <a class="btn-secondary" href="{{ item.url }}" target="_blank">Ver foto</a>
+                {% else %}
+                  <span class="chip chip-warning">URL no disponible</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No hay evidencias recientes con foto.</p>
+    {% endif %}
+  </section>
+{% endblock %}

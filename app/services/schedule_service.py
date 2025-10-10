@@ -1,0 +1,44 @@
+"""Schedule service implementation."""
+
+from typing import List
+
+from app.db.repositories.schedules import ScheduleRepository
+from app.schemas.schedules import (
+    ScheduleCreate,
+    ScheduleExceptionCreate,
+    ScheduleExceptionRead,
+    ScheduleRead,
+)
+
+
+class ScheduleService:
+    def __init__(self, session):
+        self.session = session
+        self.repository = ScheduleRepository(session)
+
+    async def list_course_schedule(self, course_id: int) -> List[ScheduleRead]:
+        schedules = await self.repository.list_by_course(course_id)
+        return [ScheduleRead.model_validate(s, from_attributes=True) for s in schedules]
+
+    async def create_schedule(self, course_id: int, payload: ScheduleCreate) -> ScheduleRead:
+        schedule = await self.repository.create(
+            course_id,
+            weekday=payload.weekday,
+            in_time=payload.in_time,
+            out_time=payload.out_time,
+        )
+        await self.session.commit()
+        return ScheduleRead.model_validate(schedule, from_attributes=True)
+
+    async def create_exception(self, payload: ScheduleExceptionCreate) -> ScheduleExceptionRead:
+        exception = await self.repository.create_exception(
+            scope=payload.scope.value,
+            date=payload.date,
+            course_id=payload.course_id,
+            in_time=payload.in_time,
+            out_time=payload.out_time,
+            reason=payload.reason,
+            created_by=None,
+        )
+        await self.session.commit()
+        return ScheduleExceptionRead.model_validate(exception, from_attributes=True)

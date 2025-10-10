@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Alertas de No Ingreso{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <h2>Resumen diario</h2>
+    <div class="stats-grid">
+      <div class="stat">
+        <span class="stat-label">Alertas activas</span>
+        <span class="stat-value">{{ summary.active }}</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Alertas resueltas hoy</span>
+        <span class="stat-value">{{ summary.resolved_today }}</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Cursos afectados</span>
+        <span class="stat-value">{{ summary.courses }}</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Filtros</h2>
+    <form class="form filters-grid" method="get" action="/alerts">
+      <div class="form-group">
+        <label for="start-date">Desde</label>
+        <input type="date" id="start-date" name="start_date" value="{{ filters.start_date or '' }}">
+      </div>
+      <div class="form-group">
+        <label for="end-date">Hasta</label>
+        <input type="date" id="end-date" name="end_date" value="{{ filters.end_date or '' }}">
+      </div>
+      <div class="form-group">
+        <label for="status">Estado</label>
+        <select id="status" name="status">
+          <option value="">Todos</option>
+          <option value="PENDING" {% if filters.status == 'PENDING' %}selected{% endif %}>Pendiente</option>
+          <option value="RESOLVED" {% if filters.status == 'RESOLVED' %}selected{% endif %}>Resuelto</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="course">Curso</label>
+        <select id="course" name="course_id">
+          <option value="">Todos</option>
+          {% for course in courses %}
+            <option value="{{ course.id }}" {% if filters.course_id == course.id %}selected{% endif %}>{{ course.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="guardian">Apoderado</label>
+        <select id="guardian" name="guardian_id">
+          <option value="">Todos</option>
+          {% for guardian in guardians %}
+            <option value="{{ guardian.id }}" {% if filters.guardian_id == guardian.id %}selected{% endif %}>{{ guardian.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="student">Alumno</label>
+        <select id="student" name="student_id">
+          <option value="">Todos</option>
+          {% for student in students %}
+            <option value="{{ student.id }}" {% if filters.student_id == student.id %}selected{% endif %}>{{ student.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn-primary">Aplicar filtros</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Alertas de “No Ingreso”</h2>
+    {% if alerts %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Alumno</th>
+            <th>Apoderado</th>
+            <th>Curso</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th>Último aviso</th>
+            <th>Notas</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for alert in alerts %}
+            <tr data-alert-id="{{ alert.id }}">
+              <td>{{ alert.student_name }}</td>
+              <td>{{ alert.guardian_name }}</td>
+              <td>{{ alert.course_name }}</td>
+              <td>{{ alert.alert_date }}</td>
+              <td>
+                {% if alert.status == 'RESOLVED' %}
+                  <span class="chip chip-success">Resuelto</span>
+                {% else %}
+                  <span class="chip chip-warning">Pendiente</span>
+                {% endif %}
+              </td>
+              <td>{{ alert.last_notification_at or '—' }}</td>
+              <td>{{ alert.notes or '—' }}</td>
+              <td>
+                {% if alert.status != 'RESOLVED' %}
+                  <button class="btn-secondary btn-resolve" data-alert-id="{{ alert.id }}">Marcar resuelto</button>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No hay alertas según los filtros aplicados.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Exportar</h2>
+    <p>Descarga un CSV con las alertas filtradas.</p>
+    <a class="btn-primary" href="{{ export_url }}" target="_blank">Exportar CSV</a>
+  </section>
+{% endblock %}
