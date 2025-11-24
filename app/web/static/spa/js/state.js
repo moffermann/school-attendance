@@ -218,7 +218,9 @@ const State = {
     if (this.accessToken) {
       headers.Authorization = `Bearer ${this.accessToken}`;
     }
-    const response = await fetch(`${API_BASE}/absences/export`, { credentials: 'include', headers });
+    const params = {};
+    const url = `${API_BASE}/absences/export${this.buildQuery(params) ? `?${this.buildQuery(params)}` : ''}`;
+    const response = await fetch(url, { credentials: 'include', headers });
     if (!response.ok) throw new Error('No se pudo exportar ausencias');
     return response.blob();
   },
