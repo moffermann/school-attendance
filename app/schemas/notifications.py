@@ -34,6 +34,8 @@ class NotificationRead(BaseModel):
     template: NotificationType
     status: str
     ts_created: datetime
+    ts_sent: datetime | None = None
+    retries: int | None = None
 
 
 class BroadcastAudience(BaseModel):
@@ -55,3 +57,14 @@ class BroadcastPreview(BaseModel):
     message: str
     recipients: int
     dry_run: bool = True
+
+
+class NotificationLog(NotificationRead):
+    payload: dict[str, Any] | None = None
+
+
+class NotificationSummaryResponse(BaseModel):
+    total: int
+    by_status: dict[str, int] = Field(default_factory=dict)
+    by_channel: dict[str, int] = Field(default_factory=dict)
+    by_template: dict[str, int] = Field(default_factory=dict)

@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 from datetime import datetime
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.notification import Notification
@@ -50,3 +51,24 @@ class NotificationRepository:
         notification.retries = (notification.retries or 0) + 1
         await self.session.flush()
         return notification
+
+    async def list_notifications(
+        self,
+        *,
+        guardian_ids: list[int] | None = None,
+        status: str | None = None,
+        channel: str | None = None,
+        template: str | None = None,
+        limit: int = 200,
+    ) -> list[Notification]:
+        stmt = select(Notification).order_by(Notification.ts_created.desc()).limit(limit)
+        if guardian_ids:
+            stmt = stmt.where(Notification.guardian_id.in_(guardian_ids))
+        if status:
+            stmt = stmt.where(Notification.status == status)
+        if channel:
+            stmt = stmt.where(Notification.channel == channel)
+        if template:
+            stmt = stmt.where(Notification.template == template)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())

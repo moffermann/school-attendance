@@ -62,6 +62,8 @@ _Actualiza esta bitácora al finalizar cada sub-tarea._
 - Nuevos reportes reales: endpoint `/api/v1/web-app/reports` calcula asistencia por curso y tendencia diaria, la vista `directorReports` consume esta API (sin datos mock).
 - API de dispositivos extendida (`GET /api/v1/devices`, `POST /devices/{id}/ping`, `/devices/{id}/logs`) y la vista `directorDevices` ahora usa datos reales y acciones de backend.
 - Vista de alertas de no ingreso en SPA (`/director/alerts`) consumiendo endpoints reales (`/api/v1/alerts/no-entry`, export, resolve) con filtros y export CSV.
+- Notificaciones: endpoints de bitácora/summary (`/api/v1/notifications`, `/api/v1/notifications/summary`), vista `directorNotifications` con filtros y métricas básicas, y normalización de payloads en el estado.
+- Ausencias moderables por staff (`GET /api/v1/absences`, `/absences/{id}/status`) y bandeja SPA conectada al backend (aprobar/rechazar).
 
 Pendientes próximos:
 1. Extender métricas compartidas (ausencias/notificaciones) y vistas para que muestren datos y exportes reales (parent/portal).

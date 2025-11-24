@@ -306,8 +306,12 @@ const State = {
       student_id: notification.student_id,
       type: notification.type,
       channel: notification.channel,
-      sent_at: notification.sent_at,
-      status: notification.status
+      sent_at: notification.sent_at || notification.ts_sent || null,
+      status: notification.status,
+      template: notification.template,
+      payload: notification.payload || {},
+      ts_created: notification.ts_created || null,
+      retries: notification.retries ?? 0
     };
   },
 

@@ -23,10 +23,10 @@ from app.services.alert_service import AlertService
 from app.services.dashboard_service import DashboardService
 from app.services.device_service import DeviceService
 from app.services.web_app_service import WebAppDataService
+from app.services.notification_service import NotificationService
 from app.api.v1 import auth as auth_module
 from app.core.auth import AuthUser
 from starlette.requests import Request
-from app.services.absence_service import AbsenceService
 
 
 @pytest.mark.anyio("asyncio")
@@ -711,3 +711,35 @@ async def test_absence_service_updates_status() -> None:
     assert result.status == "PENDING" or result.status  # status is updated inside repo
     repo.update_status.assert_awaited_with(1, "APPROVED")
     session.commit.assert_awaited()
+
+
+@pytest.mark.anyio("asyncio")
+async def test_notification_service_list_and_summary(monkeypatch) -> None:
+    session = MagicMock()
+    repo = MagicMock()
+
+    notification = SimpleNamespace(
+        id=1,
+        guardian_id=2,
+        channel="WHATSAPP",
+        template="INGRESO_OK",
+        status="sent",
+        ts_created=datetime.now(timezone.utc),
+        ts_sent=datetime.now(timezone.utc),
+        retries=0,
+        payload={"recipient": "+56912345678"},
+    )
+    repo.list_notifications = AsyncMock(return_value=[notification])
+
+    service = NotificationService(session)
+    service.repository = repo  # type: ignore
+    service.guardian_repo = MagicMock()
+    service.guardian_repo.list_by_student_ids = AsyncMock(return_value=[])
+
+    logs = await service.list_notifications(guardian_id=None)
+    assert len(logs) == 1
+    assert logs[0].channel == "WHATSAPP"
+
+    summary = await service.summary()
+    assert summary.total == 1
+    assert summary.by_channel["WHATSAPP"] == 1

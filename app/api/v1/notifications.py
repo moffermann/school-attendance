@@ -1,14 +1,49 @@
 """Notification endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core import deps
 from app.core.auth import AuthUser
-from app.schemas.notifications import NotificationDispatchRequest, NotificationRead
+from app.schemas.notifications import (
+    NotificationDispatchRequest,
+    NotificationLog,
+    NotificationRead,
+    NotificationSummaryResponse,
+)
+from app.services.notification_service import NotificationService
 from app.services.notifications.dispatcher import NotificationDispatcher
 
 
 router = APIRouter()
+
+
+@router.get("", response_model=list[NotificationLog])
+async def list_notifications(
+    status_filter: str | None = Query(default=None, alias="status"),
+    channel: str | None = Query(default=None),
+    template: str | None = Query(default=None),
+    guardian_id: int | None = Query(default=None),
+    student_id: int | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=500),
+    service: NotificationService = Depends(deps.get_notification_service),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
+) -> list[NotificationLog]:
+    return await service.list_notifications(
+        guardian_id=guardian_id,
+        student_id=student_id,
+        status=status_filter,
+        channel=channel,
+        template=template,
+        limit=limit,
+    )
+
+
+@router.get("/summary", response_model=NotificationSummaryResponse)
+async def notifications_summary(
+    service: NotificationService = Depends(deps.get_notification_service),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
+) -> NotificationSummaryResponse:
+    return await service.summary()
 
 
 @router.post("/dispatch", response_model=NotificationRead, status_code=status.HTTP_202_ACCEPTED)
