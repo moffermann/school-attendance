@@ -7,8 +7,9 @@ Create Date: 2024-05-13 00:00:00.000000
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
+from sqlalchemy.dialects import postgresql
 
 
 revision = "0001_initial"
@@ -18,8 +19,13 @@ depends_on = None
 
 
 def upgrade() -> None:
-    attendance_type = sa.Enum("IN", "OUT", name="attendance_type")
-    attendance_type.create(op.get_bind(), checkfirst=True)
+    op.execute(
+        "DO $$ BEGIN CREATE TYPE attendance_type AS ENUM ('IN','OUT'); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$;"
+    )
+    attendance_type = postgresql.ENUM(
+        "IN", "OUT", name="attendance_type", create_type=False
+    )
 
     op.create_table(
         "courses",

@@ -49,14 +49,12 @@ def run_migrations_online() -> None:
 
     async def do_run_migrations() -> None:
         async with connectable.connect() as connection:
-            await connection.run_sync(
-                lambda sync_conn: context.configure(
-                    connection=sync_conn, target_metadata=target_metadata
-                )
-            )
+            await connection.run_sync(run_sync_migrations)
 
-            with context.begin_transaction():
-                context.run_migrations()
+    def run_sync_migrations(connection):
+        context.configure(connection=connection, target_metadata=target_metadata)
+        with context.begin_transaction():
+            context.run_migrations()
 
     from sqlalchemy import event
     from sqlalchemy.engine import Engine

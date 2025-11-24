@@ -1,0 +1,8 @@
+{
+  "name": "school-attendance",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "migrate": "make migrate"
+  }
+}

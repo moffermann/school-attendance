@@ -14,12 +14,16 @@ FROM base AS builder
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt pyproject.toml README.md ./
-RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir -e .
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir -e .[dev]
 COPY . .
 
 FROM base AS runtime
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends wget make && rm -rf /var/lib/apt/lists/*
+COPY scripts/npm-shim.sh /usr/local/bin/npm
+RUN chmod +x /usr/local/bin/npm
 ENV PORT=8080 \
     LOG_LEVEL=info \
     PYTHONPATH=/app
