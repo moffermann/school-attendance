@@ -118,6 +118,7 @@ const Components = {
                 <li><a href="#/director/broadcast" role="menuitem">Broadcast</a></li>
                 <li><a href="#/director/devices" role="menuitem">Dispositivos</a></li>
                 <li><a href="#/director/students" role="menuitem">Alumnos</a></li>
+                <li><a href="#/director/alerts" role="menuitem">Alertas</a></li>
                 <li><a href="#/director/absences" role="menuitem">Ausencias</a></li>
               </ul>
             </nav>

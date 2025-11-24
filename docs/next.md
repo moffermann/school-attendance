@@ -61,11 +61,12 @@ _Actualiza esta bitácora al finalizar cada sub-tarea._
 - Se creó `DashboardService` + endpoints `/api/v1/web-app/dashboard` y `/dashboard/export` con estadísticas reales, filtros por fecha/curso/tipo y enlaces de foto; la vista `directorDashboard` ahora consume estos datos (sin mocks).
 - Nuevos reportes reales: endpoint `/api/v1/web-app/reports` calcula asistencia por curso y tendencia diaria, la vista `directorReports` consume esta API (sin datos mock).
 - API de dispositivos extendida (`GET /api/v1/devices`, `POST /devices/{id}/ping`, `/devices/{id}/logs`) y la vista `directorDevices` ahora usa datos reales y acciones de backend.
+- Vista de alertas de no ingreso en SPA (`/director/alerts`) consumiendo endpoints reales (`/api/v1/alerts/no-entry`, export, resolve) con filtros y export CSV.
 
 Pendientes próximos:
-1. Ajustar vistas de alerts SPA (si aplica) para consumir los endpoints existentes de alertas y export, y ampliar métricas compartidas (absences, notifications).
+1. Extender métricas compartidas (ausencias/notificaciones) y vistas para que muestren datos y exportes reales (parent/portal).
 2. Ajustar backend para exponer endpoints faltantes (absences CRUD completos, notifications por guardian, métricas) o adaptar la SPA a los disponibles.
 3. Documentar en `docs/roadmap.md` el plan detallado para la segunda fase (PWA y kiosco) una vez que la SPA quede totalmente integrada.
-4. Añadir pruebas de servicio para rutas nuevas (`auth/session`, `web-app/bootstrap`, schedules update/delete, devices) y completar cobertura.
+4. Añadir pruebas de servicio para rutas nuevas (`auth/session`, `web-app/bootstrap`, schedules update/delete, devices/alerts) y completar cobertura.
 
-**Siguiente paso inmediato:** Conectar vista de alertas SPA (si se activa) a los endpoints reales y completar métricas compartidas (ausencias/notificaciones) para el portal.
+**Siguiente paso inmediato:** Extender métricas/estadísticas de ausencias y notificaciones en el portal y documentar el roadmap de la segunda fase (PWA/kiosco).

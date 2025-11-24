@@ -13,6 +13,7 @@ const Router = {
     this.addRoute('/director/broadcast', Views.directorBroadcast, ['director', 'inspector']);
     this.addRoute('/director/devices', Views.directorDevices, ['director', 'inspector']);
     this.addRoute('/director/students', Views.directorStudents, ['director', 'inspector']);
+    this.addRoute('/director/alerts', Views.directorAlerts, ['director', 'inspector']);
     this.addRoute('/director/absences', Views.directorAbsences, ['director', 'inspector']);
     this.addRoute('/parent/home', Views.parentHome, ['parent']);
     this.addRoute('/parent/history', Views.parentHistory, ['parent']);

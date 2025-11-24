@@ -11,7 +11,8 @@ const State = {
     attendance_events: [],
     devices: [],
     absences: [],
-    notifications: []
+    notifications: [],
+    alerts: []
   },
   currentRole: null,
   currentGuardianId: null,
@@ -163,6 +164,41 @@ const State = {
     const devices = await this.apiFetch('/devices');
     this.data.devices = (devices || []).map((item) => this.normalizeDevice(item));
     return this.data.devices;
+  },
+
+  async fetchAlerts(params = {}) {
+    const query = this.buildQuery(params);
+    const path = query ? `/alerts/no-entry?${query}` : '/alerts/no-entry';
+    const alerts = await this.apiFetch(path);
+    this.data.alerts = alerts || [];
+    return this.data.alerts;
+  },
+
+  async resolveAlert(alertId, notes = '') {
+    const payload = { notes: notes || null };
+    const result = await this.apiFetch(`/alerts/no-entry/${alertId}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    this.data.alerts = this.data.alerts.map((alert) => (alert.id === alertId ? result : alert));
+    return result;
+  },
+
+  async exportAlerts(params = {}) {
+    const query = this.buildQuery(params);
+    const url = `${API_BASE}/alerts/no-entry/export${query ? `?${query}` : ''}`;
+    const headers = {};
+    if (this.accessToken) {
+      headers.Authorization = `Bearer ${this.accessToken}`;
+    }
+    const response = await fetch(url, {
+      credentials: 'include',
+      headers
+    });
+    if (!response.ok) {
+      throw new Error('No se pudo exportar alertas');
+    }
+    return response.blob();
   },
 
   mapRole(role) {
