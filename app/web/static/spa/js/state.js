@@ -153,6 +153,12 @@ const State = {
     return response.blob();
   },
 
+  async fetchReportsSnapshot(params = {}) {
+    const query = this.buildQuery(params);
+    const path = query ? `/web-app/reports?${query}` : '/web-app/reports';
+    return this.apiFetch(path);
+  },
+
   mapRole(role) {
     if (!role) return 'director';
     const normalized = role.toUpperCase();

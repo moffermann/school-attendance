@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 
 from app.core import deps
 from app.core.auth import AuthUser
-from app.schemas.webapp import DashboardSnapshot, WebAppBootstrap
+from app.schemas.webapp import DashboardSnapshot, ReportsSnapshot, WebAppBootstrap
 from app.services.dashboard_service import DashboardService
 from app.services.web_app_service import WebAppDataService
 
@@ -62,4 +62,19 @@ async def export_dashboard_snapshot(
         iter([csv_data]),
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename=\"{filename}\"'},
+    )
+
+
+@router.get("/reports", response_model=ReportsSnapshot)
+async def reports_snapshot(
+    start_date: date = Query(..., alias="start"),
+    end_date: date = Query(..., alias="end"),
+    course_id: int | None = Query(default=None),
+    dashboard_service: DashboardService = Depends(deps.get_dashboard_service),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
+) -> ReportsSnapshot:
+    return await dashboard_service.get_report(
+        start_date=start_date,
+        end_date=end_date,
+        course_id=course_id,
     )

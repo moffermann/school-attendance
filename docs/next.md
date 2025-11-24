@@ -59,11 +59,12 @@ _Actualiza esta bitácora al finalizar cada sub-tarea._
 - `State.init()` ahora usa los datos reales del backend (sin `localStorage`), incluye helpers `apiFetch`, `upsertSchedule`, `addScheduleException` y `deleteScheduleException` contra los endpoints actualizados.
 - API de horarios ampliada: `PUT /api/v1/schedules/{id}` y `DELETE /api/v1/schedules/exceptions/{id}`; la vista de horarios/excepciones ya consume estas rutas con manejo básico de errores.
 - Se creó `DashboardService` + endpoints `/api/v1/web-app/dashboard` y `/dashboard/export` con estadísticas reales, filtros por fecha/curso/tipo y enlaces de foto; la vista `directorDashboard` ahora consume estos datos (sin mocks).
+- Nuevos reportes reales: endpoint `/api/v1/web-app/reports` calcula asistencia por curso y tendencia diaria, la vista `directorReports` consume esta API (sin datos mock).
 
 Pendientes próximos:
-1. Actualizar vistas restantes (reports, devices, students, alerts SPA) para evitar lecturas/escrituras directas a `localStorage` y reemplazar mocks (parentPrefs ya consume APIs reales).
+1. Actualizar vistas restantes (devices, students y vistas de alerts SPA) para eliminar mocks y agregar acciones reales (ping/logs, export, filtros).
 2. Ajustar backend para exponer endpoints faltantes (absences CRUD, notifications por guardian, métricas) o adaptar la SPA a los disponibles.
 3. Documentar en `docs/roadmap.md` el plan detallado para la segunda fase (PWA y kiosco) una vez que la SPA quede totalmente integrada.
 4. Añadir pruebas de servicio para `WebAppDataService` y rutas nuevas (`auth/session`, `web-app/bootstrap`, schedules update/delete).
 
-**Siguiente paso inmediato:** Llevar las vistas de reportes y dispositivos a los endpoints reales (sin mocks) y extender las métricas del dashboard al resto del portal.
+**Siguiente paso inmediato:** Conectar dispositivos/alertas del portal a endpoints reales (ping/logs/estadísticas) y extender las métricas compartidas (absences, notifications).

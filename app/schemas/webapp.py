@@ -121,6 +121,28 @@ class DashboardSnapshot(BaseModel):
     events: list[DashboardEvent] = Field(default_factory=list)
 
 
+class ReportCourseSummary(BaseModel):
+    course_id: int
+    course_name: str
+    total_students: int
+    present: int
+    late: int
+    absent: int
+    attendance_pct: float
+
+
+class ReportTrendPoint(BaseModel):
+    date: date
+    present: int
+
+
+class ReportsSnapshot(BaseModel):
+    start_date: date
+    end_date: date
+    courses: list[ReportCourseSummary] = Field(default_factory=list)
+    trend: list[ReportTrendPoint] = Field(default_factory=list)
+
+
 class WebAppBootstrap(BaseModel):
     current_user: SessionUser
     students: list[StudentSummary] = Field(default_factory=list)

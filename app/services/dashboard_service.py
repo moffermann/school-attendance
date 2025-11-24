@@ -17,7 +17,14 @@ from app.db.models.schedule import Schedule
 from app.db.models.student import Student
 from app.db.repositories.schedules import ScheduleRepository
 from app.db.repositories.students import StudentRepository
-from app.schemas.webapp import DashboardEvent, DashboardSnapshot, DashboardStats
+from app.schemas.webapp import (
+    DashboardEvent,
+    DashboardSnapshot,
+    DashboardStats,
+    ReportCourseSummary,
+    ReportTrendPoint,
+    ReportsSnapshot,
+)
 from app.services.photo_service import PhotoService
 
 MAX_EVENTS = 500
@@ -92,6 +99,134 @@ class DashboardService:
             )
 
         return buffer.getvalue()
+
+    async def get_report(
+        self,
+        *,
+        start_date: date,
+        end_date: date,
+        course_id: int | None = None,
+    ) -> ReportsSnapshot:
+        if start_date > end_date:
+            raise ValueError("Rango de fechas inválido")
+
+        course_stmt = select(Course)
+        if course_id is not None:
+            course_stmt = course_stmt.where(Course.id == course_id)
+        courses: list[Course] = list((await self.session.execute(course_stmt)).scalars().all())
+        course_ids = {course.id for course in courses}
+        if not course_ids:
+            return ReportsSnapshot(
+                start_date=start_date, end_date=end_date, courses=[], trend=[]
+            )
+
+        schedules = await self.schedule_repo.list_by_course_ids(course_ids)
+        schedules_map = {(schedule.course_id, schedule.weekday): schedule for schedule in schedules}
+
+        students = await self.student_repo.list_by_course_ids(course_ids)
+        student_course = {student.id: student.course_id for student in students}
+        students_by_course: dict[int, list[Student]] = {cid: [] for cid in course_ids}
+        for student in students:
+            students_by_course.setdefault(student.course_id, []).append(student)
+
+        events_stmt = (
+            select(AttendanceEvent, Student, Course)
+            .join(Student, Student.id == AttendanceEvent.student_id)
+            .join(Course, Course.id == Student.course_id)
+            .where(
+                func.date(AttendanceEvent.occurred_at) >= start_date,
+                func.date(AttendanceEvent.occurred_at) <= end_date,
+                Student.course_id.in_(course_ids),
+            )
+            .order_by(AttendanceEvent.occurred_at)
+        )
+        result = await self.session.execute(events_stmt)
+        events: list[tuple[AttendanceEvent, Student, Course]] = list(result.all())
+
+        date_range = self._iter_dates(start_date, end_date)
+        earliest_in: dict[tuple[int, date], datetime] = {}
+        trend_counts: dict[date, set[int]] = {dt: set() for dt in date_range}
+
+        for event, student, course in events:
+            event_date = self._normalize_dt(event.occurred_at)
+            if not event_date:
+                continue
+            event_day = event_date.date()
+            if event.type == "IN":
+                key = (student.id, event_day)
+                current = earliest_in.get(key)
+                if current is None or event_date < current:
+                    earliest_in[key] = event_date
+                trend_counts.setdefault(event_day, set()).add(student.id)
+
+        course_summaries: list[ReportCourseSummary] = []
+        grace = timedelta(minutes=settings.no_show_grace_minutes)
+        for course in courses:
+            course_students = students_by_course.get(course.id, [])
+            if not course_students:
+                course_summaries.append(
+                    ReportCourseSummary(
+                        course_id=course.id,
+                        course_name=course.name,
+                        total_students=0,
+                        present=0,
+                        late=0,
+                        absent=0,
+                        attendance_pct=0.0,
+                    )
+                )
+                continue
+
+            present_total = 0
+            late_total = 0
+            absent_total = 0
+            expected_sessions = 0
+
+            for current_day in date_range:
+                weekday = current_day.weekday()
+                schedule = schedules_map.get((course.id, weekday))
+                if not schedule:
+                    continue
+                expected_sessions += len(course_students)
+                threshold = datetime.combine(current_day, schedule.in_time) + grace
+
+                for student in course_students:
+                    key = (student.id, current_day)
+                    first_in = earliest_in.get(key)
+                    if not first_in:
+                        absent_total += 1
+                        continue
+                    present_total += 1
+                    if first_in > threshold:
+                        late_total += 1
+
+            attendance_pct = (
+                (present_total / expected_sessions) * 100 if expected_sessions else 0.0
+            )
+
+            course_summaries.append(
+                ReportCourseSummary(
+                    course_id=course.id,
+                    course_name=course.name,
+                    total_students=len(course_students),
+                    present=present_total,
+                    late=late_total,
+                    absent=absent_total,
+                    attendance_pct=round(attendance_pct, 1),
+                )
+            )
+
+        trend_points: list[ReportTrendPoint] = []
+        for day in date_range:
+            present_count = len(trend_counts.get(day, set()))
+            trend_points.append(ReportTrendPoint(date=day, present=present_count))
+
+        return ReportsSnapshot(
+            start_date=start_date,
+            end_date=end_date,
+            courses=course_summaries,
+            trend=trend_points,
+        )
 
     async def _fetch_events(
         self,
@@ -201,3 +336,12 @@ class DashboardService:
             return None
         upper = value.upper()
         return upper if upper in {"IN", "OUT"} else None
+
+    @staticmethod
+    def _iter_dates(start: date, end: date) -> list[date]:
+        days: list[date] = []
+        current = start
+        while current <= end:
+            days.append(current)
+            current += timedelta(days=1)
+        return days

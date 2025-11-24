@@ -494,3 +494,76 @@ async def test_dashboard_service_computes_stats(monkeypatch) -> None:
     assert snapshot.stats.no_in_count == 1
     assert snapshot.stats.with_photos == 1
     assert snapshot.events[0].photo_url == "https://cdn/photos/p1"
+
+
+@pytest.mark.anyio("asyncio")
+async def test_dashboard_service_report(monkeypatch) -> None:
+    session = MagicMock()
+    service = DashboardService(session)
+
+    course = SimpleNamespace(id=1, name="1° Básico A")
+    schedule = SimpleNamespace(course_id=1, in_time=time(8, 0), weekday=2)
+    schedule_next = SimpleNamespace(course_id=1, in_time=time(8, 0), weekday=3)
+    students = [
+        SimpleNamespace(id=1, course_id=1, full_name="Ana"),
+        SimpleNamespace(id=2, course_id=1, full_name="Ben"),
+    ]
+
+    service.schedule_repo.list_by_course_ids = AsyncMock(return_value=[schedule, schedule_next])
+    service.student_repo.list_by_course_ids = AsyncMock(return_value=students)
+
+    events_raw = [
+        (
+            SimpleNamespace(
+                student_id=1,
+                type="IN",
+                gate_id="G1",
+                device_id="D1",
+                occurred_at=datetime(2024, 1, 10, 8, 5),
+                photo_ref=None,
+            ),
+            students[0],
+            course,
+        ),
+        (
+            SimpleNamespace(
+                student_id=2,
+                type="IN",
+                gate_id="G1",
+                device_id="D1",
+                occurred_at=datetime(2024, 1, 10, 8, 45),
+                photo_ref=None,
+            ),
+            students[1],
+            course,
+        ),
+        (
+            SimpleNamespace(
+                student_id=1,
+                type="IN",
+                gate_id="G1",
+                device_id="D1",
+                occurred_at=datetime(2024, 1, 11, 8, 0),
+                photo_ref=None,
+            ),
+            students[0],
+            course,
+        ),
+    ]
+
+    course_result = SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: [course]))
+    events_result = SimpleNamespace(all=lambda: events_raw)
+    session.execute = AsyncMock(side_effect=[course_result, events_result])
+
+    snapshot = await service.get_report(
+        start_date=date(2024, 1, 10),
+        end_date=date(2024, 1, 11),
+        course_id=None,
+    )
+
+    summary = snapshot.courses[0]
+    assert summary.present == 3
+    assert summary.absent == 1
+    assert summary.late == 1
+    assert summary.attendance_pct == 75.0
+    assert [point.present for point in snapshot.trend] == [2, 1]

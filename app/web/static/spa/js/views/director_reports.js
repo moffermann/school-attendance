@@ -1,4 +1,4 @@
-// Director Reports
+// Director Reports (datos reales)
 Views.directorReports = function() {
   const app = document.getElementById('app');
   app.innerHTML = Components.createLayout(State.currentRole);
@@ -11,125 +11,144 @@ Views.directorReports = function() {
   const today = new Date().toISOString().split('T')[0];
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-  content.innerHTML = `
-    <div class="card mb-3">
-      <div class="card-header">Filtros de Reporte</div>
-      <div class="card-body">
-        <div class="flex gap-2 flex-wrap items-end">
-          <div class="form-group" style="flex: 1; min-width: 200px;">
-            <label class="form-label">Fecha Inicio</label>
-            <input type="date" id="date-start" class="form-input" value="${weekAgo}">
-          </div>
+  let filters = { start: weekAgo, end: today, course_id: '' };
+  let snapshot = { courses: [], trend: [], start_date: weekAgo, end_date: today };
 
-          <div class="form-group" style="flex: 1; min-width: 200px;">
-            <label class="form-label">Fecha Fin</label>
-            <input type="date" id="date-end" class="form-input" value="${today}">
-          </div>
+  async function loadReport(showToast = false) {
+    content.innerHTML = Components.createLoader('Calculando reportes...');
+    try {
+      snapshot = await State.fetchReportsSnapshot({
+        start: filters.start,
+        end: filters.end,
+        course_id: filters.course_id || undefined
+      });
+      renderReport();
+      if (showToast) Components.showToast('Reporte actualizado', 'success');
+    } catch (error) {
+      console.error('No se pudo generar el reporte', error);
+      content.innerHTML = Components.createEmptyState('No disponible', 'No se pudo calcular el reporte de asistencia.');
+    }
+  }
 
-          <div class="form-group" style="flex: 1; min-width: 200px;">
-            <label class="form-label">Curso</label>
-            <select id="course-select" class="form-select">
-              <option value="">Todos</option>
-              ${courses.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
-            </select>
-          </div>
+  function renderReport() {
+    content.innerHTML = `
+      <div class="card mb-3">
+        <div class="card-header">Filtros de Reporte</div>
+        <div class="card-body">
+          <div class="flex gap-2 flex-wrap items-end">
+            <div class="form-group" style="flex: 1; min-width: 200px;">
+              <label class="form-label">Fecha Inicio</label>
+              <input type="date" id="date-start" class="form-input" value="${filters.start}">
+            </div>
 
-          <button class="btn btn-primary" onclick="Views.directorReports.generateReport()">Generar</button>
+            <div class="form-group" style="flex: 1; min-width: 200px;">
+              <label class="form-label">Fecha Fin</label>
+              <input type="date" id="date-end" class="form-input" value="${filters.end}">
+            </div>
+
+            <div class="form-group" style="flex: 1; min-width: 200px;">
+              <label class="form-label">Curso</label>
+              <select id="course-select" class="form-select">
+                <option value="">Todos</option>
+                ${courses.map(c => `<option value="${c.id}" ${filters.course_id === String(c.id) ? 'selected' : ''}>${c.name}</option>`).join('')}
+              </select>
+            </div>
+
+            <button class="btn btn-primary" onclick="Views.directorReports.generateReport()">Generar</button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div id="report-results"></div>
-  `;
+      <div id="report-results"></div>
+    `;
 
-  // Auto-generate initial report
-  setTimeout(() => Views.directorReports.generateReport(), 100);
+    renderResults();
+  }
 
-  Views.directorReports.generateReport = function() {
+  function renderResults() {
     const resultsDiv = document.getElementById('report-results');
-    const courseId = document.getElementById('course-select').value;
-    const selectedCourses = courseId ? [State.getCourse(parseInt(courseId))] : courses;
+    const summaries = snapshot.courses || [];
 
-    let totalStudents = 0;
-    let totalPresent = 0;
-    let totalLate = 0;
-    let totalAbsent = 0;
+    const totals = summaries.reduce(
+      (acc, item) => {
+        acc.students += item.total_students;
+        acc.present += item.present;
+        acc.late += item.late;
+        acc.absent += item.absent;
+        return acc;
+      },
+      { students: 0, present: 0, late: 0, absent: 0 }
+    );
 
-    const reportRows = selectedCourses.map(course => {
-      const students = State.getStudentsByCourse(course.id);
-      const events = State.getAttendanceEvents({ courseId: course.id });
-      const inEvents = events.filter(e => e.type === 'IN');
-      const lateEvents = inEvents.filter(e => e.ts.split('T')[1] > '08:30:00');
-
-      const presentCount = new Set(inEvents.map(e => e.student_id)).size;
-      const absentCount = students.length - presentCount;
-
-      totalStudents += students.length;
-      totalPresent += presentCount;
-      totalLate += lateEvents.length;
-      totalAbsent += absentCount;
-
-      const attendancePercent = ((presentCount / students.length) * 100).toFixed(1);
-
-      return [
-        course.name,
-        students.length,
-        presentCount,
-        lateEvents.length,
-        absentCount,
-        `${attendancePercent}%`
-      ];
-    });
+    const rows = summaries.map(item => [
+      item.course_name,
+      item.total_students,
+      item.present,
+      item.late,
+      item.absent,
+      `${item.attendance_pct}%`
+    ]);
 
     resultsDiv.innerHTML = `
+      <div class="cards-grid">
+        ${Components.createStatCard('Alumnos', totals.students)}
+        ${Components.createStatCard('Presentes', totals.present)}
+        ${Components.createStatCard('Atrasos', totals.late)}
+        ${Components.createStatCard('Ausentes', totals.absent)}
+      </div>
+
       <div class="card mb-3">
         <div class="card-header">Resumen por Curso</div>
         <div class="card-body">
           ${Components.createTable(
             ['Curso', 'Total Alumnos', 'Presentes', 'Atrasos', 'Ausentes', '% Asistencia'],
-            reportRows
+            rows
           )}
         </div>
       </div>
 
       <div class="card mb-3">
-        <div class="card-header">Gráfico de Asistencia</div>
+        <div class="card-header">Asistencia por Curso</div>
         <div class="card-body">
           <canvas id="attendance-chart" width="800" height="300"></canvas>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-header">Tendencia Semanal</div>
+        <div class="card-header">Tendencia diaria</div>
         <div class="card-body">
           <canvas id="trend-chart" width="800" height="300"></canvas>
         </div>
       </div>
     `;
 
-    // Draw charts
-    setTimeout(() => {
-      const barCanvas = document.getElementById('attendance-chart');
-      if (barCanvas) {
-        const data = selectedCourses.map(c => {
-          const students = State.getStudentsByCourse(c.id);
-          const events = State.getAttendanceEvents({ courseId: c.id });
-          const inEvents = events.filter(e => e.type === 'IN');
-          return new Set(inEvents.map(e => e.student_id)).size;
-        });
-        const labels = selectedCourses.map(c => c.name);
-        Components.drawBarChart(barCanvas, data, labels);
-      }
+    setTimeout(() => drawCharts(summaries, snapshot.trend || []), 50);
+  }
 
-      const lineCanvas = document.getElementById('trend-chart');
-      if (lineCanvas) {
-        // Mock weekly trend data
-        const weekDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
-        const trendData = [45, 52, 48, 55, 50]; // Mock data
-        Components.drawLineChart(lineCanvas, trendData, weekDays);
-      }
-    }, 100);
+  function drawCharts(summaries, trend) {
+    const barCanvas = document.getElementById('attendance-chart');
+    if (barCanvas) {
+      const data = summaries.map(item => item.attendance_pct);
+      const labels = summaries.map(item => item.course_name);
+      Components.drawBarChart(barCanvas, data, labels);
+    }
 
-    Components.showToast('Reporte generado', 'success');
+    const lineCanvas = document.getElementById('trend-chart');
+    if (lineCanvas) {
+      const labels = trend.map(point => Components.formatDate(point.date));
+      const data = trend.map(point => point.present);
+      Components.drawLineChart(lineCanvas, data, labels);
+    }
+  }
+
+  Views.directorReports.generateReport = function() {
+    filters = {
+      start: document.getElementById('date-start').value,
+      end: document.getElementById('date-end').value,
+      course_id: document.getElementById('course-select').value
+    };
+    loadReport(true);
   };
+
+  loadReport();
 };
