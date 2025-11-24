@@ -113,7 +113,7 @@ async def logout() -> RedirectResponse:
     return response
 
 
-@web_router.get("/app")
+@web_router.get("/app", response_model=None)
 async def spa_entrypoint(
     request: Request, session: AsyncSession = Depends(deps.get_db)
 ) -> FileResponse | RedirectResponse:
