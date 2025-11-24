@@ -23,6 +23,8 @@ class NotificationService:
         status: str | None = None,
         channel: str | None = None,
         template: str | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         limit: int = 200,
     ) -> list[NotificationLog]:
         guardian_ids = None
@@ -37,6 +39,8 @@ class NotificationService:
             status=status,
             channel=channel,
             template=template,
+            start=start,
+            end=end,
             limit=limit,
         )
         return [NotificationLog.model_validate(item, from_attributes=True) for item in records]

@@ -1,5 +1,7 @@
 """Notification endpoints."""
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core import deps
@@ -54,6 +56,8 @@ async def export_notifications(
     template: str | None = Query(default=None),
     guardian_id: int | None = Query(default=None),
     student_id: int | None = Query(default=None),
+    start: datetime | None = Query(default=None),
+    end: datetime | None = Query(default=None),
     limit: int = Query(default=500, ge=1, le=2000),
     service: NotificationService = Depends(deps.get_notification_service),
     _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
@@ -64,12 +68,17 @@ async def export_notifications(
         status=status_filter,
         channel=channel,
         template=template,
+        start=start,
+        end=end,
         limit=limit,
     )
-    lines = ["ts_created,channel,template,status,retries"]
+    lines = ["ts_created,ts_sent,channel,template,status,retries,guardian_id,student_id,recipient"]
     for item in logs:
+        recipient = ""
+        if isinstance(item.payload, dict):
+            recipient = item.payload.get("recipient") or item.payload.get("email") or ""
         lines.append(
-            f"{item.ts_created},{item.channel},{item.template},{item.status},{item.retries or 0}"
+            f"{item.ts_created},{item.ts_sent or ''},{item.channel},{item.template},{item.status},{item.retries or 0},{item.guardian_id},{item.student_id or ''},{recipient}"
         )
     csv_data = "\n".join(lines)
     return Response(

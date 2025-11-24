@@ -8,7 +8,7 @@
 ## Próximas entregas (portal web)
 1. **Métricas extendidas**
    - Ausencias: bandeja con filtros/exports y KPIs agregados.
-   - Notificaciones: métricas de envíos por canal/plantilla y bitácora de broadcast.
+   - Notificaciones: métricas de envíos por canal/plantilla y bitácora/broadcast con export CSV por rango.
 2. **Cobertura de pruebas**
    - Servicios/rutas: `auth/session`, `web-app/bootstrap`, horarios (update/delete), devices/alerts y reportes.
    - Mantener `tests/test_services.py` como concentración de unitarios + agregar pruebas de rutas ligeras (TestClient) si aplica.
@@ -19,7 +19,7 @@
 ## Kiosco (fase siguiente)
 1. Exponer catálogos necesarios (`/api/v1/tags`, estudiantes por curso/token, horarios vigentes) y consumo real en la maqueta.
 2. Encolar eventos/offline: usar `POST /api/v1/attendance/events` + `POST /events/{id}/photo` con idempotencia (`local_seq`) y reconciliación.
-3. Provisioning de dispositivos: script `scripts/provision_kiosk.py` + documentación (`docs/kiosk.md`) para enrolar y rotar device keys.
+3. Provisioning de dispositivos: script `scripts/provision_kiosk.py` + documentación (`docs/kiosk.md`) para enrolar y rotar device keys; definir políticas de rotación y auditoría de claves en `.env.example`.
 
 ## PWA Profesores (fase siguiente)
 1. Crear rol/endpoint docente (`/api/v1/teachers/courses`, `/attendance/bulk`, `/alerts/summary`).
@@ -27,5 +27,5 @@
 3. Pruebas E2E (Playwright) cubriendo toma de asistencia y reintentos offline.
 
 ## Seguridad y despliegue
-- Fortalecer refresh tokens persistentes, rotación de device keys y MFA para staff.
+- Fortalecer refresh tokens persistentes (rotación, revocación), rotación de device keys y MFA para staff.
 - Documentar despliegue en producción (env vars, S3, Redis/RQ workers, scheduler) y variantes locales (SQLite vs Postgres).

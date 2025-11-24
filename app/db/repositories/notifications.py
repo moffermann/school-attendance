@@ -59,6 +59,8 @@ class NotificationRepository:
         status: str | None = None,
         channel: str | None = None,
         template: str | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         limit: int = 200,
     ) -> list[Notification]:
         stmt = select(Notification).order_by(Notification.ts_created.desc()).limit(limit)
@@ -70,5 +72,9 @@ class NotificationRepository:
             stmt = stmt.where(Notification.channel == channel)
         if template:
             stmt = stmt.where(Notification.template == template)
+        if start:
+            stmt = stmt.where(Notification.ts_created >= start)
+        if end:
+            stmt = stmt.where(Notification.ts_created <= end)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
