@@ -39,6 +39,11 @@ class AbsenceRepository:
         await self.session.flush()
         return record
 
+    async def list_all(self) -> list[AbsenceRequest]:
+        stmt = select(AbsenceRequest).order_by(AbsenceRequest.ts_submitted.desc())
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def list_by_student_ids(self, student_ids: Iterable[int]) -> list[AbsenceRequest]:
         ids = list(student_ids)
         if not ids:
@@ -46,3 +51,11 @@ class AbsenceRepository:
         stmt = select(AbsenceRequest).where(AbsenceRequest.student_id.in_(ids)).order_by(AbsenceRequest.ts_submitted.desc())
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def update_status(self, absence_id: int, status: str) -> AbsenceRequest:
+        record = await self.session.get(AbsenceRequest, absence_id)
+        if record is None:
+            raise ValueError("Solicitud no encontrada")
+        record.status = status
+        await self.session.flush()
+        return record

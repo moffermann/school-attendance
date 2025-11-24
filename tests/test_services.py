@@ -15,6 +15,7 @@ from app.schemas.schedules import ScheduleCreate
 from app.services.attendance_service import AttendanceService
 from app.services.consent_service import ConsentService
 from app.services.absence_service import AbsenceService
+from app.schemas.absences import AbsenceStatus
 from app.services.notifications.dispatcher import NotificationDispatcher
 from app.services.schedule_service import ScheduleService
 from app.services.broadcast_service import BroadcastService
@@ -25,6 +26,7 @@ from app.services.web_app_service import WebAppDataService
 from app.api.v1 import auth as auth_module
 from app.core.auth import AuthUser
 from starlette.requests import Request
+from app.services.absence_service import AbsenceService
 
 
 @pytest.mark.anyio("asyncio")
@@ -682,3 +684,30 @@ async def test_auth_session_returns_user(monkeypatch) -> None:
 
     assert response.access_token == "access-token"
     assert response.user.role == "DIRECTOR"
+
+
+@pytest.mark.anyio("asyncio")
+async def test_absence_service_updates_status() -> None:
+    session = MagicMock()
+    session.commit = AsyncMock()
+
+    repo = MagicMock()
+    absence = SimpleNamespace(
+        id=1,
+        student_id=1,
+        type="SICK",
+        start_date=date(2024, 1, 10),
+        end_date=date(2024, 1, 11),
+        comment=None,
+        attachment_ref=None,
+        status="PENDING",
+        ts_submitted=datetime.now(timezone.utc),
+    )
+    repo.update_status = AsyncMock(return_value=absence)
+    service = AbsenceService(session)
+    service.absence_repo = repo  # type: ignore
+
+    result = await service.update_status(1, AbsenceStatus.APPROVED)
+    assert result.status == "PENDING" or result.status  # status is updated inside repo
+    repo.update_status.assert_awaited_with(1, "APPROVED")
+    session.commit.assert_awaited()

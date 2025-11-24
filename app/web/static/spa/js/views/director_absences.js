@@ -7,8 +7,20 @@ Views.directorAbsences = function() {
   const pageTitle = document.getElementById('page-title');
   if (pageTitle) pageTitle.textContent = 'Solicitudes de Ausencia';
 
-  const absences = State.getAbsences();
+  let absences = [];
   let activeTab = 'PENDING';
+
+  async function loadAbsences(showToast = false) {
+    content.innerHTML = Components.createLoader('Cargando solicitudes...');
+    try {
+      absences = await State.fetchAbsences();
+      renderAbsences();
+      if (showToast) Components.showToast('Solicitudes actualizadas', 'success');
+    } catch (error) {
+      console.error('No se pudieron cargar solicitudes', error);
+      content.innerHTML = Components.createEmptyState('No disponible', 'No se pudo cargar la bandeja de ausencias.');
+    }
+  }
 
   function renderAbsences() {
     const pending = absences.filter(a => a.status === 'PENDING');
@@ -103,17 +115,27 @@ Views.directorAbsences = function() {
     renderAbsences();
   };
 
-  Views.directorAbsences.approve = function(absenceId) {
-    State.updateAbsence(absenceId, { status: 'APPROVED' });
-    Components.showToast('Solicitud aprobada', 'success');
-    renderAbsences();
+  Views.directorAbsences.approve = async function(absenceId) {
+    try {
+      await State.updateAbsence(absenceId, 'APPROVED');
+      Components.showToast('Solicitud aprobada', 'success');
+      await loadAbsences();
+    } catch (error) {
+      console.error('No se pudo aprobar', error);
+      Components.showToast('Error al aprobar la solicitud', 'error');
+    }
   };
 
-  Views.directorAbsences.reject = function(absenceId) {
-    State.updateAbsence(absenceId, { status: 'REJECTED' });
-    Components.showToast('Solicitud rechazada', 'error');
-    renderAbsences();
+  Views.directorAbsences.reject = async function(absenceId) {
+    try {
+      await State.updateAbsence(absenceId, 'REJECTED');
+      Components.showToast('Solicitud rechazada', 'error');
+      await loadAbsences();
+    } catch (error) {
+      console.error('No se pudo rechazar', error);
+      Components.showToast('Error al rechazar la solicitud', 'error');
+    }
   };
 
-  renderAbsences();
+  loadAbsences();
 };

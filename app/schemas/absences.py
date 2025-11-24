@@ -43,3 +43,7 @@ class AbsenceRequestRead(BaseModel):
 
 class AbsenceRequestList(BaseModel):
     items: list[AbsenceRequestRead] = Field(default_factory=list)
+
+
+class AbsenceStatusUpdate(BaseModel):
+    status: AbsenceStatus

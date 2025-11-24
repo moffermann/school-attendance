@@ -4,11 +4,33 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core import deps
 from app.core.auth import AuthUser
-from app.schemas.absences import AbsenceRequestCreate, AbsenceRequestRead, AbsenceStatus, AbsenceType
+from app.schemas.absences import AbsenceRequestCreate, AbsenceRequestRead, AbsenceStatus, AbsenceStatusUpdate, AbsenceType
 from app.services.absence_service import AbsenceService
 
 
 router = APIRouter()
+
+
+@router.get("", response_model=list[AbsenceRequestRead])
+async def list_absences(
+    service: AbsenceService = Depends(deps.get_absence_service),
+    user: AuthUser = Depends(deps.require_roles("PARENT", "ADMIN", "DIRECTOR", "INSPECTOR")),
+) -> list[AbsenceRequestRead]:
+    records = await service.list_absences(user)
+    return [
+        AbsenceRequestRead(
+            id=record.id,
+            student_id=record.student_id,
+            type=AbsenceType(record.type),
+            start=record.start_date,
+            end=record.end_date,
+            comment=record.comment,
+            attachment_name=record.attachment_ref,
+            status=AbsenceStatus(record.status or AbsenceStatus.PENDING.value),
+            ts_submitted=record.ts_submitted,
+        )
+        for record in records
+    ]
 
 
 @router.post("", response_model=AbsenceRequestRead, status_code=201)
@@ -38,5 +60,30 @@ async def submit_absence_request(
         comment=record.comment,
         attachment_name=record.attachment_ref,
         status=AbsenceStatus(status_value),
+        ts_submitted=record.ts_submitted,
+    )
+
+
+@router.post("/{absence_id}/status", response_model=AbsenceRequestRead)
+async def update_absence_status(
+    absence_id: int,
+    payload: AbsenceStatusUpdate,
+    service: AbsenceService = Depends(deps.get_absence_service),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
+) -> AbsenceRequestRead:
+    try:
+        record = await service.update_status(absence_id, payload.status)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    return AbsenceRequestRead(
+        id=record.id,
+        student_id=record.student_id,
+        type=AbsenceType(record.type),
+        start=record.start_date,
+        end=record.end_date,
+        comment=record.comment,
+        attachment_name=record.attachment_ref,
+        status=AbsenceStatus(record.status or AbsenceStatus.PENDING.value),
         ts_submitted=record.ts_submitted,
     )

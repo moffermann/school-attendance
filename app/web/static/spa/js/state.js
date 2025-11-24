@@ -468,6 +468,22 @@ const State = {
     return normalized;
   },
 
+  async fetchAbsences() {
+    const payload = await this.apiFetch('/absences');
+    this.data.absences = (payload || []).map((item) => this.normalizeAbsence(item));
+    return this.data.absences;
+  },
+
+  async updateAbsence(absenceId, status) {
+    const payload = await this.apiFetch(`/absences/${absenceId}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status })
+    });
+    const normalized = this.normalizeAbsence(payload);
+    this.data.absences = this.data.absences.map((item) => (item.id === normalized.id ? normalized : item));
+    return normalized;
+  },
+
   // Stats helpers -------------------------------------------------------
   getTodayStats() {
     const events = this.getTodayEvents();

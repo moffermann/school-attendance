@@ -8,7 +8,7 @@ from app.core.auth import AuthUser
 from app.db.repositories.absences import AbsenceRepository
 from app.db.repositories.guardians import GuardianRepository
 from app.db.repositories.students import StudentRepository
-from app.schemas.absences import AbsenceRequestCreate
+from app.schemas.absences import AbsenceRequestCreate, AbsenceStatus
 
 
 class AbsenceService:
@@ -53,4 +53,20 @@ class AbsenceService:
 
         await self.session.commit()
         await self.session.refresh(record)
+        return record
+
+    async def list_absences(self, user: AuthUser) -> list:
+        if user.role in {"ADMIN", "DIRECTOR", "INSPECTOR"}:
+            return await self.absence_repo.list_all()
+        if not user.guardian_id:
+            return []
+        guardian = await self.guardian_repo.get(user.guardian_id)
+        if not guardian:
+            return []
+        student_ids = [student.id for student in guardian.students]
+        return await self.absence_repo.list_by_student_ids(student_ids)
+
+    async def update_status(self, absence_id: int, status: AbsenceStatus) -> object:
+        record = await self.absence_repo.update_status(absence_id, status.value)
+        await self.session.commit()
         return record
