@@ -82,6 +82,28 @@ Servicios incluidos: API, worker RQ, scheduler (jobs “no ingreso” y limpieza
 pytest
 ```
 
+## Docker
+
+Build & push (usa tu usuario de registry, p. ej. Docker Hub):
+```bash
+REGISTRY_USER=<tu_user> IMAGE_NAME=school-attendance ./scripts/build_and_push.sh
+```
+
+Ejecutar local con la imagen generada:
+```bash
+docker run --rm -p 8080:8080 <tu_user>/school-attendance:<tag>
+```
+
+Healthcheck manual:
+```bash
+curl http://127.0.0.1:8080/healthz
+```
+
+Variables relevantes:
+- `PORT` (default 8080)
+- `LOG_LEVEL`
+- `DATABASE_URL`, `REDIS_URL`, `S3_*`, `SECRET_KEY`, `DEVICE_API_KEY`, etc. (ver `app/core/config.py`)
+
 ## Linters
 ```bash
 ruff check app tests

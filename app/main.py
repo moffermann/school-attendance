@@ -54,3 +54,10 @@ async def healthcheck() -> dict[str, str]:
     """Simple health endpoint."""
 
     return {"status": "ok"}
+
+
+@app.get("/healthz", tags=["health"])
+async def healthcheck_z() -> dict[str, str]:
+    """Alias for container health probes."""
+
+    return {"status": "ok"}
