@@ -13,10 +13,9 @@ ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 FROM base AS builder
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
-COPY requirements.txt .
-RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt pyproject.toml README.md ./
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir -e .
 COPY . .
-RUN pip install --no-cache-dir -e .
 
 FROM base AS runtime
 WORKDIR /app
