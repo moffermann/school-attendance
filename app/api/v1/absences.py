@@ -1,6 +1,8 @@
 """Absence request endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import date
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core import deps
 from app.core.auth import AuthUser
@@ -14,10 +16,13 @@ router = APIRouter()
 
 @router.get("", response_model=list[AbsenceRequestRead])
 async def list_absences(
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
     service: AbsenceService = Depends(deps.get_absence_service),
     user: AuthUser = Depends(deps.require_roles("PARENT", "ADMIN", "DIRECTOR", "INSPECTOR")),
 ) -> list[AbsenceRequestRead]:
-    records = await service.list_absences(user)
+    records = await service.list_absences(user, start_date=start_date, end_date=end_date, status=status_filter)
     return [
         AbsenceRequestRead(
             id=record.id,
@@ -36,10 +41,14 @@ async def list_absences(
 
 @router.get("/export", response_class=Response)
 async def export_absences(
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
     service: AbsenceService = Depends(deps.get_absence_service),
     _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
 ) -> Response:
-    records = await service.list_absences(AuthUser(id=0, role="ADMIN", full_name="Export", guardian_id=None))
+    fake_user = AuthUser(id=0, role="ADMIN", full_name="Export", guardian_id=None)
+    records = await service.list_absences(fake_user, start_date=start_date, end_date=end_date, status=status_filter)
     lines = ["student_id,type,start,end,status,comment,attachment"]
     for record in records:
         lines.append(

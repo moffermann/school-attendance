@@ -144,7 +144,7 @@ def test_absences_list_endpoint(client):
     app, overrides = client
 
     class FakeAbsenceService:
-        async def list_absences(self, user):
+        async def list_absences(self, user, start_date=None, end_date=None, status=None):
             return [
                 SimpleNamespace(
                     id=1,

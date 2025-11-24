@@ -55,16 +55,33 @@ class AbsenceService:
         await self.session.refresh(record)
         return record
 
-    async def list_absences(self, user: AuthUser) -> list:
+    async def list_absences(
+        self,
+        user: AuthUser,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        status: str | None = None,
+    ) -> list:
         if user.role in {"ADMIN", "DIRECTOR", "INSPECTOR"}:
-            return await self.absence_repo.list_all()
+            records = await self.absence_repo.list_all()
         if not user.guardian_id:
-            return []
-        guardian = await self.guardian_repo.get(user.guardian_id)
-        if not guardian:
-            return []
-        student_ids = [student.id for student in guardian.students]
-        return await self.absence_repo.list_by_student_ids(student_ids)
+            records = []
+        else:
+            guardian = await self.guardian_repo.get(user.guardian_id)
+            if not guardian:
+                records = []
+            else:
+                student_ids = [student.id for student in guardian.students]
+                records = await self.absence_repo.list_by_student_ids(student_ids)
+
+        if start_date:
+            records = [r for r in records if r.start_date >= start_date]
+        if end_date:
+            records = [r for r in records if r.end_date <= end_date]
+        if status:
+            records = [r for r in records if (r.status or "").upper() == status.upper()]
+        return records
 
     async def update_status(self, absence_id: int, status: AbsenceStatus) -> object:
         record = await self.absence_repo.update_status(absence_id, status.value)
