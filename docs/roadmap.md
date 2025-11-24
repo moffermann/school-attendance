@@ -20,12 +20,15 @@
 1. Exponer catálogos necesarios (`/api/v1/tags`, estudiantes por curso/token, horarios vigentes) y consumo real en la maqueta.
 2. Encolar eventos/offline: usar `POST /api/v1/attendance/events` + `POST /events/{id}/photo` con idempotencia (`local_seq`) y reconciliación.
 3. Provisioning de dispositivos: script `scripts/provision_kiosk.py` + documentación (`docs/kiosk.md`) para enrolar y rotar device keys; definir políticas de rotación y auditoría de claves en `.env.example`.
+   - Responsable tentativo: **Infra/Backend**; fecha sugerida: **nov-15**.
 
 ## PWA Profesores (fase siguiente)
 1. Crear rol/endpoint docente (`/api/v1/teachers/courses`, `/attendance/bulk`, `/alerts/summary`).
 2. Reemplazar IndexedDB mock por sync real con manejo offline/online y resolución de conflictos.
 3. Pruebas E2E (Playwright) cubriendo toma de asistencia y reintentos offline.
+   - Responsable tentativo: **Equipo Front**; fecha sugerida: **nov-30**.
 
 ## Seguridad y despliegue
 - Fortalecer refresh tokens persistentes (rotación, revocación), rotación de device keys y MFA para staff.
 - Documentar despliegue en producción (env vars, S3, Redis/RQ workers, scheduler) y variantes locales (SQLite vs Postgres).
+ - Rotación de device keys: agregar TTL/rotación en scheduler, endpoint de re-provision y auditoría de uso en logs.
