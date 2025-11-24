@@ -201,6 +201,28 @@ const State = {
     return response.blob();
   },
 
+  async exportNotifications(params = {}) {
+    const query = this.buildQuery(params);
+    const url = `${API_BASE}/notifications/export${query ? `?${query}` : ''}`;
+    const headers = {};
+    if (this.accessToken) {
+      headers.Authorization = `Bearer ${this.accessToken}`;
+    }
+    const response = await fetch(url, { credentials: 'include', headers });
+    if (!response.ok) throw new Error('No se pudo exportar notificaciones');
+    return response.blob();
+  },
+
+  async exportAbsences() {
+    const headers = {};
+    if (this.accessToken) {
+      headers.Authorization = `Bearer ${this.accessToken}`;
+    }
+    const response = await fetch(`${API_BASE}/absences/export`, { credentials: 'include', headers });
+    if (!response.ok) throw new Error('No se pudo exportar ausencias');
+    return response.blob();
+  },
+
   mapRole(role) {
     if (!role) return 'director';
     const normalized = role.toUpperCase();

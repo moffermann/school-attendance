@@ -46,7 +46,10 @@ Views.directorNotifications = function() {
       <div class="card mb-3">
         <div class="card-header flex justify-between items-center">
           <span>Filtros</span>
-          <button class="btn btn-primary btn-sm" onclick="Views.directorNotifications.refresh()">Refrescar</button>
+          <div class="flex gap-2">
+            <button class="btn btn-secondary btn-sm" onclick="Views.directorNotifications.export()">Exportar CSV</button>
+            <button class="btn btn-primary btn-sm" onclick="Views.directorNotifications.refresh()">Refrescar</button>
+          </div>
         </div>
         <div class="card-body">
           <div class="filters">
@@ -134,6 +137,24 @@ Views.directorNotifications = function() {
       template: document.getElementById('filter-template').value,
     };
     loadNotifications(true);
+  };
+
+  Views.directorNotifications.export = async function() {
+    try {
+      const blob = await State.exportNotifications(filters);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'notifications.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      Components.showToast('Exportación lista', 'success');
+    } catch (error) {
+      console.error('No se pudo exportar notificaciones', error);
+      Components.showToast('Error al exportar notificaciones', 'error');
+    }
   };
 
   loadNotifications();

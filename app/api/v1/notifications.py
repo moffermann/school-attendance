@@ -12,6 +12,7 @@ from app.schemas.notifications import (
 )
 from app.services.notification_service import NotificationService
 from app.services.notifications.dispatcher import NotificationDispatcher
+from fastapi.responses import Response
 
 
 router = APIRouter()
@@ -44,6 +45,38 @@ async def notifications_summary(
     _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
 ) -> NotificationSummaryResponse:
     return await service.summary()
+
+
+@router.get("/export", response_class=Response)
+async def export_notifications(
+    status_filter: str | None = Query(default=None, alias="status"),
+    channel: str | None = Query(default=None),
+    template: str | None = Query(default=None),
+    guardian_id: int | None = Query(default=None),
+    student_id: int | None = Query(default=None),
+    limit: int = Query(default=500, ge=1, le=2000),
+    service: NotificationService = Depends(deps.get_notification_service),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
+) -> Response:
+    logs = await service.list_notifications(
+        guardian_id=guardian_id,
+        student_id=student_id,
+        status=status_filter,
+        channel=channel,
+        template=template,
+        limit=limit,
+    )
+    lines = ["ts_created,channel,template,status,retries"]
+    for item in logs:
+        lines.append(
+            f"{item.ts_created},{item.channel},{item.template},{item.status},{item.retries or 0}"
+        )
+    csv_data = "\n".join(lines)
+    return Response(
+        content=csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=notifications.csv"},
+    )
 
 
 @router.post("/dispatch", response_model=NotificationRead, status_code=status.HTTP_202_ACCEPTED)

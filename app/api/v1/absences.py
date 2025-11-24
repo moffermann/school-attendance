@@ -6,6 +6,7 @@ from app.core import deps
 from app.core.auth import AuthUser
 from app.schemas.absences import AbsenceRequestCreate, AbsenceRequestRead, AbsenceStatus, AbsenceStatusUpdate, AbsenceType
 from app.services.absence_service import AbsenceService
+from fastapi.responses import Response
 
 
 router = APIRouter()
@@ -31,6 +32,25 @@ async def list_absences(
         )
         for record in records
     ]
+
+
+@router.get("/export", response_class=Response)
+async def export_absences(
+    service: AbsenceService = Depends(deps.get_absence_service),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
+) -> Response:
+    records = await service.list_absences(AuthUser(id=0, role="ADMIN", full_name="Export", guardian_id=None))
+    lines = ["student_id,type,start,end,status,comment,attachment"]
+    for record in records:
+        lines.append(
+            f"{record.student_id},{record.type},{record.start_date},{record.end_date},{record.status},{record.comment or ''},{record.attachment_ref or ''}"
+        )
+    csv_data = "\n".join(lines)
+    return Response(
+        content=csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=absences.csv"},
+    )
 
 
 @router.post("", response_model=AbsenceRequestRead, status_code=201)

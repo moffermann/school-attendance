@@ -35,7 +35,7 @@ Views.directorAbsences = function() {
       </div>
 
       <div class="card">
-        <div class="card-header">
+        <div class="card-header flex justify-between items-center">
           <div style="display: flex; gap: 1rem; border-bottom: 1px solid var(--color-gray-200); margin: -1rem -1.5rem 1rem; padding: 0 1.5rem;">
             <button class="btn btn-secondary ${activeTab === 'PENDING' ? 'active' : ''}" style="border-radius: 0; border-bottom: 2px solid ${activeTab === 'PENDING' ? 'var(--color-primary)' : 'transparent'};" onclick="Views.directorAbsences.switchTab('PENDING')">
               Pendientes (${pending.length})
@@ -46,6 +46,10 @@ Views.directorAbsences = function() {
             <button class="btn btn-secondary ${activeTab === 'REJECTED' ? 'active' : ''}" style="border-radius: 0; border-bottom: 2px solid ${activeTab === 'REJECTED' ? 'var(--color-primary)' : 'transparent'};" onclick="Views.directorAbsences.switchTab('REJECTED')">
               Rechazadas (${rejected.length})
             </button>
+          </div>
+          <div class="flex gap-2">
+            <button class="btn btn-secondary btn-sm" onclick="Views.directorAbsences.export()">Exportar CSV</button>
+            <button class="btn btn-primary btn-sm" onclick="Views.directorAbsences.refresh()">Refrescar</button>
           </div>
         </div>
 
@@ -113,6 +117,28 @@ Views.directorAbsences = function() {
   Views.directorAbsences.switchTab = function(tab) {
     activeTab = tab;
     renderAbsences();
+  };
+
+  Views.directorAbsences.refresh = function() {
+    loadAbsences(true);
+  };
+
+  Views.directorAbsences.export = async function() {
+    try {
+      const blob = await State.exportAbsences();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'absences.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      Components.showToast('Exportación lista', 'success');
+    } catch (error) {
+      console.error('No se pudo exportar ausencias', error);
+      Components.showToast('Error al exportar', 'error');
+    }
   };
 
   Views.directorAbsences.approve = async function(absenceId) {
