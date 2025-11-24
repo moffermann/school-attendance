@@ -22,7 +22,9 @@ from app.services.alert_service import AlertService
 from app.services.dashboard_service import DashboardService
 from app.services.device_service import DeviceService
 from app.services.web_app_service import WebAppDataService
+from app.api.v1 import auth as auth_module
 from app.core.auth import AuthUser
+from starlette.requests import Request
 
 
 @pytest.mark.anyio("asyncio")
@@ -631,3 +633,52 @@ async def test_device_service_ping_and_logs(monkeypatch) -> None:
 
     logs = await service.get_logs(1)
     assert any("Dispositivo DEV-1" in line for line in logs)
+
+
+@pytest.mark.anyio("asyncio")
+async def test_schedule_service_updates_entry() -> None:
+    session = MagicMock()
+    session.commit = AsyncMock()
+
+    service = ScheduleService(session)
+    fake_schedule = SimpleNamespace(
+        id=9,
+        course_id=1,
+        weekday=2,
+        in_time=time(9, 0),
+        out_time=time(13, 0),
+    )
+    service.repository.update = AsyncMock(return_value=fake_schedule)
+
+    payload = ScheduleCreate(weekday=2, in_time=fake_schedule.in_time, out_time=fake_schedule.out_time)
+    result = await service.update_schedule_entry(fake_schedule.id, payload)
+
+    assert result.id == fake_schedule.id
+    service.repository.update.assert_awaited_with(fake_schedule.id, weekday=2, in_time=fake_schedule.in_time, out_time=fake_schedule.out_time)
+    session.commit.assert_awaited()
+
+
+@pytest.mark.anyio("asyncio")
+async def test_auth_session_returns_user(monkeypatch) -> None:
+    fake_user = SimpleNamespace(id=7, role="DIRECTOR", full_name="Dir User", guardian_id=None, is_active=True)
+    fake_repo = SimpleNamespace(get=AsyncMock(return_value=fake_user))
+
+    monkeypatch.setattr(auth_module, "decode_session", lambda token: {"user_id": fake_user.id})
+    monkeypatch.setattr(auth_module, "UserRepository", lambda session: fake_repo)
+    monkeypatch.setattr(auth_module, "create_access_token", lambda *args, **kwargs: "access-token")
+
+    scope = {
+        "type": "http",
+        "headers": [(b"cookie", b"session_token=abc")],
+        "method": "GET",
+        "path": "/api/v1/auth/session",
+        "query_string": b"",
+        "client": ("test", 0),
+        "server": ("test", 80),
+    }
+    request = Request(scope)
+
+    response = await auth_module.session_info(request, session=MagicMock())
+
+    assert response.access_token == "access-token"
+    assert response.user.role == "DIRECTOR"
