@@ -11,6 +11,8 @@ Views.directorDashboard = function() {
   let filters = { date: today, course_id: '', type: '', search: '' };
   let snapshot = { stats: { total_in: 0, total_out: 0, late_count: 0, no_in_count: 0, with_photos: 0 }, events: [], date: today };
   let currentPage = 1;
+  const absences = State.getAbsences();
+  const notifications = State.data.notifications || [];
 
   async function loadDashboard(showToast = false) {
     content.innerHTML = Components.createLoader('Cargando tablero en vivo...');
@@ -33,6 +35,8 @@ Views.directorDashboard = function() {
   function renderDashboard() {
     const courses = State.getCourses();
     const stats = snapshot.stats || { total_in: 0, total_out: 0, late_count: 0, no_in_count: 0, with_photos: 0 };
+    const pendingAbsences = absences.filter((a) => a.status === 'PENDING').length;
+    const sentNotifications = notifications.length;
 
     content.innerHTML = `
       <div class="cards-grid">
@@ -41,6 +45,8 @@ Views.directorDashboard = function() {
         ${Components.createStatCard('Atrasos', stats.late_count)}
         ${Components.createStatCard('Sin ingreso', stats.no_in_count)}
         ${Components.createStatCard('Con foto', stats.with_photos)}
+        ${Components.createStatCard('Ausencias pendientes', pendingAbsences)}
+        ${Components.createStatCard('Notificaciones enviadas', sentNotifications)}
       </div>
 
       <div class="card">
