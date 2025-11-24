@@ -10,27 +10,17 @@
 </head>
 <body>
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
-  <div id="app">
-    <div class="loading-screen">
-      <div class="spinner"></div>
-      <p>Cargando...</p>
-    </div>
-  </div>
+  <div id="app"></div>
+  <div id="modal-container" class="modal-container"></div>
 
   <script src="js/state.js"></script>
   <script src="js/sync.js"></script>
   <script src="js/ui.js"></script>
+  
+  <!-- Main view and router -->
+  <script src="js/views/main.js"></script>
   <script src="js/router.js"></script>
-
-  <script src="js/views/home.js"></script>
-  <script src="js/views/scan.js"></script>
-  <script src="js/views/scan_result.js"></script>
-  <script src="js/views/manual_entry.js"></script>
-  <script src="js/views/queue.js"></script>
-  <script src="js/views/device_status.js"></script>
-  <script src="js/views/settings.js"></script>
-  <script src="js/views/help.js"></script>
-
+  
   <script>
     // Register service worker
     if ('serviceWorker' in navigator) {

@@ -1,4 +1,4 @@
-// UI components for kiosk
+// UI components for kiosk - V2
 const UI = {
   showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
@@ -13,52 +13,66 @@ const UI = {
     }
   },
 
-  createHeader() {
-    const time = new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
-    const pendingCount = State.getPendingCount();
+  showModal(title, content, onConfirm) {
+    const modalContainer = document.getElementById('modal-container');
+    modalContainer.innerHTML = `
+      <div class="modal">
+        <div class="modal-header">
+          <h2>${title}</h2>
+          <button id="close-modal-btn" class="btn-close">&times;</button>
+        </div>
+        <div class="modal-content">
+          ${content}
+        </div>
+      </div>
+    `;
+    modalContainer.style.display = 'flex';
 
+    document.getElementById('close-modal-btn').addEventListener('click', UI.hideModal);
+  },
+
+  hideModal() {
+    const modalContainer = document.getElementById('modal-container');
+    modalContainer.innerHTML = '';
+    modalContainer.style.display = 'none';
+  },
+
+  createConfirmationModal(student, eventType) {
     return `
-      <header class="kiosk-header">
-        <div class="header-left">
-          <img src="assets/logo.svg" alt="Logo" class="header-logo">
-          <div>
-            <div class="header-title">Kiosco ${State.device.gate_id}</div>
-            <div style="font-size: 0.875rem; color: var(--color-gray-500);">${State.device.device_id}</div>
-          </div>
+      <div class="confirmation-modal">
+        <img src="${student.photo_url}" alt="Foto de ${student.name}" class="student-photo-large">
+        <h3>${student.name}</h3>
+        <p>Curso: ${student.course}</p>
+        <div class="flex gap-2">
+          <button id="confirm-in-btn" class="btn btn-success btn-lg">Registrar ENTRADA</button>
+          <button id="confirm-out-btn" class="btn btn-danger btn-lg">Registrar SALIDA</button>
         </div>
-        <div class="header-time">${time}</div>
-        <div class="header-badges">
-          <div class="badge ${State.device.online ? 'badge-online' : 'badge-offline'}">
-            ${State.device.online ? '🟢 Online' : '🔴 Offline'}
-          </div>
-          <div class="badge badge-battery">
-            🔋 ${State.device.battery_pct}%
-          </div>
-          ${pendingCount > 0 ? `<div class="badge badge-queue">⏳ ${pendingCount}</div>` : ''}
+      </div>
+    `;
+  },
+  
+  createPinModal() {
+    return `
+      <div class="pin-modal">
+        <div class="form-group">
+          <label class="form-label">Ingrese PIN de Operador</label>
+          <input type="password" id="pin-input" class="form-input-lg" maxlength="4" autofocus>
         </div>
-      </header>
+        <div class="flex gap-2">
+          <button id="submit-pin-btn" class="btn btn-primary">Aceptar</button>
+          <button id="cancel-pin-btn" class="btn btn-secondary">Cancelar</button>
+        </div>
+      </div>
     `;
   },
 
-  updateHeaderTime() {
-    const timeEl = document.querySelector('.header-time');
-    if (timeEl) {
-      timeEl.textContent = new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
-    }
+  createHeader() {
+    // This will be part of the main view now
+    return '';
+  },
 
-    const badges = document.querySelector('.header-badges');
-    if (badges) {
-      const pendingCount = State.getPendingCount();
-      badges.innerHTML = `
-        <div class="badge ${State.device.online ? 'badge-online' : 'badge-offline'}">
-          ${State.device.online ? '🟢 Online' : '🔴 Offline'}
-        </div>
-        <div class="badge badge-battery">
-          🔋 ${State.device.battery_pct}%
-        </div>
-        ${pendingCount > 0 ? `<div class="badge badge-queue">⏳ ${pendingCount}</div>` : ''}
-      `;
-    }
+  updateHeaderTime() {
+    // This will be handled within the main view
   },
 
   createChip(label, type = 'gray') {
@@ -69,6 +83,3 @@ const UI = {
     return new Date(dateString).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
   }
 };
-
-// Update header clock every second
-setInterval(() => UI.updateHeaderTime(), 1000);
