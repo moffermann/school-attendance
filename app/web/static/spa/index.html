@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Ingreso/Salida Escolar</title>
+  <link rel="stylesheet" href="/static/spa/css/styles.css">
+</head>
+<body>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <div id="modal-container" class="modal-container"></div>
+  <div id="app">
+    <div id="loading" class="loading-screen">
+      <div class="spinner"></div>
+      <p>Cargando...</p>
+    </div>
+  </div>
+
+  <script src="/static/spa/js/state.js"></script>
+  <script src="/static/spa/js/components.js"></script>
+  <script src="/static/spa/js/router.js"></script>
+
+  <script src="/static/spa/js/views/auth.js"></script>
+  <script src="/static/spa/js/views/director_dashboard.js"></script>
+  <script src="/static/spa/js/views/director_reports.js"></script>
+  <script src="/static/spa/js/views/director_schedules.js"></script>
+  <script src="/static/spa/js/views/director_exceptions.js"></script>
+  <script src="/static/spa/js/views/director_broadcast.js"></script>
+  <script src="/static/spa/js/views/director_devices.js"></script>
+  <script src="/static/spa/js/views/director_students.js"></script>
+  <script src="/static/spa/js/views/director_absences.js"></script>
+  <script src="/static/spa/js/views/parent_home.js"></script>
+  <script src="/static/spa/js/views/parent_history.js"></script>
+  <script src="/static/spa/js/views/parent_prefs.js"></script>
+  <script src="/static/spa/js/views/parent_absences.js"></script>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', async () => {
+      await State.init();
+      Router.init();
+    });
+  </script>
+</body>
+</html>

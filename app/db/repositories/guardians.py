@@ -13,7 +13,13 @@ class GuardianRepository:
         self.session = session
 
     async def get(self, guardian_id: int) -> Guardian | None:
-        return await self.session.get(Guardian, guardian_id)
+        stmt = (
+            select(Guardian)
+            .options(selectinload(Guardian.students))
+            .where(Guardian.id == guardian_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().unique().one_or_none()
 
     async def save(self, guardian: Guardian) -> Guardian:
         self.session.add(guardian)

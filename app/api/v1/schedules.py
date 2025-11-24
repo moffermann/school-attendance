@@ -1,6 +1,6 @@
 """Schedules endpoints."""
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core import deps
 from app.core.auth import AuthUser
@@ -42,3 +42,28 @@ async def create_exception(
     _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
 ) -> ScheduleExceptionRead:
     return await service.create_exception(payload)
+
+
+@router.put("/{schedule_id}", response_model=ScheduleRead)
+async def update_schedule_entry(
+    schedule_id: int,
+    payload: ScheduleCreate,
+    service: ScheduleService = Depends(deps.get_schedule_service),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+) -> ScheduleRead:
+    try:
+        return await service.update_schedule_entry(schedule_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.delete("/exceptions/{exception_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_schedule_exception(
+    exception_id: int,
+    service: ScheduleService = Depends(deps.get_schedule_service),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+) -> None:
+    try:
+        await service.delete_exception(exception_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

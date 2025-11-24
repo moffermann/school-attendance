@@ -7,13 +7,19 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.schemas.attendance import AttendanceEventCreate, AttendanceType
+from app.schemas.absences import AbsenceRequestCreate, AbsenceType
+from app.schemas.guardians import GuardianPreferencesUpdate
 from app.schemas.notifications import BroadcastAudience, BroadcastCreate, NotificationChannel, NotificationDispatchRequest, NotificationType
 from app.schemas.schedules import ScheduleCreate
 from app.services.attendance_service import AttendanceService
+from app.services.consent_service import ConsentService
+from app.services.absence_service import AbsenceService
 from app.services.notifications.dispatcher import NotificationDispatcher
 from app.services.schedule_service import ScheduleService
 from app.services.broadcast_service import BroadcastService
 from app.services.alert_service import AlertService
+from app.services.dashboard_service import DashboardService
+from app.core.auth import AuthUser
 
 
 @pytest.mark.anyio("asyncio")
@@ -77,6 +83,131 @@ async def test_schedule_service_creates_rule(monkeypatch) -> None:
     assert result.id == 7
     service.repository.create.assert_awaited()
     session.commit.assert_awaited()
+
+
+@pytest.mark.anyio("asyncio")
+async def test_consent_service_reads_preferences_and_photo_consents() -> None:
+    session = MagicMock()
+    service = ConsentService(session)
+
+    guardian = SimpleNamespace(
+        id=7,
+        notification_prefs={
+            "INGRESO_OK": [{"channel": "WHATSAPP", "enabled": True}],
+            "SALIDA_OK": [{"channel": "EMAIL", "enabled": True}],
+        },
+        students=[
+            SimpleNamespace(id=101, photo_pref_opt_in=True),
+            SimpleNamespace(id=102, photo_pref_opt_in=False),
+        ],
+    )
+    service.guardian_repo.get = AsyncMock(return_value=guardian)
+
+    result = await service.get_guardian_preferences(guardian.id)
+
+    assert result.preferences["INGRESO_OK"][0].model_dump() == guardian.notification_prefs["INGRESO_OK"][0]
+    assert result.preferences["SALIDA_OK"][0].model_dump() == guardian.notification_prefs["SALIDA_OK"][0]
+    assert result.photo_consents == {101: True, 102: False}
+    service.guardian_repo.get.assert_awaited_with(guardian.id)
+
+
+@pytest.mark.anyio("asyncio")
+async def test_consent_service_update_preferences_updates_photo_consents() -> None:
+    session = MagicMock()
+    session.commit = AsyncMock()
+
+    service = ConsentService(session)
+
+    student_a = SimpleNamespace(id=201, photo_pref_opt_in=False)
+    student_b = SimpleNamespace(id=202, photo_pref_opt_in=True)
+    guardian = SimpleNamespace(
+        id=9,
+        notification_prefs={},
+        students=[student_a, student_b],
+    )
+
+    service.guardian_repo.get = AsyncMock(return_value=guardian)
+    service.guardian_repo.save = AsyncMock(return_value=guardian)
+
+    payload = GuardianPreferencesUpdate(
+        preferences={"NO_INGRESO_UMBRAL": [{"channel": "WHATSAPP", "enabled": True}]},
+        photo_consents={201: True, 202: False},
+    )
+
+    result = await service.update_guardian_preferences(guardian.id, payload)
+
+    assert guardian.notification_prefs == payload.preferences
+    assert student_a.photo_pref_opt_in is True
+    assert student_b.photo_pref_opt_in is False
+    assert result.photo_consents == {201: True, 202: False}
+    service.guardian_repo.save.assert_awaited_with(guardian)
+    session.commit.assert_awaited()
+
+
+@pytest.mark.anyio("asyncio")
+async def test_absence_service_submits_request_for_parent() -> None:
+    session = MagicMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
+
+    service = AbsenceService(session)
+
+    submitted_record = SimpleNamespace(
+        id=55,
+        student_id=1,
+        type="SICK",
+        start_date=date(2024, 1, 10),
+        end_date=date(2024, 1, 11),
+        comment="Reposo médico",
+        attachment_ref="certificado.pdf",
+        status="PENDING",
+        ts_submitted=datetime.now(timezone.utc),
+    )
+
+    service.student_repo.get = AsyncMock(return_value=SimpleNamespace(id=1))
+    service.guardian_repo.get = AsyncMock(
+        return_value=SimpleNamespace(students=[SimpleNamespace(id=1)])
+    )
+    service.absence_repo.create = AsyncMock(return_value=submitted_record)
+
+    user = AuthUser(id=9, role="PARENT", full_name="Test", guardian_id=3)
+    payload = AbsenceRequestCreate(
+        student_id=1,
+        type=AbsenceType.SICK,
+        start=date(2024, 1, 10),
+        end=date(2024, 1, 11),
+        comment="Reposo médico",
+        attachment_name="certificado.pdf",
+    )
+
+    record = await service.submit_absence(user, payload)
+
+    assert record.student_id == payload.student_id
+    service.absence_repo.create.assert_awaited()
+    session.commit.assert_awaited()
+    session.refresh.assert_awaited_with(record)
+
+
+@pytest.mark.anyio("asyncio")
+async def test_absence_service_rejects_student_not_belonging_to_guardian() -> None:
+    session = MagicMock()
+    service = AbsenceService(session)
+
+    service.student_repo.get = AsyncMock(return_value=SimpleNamespace(id=2))
+    service.guardian_repo.get = AsyncMock(
+        return_value=SimpleNamespace(students=[SimpleNamespace(id=5)])
+    )
+
+    user = AuthUser(id=8, role="PARENT", full_name="Parent User", guardian_id=2)
+    payload = AbsenceRequestCreate(
+        student_id=2,
+        type=AbsenceType.PERSONAL,
+        start=date(2024, 2, 1),
+        end=date(2024, 2, 2),
+    )
+
+    with pytest.raises(PermissionError):
+        await service.submit_absence(user, payload)
 
 
 @pytest.mark.anyio("asyncio")
@@ -294,3 +425,72 @@ async def test_alert_service_resolve(monkeypatch) -> None:
     result = await service.resolve_alert(1, "ok")
     assert result.status == "RESOLVED"
     session.commit.assert_awaited()
+
+
+@pytest.mark.anyio("asyncio")
+async def test_dashboard_service_computes_stats(monkeypatch) -> None:
+    session = MagicMock()
+    service = DashboardService(session)
+
+    service.schedule_repo = MagicMock()
+    service.student_repo = MagicMock()
+    service.photo_service = SimpleNamespace(generate_presigned_url=lambda key, expires=3600: f"https://cdn/{key}")
+
+    target_date = date(2024, 1, 10)
+    schedule = SimpleNamespace(course_id=1, in_time=time(8, 0))
+    service.schedule_repo.list_by_weekday = AsyncMock(return_value=[schedule])
+
+    students = [
+        SimpleNamespace(id=1, course_id=1, full_name="Ana"),
+        SimpleNamespace(id=2, course_id=1, full_name="Ben"),
+        SimpleNamespace(id=3, course_id=1, full_name="Carla"),
+    ]
+    service.student_repo.list_by_course_ids = AsyncMock(return_value=students)
+
+    events_raw = [
+        (
+            SimpleNamespace(
+                id=10,
+                student_id=1,
+                type="IN",
+                gate_id="G1",
+                device_id="D1",
+                occurred_at=datetime(2024, 1, 10, 8, 5),
+                photo_ref="photos/p1",
+            ),
+            students[0],
+            SimpleNamespace(id=1, name="1° Básico A"),
+        ),
+        (
+            SimpleNamespace(
+                id=11,
+                student_id=2,
+                type="IN",
+                gate_id="G1",
+                device_id="D1",
+                occurred_at=datetime(2024, 1, 10, 8, 45),
+                photo_ref=None,
+            ),
+            students[1],
+            SimpleNamespace(id=1, name="1° Básico A"),
+        ),
+    ]
+
+    async def fake_fetch_events(*args, **kwargs):
+        return events_raw
+
+    service._fetch_events = fake_fetch_events  # type: ignore
+
+    snapshot = await service.get_snapshot(
+        target_date=target_date,
+        course_id=None,
+        event_type=None,
+        search=None,
+    )
+
+    assert snapshot.stats.total_in == 2
+    assert snapshot.stats.total_out == 0
+    assert snapshot.stats.late_count == 1
+    assert snapshot.stats.no_in_count == 1
+    assert snapshot.stats.with_photos == 1
+    assert snapshot.events[0].photo_url == "https://cdn/photos/p1"

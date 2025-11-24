@@ -21,6 +21,13 @@ class StudentRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_by_course_ids(self, course_ids: set[int]) -> list[Student]:
+        if not course_ids:
+            return []
+        stmt = select(Student).where(Student.course_id.in_(course_ids))
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def list_by_course(self, course_id: int) -> list[Student]:
         stmt = (
             select(Student)

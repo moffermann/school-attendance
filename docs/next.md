@@ -41,6 +41,8 @@
 - ✅ Autenticación de staff en vistas + API key para kioscos (`app/web/router.py`, `.env.example`).
 - ✅ Panel de alertas con filtros/export y resumen (`/alerts`).
 - ✅ Visor de evidencias fotográficas (`/photos`).
+- ✅ Solicitudes de ausencia en SPA integradas con backend (`AbsenceService`, `/api/v1/absences`, `Views.parentAbsences`).
+- ✅ Preferencias de apoderado en SPA integradas con backend (`ConsentService`, `/api/v1/parents/{id}/preferences`, `Views.parentPrefs`).
 
 ### Notas sesión 2025-10-10
 - Adoptamos SQLite (`dev.db`) para entorno local; ajustar `.env` y migraciones para compatibilidad.
@@ -49,3 +51,19 @@
 - Login fallaba sin Postgres; ya funciona con SQLite tras actualizar seeds y migraciones.
 
 _Actualiza esta bitácora al finalizar cada sub-tarea._
+
+### Notas sesión 2025-10-12
+- Se montó la maqueta SPA en `app/web/static/spa/` y se ajustaron rutas de assets/script para servirla vía FastAPI (`/app`).
+- Nuevo flujo de sesión: endpoint `/api/v1/auth/session`, esquemas `SessionResponse` y helper `SessionUser` para exponer el usuario autenticado al front.
+- Se creó `WebAppDataService` + endpoint `/api/v1/web-app/bootstrap` que entrega estudiantes, cursos, horarios, eventos, dispositivos, ausencias y notificaciones reales (filtrado por rol).
+- `State.init()` ahora usa los datos reales del backend (sin `localStorage`), incluye helpers `apiFetch`, `upsertSchedule`, `addScheduleException` y `deleteScheduleException` contra los endpoints actualizados.
+- API de horarios ampliada: `PUT /api/v1/schedules/{id}` y `DELETE /api/v1/schedules/exceptions/{id}`; la vista de horarios/excepciones ya consume estas rutas con manejo básico de errores.
+- Se creó `DashboardService` + endpoints `/api/v1/web-app/dashboard` y `/dashboard/export` con estadísticas reales, filtros por fecha/curso/tipo y enlaces de foto; la vista `directorDashboard` ahora consume estos datos (sin mocks).
+
+Pendientes próximos:
+1. Actualizar vistas restantes (reports, devices, students, alerts SPA) para evitar lecturas/escrituras directas a `localStorage` y reemplazar mocks (parentPrefs ya consume APIs reales).
+2. Ajustar backend para exponer endpoints faltantes (absences CRUD, notifications por guardian, métricas) o adaptar la SPA a los disponibles.
+3. Documentar en `docs/roadmap.md` el plan detallado para la segunda fase (PWA y kiosco) una vez que la SPA quede totalmente integrada.
+4. Añadir pruebas de servicio para `WebAppDataService` y rutas nuevas (`auth/session`, `web-app/bootstrap`, schedules update/delete).
+
+**Siguiente paso inmediato:** Llevar las vistas de reportes y dispositivos a los endpoints reales (sin mocks) y extender las métricas del dashboard al resto del portal.

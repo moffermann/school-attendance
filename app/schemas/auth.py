@@ -16,3 +16,15 @@ class LoginRequest(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+
+
+class SessionUser(BaseModel):
+    id: int
+    full_name: str
+    role: str
+    guardian_id: int | None = None
+
+
+class SessionResponse(BaseModel):
+    access_token: str
+    user: SessionUser

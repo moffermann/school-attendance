@@ -2,7 +2,20 @@
 
 from fastapi import APIRouter
 
-from app.api.v1 import attendance, auth, alerts, broadcast, devices, health, notifications, parents, schedules, tags
+from app.api.v1 import (
+    alerts,
+    absences,
+    attendance,
+    auth,
+    broadcast,
+    devices,
+    health,
+    notifications,
+    parents,
+    schedules,
+    tags,
+    webapp,
+)
 
 
 api_router = APIRouter()
@@ -17,3 +30,5 @@ api_router.include_router(tags.router, prefix="/tags", tags=["tags"])
 api_router.include_router(devices.router, prefix="/devices", tags=["devices"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(alerts.router, prefix="/alerts", tags=["alerts"])
+api_router.include_router(webapp.router, prefix="/web-app", tags=["web-app"])
+api_router.include_router(absences.router, prefix="/absences", tags=["absences"])

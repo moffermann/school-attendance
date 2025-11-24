@@ -15,7 +15,11 @@ class ConsentService:
             raise ValueError("Guardian not found")
 
         prefs = guardian.notification_prefs or {}
-        return GuardianPreferencesRead(guardian_id=guardian.id, preferences=prefs)
+        return GuardianPreferencesRead(
+            guardian_id=guardian.id,
+            preferences=prefs,
+            photo_consents=self._collect_photo_consents(guardian),
+        )
 
     async def update_guardian_preferences(
         self, guardian_id: int, payload: GuardianPreferencesUpdate
@@ -24,8 +28,32 @@ class ConsentService:
         if not guardian:
             raise ValueError("Guardian not found")
 
-        guardian.notification_prefs = payload.preferences
+        guardian.notification_prefs = payload.preferences or {}
+
+        if payload.photo_consents:
+            student_map = {student.id: student for student in guardian.students}
+            for key, allowed in payload.photo_consents.items():
+                try:
+                    student_id = int(key)
+                except (TypeError, ValueError):
+                    continue
+                student = student_map.get(student_id)
+                if not student:
+                    continue
+                student.photo_pref_opt_in = bool(allowed)
+
         await self.guardian_repo.save(guardian)
         await self.session.commit()
 
-        return GuardianPreferencesRead(guardian_id=guardian.id, preferences=guardian.notification_prefs)
+        return GuardianPreferencesRead(
+            guardian_id=guardian.id,
+            preferences=guardian.notification_prefs,
+            photo_consents=self._collect_photo_consents(guardian),
+        )
+
+    @staticmethod
+    def _collect_photo_consents(guardian) -> dict[int, bool]:
+        return {
+            student.id: bool(getattr(student, "photo_pref_opt_in", False))
+            for student in getattr(guardian, "students", [])
+        }

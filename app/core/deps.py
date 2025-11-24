@@ -8,6 +8,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import AuthUser
+from app.core.config import settings
 from app.core.security import decode_token
 from app.db.repositories.users import UserRepository
 from app.db.session import get_session
@@ -20,6 +21,9 @@ from app.services.notifications.dispatcher import NotificationDispatcher
 from app.services.schedule_service import ScheduleService
 from app.services.tag_provision_service import TagProvisionService
 from app.services.alert_service import AlertService
+from app.services.web_app_service import WebAppDataService
+from app.services.absence_service import AbsenceService
+from app.services.dashboard_service import DashboardService
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=True)
@@ -132,3 +136,21 @@ async def get_alert_service(
     session: AsyncSession = Depends(get_db),
 ) -> AlertService:
     return AlertService(session)
+
+
+async def get_web_app_data_service(
+    session: AsyncSession = Depends(get_db),
+) -> WebAppDataService:
+    return WebAppDataService(session)
+
+
+async def get_absence_service(
+    session: AsyncSession = Depends(get_db),
+) -> AbsenceService:
+    return AbsenceService(session)
+
+
+async def get_dashboard_service(
+    session: AsyncSession = Depends(get_db),
+) -> DashboardService:
+    return DashboardService(session)

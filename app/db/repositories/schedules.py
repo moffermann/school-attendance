@@ -32,6 +32,17 @@ class ScheduleRepository:
         await self.session.flush()
         return schedule
 
+    async def update(self, schedule_id: int, *, weekday: int | None = None, in_time: time, out_time: time) -> Schedule:
+        schedule = await self.session.get(Schedule, schedule_id)
+        if schedule is None:
+            raise ValueError("Horario no encontrado")
+        if weekday is not None:
+            schedule.weekday = weekday
+        schedule.in_time = in_time
+        schedule.out_time = out_time
+        await self.session.flush()
+        return schedule
+
     async def create_exception(
         self,
         *,
@@ -55,6 +66,14 @@ class ScheduleRepository:
         self.session.add(exception)
         await self.session.flush()
         return exception
+
+    async def delete_exception(self, exception_id: int) -> bool:
+        exception = await self.session.get(ScheduleException, exception_id)
+        if exception is None:
+            return False
+        await self.session.delete(exception)
+        await self.session.flush()
+        return True
 
     async def list_by_weekday(self, weekday: int) -> list[Schedule]:
         stmt = select(Schedule).where(Schedule.weekday == weekday).options(selectinload(Schedule.course))

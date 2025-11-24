@@ -30,6 +30,16 @@ class ScheduleService:
         await self.session.commit()
         return ScheduleRead.model_validate(schedule, from_attributes=True)
 
+    async def update_schedule_entry(self, schedule_id: int, payload: ScheduleCreate) -> ScheduleRead:
+        schedule = await self.repository.update(
+            schedule_id,
+            weekday=payload.weekday,
+            in_time=payload.in_time,
+            out_time=payload.out_time,
+        )
+        await self.session.commit()
+        return ScheduleRead.model_validate(schedule, from_attributes=True)
+
     async def create_exception(self, payload: ScheduleExceptionCreate) -> ScheduleExceptionRead:
         exception = await self.repository.create_exception(
             scope=payload.scope.value,
@@ -42,3 +52,9 @@ class ScheduleService:
         )
         await self.session.commit()
         return ScheduleExceptionRead.model_validate(exception, from_attributes=True)
+
+    async def delete_exception(self, exception_id: int) -> None:
+        deleted = await self.repository.delete_exception(exception_id)
+        if not deleted:
+            raise ValueError("Excepción no encontrada")
+        await self.session.commit()
