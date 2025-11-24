@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, time, timezone, date
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -19,6 +20,8 @@ from app.services.schedule_service import ScheduleService
 from app.services.broadcast_service import BroadcastService
 from app.services.alert_service import AlertService
 from app.services.dashboard_service import DashboardService
+from app.services.device_service import DeviceService
+from app.services.web_app_service import WebAppDataService
 from app.core.auth import AuthUser
 
 
@@ -567,3 +570,64 @@ async def test_dashboard_service_report(monkeypatch) -> None:
     assert summary.late == 1
     assert summary.attendance_pct == 75.0
     assert [point.present for point in snapshot.trend] == [2, 1]
+
+
+@pytest.mark.anyio("asyncio")
+async def test_web_app_data_service_bootstrap(monkeypatch) -> None:
+    session = MagicMock()
+    service = WebAppDataService(session)
+
+    service._resolve_student_ids = AsyncMock(return_value=[1, 2])
+    service._load_students = AsyncMock(return_value=[
+        SimpleNamespace(id=1, full_name="Ana", course_id=10, photo_pref_opt_in=True, guardians=[]),
+        SimpleNamespace(id=2, full_name="Ben", course_id=11, photo_pref_opt_in=False, guardians=[]),
+    ])
+    service._load_courses = AsyncMock(return_value=[SimpleNamespace(id=10, name="1A", grade="1")])
+    service._load_schedules = AsyncMock(return_value=[])
+    service._load_schedule_exceptions = AsyncMock(return_value=[])
+    service._load_guardians = AsyncMock(return_value=[])
+    service._load_attendance_events = AsyncMock(return_value=[])
+    service._load_devices = AsyncMock(return_value=[])
+    service._load_absences = AsyncMock(return_value=[])
+    service._load_notifications = AsyncMock(return_value=[])
+
+    user = AuthUser(id=1, role="DIRECTOR", full_name="Dir", guardian_id=None)
+    payload = await service.build_bootstrap_payload(user)
+
+    assert payload.current_user.role == "DIRECTOR"
+    assert len(payload.students) == 2
+    assert payload.courses[0].name == "1A"
+
+
+@pytest.mark.anyio("asyncio")
+async def test_device_service_ping_and_logs(monkeypatch) -> None:
+    session = MagicMock()
+    repo = MagicMock()
+    device = SimpleNamespace(
+        id=1,
+        device_id="DEV-1",
+        gate_id="G1",
+        firmware_version="1.0.0",
+        battery_pct=90,
+        pending_events=2,
+        online=False,
+        last_sync=datetime(2024, 1, 10, 8, 0),
+    )
+    repo.get_by_id = AsyncMock(return_value=device)
+    repo.touch_ping = AsyncMock(return_value=device)
+    repo.list_all = AsyncMock(return_value=[device])
+    session.commit = AsyncMock()
+
+    service = DeviceService(session)
+    service.repository = repo  # type: ignore
+
+    devices = await service.list_devices()
+    assert devices[0].device_id == "DEV-1"
+
+    result = await service.ping_device(1)
+    assert result.id == 1
+    repo.touch_ping.assert_awaited_with(device)
+    session.commit.assert_awaited()
+
+    logs = await service.get_logs(1)
+    assert any("Dispositivo DEV-1" in line for line in logs)

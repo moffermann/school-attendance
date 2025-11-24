@@ -12,6 +12,13 @@ class DeviceRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def list_all(self) -> list[Device]:
+        result = await self.session.execute(select(Device).order_by(Device.gate_id, Device.device_id))
+        return list(result.scalars().all())
+
+    async def get_by_id(self, device_id: int) -> Device | None:
+        return await self.session.get(Device, device_id)
+
     async def upsert_heartbeat(
         self,
         *,
@@ -45,5 +52,11 @@ class DeviceRepository:
             device.online = online
             device.last_sync = datetime.utcnow()
 
+        await self.session.flush()
+        return device
+
+    async def touch_ping(self, device: Device) -> Device:
+        device.last_sync = datetime.utcnow()
+        device.online = True
         await self.session.flush()
         return device

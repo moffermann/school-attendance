@@ -159,6 +159,12 @@ const State = {
     return this.apiFetch(path);
   },
 
+  async fetchDevices() {
+    const devices = await this.apiFetch('/devices');
+    this.data.devices = (devices || []).map((item) => this.normalizeDevice(item));
+    return this.data.devices;
+  },
+
   mapRole(role) {
     if (!role) return 'director';
     const normalized = role.toUpperCase();
@@ -236,11 +242,11 @@ const State = {
       id: device.id,
       gate_id: device.gate_id,
       device_id: device.device_id,
-      version: device.version,
+      version: device.version || device.firmware_version,
       last_sync: device.last_sync,
-      pending_count: device.pending_count,
-      battery_pct: device.battery_pct,
-      status: device.status
+      pending_count: device.pending_count ?? device.pending_events ?? 0,
+      battery_pct: device.battery_pct ?? 0,
+      status: device.status || (device.online ? 'ACTIVE' : 'OFFLINE')
     };
   },
 

@@ -60,11 +60,12 @@ _Actualiza esta bitácora al finalizar cada sub-tarea._
 - API de horarios ampliada: `PUT /api/v1/schedules/{id}` y `DELETE /api/v1/schedules/exceptions/{id}`; la vista de horarios/excepciones ya consume estas rutas con manejo básico de errores.
 - Se creó `DashboardService` + endpoints `/api/v1/web-app/dashboard` y `/dashboard/export` con estadísticas reales, filtros por fecha/curso/tipo y enlaces de foto; la vista `directorDashboard` ahora consume estos datos (sin mocks).
 - Nuevos reportes reales: endpoint `/api/v1/web-app/reports` calcula asistencia por curso y tendencia diaria, la vista `directorReports` consume esta API (sin datos mock).
+- API de dispositivos extendida (`GET /api/v1/devices`, `POST /devices/{id}/ping`, `/devices/{id}/logs`) y la vista `directorDevices` ahora usa datos reales y acciones de backend.
 
 Pendientes próximos:
-1. Actualizar vistas restantes (devices, students y vistas de alerts SPA) para eliminar mocks y agregar acciones reales (ping/logs, export, filtros).
-2. Ajustar backend para exponer endpoints faltantes (absences CRUD, notifications por guardian, métricas) o adaptar la SPA a los disponibles.
+1. Ajustar vistas de alerts SPA (si aplica) para consumir los endpoints existentes de alertas y export, y ampliar métricas compartidas (absences, notifications).
+2. Ajustar backend para exponer endpoints faltantes (absences CRUD completos, notifications por guardian, métricas) o adaptar la SPA a los disponibles.
 3. Documentar en `docs/roadmap.md` el plan detallado para la segunda fase (PWA y kiosco) una vez que la SPA quede totalmente integrada.
-4. Añadir pruebas de servicio para `WebAppDataService` y rutas nuevas (`auth/session`, `web-app/bootstrap`, schedules update/delete).
+4. Añadir pruebas de servicio para rutas nuevas (`auth/session`, `web-app/bootstrap`, schedules update/delete, devices) y completar cobertura.
 
-**Siguiente paso inmediato:** Conectar dispositivos/alertas del portal a endpoints reales (ping/logs/estadísticas) y extender las métricas compartidas (absences, notifications).
+**Siguiente paso inmediato:** Conectar vista de alertas SPA (si se activa) a los endpoints reales y completar métricas compartidas (ausencias/notificaciones) para el portal.
