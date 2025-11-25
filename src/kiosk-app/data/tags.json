@@ -19,5 +19,8 @@
   {"token": "nfc_018", "student_id": 18, "status": "ACTIVE"},
   {"token": "qr_019", "student_id": 19, "status": "ACTIVE"},
   {"token": "qr_020", "student_id": 20, "status": "ACTIVE"},
-  {"token": "invalid_token_123", "student_id": null, "status": "REVOKED"}
+  {"token": "invalid_token_123", "student_id": null, "status": "REVOKED"},
+  {"token": "nfc_teacher_001", "teacher_id": 1, "status": "ACTIVE"},
+  {"token": "nfc_teacher_002", "teacher_id": 2, "status": "ACTIVE"},
+  {"token": "qr_teacher_003", "teacher_id": 3, "status": "ACTIVE"}
 ]

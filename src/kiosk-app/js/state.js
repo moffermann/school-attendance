@@ -3,6 +3,7 @@ const State = {
   device: {},
   config: {},
   students: [],
+  teachers: [],
   tags: [],
   queue: [],
   localSeq: 0,
@@ -13,6 +14,7 @@ const State = {
     if (stored) {
       const data = JSON.parse(stored);
       this.students = data.students || [];
+      this.teachers = data.teachers || [];
       this.tags = data.tags || [];
       this.queue = data.queue || [];
       this.device = data.device || {};
@@ -27,8 +29,9 @@ const State = {
 
   async loadFromJSON() {
     try {
-      const [students, tags, device, queue, config] = await Promise.all([
+      const [students, teachers, tags, device, queue, config] = await Promise.all([
         fetch('data/students.json').then(r => r.json()),
+        fetch('data/teachers.json').then(r => r.json()),
         fetch('data/tags.json').then(r => r.json()),
         fetch('data/device.json').then(r => r.json()),
         fetch('data/queue.json').then(r => r.json()),
@@ -36,6 +39,7 @@ const State = {
       ]);
 
       this.students = students;
+      this.teachers = teachers;
       this.tags = tags;
       this.device = device;
       this.queue = queue;
@@ -49,12 +53,33 @@ const State = {
   persist() {
     localStorage.setItem('kioskData', JSON.stringify({
       students: this.students,
+      teachers: this.teachers,
       tags: this.tags,
       queue: this.queue,
       device: this.device,
       config: this.config,
       localSeq: this.localSeq
     }));
+  },
+
+  resolveByToken(token) {
+    const tag = this.tags.find(t => t.token === token);
+    if (!tag) return null;
+    if (tag.status !== 'ACTIVE') return { error: 'REVOKED' };
+
+    // Check if it's a teacher
+    if (tag.teacher_id) {
+      const teacher = this.teachers.find(t => t.id === tag.teacher_id);
+      return teacher ? { type: 'teacher', data: teacher } : null;
+    }
+
+    // Check if it's a student
+    if (tag.student_id) {
+      const student = this.students.find(s => s.id === tag.student_id);
+      return student ? { type: 'student', data: student } : null;
+    }
+
+    return null;
   },
 
   resolveStudentByToken(token) {

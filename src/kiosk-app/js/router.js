@@ -11,6 +11,7 @@ const Router = {
     this.addRoute('/device', Views.deviceStatus);
     this.addRoute('/settings', Views.settings);
     this.addRoute('/help', Views.help);
+    this.addRoute('/admin-panel', Views.adminPanel);
 
     window.addEventListener('hashchange', () => this.handleRoute());
     this.handleRoute();
