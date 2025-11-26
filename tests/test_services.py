@@ -393,6 +393,10 @@ async def test_detect_no_show_alerts(monkeypatch) -> None:
             self.created.append(kwargs)
             return fake_alert
 
+        async def get_or_create(self, **kwargs):
+            self.created.append(kwargs)
+            return fake_alert, True
+
     service.no_show_repo = FakeAlertRepo()
 
     alerts = await service.detect_no_show_alerts(datetime(2024, 1, 10, 9, 0, tzinfo=timezone.utc))

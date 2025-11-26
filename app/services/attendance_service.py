@@ -60,11 +60,7 @@ class AttendanceService:
         alerts: list[dict] = []
 
         for schedule in schedules:
-            if getattr(schedule, "course", None) is None:
-                try:
-                    await self.session.refresh(schedule, attribute_names=["course"])
-                except Exception:  # pragma: no cover - best effort
-                    schedule.course = None
+            # Course is eager-loaded via selectinload in list_by_weekday
             threshold = datetime.combine(target_date, schedule.in_time) + grace
             if current_dt_naive < threshold:
                 continue
@@ -84,16 +80,15 @@ class AttendanceService:
 
             for student in missing_students:
                 for guardian in getattr(student, "guardians", []):
-                    alert = await self.no_show_repo.get_by_unique(student.id, guardian.id, target_date)
-                    if not alert:
-                        alert = await self.no_show_repo.create(
-                            student_id=student.id,
-                            guardian_id=guardian.id,
-                            course_id=schedule.course_id,
-                            schedule_id=schedule.id,
-                            alert_date=target_date,
-                            alerted_at=current_dt_naive,
-                        )
+                    # Use get_or_create to handle race conditions atomically
+                    alert, _created = await self.no_show_repo.get_or_create(
+                        student_id=student.id,
+                        guardian_id=guardian.id,
+                        course_id=schedule.course_id,
+                        schedule_id=schedule.id,
+                        alert_date=target_date,
+                        alerted_at=current_dt_naive,
+                    )
                     alerts.append(
                         {
                             "alert": alert,
