@@ -1,5 +1,6 @@
 {
   "photoEnabled": true,
   "highContrast": false,
-  "schoolName": "Colegio San Patricio"
+  "schoolName": "Colegio San Patricio",
+  "autoResumeDelay": 5000
 }

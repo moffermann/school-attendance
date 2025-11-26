@@ -12,10 +12,19 @@ Views.home = function() {
   let animationFrame = null;
   let nfcReader = null;
   let nfcSupported = 'NDEFReader' in window;
+  let autoResumeTimeout = null;
 
   // Debounce: prevent duplicate scans within 500ms
   let lastScanTime = 0;
   const DEBOUNCE_MS = 500;
+
+  // NFC retry configuration
+  const NFC_MAX_RETRIES = 3;
+  const NFC_RETRY_DELAY_MS = 2000;
+  let nfcRetryCount = 0;
+
+  // Auto-resume configuration (default 5 seconds, 0 = disabled)
+  const AUTO_RESUME_MS = State.config.autoResumeDelay || 5000;
 
   function renderCamera() {
     const nfcStatusClass = nfcSupported ? 'nfc-active' : 'nfc-inactive';
@@ -27,11 +36,11 @@ Views.home = function() {
         <canvas id="qr-canvas" class="qr-canvas"></canvas>
         <div class="qr-overlay">
           <div class="scan-status-bar">
-            <div class="scan-status-item ${nfcStatusClass}">
+            <div class="scan-status-item ${nfcStatusClass}" id="nfc-status">
               <span class="status-icon">📶</span>
               <span class="status-text">${nfcStatusText}</span>
             </div>
-            <div class="scan-status-item qr-active">
+            <div class="scan-status-item qr-active" id="qr-status">
               <span class="status-icon">📷</span>
               <span class="status-text">QR Activo</span>
             </div>
@@ -42,6 +51,14 @@ Views.home = function() {
             <div class="qr-corner qr-corner-bl"></div>
             <div class="qr-corner qr-corner-br"></div>
           </div>
+          <!-- NFC prominent indicator -->
+          ${nfcSupported ? `
+            <div class="nfc-reading-indicator" id="nfc-indicator">
+              <div class="nfc-pulse-ring"></div>
+              <div class="nfc-icon">📱</div>
+              <div class="nfc-text">Esperando tarjeta NFC...</div>
+            </div>
+          ` : ''}
           <div class="qr-instruction">
             ${nfcSupported
               ? 'Acerca tu tarjeta NFC o código QR'
@@ -79,6 +96,56 @@ Views.home = function() {
     }
   }
 
+  // Update NFC indicator state
+  function updateNFCIndicator(state, message) {
+    const indicator = document.getElementById('nfc-indicator');
+    const nfcStatus = document.getElementById('nfc-status');
+
+    if (indicator) {
+      const textEl = indicator.querySelector('.nfc-text');
+      const iconEl = indicator.querySelector('.nfc-icon');
+
+      indicator.className = 'nfc-reading-indicator';
+
+      switch (state) {
+        case 'waiting':
+          indicator.classList.add('nfc-waiting');
+          iconEl.textContent = '📱';
+          textEl.textContent = message || 'Esperando tarjeta NFC...';
+          break;
+        case 'reading':
+          indicator.classList.add('nfc-reading');
+          iconEl.textContent = '🔄';
+          textEl.textContent = message || 'Leyendo tarjeta...';
+          break;
+        case 'success':
+          indicator.classList.add('nfc-success');
+          iconEl.textContent = '✅';
+          textEl.textContent = message || '¡Tarjeta detectada!';
+          break;
+        case 'error':
+          indicator.classList.add('nfc-error');
+          iconEl.textContent = '⚠️';
+          textEl.textContent = message || 'Error de lectura';
+          break;
+        case 'retrying':
+          indicator.classList.add('nfc-retrying');
+          iconEl.textContent = '🔄';
+          textEl.textContent = message || 'Reintentando...';
+          break;
+      }
+    }
+
+    if (nfcStatus) {
+      nfcStatus.className = 'scan-status-item';
+      if (state === 'error' || state === 'retrying') {
+        nfcStatus.classList.add('nfc-inactive');
+      } else {
+        nfcStatus.classList.add('nfc-active');
+      }
+    }
+  }
+
   async function startNFC() {
     if (!nfcSupported) {
       console.log('Web NFC not supported in this browser');
@@ -89,9 +156,12 @@ Views.home = function() {
       nfcReader = new NDEFReader();
       await nfcReader.scan();
       console.log('NFC scan started successfully');
+      nfcRetryCount = 0; // Reset retry count on success
+      updateNFCIndicator('waiting');
 
       nfcReader.addEventListener('reading', ({ message, serialNumber }) => {
         console.log('NFC tag detected:', serialNumber);
+        updateNFCIndicator('reading', 'Leyendo tarjeta...');
 
         // Try to read NDEF text record
         let token = null;
@@ -117,24 +187,56 @@ Views.home = function() {
         }
 
         if (token && scanningState === 'ready') {
+          updateNFCIndicator('success', '¡Tarjeta detectada!');
           processToken(token, 'NFC');
         }
       });
 
       nfcReader.addEventListener('readingerror', () => {
         console.log('NFC reading error');
+        updateNFCIndicator('error', 'Error al leer tarjeta');
         UI.showToast('Error al leer tarjeta NFC', 'error');
+
+        // Auto-retry after delay
+        setTimeout(() => {
+          if (scanningState === 'ready') {
+            updateNFCIndicator('waiting');
+          }
+        }, 2000);
       });
 
     } catch (err) {
       console.error('Error starting NFC:', err);
-      // Update UI to show NFC is not available
-      nfcSupported = false;
-      const nfcStatus = document.querySelector('.scan-status-item.nfc-active');
-      if (nfcStatus) {
-        nfcStatus.classList.remove('nfc-active');
-        nfcStatus.classList.add('nfc-inactive');
-        nfcStatus.querySelector('.status-text').textContent = 'NFC No disponible';
+      nfcRetryCount++;
+
+      // Retry NFC initialization if under max retries
+      if (nfcRetryCount < NFC_MAX_RETRIES) {
+        console.log(`NFC retry ${nfcRetryCount}/${NFC_MAX_RETRIES}`);
+        updateNFCIndicator('retrying', `Reintentando NFC (${nfcRetryCount}/${NFC_MAX_RETRIES})...`);
+        UI.showToast(`Reintentando NFC (${nfcRetryCount}/${NFC_MAX_RETRIES})...`, 'info');
+
+        setTimeout(() => {
+          startNFC();
+        }, NFC_RETRY_DELAY_MS);
+      } else {
+        // Max retries reached, disable NFC
+        nfcSupported = false;
+        updateNFCIndicator('error', 'NFC no disponible');
+
+        const nfcStatus = document.getElementById('nfc-status');
+        if (nfcStatus) {
+          nfcStatus.classList.remove('nfc-active');
+          nfcStatus.classList.add('nfc-inactive');
+          nfcStatus.querySelector('.status-text').textContent = 'NFC No disponible';
+        }
+
+        // Hide NFC indicator after showing error
+        const indicator = document.getElementById('nfc-indicator');
+        if (indicator) {
+          setTimeout(() => {
+            indicator.style.display = 'none';
+          }, 3000);
+        }
       }
     }
   }
@@ -257,6 +359,7 @@ Views.home = function() {
     const eventType = State.nextEventTypeFor(student.id);
     const timestamp = new Date().toISOString();
     const sourceIcon = source === 'NFC' ? '📶' : '📷';
+    const autoResumeEnabled = AUTO_RESUME_MS > 0;
 
     app.innerHTML = `
       <div class="welcome-screen">
@@ -267,8 +370,14 @@ Views.home = function() {
           <div class="welcome-message">${eventType === 'IN' ? '¡Bienvenido!' : '¡Hasta pronto!'}</div>
           <div class="welcome-time">${UI.formatTime(timestamp)}</div>
           <div class="welcome-source">${sourceIcon} Detectado por ${source}</div>
-          <button class="btn btn-secondary" style="margin-top: 1.5rem" onclick="Views.home.resumeScan()">
-            Escanear siguiente
+          ${autoResumeEnabled ? `
+            <div class="auto-resume-indicator" id="auto-resume-indicator">
+              <div class="auto-resume-progress" id="auto-resume-progress"></div>
+              <span class="auto-resume-text">Volviendo en <span id="auto-resume-countdown">${Math.ceil(AUTO_RESUME_MS / 1000)}</span>s...</span>
+            </div>
+          ` : ''}
+          <button class="btn btn-secondary" style="margin-top: 1rem" onclick="Views.home.resumeScan()">
+            ${autoResumeEnabled ? 'Escanear ahora' : 'Escanear siguiente'}
           </button>
         </div>
       </div>
@@ -283,6 +392,42 @@ Views.home = function() {
       photo_ref: State.config.photoEnabled ? 'simulated.jpg' : null
     };
     State.enqueueEvent(event);
+
+    // Start auto-resume countdown if enabled
+    if (autoResumeEnabled) {
+      startAutoResumeCountdown();
+    }
+  }
+
+  function startAutoResumeCountdown() {
+    const progressEl = document.getElementById('auto-resume-progress');
+    const countdownEl = document.getElementById('auto-resume-countdown');
+    let remaining = AUTO_RESUME_MS;
+    const intervalMs = 100; // Update every 100ms for smooth progress
+
+    // Animate progress bar
+    if (progressEl) {
+      progressEl.style.transition = `width ${AUTO_RESUME_MS}ms linear`;
+      setTimeout(() => {
+        progressEl.style.width = '100%';
+      }, 50);
+    }
+
+    // Update countdown text
+    const countdownInterval = setInterval(() => {
+      remaining -= 1000;
+      if (countdownEl && remaining > 0) {
+        countdownEl.textContent = Math.ceil(remaining / 1000);
+      }
+    }, 1000);
+
+    // Auto-resume after delay
+    autoResumeTimeout = setTimeout(() => {
+      clearInterval(countdownInterval);
+      if (scanningState === 'showing_result') {
+        Views.home.resumeScan();
+      }
+    }, AUTO_RESUME_MS);
   }
 
   function showManualInput() {
@@ -343,7 +488,14 @@ Views.home = function() {
   };
 
   Views.home.resumeScan = function() {
+    // Cancel any pending auto-resume
+    if (autoResumeTimeout) {
+      clearTimeout(autoResumeTimeout);
+      autoResumeTimeout = null;
+    }
+
     scanningState = 'ready';
+    nfcRetryCount = 0; // Reset NFC retry count
     nfcSupported = 'NDEFReader' in window; // Re-check NFC support
     renderCamera();
   };
@@ -352,6 +504,10 @@ Views.home = function() {
   window.addEventListener('hashchange', function cleanup() {
     stopCamera();
     stopNFC();
+    if (autoResumeTimeout) {
+      clearTimeout(autoResumeTimeout);
+      autoResumeTimeout = null;
+    }
     window.removeEventListener('hashchange', cleanup);
   });
 
