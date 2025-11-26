@@ -61,7 +61,14 @@
 - [x] Tests para NotificationRepository (89% coverage)
 - [x] Tests para GuardianRepository (76% coverage)
 - [x] Tests para AuthService (100% coverage)
-- [x] Meta alcanzada: **70% coverage** (143 tests)
+- [x] Tests para NoShowAlertRepository (91% coverage)
+- [x] Tests para ScheduleService (100% coverage)
+- [x] Tests para AbsenceService (97% coverage)
+- [x] Tests para DeviceService (100% coverage)
+- [x] Tests para web/router.py (57% coverage)
+- [x] Tests para security.py (100% coverage)
+- [x] Tests para API endpoints: parents, tags, alerts, broadcast
+- [x] Meta alcanzada: **80% coverage** (271 tests)
 
 ## Fase 3.2: Test Coverage Frontend (Pendiente)
 
@@ -124,10 +131,10 @@
 | Métrica | Actual | Meta Fase 3 | Meta Final |
 |---------|--------|-------------|------------|
 | Bugs críticos | 0 | 0 | 0 |
-| Test coverage backend | **70%** ✅ | 70% | 85% |
+| Test coverage backend | **80%** ✅ | 70% | 85% |
 | Test coverage frontend | ~15% | 50% | 70% |
 | Vulnerabilidades conocidas | 0 | 0 | 0 |
-| Tests totales | 143 | - | 200+ |
+| Tests totales | 271 | - | 300+ |
 
 ---
 
@@ -144,4 +151,4 @@ Fase 1 (Estabilización) ──✅──► Fase 3 Backend (Tests) ──✅─�
 ---
 
 _Última actualización: 2025-11-26_
-_Próxima revisión: Al completar Fase 3_
+_Próxima revisión: Al completar Fase 3.2 (Frontend E2E)_
