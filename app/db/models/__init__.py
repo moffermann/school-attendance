@@ -14,7 +14,8 @@ from app.db.models.schedule import Schedule
 from app.db.models.schedule_exception import ScheduleException
 from app.db.models.audit_log import AuditLog
 from app.db.models.user import User
-from app.db.models.associations import student_guardian_table
+from app.db.models.teacher import Teacher
+from app.db.models.associations import student_guardian_table, teacher_course_table
 from app.db.models.no_show_alert import NoShowAlert
 
 __all__ = [
@@ -32,6 +33,8 @@ __all__ = [
     "ScheduleException",
     "AuditLog",
     "User",
+    "Teacher",
     "student_guardian_table",
+    "teacher_course_table",
     "NoShowAlert",
 ]
