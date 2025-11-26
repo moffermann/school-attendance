@@ -200,7 +200,8 @@ Views.scanResult = function() {
       type: eventType,
       ts: confirmTimestamp.toISOString(),
       source: source,
-      photo_ref: photoDataUrl ? `photo_${Date.now()}.jpg` : null
+      photo_ref: photoDataUrl ? `photo_${Date.now()}.jpg` : null,
+      photo_data: photoDataUrl || null  // Base64 data for upload
     };
 
     State.enqueueEvent(event);

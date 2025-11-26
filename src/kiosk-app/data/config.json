@@ -2,5 +2,7 @@
   "photoEnabled": true,
   "highContrast": false,
   "schoolName": "Colegio San Patricio",
-  "autoResumeDelay": 5000
+  "autoResumeDelay": 5000,
+  "apiBaseUrl": "/api/v1",
+  "deviceApiKey": ""
 }
