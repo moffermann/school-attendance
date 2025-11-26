@@ -78,12 +78,17 @@ El rediseño v2.0 del kiosk está casi completo. **Fase 1 completada** - todos l
 - Auto-resume configurable via `config.json` (autoResumeDelay: 5000ms)
 
 ### FASE 4: Integración con Backend Real
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADA
 
-- [ ] 4.1 Reemplazar `Sync.simulateSync()` con llamadas reales a API
-- [ ] 4.2 Conectar con `POST /api/v1/attendance/events`
-- [ ] 4.3 Implementar captura de foto real
-- [ ] 4.4 Subida de fotos con `/events/{id}/photo`
+- [x] 4.1 Reemplazar `Sync.simulateSync()` con llamadas reales a API (commit: 13fef4f)
+- [x] 4.2 Conectar con `POST /api/v1/attendance/events` (commit: 13fef4f)
+- [x] 4.3 Captura de foto ya implementada en scan_result.js
+- [x] 4.4 Subida de fotos con `/events/{id}/photo` (commit: 13fef4f)
+
+**Configuración:**
+- `apiBaseUrl`: URL base del API (default: `/api/v1`)
+- `deviceApiKey`: Key de autenticación del dispositivo
+- Sin key configurada = modo simulación para desarrollo
 
 ---
 
@@ -127,4 +132,4 @@ El rediseño v2.0 del kiosk está casi completo. **Fase 1 completada** - todos l
 
 ---
 
-_Última actualización: 2025-11-26 - Fases 1, 2 y 3 completadas_
+_Última actualización: 2025-11-26 - Fases 1, 2, 3 y 4 completadas_
