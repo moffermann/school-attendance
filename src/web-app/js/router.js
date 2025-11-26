@@ -40,15 +40,22 @@ const Router = {
       return;
     }
 
-    // Check role guard
-    if (route.allowedRoles && !route.allowedRoles.includes(State.currentRole)) {
-      if (!State.currentRole) {
+    // Security: Validate session integrity before checking roles
+    if (route.allowedRoles) {
+      // Use State's validation method which checks role validity
+      if (!State.isSessionValid()) {
+        console.warn('Invalid session detected, redirecting to auth');
+        State.logout(); // Clear potentially tampered data
         this.navigate('/auth');
-      } else {
+        return;
+      }
+
+      // Check if user has required role
+      if (!route.allowedRoles.includes(State.currentRole)) {
         Components.showToast('No tienes permiso para acceder a esta página', 'error');
         this.navigate(State.currentRole === 'parent' ? '/parent/home' : '/director/dashboard');
+        return;
       }
-      return;
     }
 
     // Render the view

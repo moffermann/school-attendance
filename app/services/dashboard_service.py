@@ -247,12 +247,31 @@ class DashboardService:
         if event_type:
             stmt = stmt.where(AttendanceEvent.type == event_type)
         if search:
-            stmt = stmt.where(func.lower(Student.full_name).like(f"%{search}%"))
+            # Escape special LIKE characters to prevent SQL injection patterns
+            # and limit search query length
+            safe_search = self._sanitize_search_query(search)
+            if safe_search:
+                stmt = stmt.where(func.lower(Student.full_name).like(f"%{safe_search}%"))
 
         stmt = stmt.order_by(AttendanceEvent.occurred_at.desc()).limit(MAX_EVENTS)
 
         result = await self.session.execute(stmt)
         return list(result.all())
+
+    @staticmethod
+    def _sanitize_search_query(search: str, max_length: int = 100) -> str | None:
+        """Sanitize search query for safe use in LIKE clauses."""
+        if not search:
+            return None
+        # Limit length to prevent DoS
+        search = search.strip()[:max_length]
+        if not search:
+            return None
+        # Escape special LIKE characters: % and _ and backslash
+        search = search.replace("\\", "\\\\")
+        search = search.replace("%", "\\%")
+        search = search.replace("_", "\\_")
+        return search.lower()
 
     def _compute_stats(
         self,

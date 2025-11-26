@@ -12,7 +12,13 @@ class Settings(BaseSettings):
     api_host: str = Field("0.0.0.0", env="API_HOST")
     api_port: int = Field(8000, env="API_PORT")
 
-    secret_key: str = Field("dev-secret", env="SECRET_KEY")
+    # Security: SECRET_KEY is required in production (no default)
+    # In development, a default is provided but should be overridden
+    secret_key: str = Field(
+        default="CHANGE-ME-IN-PRODUCTION",
+        env="SECRET_KEY",
+        description="JWT signing key - MUST be changed in production"
+    )
     jwt_access_expires_min: int = Field(15, env="JWT_ACCESS_EXPIRES_MIN")
     jwt_refresh_expires_days: int = Field(7, env="JWT_REFRESH_EXPIRES_DAYS")
 
@@ -38,7 +44,23 @@ class Settings(BaseSettings):
     cors_origins: list[AnyHttpUrl] = Field(default_factory=list, env="CORS_ORIGINS")
     public_base_url: AnyHttpUrl = Field("http://localhost:8000", env="PUBLIC_BASE_URL")
     no_show_grace_minutes: int = Field(15, env="NO_SHOW_GRACE_MINUTES")
-    device_api_key: str = Field("device-secret", env="DEVICE_API_KEY")
+
+    # Security: DEVICE_API_KEY is required in production (no default)
+    device_api_key: str = Field(
+        default="CHANGE-ME-IN-PRODUCTION",
+        env="DEVICE_API_KEY",
+        description="Kiosk device authentication key - MUST be changed in production"
+    )
+
+    def validate_production_secrets(self) -> list[str]:
+        """Check if secrets are using insecure defaults. Returns list of warnings."""
+        warnings = []
+        if self.app_env == "production":
+            if self.secret_key == "CHANGE-ME-IN-PRODUCTION":
+                warnings.append("SECRET_KEY is using default value in production!")
+            if self.device_api_key == "CHANGE-ME-IN-PRODUCTION":
+                warnings.append("DEVICE_API_KEY is using default value in production!")
+        return warnings
 
     class Config:
         env_file = ".env"

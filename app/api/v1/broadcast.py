@@ -1,6 +1,6 @@
 """Broadcast endpoints."""
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core import deps
 from app.core.auth import AuthUser

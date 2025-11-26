@@ -1,5 +1,7 @@
 """FastAPI application entry point."""
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -11,6 +13,7 @@ from app.core.config import settings
 from app.core.logging import setup_logging
 from app.web.router import web_router
 
+logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_limit_default])
 
@@ -19,6 +22,11 @@ def create_app() -> FastAPI:
     """Application factory for FastAPI."""
 
     setup_logging()
+
+    # Validate security settings on startup
+    security_warnings = settings.validate_production_secrets()
+    for warning in security_warnings:
+        logger.critical(f"SECURITY WARNING: {warning}")
 
     app = FastAPI(
         title="School Attendance API",

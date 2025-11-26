@@ -1,5 +1,19 @@
 // Reusable UI components
 const Components = {
+  // Security: HTML escape function to prevent XSS
+  escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const str = String(text);
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    return str.replace(/[&<>"']/g, char => map[char]);
+  },
+
   // Toast notifications
   showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
@@ -7,7 +21,7 @@ const Components = {
     toast.className = `toast toast-${type}`;
     toast.innerHTML = `
       <div class="toast-content">
-        <div class="toast-message">${message}</div>
+        <div class="toast-message">${this.escapeHtml(message)}</div>
       </div>
       <button class="toast-close" aria-label="Cerrar">&times;</button>
     `;
@@ -27,20 +41,22 @@ const Components = {
   },
 
   // Modal
+  // Note: 'content' parameter may contain pre-built HTML for complex modals
+  // Callers should use escapeHtml() for user-provided text within content
   showModal(title, content, buttons = []) {
     const container = document.getElementById('modal-container');
     container.className = 'modal-container active';
 
     const buttonsHTML = buttons.map(btn => `
-      <button class="btn ${btn.className || 'btn-secondary'}" data-action="${btn.action || 'close'}">
-        ${btn.label}
+      <button class="btn ${btn.className || 'btn-secondary'}" data-action="${this.escapeHtml(btn.action || 'close')}">
+        ${this.escapeHtml(btn.label)}
       </button>
     `).join('');
 
     container.innerHTML = `
       <div class="modal">
         <div class="modal-header">
-          <h2 class="modal-title">${title}</h2>
+          <h2 class="modal-title">${this.escapeHtml(title)}</h2>
           <button class="modal-close" aria-label="Cerrar">&times;</button>
         </div>
         <div class="modal-body">
@@ -138,6 +154,7 @@ const Components = {
   },
 
   // Table with pagination
+  // Note: Cell content should be escaped by callers or use escapeHtml for user data
   createTable(headers, rows, options = {}) {
     const perPage = options.perPage || 20;
     const currentPage = options.currentPage || 1;
@@ -146,7 +163,9 @@ const Components = {
     const end = start + perPage;
     const paginatedRows = rows.slice(start, end);
 
-    const headerHTML = headers.map(h => `<th>${h}</th>`).join('');
+    const headerHTML = headers.map(h => `<th>${this.escapeHtml(h)}</th>`).join('');
+    // Note: rows may contain pre-escaped HTML or safe content (e.g., chips, buttons)
+    // For user-provided text, callers should use Components.escapeHtml()
     const rowsHTML = paginatedRows.map(row => `
       <tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>
     `).join('');
@@ -179,15 +198,15 @@ const Components = {
 
   // Status chip
   createChip(label, type = 'gray') {
-    return `<span class="chip chip-${type}">${label}</span>`;
+    return `<span class="chip chip-${this.escapeHtml(type)}">${this.escapeHtml(label)}</span>`;
   },
 
   // Stat card
   createStatCard(label, value, type = 'info') {
     return `
       <div class="stat-card">
-        <div class="stat-label">${label}</div>
-        <div class="stat-value">${value}</div>
+        <div class="stat-label">${this.escapeHtml(label)}</div>
+        <div class="stat-value">${this.escapeHtml(value)}</div>
       </div>
     `;
   },
@@ -215,8 +234,8 @@ const Components = {
     return `
       <div class="empty-state">
         <div class="empty-state-icon">📭</div>
-        <div class="empty-state-title">${title}</div>
-        <div class="empty-state-message">${message}</div>
+        <div class="empty-state-title">${this.escapeHtml(title)}</div>
+        <div class="empty-state-message">${this.escapeHtml(message)}</div>
       </div>
     `;
   },
@@ -226,7 +245,7 @@ const Components = {
     return `
       <div class="loading-screen">
         <div class="spinner"></div>
-        <p>${message}</p>
+        <p>${this.escapeHtml(message)}</p>
       </div>
     `;
   },
