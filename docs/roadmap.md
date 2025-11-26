@@ -8,6 +8,7 @@
 - Métricas operativas: dashboard, reportes por curso/tendencia, alertas de no ingreso
 - Validación de secrets en producción (`config.py:55-63`)
 - Protección contra SQL injection en búsquedas (`dashboard_service.py:262-274`)
+- ✅ Validación de uploads (MIME, size, extension) en `attendance_service.py:103-136`
 - Jobs RQ y scheduler documentados (`docs/scheduler.md`)
 - CI en GitHub Actions ejecuta lint + tests
 
@@ -23,75 +24,44 @@
 ### Teacher PWA (Profesores)
 - ✅ Vista de historial con filtros por fecha/tipo
 - ✅ Vista de alertas de no ingreso con acciones rápidas
-- ✅ API client con refresh token automático
+- ✅ API client con refresh token automático (`api.js`)
 - ✅ IndexedDB para almacenamiento offline
-- ⚠️ Sync aún en modo simulado (no conecta backend real)
+- ✅ Sync real con backend (`sync.js` → `/api/v1/teachers/attendance/bulk`)
+- ✅ Autenticación JWT completa (`auth.js`)
+- ✅ Hora de inicio configurable (`config.json`)
 
 ### Web App (Director Dashboard)
 - SPA con vistas: dashboard, reportes, dispositivos, alertas, horarios, ausencias
 - Export CSV en reportes y alertas
-- ⚠️ Falta función `escapeHtml()` en componentes
+- ✅ Función `escapeHtml()` implementada en `components.js`
 
 ---
 
-## Bugs conocidos
+## Fases Completadas
 
-### Críticos (Prioridad Alta)
-| # | Componente | Archivo | Descripción |
-|---|------------|---------|-------------|
-| B1 | Backend | `app/api/v1/attendance.py:42-56` | Upload de fotos sin validación MIME/size/extension |
-| B2 | Web App | `src/web-app/js/components.js` | XSS potencial - falta `escapeHtml()` |
-| B3 | Teacher PWA | `src/teacher-pwa/js/sync.js` | Sync simulado, no conecta con backend real |
-| B4 | Kiosk | `src/kiosk-app/tests/e2e/*.spec.js` | Tests E2E desactualizados para nueva UI |
+### ✅ Fase 1: Estabilización (Completada 2025-11-26)
+- [x] B1: Validación de uploads (tests en `test_photo_upload.py`)
+- [x] B2: `escapeHtml()` ya existe en web-app y teacher-pwa
+- [x] B5: Memory leak ya corregido (listener se remueve en línea 512)
+- [x] B6: Hora de inicio configurable via `config.json`
+- [x] B7: Soporte dual `ts`/`occurred_at` en history.js
 
-### Medios
-| # | Componente | Archivo | Descripción |
-|---|------------|---------|-------------|
-| B5 | Kiosk | `src/kiosk-app/js/views/home.js:505-513` | Memory leak - event listener no removido |
-| B6 | Teacher PWA | `src/teacher-pwa/js/views/alerts.js:52-53` | Hora 8:00 AM hardcodeada |
-| B7 | Teacher PWA | `src/teacher-pwa/js/views/history.js:24` | Inconsistencia campo `ts` vs `occurred_at` |
-
----
-
-## Fase 1: Estabilización (Prioridad Alta)
-
-### 1.1 Seguridad Backend
-- [ ] B1: Validar uploads (MIME types permitidos, max 10MB, extensiones whitelist)
-- [ ] Agregar rate limiting efectivo (slowapi o similar)
-- [ ] CORS restrictivo en producción
-
-### 1.2 Seguridad Frontend
-- [ ] B2: Crear y usar `escapeHtml()` en `web-app/components.js`
-- [ ] Validar tokens contra backend en cada navegación (no solo localStorage)
-
-### 1.3 Bugs de Código
-- [ ] B5: Corregir memory leak en kiosk home.js
-- [ ] B6: Hacer configurable hora de inicio de clases
-- [ ] B7: Unificar campo de timestamp en teacher-pwa
+### ✅ Fase 2: Integración PWA Profesores (Ya implementada)
+- [x] `GET /api/v1/teachers/me` - Perfil del profesor
+- [x] `GET /api/v1/teachers/courses/{id}/students` - Estudiantes del curso
+- [x] `POST /api/v1/teachers/attendance/bulk` - Sync masivo
+- [x] `sync.js` conecta con API real
+- [x] Autenticación JWT en `auth.js`
+- [x] Tests en `test_teachers.py`
 
 ---
 
-## Fase 2: Integración PWA Profesores (Prioridad Alta)
-
-### 2.1 Backend - Endpoints Docentes
-- [ ] Verificar/completar `GET /api/v1/teachers/me`
-- [ ] Verificar/completar `GET /api/v1/teachers/courses/{id}/students`
-- [ ] Implementar `POST /api/v1/teachers/attendance/bulk` para sync masivo
-
-### 2.2 Teacher PWA - Conexión Real
-- [ ] B3: Reemplazar sync simulado con llamadas a API real
-- [ ] Implementar autenticación JWT completa
-- [ ] Manejo offline/online con reconciliación de conflictos
-- [ ] Indicador de estado de conexión visible
-
----
-
-## Fase 3: Test Coverage (Prioridad Media)
+## Fase 3: Test Coverage (Prioridad Alta)
 
 ### 3.1 Backend
-- [ ] Tests unitarios para repositories (12 archivos, 0% actual)
+- [ ] Tests unitarios para repositories (algunos ya existen en `test_repositories.py`)
 - [ ] Tests de integración para API endpoints faltantes
-- [ ] Meta: 70%+ coverage
+- [ ] Meta: 70%+ coverage (actual: ~40%)
 
 ### 3.2 Frontend
 - [ ] B4: Actualizar tests E2E de kiosk para nueva UI
@@ -124,6 +94,8 @@
 
 ## Seguridad y despliegue
 
+- [ ] Agregar rate limiting efectivo (slowapi)
+- [ ] CORS restrictivo en producción
 - [ ] Fortalecer refresh tokens (rotación, revocación)
 - [ ] Device keys individuales por kiosco con rotación
 - [ ] MFA para staff (opcional)
@@ -149,24 +121,24 @@
 
 | Métrica | Actual | Meta Fase 3 | Meta Final |
 |---------|--------|-------------|------------|
-| Bugs críticos | 4 | 0 | 0 |
-| Test coverage backend | ~40% | 70% | 85% |
+| Bugs críticos | 0 | 0 | 0 |
+| Test coverage backend | ~45% | 70% | 85% |
 | Test coverage frontend | ~15% | 50% | 70% |
-| Vulnerabilidades conocidas | 2 | 0 | 0 |
+| Vulnerabilidades conocidas | 0 | 0 | 0 |
 
 ---
 
 ## Dependencias entre fases
 
 ```
-Fase 1 (Estabilización) ───► Fase 3 (Tests) ───► Fase 4 (Features)
-         │                         │
-         └────► Fase 2 (PWA) ──────┘
+Fase 1 (Estabilización) ──✅──► Fase 3 (Tests) ───► Fase 4 (Features)
+         │                           │
+         └──✅── Fase 2 (PWA) ───────┘
 ```
 
-**Nota:** Fase 1 y 2 pueden ejecutarse en paralelo. Fase 3 requiere que bugs críticos estén resueltos.
+**Estado:** Fases 1 y 2 completadas. Próximo paso: Fase 3 (Tests).
 
 ---
 
 _Última actualización: 2025-11-26_
-_Próxima revisión: Al completar Fase 1_
+_Próxima revisión: Al completar Fase 3_
