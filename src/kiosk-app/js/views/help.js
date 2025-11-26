@@ -18,9 +18,13 @@ Views.help = function() {
           </ol>
 
           <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">Tokens de Prueba</h3>
-          <p><strong>Válidos:</strong> nfc_001, nfc_002, nfc_007, nfc_008, qr_011, qr_012, qr_014, qr_015</p>
+          <p><strong>Alumnos:</strong> nfc_001, nfc_002, nfc_007, nfc_008, qr_011, qr_012, qr_014, qr_015</p>
+          <p><strong>Profesores:</strong> nfc_teacher_001, nfc_teacher_002, qr_teacher_003</p>
           <p><strong>Revocados:</strong> nfc_006, qr_013</p>
           <p><strong>Inválidos:</strong> invalid_token_123</p>
+
+          <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">Panel de Administración</h3>
+          <p>Los profesores pueden acceder al <strong>Panel de Administración</strong> escaneando su credencial (token de profesor). Desde allí pueden ver la cola de sincronización, estado del dispositivo, configuración y esta ayuda.</p>
 
           <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">Simulación Online/Offline</h3>
           <p>En <strong>Estado de Dispositivo</strong>, puedes cambiar entre Online/Offline para probar la cola de sincronización.</p>

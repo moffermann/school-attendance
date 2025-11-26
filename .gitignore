@@ -13,3 +13,16 @@ node_modules/
 .idea/
 .vscode/
 dev.db
+
+# Playwright
+test-results/
+playwright-report/
+
+# Python egg-info
+*.egg-info/
+
+# Windows artifacts
+nul
+
+# Claude Code
+claude.md

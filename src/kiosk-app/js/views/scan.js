@@ -55,21 +55,25 @@ Views.scan = function() {
     UI.showToast('Leyendo...', 'info', 500);
 
     setTimeout(() => {
-      const result = State.resolveStudentByToken(token);
+      const result = State.resolveByToken(token);
 
       if (!result) {
         UI.showToast('Token no válido', 'error');
       } else if (result.error === 'REVOKED') {
         UI.showToast('Credencial revocada', 'error');
-      } else {
-        const eventType = State.nextEventTypeFor(result.id);
-        Router.navigate(`/scan-result?student_id=${result.id}&type=${eventType}&source=${scanType.toUpperCase()}`);
+      } else if (result.type === 'teacher') {
+        // Teacher detected - navigate to admin panel
+        Router.navigate('/admin-panel');
+      } else if (result.type === 'student') {
+        const eventType = State.nextEventTypeFor(result.data.id);
+        Router.navigate(`/scan-result?student_id=${result.data.id}&type=${eventType}&source=${scanType.toUpperCase()}`);
       }
     }, 300 + Math.random() * 500);
   };
 
   Views.scan.generateValid = function() {
-    const validTokens = State.tags.filter(t => t.status === 'ACTIVE');
+    // Only generate student tokens, not teacher tokens
+    const validTokens = State.tags.filter(t => t.status === 'ACTIVE' && t.student_id);
     const random = validTokens[Math.floor(Math.random() * validTokens.length)];
     document.getElementById('token-input').value = random.token;
   };

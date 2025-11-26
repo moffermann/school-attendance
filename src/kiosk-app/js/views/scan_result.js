@@ -46,7 +46,7 @@ Views.scanResult = function() {
 
           <!-- Header con nombre del colegio -->
           <div class="result-header">
-            <div class="school-name">Dunalastair Peñalolén</div>
+            <div class="school-name">${State.config.schoolName || 'Colegio'}</div>
             <div class="student-course">${student.course_id}° Básico</div>
           </div>
 
@@ -200,7 +200,8 @@ Views.scanResult = function() {
       type: eventType,
       ts: confirmTimestamp.toISOString(),
       source: source,
-      photo_ref: photoDataUrl ? `photo_${Date.now()}.jpg` : null
+      photo_ref: photoDataUrl ? `photo_${Date.now()}.jpg` : null,
+      photo_data: photoDataUrl || null  // Base64 data for upload
     };
 
     State.enqueueEvent(event);

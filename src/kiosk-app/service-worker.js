@@ -1,5 +1,5 @@
 // Service Worker for offline caching
-const CACHE_NAME = 'kiosk-cache-v2';
+const CACHE_NAME = 'kiosk-cache-v3';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -16,8 +16,10 @@ const urlsToCache = [
   '/js/views/device_status.js',
   '/js/views/settings.js',
   '/js/views/help.js',
+  '/js/views/admin_panel.js',
   '/data/students.json',
   '/data/tags.json',
+  '/data/teachers.json',
   '/data/device.json',
   '/data/queue.json',
   '/data/config.json',
@@ -26,7 +28,8 @@ const urlsToCache = [
   '/assets/qr_placeholder.svg',
   '/assets/nfc_placeholder.svg',
   '/assets/success.svg',
-  '/assets/error.svg'
+  '/assets/error.svg',
+  '/assets/camera-shutter-sound.mp3'
 ];
 
 self.addEventListener('install', event => {
