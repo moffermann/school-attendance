@@ -66,11 +66,16 @@ El rediseño v2.0 del kiosk está casi completo. **Fase 1 completada** - todos l
 - `home-ux.spec.js` - 1 test E2E de UX
 
 ### FASE 3: Mejoras de UX
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADA
 
-- [ ] 3.1 Indicador visual de "leyendo NFC..." más prominente
-- [ ] 3.2 Mejorar manejo de errores NFC con reintentos automáticos
-- [ ] 3.3 Auto-resume del escaneo después de mostrar resultado (configurable)
+- [x] 3.1 Indicador visual de "leyendo NFC..." más prominente (commit: d7dcfd1)
+- [x] 3.2 Mejorar manejo de errores NFC con reintentos automáticos (commit: d7dcfd1)
+- [x] 3.3 Auto-resume del escaneo después de mostrar resultado (commit: d7dcfd1)
+
+**Detalles:**
+- Indicador NFC con animación pulse y estados dinámicos
+- Hasta 3 reintentos automáticos de NFC con feedback visual
+- Auto-resume configurable via `config.json` (autoResumeDelay: 5000ms)
 
 ### FASE 4: Integración con Backend Real
 **Estado:** Pendiente
@@ -122,4 +127,4 @@ El rediseño v2.0 del kiosk está casi completo. **Fase 1 completada** - todos l
 
 ---
 
-_Última actualización: 2025-11-26 - Fase 1 y 2 completadas_
+_Última actualización: 2025-11-26 - Fases 1, 2 y 3 completadas_
