@@ -15,7 +15,7 @@ Views.adminPanel = function() {
       ${UI.createHeader()}
       <div class="container">
         <div class="card">
-          <div class="card-header">Panel de Administración</div>
+          <div class="card-header">${I18n.t('admin.title')}</div>
 
           <!-- Session timeout indicator -->
           <div class="session-timeout" id="session-timeout">
@@ -30,32 +30,32 @@ Views.adminPanel = function() {
           <div class="admin-menu-grid">
             <div class="admin-menu-item" onclick="Views.adminPanel.navigateTo('/queue')">
               <div class="admin-menu-icon">📋</div>
-              <div class="admin-menu-title">Cola de Sincronización</div>
-              <div class="admin-menu-desc">Ver eventos pendientes (${State.getPendingCount()})</div>
+              <div class="admin-menu-title">${I18n.t('admin.sync_queue')}</div>
+              <div class="admin-menu-desc">${I18n.t('admin.sync_desc')} (${State.getPendingCount()})</div>
             </div>
 
             <div class="admin-menu-item" onclick="Views.adminPanel.navigateTo('/device')">
               <div class="admin-menu-icon">📊</div>
-              <div class="admin-menu-title">Estado del Dispositivo</div>
-              <div class="admin-menu-desc">Información y diagnóstico</div>
+              <div class="admin-menu-title">${I18n.t('admin.device_status')}</div>
+              <div class="admin-menu-desc">${I18n.t('admin.device_desc')}</div>
             </div>
 
             <div class="admin-menu-item" onclick="Views.adminPanel.navigateTo('/settings')">
               <div class="admin-menu-icon">⚙️</div>
-              <div class="admin-menu-title">Configuración</div>
-              <div class="admin-menu-desc">Ajustes del tótem</div>
+              <div class="admin-menu-title">${I18n.t('admin.settings')}</div>
+              <div class="admin-menu-desc">${I18n.t('admin.settings_desc')}</div>
             </div>
 
             <div class="admin-menu-item" onclick="Views.adminPanel.navigateTo('/help')">
               <div class="admin-menu-icon">❓</div>
-              <div class="admin-menu-title">Ayuda</div>
-              <div class="admin-menu-desc">Guía de uso y tokens de prueba</div>
+              <div class="admin-menu-title">${I18n.t('admin.help')}</div>
+              <div class="admin-menu-desc">${I18n.t('admin.help_desc')}</div>
             </div>
           </div>
 
           <div class="mt-3">
             <button class="btn btn-secondary btn-lg" onclick="Views.adminPanel.logout()">
-              ← Volver al Escaneo
+              ← ${I18n.t('admin.back_to_scan')}
             </button>
           </div>
         </div>

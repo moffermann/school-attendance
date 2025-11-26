@@ -28,7 +28,7 @@ Views.home = function() {
 
   function renderCamera() {
     const nfcStatusClass = nfcSupported ? 'nfc-active' : 'nfc-inactive';
-    const nfcStatusText = nfcSupported ? 'NFC Activo' : 'NFC No disponible';
+    const nfcStatusText = nfcSupported ? I18n.t('scanner.nfc_active') : I18n.t('scanner.nfc_unavailable');
 
     app.innerHTML = `
       <div class="qr-scanner-container">
@@ -42,7 +42,7 @@ Views.home = function() {
             </div>
             <div class="scan-status-item qr-active" id="qr-status">
               <span class="status-icon">📷</span>
-              <span class="status-text">QR Activo</span>
+              <span class="status-text">${I18n.t('scanner.qr_active')}</span>
             </div>
           </div>
           <div class="qr-frame">
@@ -56,13 +56,13 @@ Views.home = function() {
             <div class="nfc-reading-indicator" id="nfc-indicator">
               <div class="nfc-pulse-ring"></div>
               <div class="nfc-icon">📱</div>
-              <div class="nfc-text">Esperando tarjeta NFC...</div>
+              <div class="nfc-text">${I18n.t('scanner.waiting_nfc')}</div>
             </div>
           ` : ''}
           <div class="qr-instruction">
             ${nfcSupported
-              ? 'Acerca tu tarjeta NFC o código QR'
-              : 'Acerca el código QR a la cámara'}
+              ? I18n.t('scanner.instruction_both')
+              : I18n.t('scanner.instruction_qr')}
           </div>
         </div>
       </div>
@@ -90,7 +90,7 @@ Views.home = function() {
       requestAnimationFrame(scanQRCode);
     } catch (err) {
       console.error('Error accessing camera:', err);
-      UI.showToast('No se pudo acceder a la cámara', 'error');
+      UI.showToast(I18n.t('scanner.camera_error'), 'error');
       // Fallback to manual input
       showManualInput();
     }
@@ -111,27 +111,27 @@ Views.home = function() {
         case 'waiting':
           indicator.classList.add('nfc-waiting');
           iconEl.textContent = '📱';
-          textEl.textContent = message || 'Esperando tarjeta NFC...';
+          textEl.textContent = message || I18n.t('scanner.waiting_nfc');
           break;
         case 'reading':
           indicator.classList.add('nfc-reading');
           iconEl.textContent = '🔄';
-          textEl.textContent = message || 'Leyendo tarjeta...';
+          textEl.textContent = message || I18n.t('scanner.reading_card');
           break;
         case 'success':
           indicator.classList.add('nfc-success');
           iconEl.textContent = '✅';
-          textEl.textContent = message || '¡Tarjeta detectada!';
+          textEl.textContent = message || I18n.t('scanner.card_detected');
           break;
         case 'error':
           indicator.classList.add('nfc-error');
           iconEl.textContent = '⚠️';
-          textEl.textContent = message || 'Error de lectura';
+          textEl.textContent = message || I18n.t('scanner.read_error');
           break;
         case 'retrying':
           indicator.classList.add('nfc-retrying');
           iconEl.textContent = '🔄';
-          textEl.textContent = message || 'Reintentando...';
+          textEl.textContent = message || I18n.t('scanner.retrying');
           break;
       }
     }
@@ -316,14 +316,14 @@ Views.home = function() {
     const result = State.resolveByToken(token);
 
     if (!result) {
-      UI.showToast('Código no válido', 'error');
+      UI.showToast(I18n.t('scanner.invalid_code'), 'error');
       setTimeout(() => {
         scanning = true;
         scanningState = 'ready';
         requestAnimationFrame(scanQRCode);
       }, 2000);
     } else if (result.error === 'REVOKED') {
-      UI.showToast('Credencial revocada', 'error');
+      UI.showToast(I18n.t('scanner.revoked_credential'), 'error');
       setTimeout(() => {
         scanning = true;
         scanningState = 'ready';
@@ -360,6 +360,7 @@ Views.home = function() {
     const timestamp = new Date().toISOString();
     const sourceIcon = source === 'NFC' ? '📶' : '📷';
     const autoResumeEnabled = AUTO_RESUME_MS > 0;
+    const greeting = eventType === 'IN' ? I18n.t('welcome.greeting_in') : I18n.t('welcome.greeting_out');
 
     app.innerHTML = `
       <div class="welcome-screen">
@@ -367,17 +368,17 @@ Views.home = function() {
           <div class="capture-flash"></div>
           <img src="assets/placeholder_photo.jpg" alt="Foto" class="welcome-photo">
           <div class="welcome-name">${student.full_name}</div>
-          <div class="welcome-message">${eventType === 'IN' ? '¡Bienvenido!' : '¡Hasta pronto!'}</div>
+          <div class="welcome-message">${greeting}</div>
           <div class="welcome-time">${UI.formatTime(timestamp)}</div>
-          <div class="welcome-source">${sourceIcon} Detectado por ${source}</div>
+          <div class="welcome-source">${sourceIcon} ${I18n.t('welcome.detected_by')} ${source}</div>
           ${autoResumeEnabled ? `
             <div class="auto-resume-indicator" id="auto-resume-indicator">
               <div class="auto-resume-progress" id="auto-resume-progress"></div>
-              <span class="auto-resume-text">Volviendo en <span id="auto-resume-countdown">${Math.ceil(AUTO_RESUME_MS / 1000)}</span>s...</span>
+              <span class="auto-resume-text">${I18n.t('welcome.returning_in')} <span id="auto-resume-countdown">${Math.ceil(AUTO_RESUME_MS / 1000)}</span>s...</span>
             </div>
           ` : ''}
           <button class="btn btn-secondary" style="margin-top: 1rem" onclick="Views.home.resumeScan()">
-            ${autoResumeEnabled ? 'Escanear ahora' : 'Escanear siguiente'}
+            ${autoResumeEnabled ? I18n.t('welcome.scan_now') : I18n.t('welcome.scan_next')}
           </button>
         </div>
       </div>
@@ -434,25 +435,25 @@ Views.home = function() {
     app.innerHTML = `
       <div class="camera-container">
         <div class="scan-input-modal">
-          <div class="scan-input-header">⚠️ Cámara no disponible</div>
+          <div class="scan-input-header">⚠️ ${I18n.t('manual.camera_unavailable')}</div>
           <p style="margin-bottom: 1.5rem; color: var(--color-gray-500);">
-            Ingresa el código manualmente para probar
+            ${I18n.t('manual.enter_code')}
           </p>
           <input type="text" id="scan-token-input" class="scan-input-field"
             placeholder="nfc_001, qr_011, nfc_teacher_001..."
             autofocus>
           <div class="scan-input-buttons">
             <button class="btn btn-primary btn-lg" onclick="Views.home.processManualInput()">
-              Escanear
+              ${I18n.t('manual.scan')}
             </button>
             <button class="btn btn-secondary" onclick="Views.home.generateRandom()">
-              Generar Aleatorio
+              ${I18n.t('manual.generate_random')}
             </button>
           </div>
           <div class="scan-help-text">
-            <strong>Tokens de prueba:</strong><br>
-            Alumnos: nfc_001, nfc_002, qr_011, qr_012<br>
-            Profesores: nfc_teacher_001, nfc_teacher_002, qr_teacher_003
+            <strong>${I18n.t('manual.test_tokens')}</strong><br>
+            ${I18n.t('manual.students')}: nfc_001, nfc_002, qr_011, qr_012<br>
+            ${I18n.t('manual.teachers')}: nfc_teacher_001, nfc_teacher_002, qr_teacher_003
           </div>
         </div>
       </div>
@@ -472,7 +473,7 @@ Views.home = function() {
     const token = input?.value.trim();
 
     if (!token) {
-      UI.showToast('Ingresa un código', 'error');
+      UI.showToast(I18n.t('manual.enter_code_error'), 'error');
       return;
     }
 

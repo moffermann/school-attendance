@@ -19,6 +19,7 @@
   </div>
 
   <script src="js/state.js"></script>
+  <script src="js/i18n.js"></script>
   <script src="js/sync.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/router.js"></script>
@@ -43,6 +44,7 @@
 
     window.addEventListener('DOMContentLoaded', async () => {
       await State.init();
+      I18n.init();
       Router.init();
     });
   </script>
