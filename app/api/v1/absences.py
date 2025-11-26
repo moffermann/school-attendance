@@ -45,10 +45,11 @@ async def export_absences(
     end_date: date | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
     service: AbsenceService = Depends(deps.get_absence_service),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
+    user: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
 ) -> Response:
-    fake_user = AuthUser(id=0, role="ADMIN", full_name="Export", guardian_id=None)
-    records = await service.list_absences(fake_user, start_date=start_date, end_date=end_date, status=status_filter)
+    # Use the actual authenticated user instead of a fake admin user
+    # Staff roles (ADMIN, DIRECTOR, INSPECTOR) are already verified by require_roles
+    records = await service.list_absences(user, start_date=start_date, end_date=end_date, status=status_filter)
     lines = ["student_id,type,start,end,status,comment,attachment"]
     for record in records:
         lines.append(

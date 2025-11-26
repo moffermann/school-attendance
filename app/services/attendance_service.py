@@ -105,13 +105,42 @@ class AttendanceService:
 
         return alerts
 
+    # Security constants for file uploads
+    ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+    ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
+    MAX_PHOTO_SIZE = 10 * 1024 * 1024  # 10MB
+
     async def attach_photo(self, event_id: int, file) -> AttendanceEventRead:
+        # Validate MIME type
+        content_type = (file.content_type or "").lower()
+        if content_type not in self.ALLOWED_MIME_TYPES:
+            raise ValueError(
+                f"Tipo de archivo no permitido: {content_type}. "
+                f"Tipos permitidos: {', '.join(self.ALLOWED_MIME_TYPES)}"
+            )
+
+        # Read and validate file size
         data = await file.read()
         if not data:
             raise ValueError("Archivo vacío")
-        extension = (file.filename or "jpg").split(".")[-1]
+        if len(data) > self.MAX_PHOTO_SIZE:
+            raise ValueError(
+                f"Archivo muy grande: {len(data) / 1024 / 1024:.1f}MB. "
+                f"Máximo permitido: {self.MAX_PHOTO_SIZE / 1024 / 1024:.0f}MB"
+            )
+
+        # Validate and sanitize extension
+        filename = file.filename or "photo.jpg"
+        # Prevent path traversal - only use the last part after any slashes
+        filename = filename.replace("\\", "/").split("/")[-1]
+        extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else "jpg"
+        if extension not in self.ALLOWED_EXTENSIONS:
+            raise ValueError(
+                f"Extensión no permitida: {extension}. "
+                f"Extensiones permitidas: {', '.join(self.ALLOWED_EXTENSIONS)}"
+            )
+
         key = f"events/{event_id}/{uuid.uuid4().hex}.{extension}"
-        content_type = file.content_type or "image/jpeg"
         await self.photo_service.store_photo(key, data, content_type)
         event = await self.attendance_repo.update_photo_ref(event_id, key)
         await self.session.commit()

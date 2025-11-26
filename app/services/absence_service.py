@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from app.core.auth import AuthUser
 from app.db.repositories.absences import AbsenceRepository
@@ -63,9 +63,11 @@ class AbsenceService:
         end_date: date | None = None,
         status: str | None = None,
     ) -> list:
+        # Staff roles can see all absence records
         if user.role in {"ADMIN", "DIRECTOR", "INSPECTOR"}:
             records = await self.absence_repo.list_all()
-        if not user.guardian_id:
+        # Parents can only see their own children's records
+        elif not user.guardian_id:
             records = []
         else:
             guardian = await self.guardian_repo.get(user.guardian_id)
