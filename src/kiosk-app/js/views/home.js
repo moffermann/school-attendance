@@ -13,6 +13,10 @@ Views.home = function() {
   let nfcReader = null;
   let nfcSupported = 'NDEFReader' in window;
 
+  // Debounce: prevent duplicate scans within 500ms
+  let lastScanTime = 0;
+  const DEBOUNCE_MS = 500;
+
   function renderCamera() {
     const nfcStatusClass = nfcSupported ? 'nfc-active' : 'nfc-inactive';
     const nfcStatusText = nfcSupported ? 'NFC Activo' : 'NFC No disponible';
@@ -162,7 +166,49 @@ Views.home = function() {
     animationFrame = requestAnimationFrame(scanQRCode);
   }
 
+  // Audio feedback - beep sound on successful scan
+  function playSuccessBeep() {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.value = 880; // A5 note
+      oscillator.type = 'sine';
+      gainNode.gain.value = 0.3;
+
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.15); // 150ms beep
+    } catch (e) {
+      console.log('Audio feedback not available:', e);
+    }
+  }
+
+  // Vibration feedback for mobile devices
+  function vibrateDevice() {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(100); // 100ms vibration
+    }
+  }
+
+  // Combined feedback for successful scan
+  function provideScanFeedback() {
+    playSuccessBeep();
+    vibrateDevice();
+  }
+
   function processToken(token, source) {
+    // Debounce check - prevent duplicate scans
+    const now = Date.now();
+    if (now - lastScanTime < DEBOUNCE_MS) {
+      console.log('Debounce: ignoring duplicate scan');
+      return;
+    }
+    lastScanTime = now;
+
     console.log(`${source} detected:`, token);
 
     const result = State.resolveByToken(token);
@@ -182,12 +228,14 @@ Views.home = function() {
         requestAnimationFrame(scanQRCode);
       }, 2000);
     } else if (result.type === 'teacher') {
-      // Teacher detected - stop camera and NFC, navigate
+      // Teacher detected - provide feedback, stop camera and NFC, navigate
+      provideScanFeedback();
       stopCamera();
       stopNFC();
       Router.navigate('/admin-panel');
     } else if (result.type === 'student') {
-      // Student detected - show welcome
+      // Student detected - provide feedback and show welcome
+      provideScanFeedback();
       scanningState = 'showing_result';
       stopCamera();
       stopNFC();

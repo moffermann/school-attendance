@@ -1614,3 +1614,42 @@ td {
     background: linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #f87171 100%) !important;
   }
 }
+
+/* =====================================================
+   SESSION TIMEOUT INDICATOR
+   ===================================================== */
+.session-timeout {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--color-gray-100);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+  transition: all 0.3s ease;
+}
+
+.session-timeout .timeout-icon {
+  font-size: 1rem;
+}
+
+.session-timeout .timeout-text {
+  font-weight: 500;
+}
+
+.session-timeout.timeout-warning {
+  background: #fef3c7;
+  color: #92400e;
+  animation: pulse-warning 1s infinite;
+}
+
+@keyframes pulse-warning {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
