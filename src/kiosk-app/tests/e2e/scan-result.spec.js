@@ -49,18 +49,20 @@ test.describe('Scan Result View', () => {
   });
 
   test('should show entry state for first scan of the day', async ({ page }) => {
-    // Clear any existing queue data first
-    await page.goto('/');
+    // Clear localStorage to ensure clean state for first scan of the day
+    await page.goto('/#/scan-result?student_id=1&source=QR');
+
+    // Clear queue via evaluate once page is loaded
     await page.evaluate(() => {
       const data = JSON.parse(localStorage.getItem('kioskData') || '{}');
       data.queue = [];
       localStorage.setItem('kioskData', JSON.stringify(data));
     });
 
-    // Navigate to scan-result
-    await page.goto('/#/scan-result?student_id=1&source=QR');
+    // Reload page to ensure state is updated
+    await page.reload();
 
-    await page.waitForSelector('.welcome-greeting');
+    await page.waitForSelector('.welcome-greeting', { timeout: 10000 });
 
     // First scan should be entry (IN)
     const greeting = await page.textContent('.welcome-greeting');
