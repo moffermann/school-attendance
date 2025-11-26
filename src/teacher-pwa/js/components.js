@@ -42,7 +42,7 @@ const UI = {
     const items = [
       { path: '/classes', icon: '📚', label: 'Cursos' },
       { path: '/roster', icon: '📋', label: 'Nómina' },
-      { path: '/queue', icon: '⏳', label: 'Cola' },
+      { path: '/alerts', icon: '🔔', label: 'Alertas' },
       { path: '/history', icon: '📊', label: 'Historial' }
     ];
     return `

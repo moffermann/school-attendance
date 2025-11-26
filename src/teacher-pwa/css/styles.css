@@ -55,3 +55,46 @@ td{padding:.75rem;border-bottom:1px solid var(--gray-200)}
 .status-selector{display:flex;gap:.5rem;flex-wrap:wrap}
 .status-chip{padding:.5rem 1rem;border-radius:8px;border:2px solid var(--gray-200);background:white;cursor:pointer;font-size:.875rem}
 .status-chip.selected{border-color:var(--primary);background:var(--primary);color:white}
+
+/* Stats grid */
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem}
+@media(min-width:600px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
+.stat-card{background:white;border-radius:8px;padding:1rem;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.stat-value{font-size:1.75rem;font-weight:700;line-height:1}
+.stat-label{font-size:.75rem;color:var(--gray-500);margin-top:.25rem}
+.stat-success .stat-value{color:var(--success)}
+.stat-info .stat-value{color:var(--primary)}
+.stat-warning .stat-value{color:var(--warning)}
+.stat-error .stat-value{color:var(--error)}
+
+/* Student summary */
+.student-summary-list{max-height:300px;overflow-y:auto}
+.student-summary-item{display:flex;justify-content:space-between;align-items:center;padding:.75rem 0;border-bottom:1px solid var(--gray-100)}
+.student-summary-item:last-child{border-bottom:none}
+.student-name{font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.student-times{display:flex;gap:1rem;font-size:.875rem;flex-shrink:0}
+.time-in,.time-out{display:flex;align-items:center;gap:.25rem}
+.text-muted{color:var(--gray-500)}
+.p-2{padding:1rem}
+.flex-wrap{flex-wrap:wrap}
+
+/* Alert banners */
+.alert-banner{display:flex;align-items:center;gap:1rem;padding:1rem;border-radius:8px;background:white;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.alert-icon{font-size:2rem;flex-shrink:0}
+.alert-content{flex:1}
+.alert-title{font-weight:600;font-size:1rem}
+.alert-text{font-size:.875rem;color:var(--gray-500)}
+.alert-info{border-left:4px solid var(--primary);background:#eff6ff}
+.alert-warning{border-left:4px solid var(--warning);background:#fffbeb}
+.alert-critical{border-left:4px solid var(--error);background:#fef2f2}
+.alert-success{border-left:4px solid var(--success);background:#f0fdf4}
+
+/* Absent student list */
+.absent-student-list{max-height:400px;overflow-y:auto}
+.absent-student-item{display:flex;justify-content:space-between;align-items:center;padding:.75rem 0;border-bottom:1px solid var(--gray-100);flex-wrap:wrap;gap:.5rem}
+.absent-student-item:last-child{border-bottom:none}
+.absent-student-info{flex:1;min-width:150px}
+.absent-student-name{font-weight:500;display:block}
+.absent-student-status{font-size:.75rem;color:var(--error)}
+.absent-student-actions{display:flex;gap:.25rem;flex-wrap:wrap}
+.btn-warning{background:var(--warning);color:white}
