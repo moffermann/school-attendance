@@ -10,6 +10,7 @@ from app.api.v1 import (
     broadcast,
     devices,
     health,
+    kiosk,
     notifications,
     parents,
     schedules,
@@ -34,3 +35,4 @@ api_router.include_router(alerts.router, prefix="/alerts", tags=["alerts"])
 api_router.include_router(webapp.router, prefix="/web-app", tags=["web-app"])
 api_router.include_router(absences.router, prefix="/absences", tags=["absences"])
 api_router.include_router(teachers.router, prefix="/teachers", tags=["teachers"])
+api_router.include_router(kiosk.router, prefix="/kiosk", tags=["kiosk"])

@@ -90,3 +90,9 @@ class TagRepository:
         tag.revoked_at = datetime.utcnow()
         await self.session.flush()
         return tag
+
+    async def list_all(self) -> list[Tag]:
+        """List all tags for kiosk provisioning."""
+        stmt = select(Tag).order_by(Tag.id)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())

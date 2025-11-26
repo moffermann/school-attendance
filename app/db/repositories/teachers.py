@@ -86,3 +86,9 @@ class TeacherRepository:
             await self.session.flush()
 
         return True
+
+    async def list_all(self) -> list[Teacher]:
+        """List all teachers for kiosk provisioning."""
+        stmt = select(Teacher).order_by(Teacher.full_name)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())

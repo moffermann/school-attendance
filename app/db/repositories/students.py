@@ -40,3 +40,9 @@ class StudentRepository:
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_all(self) -> list[Student]:
+        """List all students for kiosk provisioning."""
+        stmt = select(Student).order_by(Student.full_name)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
