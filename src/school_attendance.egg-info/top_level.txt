@@ -1,4 +1,0 @@
-kiosk-app
-shared
-teacher-pwa
-web-app
