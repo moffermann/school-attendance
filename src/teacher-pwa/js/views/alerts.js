@@ -46,11 +46,15 @@ Views.alerts = async function() {
   // Students without attendance
   const absentStudents = students.filter(s => !studentsWithIN.has(s.id));
 
-  // Calculate time since school start (assuming 8:00 AM)
+  // Calculate time since school start (configurable via config.json)
+  const config = await IDB.get('config', 1) || {};
+  const startHour = config.schoolStartHour ?? 8;
+  const startMinute = config.schoolStartMinute ?? 0;
   const now = new Date();
   const schoolStart = new Date(now);
-  schoolStart.setHours(8, 0, 0, 0);
+  schoolStart.setHours(startHour, startMinute, 0, 0);
   const minutesLate = Math.floor((now - schoolStart) / 60000);
+  const startTimeStr = `${startHour}:${String(startMinute).padStart(2, '0')}`;
 
   const courseName = currentCourse ? UI.escapeHtml(currentCourse.name) : 'Curso';
 
@@ -75,7 +79,7 @@ Views.alerts = async function() {
           </div>
           <div class="stat-card ${minutesLate > 30 ? 'stat-warning' : ''}">
             <div class="stat-value">${minutesLate > 0 ? '+' + minutesLate : '0'}</div>
-            <div class="stat-label">Min. Desde 8:00</div>
+            <div class="stat-label">Min. Desde ${startTimeStr}</div>
           </div>
         </div>
       </div>

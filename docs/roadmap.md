@@ -1,34 +1,172 @@
-# School Attendance – Roadmap (Fase 2)
+# School Attendance – Roadmap (Actualizado 2025-11-26)
 
 ## Estado actual
-- Portal SPA montado sobre FastAPI: autenticación por sesión (`/api/v1/auth/session`), bootstrap real (`/api/v1/web-app/bootstrap`) y vistas conectadas (dashboard, reportes, dispositivos, alertas, horarios, ausencias, preferencias).
-- Métricas operativas: tablero en vivo (`/web-app/dashboard`), reportes por curso/tendencia (`/web-app/reports`), alertas de no ingreso y export CSV, jobs RQ y scheduler documentados.
-- Datos demo via `make seed` y migraciones (`0001_initial`, `0002_add_absence_comment`) listas para SQLite local; CI en GitHub Actions ejecuta lint + tests.
 
-## Próximas entregas (portal web)
-1. **Métricas extendidas**
-   - Ausencias: bandeja con filtros/exports y KPIs agregados.
-   - Notificaciones: métricas de envíos por canal/plantilla y bitácora/broadcast con export CSV por rango.
-2. **Cobertura de pruebas**
-   - Servicios/rutas: `auth/session`, `web-app/bootstrap`, horarios (update/delete), devices/alerts y reportes.
-   - Mantener `tests/test_services.py` como concentración de unitarios + agregar pruebas de rutas ligeras (TestClient) si aplica.
-3. **UX y accesibilidad**
-   - Estados vacíos/errores coherentes en todas las vistas SPA.
-   - Ajustar navegación para roles (director/inspector/padre) y revisar accesos protegidos.
+### Backend FastAPI
+- Portal SPA montado sobre FastAPI con autenticación por sesión (`/api/v1/auth/session`)
+- Bootstrap real (`/api/v1/web-app/bootstrap`) y vistas conectadas
+- Métricas operativas: dashboard, reportes por curso/tendencia, alertas de no ingreso
+- Validación de secrets en producción (`config.py:55-63`)
+- Protección contra SQL injection en búsquedas (`dashboard_service.py:262-274`)
+- Jobs RQ y scheduler documentados (`docs/scheduler.md`)
+- CI en GitHub Actions ejecuta lint + tests
 
-## Kiosco (fase siguiente)
-1. Exponer catálogos necesarios (`/api/v1/tags`, estudiantes por curso/token, horarios vigentes) y consumo real en la maqueta.
-2. Encolar eventos/offline: usar `POST /api/v1/attendance/events` + `POST /events/{id}/photo` con idempotencia (`local_seq`) y reconciliación.
-3. Provisioning de dispositivos: script `scripts/provision_kiosk.py` + documentación (`docs/kiosk.md`) para enrolar y rotar device keys; definir políticas de rotación y auditoría de claves en `.env.example`.
-   - Responsable tentativo: **Infra/Backend**; fecha sugerida: **nov-15**.
+### Kiosk App (Tótem)
+- ✅ Integración real con backend (`/api/v1/attendance/events`)
+- ✅ Escaneo QR real con cámara (jsQR)
+- ✅ Soporte Web NFC con reintentos
+- ✅ Multi-idioma implementado (ES, EN, PT)
+- ✅ Panel de administración con timeout de sesión
+- ✅ Provisioning via `scripts/provision_kiosk.py`
+- ✅ Tests E2E básicos con Playwright
 
-## PWA Profesores (fase siguiente)
-1. Crear rol/endpoint docente (`/api/v1/teachers/courses`, `/attendance/bulk`, `/alerts/summary`).
-2. Reemplazar IndexedDB mock por sync real con manejo offline/online y resolución de conflictos.
-3. Pruebas E2E (Playwright) cubriendo toma de asistencia y reintentos offline.
-   - Responsable tentativo: **Equipo Front**; fecha sugerida: **nov-30**.
+### Teacher PWA (Profesores)
+- ✅ Vista de historial con filtros por fecha/tipo
+- ✅ Vista de alertas de no ingreso con acciones rápidas
+- ✅ API client con refresh token automático
+- ✅ IndexedDB para almacenamiento offline
+- ⚠️ Sync aún en modo simulado (no conecta backend real)
+
+### Web App (Director Dashboard)
+- SPA con vistas: dashboard, reportes, dispositivos, alertas, horarios, ausencias
+- Export CSV en reportes y alertas
+- ⚠️ Falta función `escapeHtml()` en componentes
+
+---
+
+## Bugs conocidos
+
+### Críticos (Prioridad Alta)
+| # | Componente | Archivo | Descripción |
+|---|------------|---------|-------------|
+| B1 | Backend | `app/api/v1/attendance.py:42-56` | Upload de fotos sin validación MIME/size/extension |
+| B2 | Web App | `src/web-app/js/components.js` | XSS potencial - falta `escapeHtml()` |
+| B3 | Teacher PWA | `src/teacher-pwa/js/sync.js` | Sync simulado, no conecta con backend real |
+| B4 | Kiosk | `src/kiosk-app/tests/e2e/*.spec.js` | Tests E2E desactualizados para nueva UI |
+
+### Medios
+| # | Componente | Archivo | Descripción |
+|---|------------|---------|-------------|
+| B5 | Kiosk | `src/kiosk-app/js/views/home.js:505-513` | Memory leak - event listener no removido |
+| B6 | Teacher PWA | `src/teacher-pwa/js/views/alerts.js:52-53` | Hora 8:00 AM hardcodeada |
+| B7 | Teacher PWA | `src/teacher-pwa/js/views/history.js:24` | Inconsistencia campo `ts` vs `occurred_at` |
+
+---
+
+## Fase 1: Estabilización (Prioridad Alta)
+
+### 1.1 Seguridad Backend
+- [ ] B1: Validar uploads (MIME types permitidos, max 10MB, extensiones whitelist)
+- [ ] Agregar rate limiting efectivo (slowapi o similar)
+- [ ] CORS restrictivo en producción
+
+### 1.2 Seguridad Frontend
+- [ ] B2: Crear y usar `escapeHtml()` en `web-app/components.js`
+- [ ] Validar tokens contra backend en cada navegación (no solo localStorage)
+
+### 1.3 Bugs de Código
+- [ ] B5: Corregir memory leak en kiosk home.js
+- [ ] B6: Hacer configurable hora de inicio de clases
+- [ ] B7: Unificar campo de timestamp en teacher-pwa
+
+---
+
+## Fase 2: Integración PWA Profesores (Prioridad Alta)
+
+### 2.1 Backend - Endpoints Docentes
+- [ ] Verificar/completar `GET /api/v1/teachers/me`
+- [ ] Verificar/completar `GET /api/v1/teachers/courses/{id}/students`
+- [ ] Implementar `POST /api/v1/teachers/attendance/bulk` para sync masivo
+
+### 2.2 Teacher PWA - Conexión Real
+- [ ] B3: Reemplazar sync simulado con llamadas a API real
+- [ ] Implementar autenticación JWT completa
+- [ ] Manejo offline/online con reconciliación de conflictos
+- [ ] Indicador de estado de conexión visible
+
+---
+
+## Fase 3: Test Coverage (Prioridad Media)
+
+### 3.1 Backend
+- [ ] Tests unitarios para repositories (12 archivos, 0% actual)
+- [ ] Tests de integración para API endpoints faltantes
+- [ ] Meta: 70%+ coverage
+
+### 3.2 Frontend
+- [ ] B4: Actualizar tests E2E de kiosk para nueva UI
+- [ ] Crear tests E2E para teacher-pwa (Playwright)
+- [ ] Crear tests E2E para web-app (Playwright)
+- [ ] Meta: 50%+ coverage
+
+---
+
+## Fase 4: Features Nuevos (Backlog)
+
+### Portal Web
+- [ ] Métricas extendidas de ausencias (bandeja con filtros, KPIs)
+- [ ] Métricas de notificaciones por canal/plantilla
+- [ ] Bitácora de broadcast con export CSV
+- [ ] Reportes PDF semanales
+- [ ] Estados vacíos/errores coherentes en todas las vistas
+
+### Kiosk
+- [ ] Captura de foto real (actualmente placeholder)
+- [ ] Integración con hardware NFC (vs Web NFC)
+- [ ] Soporte offline mejorado (Service Worker)
+
+### PWA Profesores
+- [ ] Escaneo QR para toma rápida de asistencia
+- [ ] Notificaciones push para alertas
+- [ ] Modo oscuro
+
+---
 
 ## Seguridad y despliegue
-- Fortalecer refresh tokens persistentes (rotación, revocación), rotación de device keys y MFA para staff.
-- Documentar despliegue en producción (env vars, S3, Redis/RQ workers, scheduler) y variantes locales (SQLite vs Postgres).
- - Rotación de device keys: agregar TTL/rotación en scheduler, endpoint de re-provision y auditoría de uso en logs.
+
+- [ ] Fortalecer refresh tokens (rotación, revocación)
+- [ ] Device keys individuales por kiosco con rotación
+- [ ] MFA para staff (opcional)
+- [ ] Documentar despliegue producción (env vars, S3, Redis/RQ, scheduler)
+- [ ] Configurar staging environment
+- [ ] Monitoring/Alerting básico
+
+---
+
+## Deuda técnica
+
+| Item | Impacto | Prioridad |
+|------|---------|-----------|
+| Frontends sin framework (Vanilla JS) | Alto - difícil mantener | Baja (migración costosa) |
+| Sin TypeScript en frontend | Medio - errores en runtime | Baja |
+| Mock data duplicada en 3 carpetas | Bajo | Baja |
+| API docs (OpenAPI) incompletos | Medio | Media |
+| Sin ADRs (Architecture Decision Records) | Bajo | Baja |
+
+---
+
+## Métricas de éxito
+
+| Métrica | Actual | Meta Fase 3 | Meta Final |
+|---------|--------|-------------|------------|
+| Bugs críticos | 4 | 0 | 0 |
+| Test coverage backend | ~40% | 70% | 85% |
+| Test coverage frontend | ~15% | 50% | 70% |
+| Vulnerabilidades conocidas | 2 | 0 | 0 |
+
+---
+
+## Dependencias entre fases
+
+```
+Fase 1 (Estabilización) ───► Fase 3 (Tests) ───► Fase 4 (Features)
+         │                         │
+         └────► Fase 2 (PWA) ──────┘
+```
+
+**Nota:** Fase 1 y 2 pueden ejecutarse en paralelo. Fase 3 requiere que bugs críticos estén resueltos.
+
+---
+
+_Última actualización: 2025-11-26_
+_Próxima revisión: Al completar Fase 1_

@@ -1,4 +1,6 @@
 {
   "online": true,
-  "schoolYear": 2025
+  "schoolYear": 2025,
+  "schoolStartHour": 8,
+  "schoolStartMinute": 0
 }

@@ -1,3 +1,8 @@
+// Helper to get timestamp from event (supports both ts and occurred_at)
+function getEventTimestamp(event) {
+  return event.ts || event.occurred_at || null;
+}
+
 Views.history = async function() {
   if (!State.currentCourseId) {
     Router.navigate('/classes');
@@ -18,9 +23,12 @@ Views.history = async function() {
   // Filter events
   let courseEvents = queue.filter(e => e.course_id === State.currentCourseId);
 
-  // Filter by date
+  // Filter by date (supports both ts and occurred_at)
   if (dateFilter) {
-    courseEvents = courseEvents.filter(e => e.ts && e.ts.startsWith(dateFilter));
+    courseEvents = courseEvents.filter(e => {
+      const ts = getEventTimestamp(e);
+      return ts && ts.startsWith(dateFilter);
+    });
   }
 
   // Filter by type
@@ -41,14 +49,15 @@ Views.history = async function() {
   // Group by student for summary
   const studentStats = {};
   courseEvents.forEach(e => {
+    const ts = getEventTimestamp(e);
     if (!studentStats[e.student_id]) {
       studentStats[e.student_id] = { in: null, out: null, student_id: e.student_id };
     }
-    if (e.type === 'IN' && (!studentStats[e.student_id].in || e.ts > studentStats[e.student_id].in)) {
-      studentStats[e.student_id].in = e.ts;
+    if (e.type === 'IN' && (!studentStats[e.student_id].in || ts > studentStats[e.student_id].in)) {
+      studentStats[e.student_id].in = ts;
     }
-    if (e.type === 'OUT' && (!studentStats[e.student_id].out || e.ts > studentStats[e.student_id].out)) {
-      studentStats[e.student_id].out = e.ts;
+    if (e.type === 'OUT' && (!studentStats[e.student_id].out || ts > studentStats[e.student_id].out)) {
+      studentStats[e.student_id].out = ts;
     }
   });
 
@@ -138,11 +147,12 @@ Views.history = async function() {
             ${courseEvents.slice(-100).reverse().map(e => {
               const student = students.find(s => s.id === e.student_id);
               const safeName = UI.escapeHtml(student?.full_name || String(e.student_id));
+              const eventTs = getEventTimestamp(e);
               return `
                 <tr>
                   <td>${safeName}</td>
                   <td>${UI.createChip(e.type, e.type === 'IN' ? 'success' : 'info')}</td>
-                  <td>${UI.formatTime(e.ts)}</td>
+                  <td>${UI.formatTime(eventTs)}</td>
                   <td>${UI.createChip(e.status, e.status === 'synced' ? 'success' : e.status === 'error' ? 'error' : 'warning')}</td>
                 </tr>
               `;
