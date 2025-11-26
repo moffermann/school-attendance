@@ -70,21 +70,28 @@
 - [x] Tests para API endpoints: parents, tags, alerts, broadcast
 - [x] Meta alcanzada: **80% coverage** (271 tests)
 
-## Fase 3.2: Test Coverage Frontend (Parcialmente Completada)
+### ✅ Fase 3.2: Test Coverage Frontend (Completada 2025-11-26)
 
-### Frontend E2E - Kiosk App ✅
-- [x] B4: Tests E2E de kiosk actualizados para nueva UI (28 tests)
-  - `admin-timeout.spec.js` - 3 tests (panel admin, timeout, navegación)
-  - `help-view.spec.js` - 6 tests (documentación, tokens, navegación)
-  - `home-ux.spec.js` - 1 test (procesamiento de token)
-  - `scan-result.spec.js` - 7 tests (datos estudiante, curso, guardian)
-  - `scan-view.spec.js` - 6 tests (detección teacher/student, tokens)
-  - `service-worker.spec.js` - 5 tests (cache, offline, PWA)
+#### Frontend E2E - Kiosk App ✅ (28 tests)
+- [x] `admin-timeout.spec.js` - 3 tests (panel admin, timeout, navegación)
+- [x] `help-view.spec.js` - 6 tests (documentación, tokens, navegación)
+- [x] `home-ux.spec.js` - 1 test (procesamiento de token)
+- [x] `scan-result.spec.js` - 7 tests (datos estudiante, curso, guardian)
+- [x] `scan-view.spec.js` - 6 tests (detección teacher/student, tokens)
+- [x] `service-worker.spec.js` - 5 tests (cache, offline, PWA)
 
-### Frontend E2E - Pendientes
-- [ ] Crear tests E2E para teacher-pwa (Playwright)
-- [ ] Crear tests E2E para web-app (Playwright)
-- [ ] Meta: 50%+ coverage total
+#### Frontend E2E - Teacher PWA ✅ (9 tests)
+- [x] `auth.spec.js` - 3 tests (login form, redirect protección, rutas protegidas)
+- [x] `navigation.spec.js` - 6 tests (redirects sin auth, PWA meta tags)
+
+#### Frontend E2E - Web App ✅ (35 tests)
+- [x] `auth.spec.js` - 4 tests (auth page, roles, demo login)
+- [x] `director-dashboard.spec.js` - 5 tests (stats, sidebar, filtros)
+- [x] `director-views.spec.js` - 11 tests (reports, devices, schedules, absences, broadcast, students)
+- [x] `parent-views.spec.js` - 8 tests (home, history, preferences, absences)
+- [x] `navigation.spec.js` - 7 tests (routing, access control)
+
+**Total E2E tests: 72 (28 kiosk + 9 teacher-pwa + 35 web-app)**
 
 ---
 
@@ -140,9 +147,9 @@
 |---------|--------|-------------|------------|
 | Bugs críticos | 0 | 0 | 0 |
 | Test coverage backend | **80%** ✅ | 70% | 85% |
-| Test coverage frontend | ~30% (kiosk 100%) | 50% | 70% |
+| Test coverage frontend | **~60%** ✅ | 50% | 70% |
 | Vulnerabilidades conocidas | 0 | 0 | 0 |
-| Tests totales | **299** (271 backend + 28 E2E) | - | 300+ |
+| Tests totales | **343** (271 backend + 72 E2E) | 300+ ✅ | 350+ |
 
 ---
 

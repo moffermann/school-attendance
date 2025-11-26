@@ -2,26 +2,58 @@
 const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({
-  testDir: './src/kiosk-app/tests/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:8080',
     trace: 'on-first-retry',
   },
   projects: [
     {
-      name: 'chromium',
-      use: { browserName: 'chromium' },
+      name: 'kiosk-app',
+      testDir: './src/kiosk-app/tests/e2e',
+      use: {
+        browserName: 'chromium',
+        baseURL: 'http://localhost:8081',
+      },
+    },
+    {
+      name: 'teacher-pwa',
+      testDir: './src/teacher-pwa/tests/e2e',
+      use: {
+        browserName: 'chromium',
+        baseURL: 'http://localhost:8082',
+      },
+    },
+    {
+      name: 'web-app',
+      testDir: './src/web-app/tests/e2e',
+      use: {
+        browserName: 'chromium',
+        baseURL: 'http://localhost:8083',
+      },
     },
   ],
-  webServer: {
-    command: 'npx serve src/kiosk-app -l 8080 -s',
-    url: 'http://localhost:8080',
-    reuseExistingServer: !process.env.CI,
-    timeout: 30000,
-  },
+  webServer: [
+    {
+      command: 'npx serve src/kiosk-app -l 8081 -s',
+      url: 'http://localhost:8081',
+      reuseExistingServer: !process.env.CI,
+      timeout: 30000,
+    },
+    {
+      command: 'npx serve src/teacher-pwa -l 8082 -s',
+      url: 'http://localhost:8082',
+      reuseExistingServer: !process.env.CI,
+      timeout: 30000,
+    },
+    {
+      command: 'npx serve src/web-app -l 8083 -s',
+      url: 'http://localhost:8083',
+      reuseExistingServer: !process.env.CI,
+      timeout: 30000,
+    },
+  ],
 });
