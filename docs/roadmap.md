@@ -56,14 +56,16 @@
 
 ---
 
-## Fase 3: Test Coverage (Prioridad Alta)
+### ✅ Fase 3: Test Coverage Backend (Completada 2025-11-26)
+- [x] Tests para TeacherRepository (95% coverage)
+- [x] Tests para NotificationRepository (89% coverage)
+- [x] Tests para GuardianRepository (76% coverage)
+- [x] Tests para AuthService (100% coverage)
+- [x] Meta alcanzada: **70% coverage** (143 tests)
 
-### 3.1 Backend
-- [ ] Tests unitarios para repositories (algunos ya existen en `test_repositories.py`)
-- [ ] Tests de integración para API endpoints faltantes
-- [ ] Meta: 70%+ coverage (actual: ~40%)
+## Fase 3.2: Test Coverage Frontend (Pendiente)
 
-### 3.2 Frontend
+### Frontend E2E
 - [ ] B4: Actualizar tests E2E de kiosk para nueva UI
 - [ ] Crear tests E2E para teacher-pwa (Playwright)
 - [ ] Crear tests E2E para web-app (Playwright)
@@ -122,21 +124,22 @@
 | Métrica | Actual | Meta Fase 3 | Meta Final |
 |---------|--------|-------------|------------|
 | Bugs críticos | 0 | 0 | 0 |
-| Test coverage backend | ~45% | 70% | 85% |
+| Test coverage backend | **70%** ✅ | 70% | 85% |
 | Test coverage frontend | ~15% | 50% | 70% |
 | Vulnerabilidades conocidas | 0 | 0 | 0 |
+| Tests totales | 143 | - | 200+ |
 
 ---
 
 ## Dependencias entre fases
 
 ```
-Fase 1 (Estabilización) ──✅──► Fase 3 (Tests) ───► Fase 4 (Features)
-         │                           │
-         └──✅── Fase 2 (PWA) ───────┘
+Fase 1 (Estabilización) ──✅──► Fase 3 Backend (Tests) ──✅──► Fase 3.2 Frontend ───► Fase 4 (Features)
+         │                              │
+         └──✅── Fase 2 (PWA) ──────────┘
 ```
 
-**Estado:** Fases 1 y 2 completadas. Próximo paso: Fase 3 (Tests).
+**Estado:** Fases 1, 2 y 3-Backend completadas. Próximo paso: Fase 3.2 (Tests Frontend) o Fase 4 (Features).
 
 ---
 
