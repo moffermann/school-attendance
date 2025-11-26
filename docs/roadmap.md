@@ -239,14 +239,65 @@ Fase 1 ──✅──► Fase 2 ──✅──► Fase 3 ──✅──► Fa
                                                                               └─ Docs ✅
 ```
 
-**Estado:** Todas las fases principales completadas.
+**Estado:** Todas las fases principales completadas. Listo para producción.
 
-**Pendiente (opcional/futuro):**
-- Device keys individuales por kiosco
-- MFA para staff
-- Staging environment
-- Sentry/Prometheus monitoring
-- Teacher-PWA: push notifications y modo oscuro
+---
+
+## Backlog (Mejoras Opcionales)
+
+| # | Feature | Prioridad | Complejidad | Descripción |
+|---|---------|-----------|-------------|-------------|
+| 1 | **Sentry** | Media | Baja | Error tracking en producción, alertas automáticas |
+| 2 | **Staging environment** | Media | Baja | `.env.staging`, compose separado, CI/CD workflow |
+| 3 | **Modo oscuro (Teacher PWA)** | Baja | Baja | CSS variables + toggle + `prefers-color-scheme` |
+| 4 | **Device keys individuales** | Media | Media | Cada kiosco con su propia API key + rotación |
+| 5 | **Prometheus metrics** | Baja | Media | Métricas de latencia, requests, errores |
+| 6 | **MFA para staff** | Baja | Alta | TOTP/Authenticator para directores |
+| 7 | **Push notifications (Teacher PWA)** | Baja | Alta | Web Push API para alertas de no-ingreso |
+
+### Descripción detallada
+
+#### 1. Sentry (Error Tracking)
+- Integrar `sentry-sdk` en FastAPI
+- Captura automática de excepciones
+- Alertas por email/Slack en errores críticos
+- Dashboard de issues en producción
+
+#### 2. Staging Environment
+- Archivo `.env.staging` con configuración intermedia
+- `docker-compose.staging.yml` separado
+- GitHub Actions workflow para deploy a staging
+- Base de datos separada para QA
+
+#### 3. Modo Oscuro (Teacher PWA)
+- Variables CSS para colores (`:root` y `[data-theme="dark"]`)
+- Toggle en settings con persistencia en localStorage
+- Soporte `prefers-color-scheme` para auto-detección
+- ~50 líneas de CSS adicionales
+
+#### 4. Device Keys Individuales
+- Tabla `device_keys` en DB (device_id, api_key, created_at, revoked_at)
+- Endpoint `POST /api/v1/devices/provision` para generar keys
+- Validación por device_id en lugar de key global
+- Endpoint para revocar keys específicas
+
+#### 5. Prometheus Metrics
+- Endpoint `/metrics` con métricas Prometheus
+- Métricas: request_count, request_latency, error_count
+- Histogramas por endpoint
+- Integración con Grafana (opcional)
+
+#### 6. MFA para Staff
+- Librería `pyotp` para TOTP
+- Tabla `user_mfa` (user_id, secret, enabled)
+- Flujo de activación con QR code
+- Verificación en login para roles director/inspector
+
+#### 7. Push Notifications (Teacher PWA)
+- Service Worker con push event listener
+- Endpoint `POST /api/v1/push/subscribe`
+- Integración con Web Push API (VAPID keys)
+- Notificaciones automáticas en alertas de no-ingreso
 
 ---
 
