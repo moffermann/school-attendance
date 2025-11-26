@@ -70,13 +70,21 @@
 - [x] Tests para API endpoints: parents, tags, alerts, broadcast
 - [x] Meta alcanzada: **80% coverage** (271 tests)
 
-## Fase 3.2: Test Coverage Frontend (Pendiente)
+## Fase 3.2: Test Coverage Frontend (Parcialmente Completada)
 
-### Frontend E2E
-- [ ] B4: Actualizar tests E2E de kiosk para nueva UI
+### Frontend E2E - Kiosk App ✅
+- [x] B4: Tests E2E de kiosk actualizados para nueva UI (28 tests)
+  - `admin-timeout.spec.js` - 3 tests (panel admin, timeout, navegación)
+  - `help-view.spec.js` - 6 tests (documentación, tokens, navegación)
+  - `home-ux.spec.js` - 1 test (procesamiento de token)
+  - `scan-result.spec.js` - 7 tests (datos estudiante, curso, guardian)
+  - `scan-view.spec.js` - 6 tests (detección teacher/student, tokens)
+  - `service-worker.spec.js` - 5 tests (cache, offline, PWA)
+
+### Frontend E2E - Pendientes
 - [ ] Crear tests E2E para teacher-pwa (Playwright)
 - [ ] Crear tests E2E para web-app (Playwright)
-- [ ] Meta: 50%+ coverage
+- [ ] Meta: 50%+ coverage total
 
 ---
 
@@ -132,21 +140,24 @@
 |---------|--------|-------------|------------|
 | Bugs críticos | 0 | 0 | 0 |
 | Test coverage backend | **80%** ✅ | 70% | 85% |
-| Test coverage frontend | ~15% | 50% | 70% |
+| Test coverage frontend | ~30% (kiosk 100%) | 50% | 70% |
 | Vulnerabilidades conocidas | 0 | 0 | 0 |
-| Tests totales | 271 | - | 300+ |
+| Tests totales | **299** (271 backend + 28 E2E) | - | 300+ |
 
 ---
 
 ## Dependencias entre fases
 
 ```
-Fase 1 (Estabilización) ──✅──► Fase 3 Backend (Tests) ──✅──► Fase 3.2 Frontend ───► Fase 4 (Features)
-         │                              │
-         └──✅── Fase 2 (PWA) ──────────┘
+Fase 1 (Estabilización) ──✅──► Fase 3 Backend (Tests) ──✅──► Fase 3.2 Frontend ─(parcial)─► Fase 4 (Features)
+         │                              │                         │
+         └──✅── Fase 2 (PWA) ──────────┘                         ├─ Kiosk ✅ (28 tests)
+                                                                  ├─ Teacher-PWA ⏳
+                                                                  └─ Web-App ⏳
 ```
 
-**Estado:** Fases 1, 2 y 3-Backend completadas. Próximo paso: Fase 3.2 (Tests Frontend) o Fase 4 (Features).
+**Estado:** Fases 1, 2 y 3-Backend completadas. Fase 3.2-Kiosk completada (28 tests E2E).
+Próximo paso: Completar Fase 3.2 (E2E para teacher-pwa/web-app) o iniciar Fase 4 (Features).
 
 ---
 
