@@ -18,7 +18,18 @@ Views.parentHistory = function() {
   const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
   const selectedStudentId = urlParams.get('student');
 
-  let filteredStudentId = selectedStudentId ? parseInt(selectedStudentId) : (students[0]?.id || null);
+  // Security: Validate that the requested student belongs to this guardian
+  // This prevents guardians from accessing other students' data via URL manipulation
+  const allowedStudentIds = new Set(students.map(s => s.id));
+  let filteredStudentId;
+
+  if (selectedStudentId) {
+    const parsedId = parseInt(selectedStudentId);
+    // Only use the URL parameter if the student belongs to this guardian
+    filteredStudentId = allowedStudentIds.has(parsedId) ? parsedId : (students[0]?.id || null);
+  } else {
+    filteredStudentId = students[0]?.id || null;
+  }
   let startDate = weekAgo;
   let endDate = today;
 
@@ -32,7 +43,7 @@ Views.parentHistory = function() {
           <select id="student-select" class="form-select">
             ${students.map(s => `
               <option value="${s.id}" ${s.id === filteredStudentId ? 'selected' : ''}>
-                ${s.full_name}
+                ${Components.escapeHtml(s.full_name)}
               </option>
             `).join('')}
           </select>

@@ -1,5 +1,8 @@
 // State management with localStorage persistence
 const State = {
+  // Security: Valid roles for the application
+  VALID_ROLES: ['director', 'inspector', 'parent'],
+
   data: {
     students: [],
     guardians: [],
@@ -13,6 +16,8 @@ const State = {
   },
   currentRole: null, // 'director', 'inspector', 'parent'
   currentGuardianId: null,
+  // Security: session token for integrity validation
+  _sessionToken: null,
 
   async init() {
     // Try to load from localStorage first
@@ -30,11 +35,43 @@ const State = {
       await this.loadFromJSON();
     }
 
-    // Load user session
+    // Load user session with security validation
     const role = localStorage.getItem('currentRole');
     const guardianId = localStorage.getItem('currentGuardianId');
-    if (role) this.currentRole = role;
-    if (guardianId) this.currentGuardianId = parseInt(guardianId);
+    const sessionToken = localStorage.getItem('sessionToken');
+
+    // Security: Validate role is in allowed list
+    if (role && this.VALID_ROLES.includes(role)) {
+      // For parent role, validate guardian exists
+      if (role === 'parent') {
+        const gId = guardianId ? parseInt(guardianId) : null;
+        const guardianExists = gId && this.data.guardians.some(g => g.id === gId);
+        if (guardianExists) {
+          this.currentRole = role;
+          this.currentGuardianId = gId;
+          this._sessionToken = sessionToken;
+        } else {
+          // Invalid guardian - clear session
+          this.logout();
+        }
+      } else {
+        // Staff roles (director/inspector)
+        this.currentRole = role;
+        this._sessionToken = sessionToken;
+      }
+    } else if (role) {
+      // Invalid role found in localStorage - clear it
+      console.warn('Invalid role in localStorage, clearing session');
+      this.logout();
+    }
+  },
+
+  // Security: Verify session is still valid
+  isSessionValid() {
+    if (!this.currentRole) return false;
+    if (!this.VALID_ROLES.includes(this.currentRole)) return false;
+    if (this.currentRole === 'parent' && !this.currentGuardianId) return false;
+    return true;
   },
 
   async loadFromJSON() {
@@ -62,9 +99,28 @@ const State = {
   },
 
   setRole(role, guardianId = null) {
+    // Security: Validate role before setting
+    if (!this.VALID_ROLES.includes(role)) {
+      console.error('Invalid role:', role);
+      return;
+    }
+
+    // For parent role, validate guardian exists
+    if (role === 'parent') {
+      if (!guardianId || !this.data.guardians.some(g => g.id === guardianId)) {
+        console.error('Invalid guardian for parent role');
+        return;
+      }
+    }
+
     this.currentRole = role;
     this.currentGuardianId = guardianId;
+
+    // Generate session token for integrity check
+    this._sessionToken = this._generateSessionToken();
+
     localStorage.setItem('currentRole', role);
+    localStorage.setItem('sessionToken', this._sessionToken);
     if (guardianId) {
       localStorage.setItem('currentGuardianId', guardianId);
     } else {
@@ -72,11 +128,18 @@ const State = {
     }
   },
 
+  _generateSessionToken() {
+    // Simple session token - in production this should come from backend
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  },
+
   logout() {
     this.currentRole = null;
     this.currentGuardianId = null;
+    this._sessionToken = null;
     localStorage.removeItem('currentRole');
     localStorage.removeItem('currentGuardianId');
+    localStorage.removeItem('sessionToken');
   },
 
   // Getters

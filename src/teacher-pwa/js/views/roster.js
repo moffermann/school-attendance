@@ -1,1 +1,74 @@
-Views.roster=async function(){if(!State.currentCourseId){Router.navigate('/classes');return}const app=document.getElementById('app');const rosters=await IDB.getAll('rosters');const students=await IDB.getAll('students');const queue=await IDB.getAll('queue');const course=rosters.find(r=>r.course_id===State.currentCourseId);const studentList=course?course.student_ids.map(id=>students.find(s=>s.id===id)).filter(Boolean):[];const today=new Date().toISOString().split('T')[0];app.innerHTML=`${UI.createHeader('Nómina')}<div class="container" style="padding-bottom:80px"><div class="card"><div class="card-header">Estado del Día</div><table><thead><tr><th>Alumno</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${studentList.map(s=>{const eventsToday=queue.filter(e=>e.student_id===s.id&&e.ts.startsWith(today));const inEvent=eventsToday.find(e=>e.type==='IN');const outEvent=eventsToday.find(e=>e.type==='OUT');const status=outEvent?`Salió ${UI.formatTime(outEvent.ts)}`:inEvent?`Ingreso ${UI.formatTime(inEvent.ts)}`:'Sin registro';return`<tr><td>${s.full_name}</td><td>${UI.createChip(status,inEvent?'success':'gray')}</td><td><button class="btn btn-secondary" style="font-size:.75rem;padding:.25rem .5rem" onclick="Views.roster.markIN(${s.id})">IN</button></td></tr>`}).join('')}</tbody></table></div><div class="flex gap-1"><button class="btn btn-secondary" onclick="Router.navigate('/scan-qr')">Escanear QR</button><button class="btn btn-secondary" onclick="Router.navigate('/take-attendance')">Marcado en Lote</button></div></div>${UI.createBottomNav('/roster')}`;Views.roster.markIN=async function(studentId){await State.enqueueEvent({student_id:studentId,type:'IN',course_id:State.currentCourseId,source:'MANUAL',ts:new Date().toISOString()});UI.showToast('Ingreso registrado','success');Views.roster()}};
+Views.roster = async function() {
+  if (!State.currentCourseId) {
+    Router.navigate('/classes');
+    return;
+  }
+
+  const app = document.getElementById('app');
+  const rosters = await IDB.getAll('rosters');
+  const students = await IDB.getAll('students');
+  const queue = await IDB.getAll('queue');
+  const course = rosters.find(r => r.course_id === State.currentCourseId);
+  const studentList = course
+    ? course.student_ids.map(id => students.find(s => s.id === id)).filter(Boolean)
+    : [];
+  const today = new Date().toISOString().split('T')[0];
+
+  app.innerHTML = `
+    ${UI.createHeader('Nómina')}
+    <div class="container" style="padding-bottom:80px">
+      <div class="card">
+        <div class="card-header">Estado del Día</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Alumno</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${studentList.map(s => {
+              const eventsToday = queue.filter(e => e.student_id === s.id && e.ts.startsWith(today));
+              const inEvent = eventsToday.find(e => e.type === 'IN');
+              const outEvent = eventsToday.find(e => e.type === 'OUT');
+              const status = outEvent
+                ? `Salió ${UI.formatTime(outEvent.ts)}`
+                : inEvent
+                  ? `Ingreso ${UI.formatTime(inEvent.ts)}`
+                  : 'Sin registro';
+              // Security: escape student name to prevent XSS
+              const safeName = UI.escapeHtml(s.full_name);
+              return `
+                <tr>
+                  <td>${safeName}</td>
+                  <td>${UI.createChip(status, inEvent ? 'success' : 'gray')}</td>
+                  <td>
+                    <button class="btn btn-secondary" style="font-size:.75rem;padding:.25rem .5rem" onclick="Views.roster.markIN(${s.id})">IN</button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="flex gap-1">
+        <button class="btn btn-secondary" onclick="Router.navigate('/scan-qr')">Escanear QR</button>
+        <button class="btn btn-secondary" onclick="Router.navigate('/take-attendance')">Marcado en Lote</button>
+      </div>
+    </div>
+    ${UI.createBottomNav('/roster')}
+  `;
+
+  Views.roster.markIN = async function(studentId) {
+    await State.enqueueEvent({
+      student_id: studentId,
+      type: 'IN',
+      course_id: State.currentCourseId,
+      source: 'MANUAL',
+      ts: new Date().toISOString()
+    });
+    UI.showToast('Ingreso registrado', 'success');
+    Views.roster();
+  };
+};
