@@ -46,7 +46,7 @@ Views.scanResult = function() {
 
           <!-- Header con nombre del colegio -->
           <div class="result-header">
-            <div class="school-name">Dunalastair Peñalolén</div>
+            <div class="school-name">${State.config.schoolName || 'Colegio'}</div>
             <div class="student-course">${student.course_id}° Básico</div>
           </div>
 
