@@ -1,4 +1,4 @@
-// Home view - Real QR scanner with camera
+// Home view - Real QR scanner with camera + NFC support
 const Views = window.Views || {};
 window.Views = Views;
 
@@ -10,13 +10,28 @@ Views.home = function() {
   let scanning = false;
   let scanningState = 'ready'; // ready, showing_result
   let animationFrame = null;
+  let nfcReader = null;
+  let nfcSupported = 'NDEFReader' in window;
 
   function renderCamera() {
+    const nfcStatusClass = nfcSupported ? 'nfc-active' : 'nfc-inactive';
+    const nfcStatusText = nfcSupported ? 'NFC Activo' : 'NFC No disponible';
+
     app.innerHTML = `
       <div class="qr-scanner-container">
         <video id="qr-video" class="qr-video" autoplay playsinline></video>
         <canvas id="qr-canvas" class="qr-canvas"></canvas>
         <div class="qr-overlay">
+          <div class="scan-status-bar">
+            <div class="scan-status-item ${nfcStatusClass}">
+              <span class="status-icon">📶</span>
+              <span class="status-text">${nfcStatusText}</span>
+            </div>
+            <div class="scan-status-item qr-active">
+              <span class="status-icon">📷</span>
+              <span class="status-text">QR Activo</span>
+            </div>
+          </div>
           <div class="qr-frame">
             <div class="qr-corner qr-corner-tl"></div>
             <div class="qr-corner qr-corner-tr"></div>
@@ -24,7 +39,9 @@ Views.home = function() {
             <div class="qr-corner qr-corner-br"></div>
           </div>
           <div class="qr-instruction">
-            Acerca el código QR a la cámara
+            ${nfcSupported
+              ? 'Acerca tu tarjeta NFC o código QR'
+              : 'Acerca el código QR a la cámara'}
           </div>
         </div>
       </div>
@@ -35,6 +52,7 @@ Views.home = function() {
     canvasContext = canvas.getContext('2d');
 
     startCamera();
+    startNFC();
   }
 
   async function startCamera() {
@@ -57,6 +75,71 @@ Views.home = function() {
     }
   }
 
+  async function startNFC() {
+    if (!nfcSupported) {
+      console.log('Web NFC not supported in this browser');
+      return;
+    }
+
+    try {
+      nfcReader = new NDEFReader();
+      await nfcReader.scan();
+      console.log('NFC scan started successfully');
+
+      nfcReader.addEventListener('reading', ({ message, serialNumber }) => {
+        console.log('NFC tag detected:', serialNumber);
+
+        // Try to read NDEF text record
+        let token = null;
+
+        for (const record of message.records) {
+          if (record.recordType === 'text') {
+            const textDecoder = new TextDecoder(record.encoding);
+            token = textDecoder.decode(record.data);
+            break;
+          } else if (record.recordType === 'url') {
+            const textDecoder = new TextDecoder();
+            const url = textDecoder.decode(record.data);
+            // Extract token from URL if it contains one
+            const match = url.match(/token=([^&]+)/);
+            if (match) token = match[1];
+            break;
+          }
+        }
+
+        // If no NDEF data, use serial number as token
+        if (!token) {
+          token = serialNumber.replace(/:/g, '_');
+        }
+
+        if (token && scanningState === 'ready') {
+          processToken(token, 'NFC');
+        }
+      });
+
+      nfcReader.addEventListener('readingerror', () => {
+        console.log('NFC reading error');
+        UI.showToast('Error al leer tarjeta NFC', 'error');
+      });
+
+    } catch (err) {
+      console.error('Error starting NFC:', err);
+      // Update UI to show NFC is not available
+      nfcSupported = false;
+      const nfcStatus = document.querySelector('.scan-status-item.nfc-active');
+      if (nfcStatus) {
+        nfcStatus.classList.remove('nfc-active');
+        nfcStatus.classList.add('nfc-inactive');
+        nfcStatus.querySelector('.status-text').textContent = 'NFC No disponible';
+      }
+    }
+  }
+
+  function stopNFC() {
+    // NDEFReader doesn't have a stop method, but setting to null helps with cleanup
+    nfcReader = null;
+  }
+
   function scanQRCode() {
     if (!scanning || scanningState !== 'ready') return;
 
@@ -71,7 +154,7 @@ Views.home = function() {
       if (code) {
         // QR code detected!
         scanning = false;
-        processQRCode(code.data);
+        processToken(code.data, 'QR');
         return;
       }
     }
@@ -79,8 +162,8 @@ Views.home = function() {
     animationFrame = requestAnimationFrame(scanQRCode);
   }
 
-  function processQRCode(token) {
-    console.log('QR detected:', token);
+  function processToken(token, source) {
+    console.log(`${source} detected:`, token);
 
     const result = State.resolveByToken(token);
 
@@ -99,14 +182,16 @@ Views.home = function() {
         requestAnimationFrame(scanQRCode);
       }, 2000);
     } else if (result.type === 'teacher') {
-      // Teacher detected - stop camera and navigate
+      // Teacher detected - stop camera and NFC, navigate
       stopCamera();
+      stopNFC();
       Router.navigate('/admin-panel');
     } else if (result.type === 'student') {
       // Student detected - show welcome
       scanningState = 'showing_result';
       stopCamera();
-      renderResult(result.data);
+      stopNFC();
+      renderResult(result.data, source);
     }
   }
 
@@ -120,9 +205,10 @@ Views.home = function() {
     }
   }
 
-  function renderResult(student) {
+  function renderResult(student, source) {
     const eventType = State.nextEventTypeFor(student.id);
     const timestamp = new Date().toISOString();
+    const sourceIcon = source === 'NFC' ? '📶' : '📷';
 
     app.innerHTML = `
       <div class="welcome-screen">
@@ -132,6 +218,7 @@ Views.home = function() {
           <div class="welcome-name">${student.full_name}</div>
           <div class="welcome-message">${eventType === 'IN' ? '¡Bienvenido!' : '¡Hasta pronto!'}</div>
           <div class="welcome-time">${UI.formatTime(timestamp)}</div>
+          <div class="welcome-source">${sourceIcon} Detectado por ${source}</div>
           <button class="btn btn-secondary" style="margin-top: 1.5rem" onclick="Views.home.resumeScan()">
             Escanear siguiente
           </button>
@@ -144,7 +231,7 @@ Views.home = function() {
       student_id: student.id,
       type: eventType,
       ts: timestamp,
-      source: 'QR',
+      source: source,
       photo_ref: State.config.photoEnabled ? 'simulated.jpg' : null
     };
     State.enqueueEvent(event);
@@ -196,7 +283,9 @@ Views.home = function() {
       return;
     }
 
-    processQRCode(token);
+    // Determine source based on token prefix
+    const source = token.startsWith('nfc_') ? 'NFC' : 'QR';
+    processToken(token, source);
   };
 
   Views.home.generateRandom = function() {
@@ -207,12 +296,14 @@ Views.home = function() {
 
   Views.home.resumeScan = function() {
     scanningState = 'ready';
+    nfcSupported = 'NDEFReader' in window; // Re-check NFC support
     renderCamera();
   };
 
   // Cleanup on navigation
   window.addEventListener('hashchange', function cleanup() {
     stopCamera();
+    stopNFC();
     window.removeEventListener('hashchange', cleanup);
   });
 
