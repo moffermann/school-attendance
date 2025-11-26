@@ -8,12 +8,14 @@ const Router = {
     this.addRoute('/auth', Views.auth);
     this.addRoute('/director/dashboard', Views.directorDashboard, ['director', 'inspector']);
     this.addRoute('/director/reports', Views.directorReports, ['director', 'inspector']);
+    this.addRoute('/director/metrics', Views.directorMetrics, ['director', 'inspector']);
     this.addRoute('/director/schedules', Views.directorSchedules, ['director', 'inspector']);
     this.addRoute('/director/exceptions', Views.directorExceptions, ['director', 'inspector']);
     this.addRoute('/director/broadcast', Views.directorBroadcast, ['director', 'inspector']);
     this.addRoute('/director/devices', Views.directorDevices, ['director', 'inspector']);
     this.addRoute('/director/students', Views.directorStudents, ['director', 'inspector']);
     this.addRoute('/director/absences', Views.directorAbsences, ['director', 'inspector']);
+    this.addRoute('/director/notifications', Views.directorNotifications, ['director', 'inspector']);
     this.addRoute('/parent/home', Views.parentHome, ['parent']);
     this.addRoute('/parent/history', Views.parentHistory, ['parent']);
     this.addRoute('/parent/prefs', Views.parentPrefs, ['parent']);

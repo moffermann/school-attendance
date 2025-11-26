@@ -6,7 +6,8 @@
     "type": "IN",
     "channel": "whatsapp",
     "sent_at": "2025-10-10T08:05:30",
-    "status": "delivered"
+    "status": "delivered",
+    "message": "Ana López ha ingresado al colegio a las 08:05"
   },
   {
     "id": 2,
@@ -15,7 +16,8 @@
     "type": "IN",
     "channel": "email",
     "sent_at": "2025-10-10T08:05:30",
-    "status": "delivered"
+    "status": "delivered",
+    "message": "Ana López ha ingresado al colegio a las 08:05"
   },
   {
     "id": 3,
@@ -24,6 +26,99 @@
     "type": "IN",
     "channel": "whatsapp",
     "sent_at": "2025-10-10T08:03:30",
-    "status": "delivered"
+    "status": "delivered",
+    "message": "Pedro Martínez ha ingresado al colegio a las 08:03"
+  },
+  {
+    "id": 4,
+    "guardian_id": 1,
+    "student_id": 1,
+    "type": "OUT",
+    "channel": "whatsapp",
+    "sent_at": "2025-10-10T16:05:00",
+    "status": "delivered",
+    "message": "Ana López ha salido del colegio a las 16:05"
+  },
+  {
+    "id": 5,
+    "guardian_id": 2,
+    "student_id": 2,
+    "type": "NO_SHOW",
+    "channel": "whatsapp",
+    "sent_at": "2025-10-09T09:00:00",
+    "status": "delivered",
+    "message": "Pedro Martínez no ha registrado ingreso hoy"
+  },
+  {
+    "id": 6,
+    "guardian_id": 2,
+    "student_id": 2,
+    "type": "NO_SHOW",
+    "channel": "email",
+    "sent_at": "2025-10-09T09:00:00",
+    "status": "failed",
+    "error": "Email bounce - invalid address",
+    "message": "Pedro Martínez no ha registrado ingreso hoy"
+  },
+  {
+    "id": 7,
+    "guardian_id": 3,
+    "student_id": 3,
+    "type": "ABSENCE_APPROVED",
+    "channel": "email",
+    "sent_at": "2025-10-08T14:30:00",
+    "status": "delivered",
+    "message": "Su solicitud de ausencia para María García ha sido aprobada"
+  },
+  {
+    "id": 8,
+    "guardian_id": 1,
+    "student_id": 1,
+    "type": "SCHEDULE_CHANGE",
+    "channel": "whatsapp",
+    "sent_at": "2025-10-07T10:00:00",
+    "status": "pending",
+    "message": "Cambio de horario: El viernes 10/10 habrá jornada reducida (8:00 - 13:00)"
+  },
+  {
+    "id": 9,
+    "guardian_id": 1,
+    "student_id": 1,
+    "type": "IN",
+    "channel": "whatsapp",
+    "sent_at": "2025-10-11T08:35:00",
+    "status": "delivered",
+    "message": "Ana López ha ingresado al colegio a las 08:35 (ATRASO)"
+  },
+  {
+    "id": 10,
+    "guardian_id": 2,
+    "student_id": 2,
+    "type": "OUT",
+    "channel": "whatsapp",
+    "sent_at": "2025-10-11T12:30:00",
+    "status": "delivered",
+    "message": "Pedro Martínez ha salido del colegio a las 12:30 (Salida anticipada)"
+  },
+  {
+    "id": 11,
+    "guardian_id": 3,
+    "student_id": 4,
+    "type": "IN",
+    "channel": "email",
+    "sent_at": "2025-10-11T08:02:00",
+    "status": "failed",
+    "error": "SMTP timeout",
+    "message": "Carlos Silva ha ingresado al colegio a las 08:02"
+  },
+  {
+    "id": 12,
+    "guardian_id": 1,
+    "student_id": 1,
+    "type": "BROADCAST",
+    "channel": "whatsapp",
+    "sent_at": "2025-10-06T15:00:00",
+    "status": "delivered",
+    "message": "Recordatorio: Reunión de apoderados el día 15/10 a las 19:00"
   }
 ]

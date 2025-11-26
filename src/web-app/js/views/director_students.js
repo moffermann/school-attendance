@@ -35,8 +35,14 @@ Views.directorStudents = function() {
       </div>
 
       <div class="card">
-        <div class="card-header">Lista de Alumnos</div>
+        <div class="card-header">Lista de Alumnos (${filteredStudents.length})</div>
         <div class="card-body">
+          ${filteredStudents.length === 0 ? Components.createEmptyState(
+            'Sin alumnos',
+            searchTerm || selectedCourse
+              ? 'No hay alumnos que coincidan con los filtros seleccionados'
+              : 'No hay alumnos registrados en el sistema'
+          ) : `
           <table>
             <thead>
               <tr>
@@ -56,8 +62,8 @@ Views.directorStudents = function() {
 
                 return `
                   <tr>
-                    <td>${student.full_name}</td>
-                    <td>${course ? course.name : '-'}</td>
+                    <td>${Components.escapeHtml(student.full_name)}</td>
+                    <td>${course ? Components.escapeHtml(course.name) : '-'}</td>
                     <td>${photoChip}</td>
                     <td>${Components.createChip('NFC/QR', 'info')}</td>
                     <td>
@@ -70,6 +76,7 @@ Views.directorStudents = function() {
               }).join('')}
             </tbody>
           </table>
+          `}
         </div>
       </div>
     `;

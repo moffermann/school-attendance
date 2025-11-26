@@ -215,6 +215,61 @@ const State = {
     return this.data.absences || [];
   },
 
+  getNotifications(filters = {}) {
+    let notifications = this.data.notifications || [];
+
+    if (filters.status) {
+      notifications = notifications.filter(n => n.status === filters.status);
+    }
+
+    if (filters.channel) {
+      notifications = notifications.filter(n => n.channel === filters.channel);
+    }
+
+    if (filters.type) {
+      notifications = notifications.filter(n => n.type === filters.type);
+    }
+
+    if (filters.studentId) {
+      notifications = notifications.filter(n => n.student_id === filters.studentId);
+    }
+
+    if (filters.dateFrom) {
+      notifications = notifications.filter(n => n.sent_at >= filters.dateFrom);
+    }
+
+    if (filters.dateTo) {
+      notifications = notifications.filter(n => n.sent_at <= filters.dateTo + 'T23:59:59');
+    }
+
+    return notifications.sort((a, b) => new Date(b.sent_at) - new Date(a.sent_at));
+  },
+
+  getNotificationStats() {
+    const notifications = this.data.notifications || [];
+    return {
+      total: notifications.length,
+      delivered: notifications.filter(n => n.status === 'delivered').length,
+      failed: notifications.filter(n => n.status === 'failed').length,
+      pending: notifications.filter(n => n.status === 'pending').length,
+      byChannel: {
+        whatsapp: notifications.filter(n => n.channel === 'whatsapp').length,
+        email: notifications.filter(n => n.channel === 'email').length
+      }
+    };
+  },
+
+  retryNotification(id) {
+    const index = this.data.notifications.findIndex(n => n.id === id);
+    if (index !== -1 && this.data.notifications[index].status === 'failed') {
+      this.data.notifications[index].status = 'pending';
+      this.data.notifications[index].retry_at = new Date().toISOString();
+      this.persist();
+      return true;
+    }
+    return false;
+  },
+
   // Setters
   addScheduleException(exception) {
     const id = Math.max(0, ...this.data.schedule_exceptions.map(e => e.id)) + 1;

@@ -23,6 +23,7 @@ Views.directorDevices = function() {
     <div class="card">
       <div class="card-header">Dispositivos Registrados</div>
       <div class="card-body">
+        ${devices.length === 0 ? Components.createEmptyState('Sin dispositivos', 'No hay dispositivos registrados en el sistema') : `
         <table>
           <thead>
             <tr>
@@ -46,8 +47,8 @@ Views.directorDevices = function() {
 
               return `
                 <tr>
-                  <td>${device.gate_id}</td>
-                  <td>${device.device_id}</td>
+                  <td>${Components.escapeHtml(device.gate_id)}</td>
+                  <td>${Components.escapeHtml(device.device_id)}</td>
                   <td>${device.version}</td>
                   <td>${Components.formatDateTime(device.last_sync)}</td>
                   <td>${Components.createChip(device.pending_count, device.pending_count > 0 ? 'warning' : 'gray')}</td>
@@ -66,6 +67,7 @@ Views.directorDevices = function() {
             }).join('')}
           </tbody>
         </table>
+        `}
       </div>
     </div>
   `;

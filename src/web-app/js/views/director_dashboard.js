@@ -75,18 +75,28 @@ Views.directorDashboard = function() {
   function renderEventsTable() {
     const tableDiv = document.getElementById('events-table');
 
+    if (filteredEvents.length === 0) {
+      tableDiv.innerHTML = Components.createEmptyState(
+        'Sin eventos',
+        filters.course || filters.type || filters.search
+          ? 'No hay eventos que coincidan con los filtros seleccionados'
+          : 'No hay eventos registrados hoy'
+      );
+      return;
+    }
+
     const headers = ['Alumno', 'Curso', 'Tipo', 'Puerta', 'Hora', 'Foto'];
     const rows = filteredEvents.map(event => {
       const student = State.getStudent(event.student_id);
-      const course = State.getCourse(student.course_id);
+      const course = State.getCourse(student?.course_id);
       const typeChip = event.type === 'IN'
         ? Components.createChip('Ingreso', 'success')
         : Components.createChip('Salida', 'info');
       const photoIcon = event.photo_ref ? '📷' : '-';
 
       return [
-        student.full_name,
-        course.name,
+        student ? Components.escapeHtml(student.full_name) : '-',
+        course ? Components.escapeHtml(course.name) : '-',
         typeChip,
         event.gate_id,
         Components.formatTime(event.ts),

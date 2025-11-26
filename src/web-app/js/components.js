@@ -129,12 +129,14 @@ const Components = {
               <ul class="sidebar-nav" role="menu">
                 <li><a href="#/director/dashboard" role="menuitem">Tablero</a></li>
                 <li><a href="#/director/reports" role="menuitem">Reportes</a></li>
+                <li><a href="#/director/metrics" role="menuitem">Métricas</a></li>
                 <li><a href="#/director/schedules" role="menuitem">Horarios</a></li>
                 <li><a href="#/director/exceptions" role="menuitem">Excepciones</a></li>
                 <li><a href="#/director/broadcast" role="menuitem">Broadcast</a></li>
                 <li><a href="#/director/devices" role="menuitem">Dispositivos</a></li>
                 <li><a href="#/director/students" role="menuitem">Alumnos</a></li>
                 <li><a href="#/director/absences" role="menuitem">Ausencias</a></li>
+                <li><a href="#/director/notifications" role="menuitem">Notificaciones</a></li>
               </ul>
             </nav>
           </aside>
@@ -309,6 +311,93 @@ const Components = {
     ctx.lineTo(padding, height - padding);
     ctx.lineTo(width - padding, height - padding);
     ctx.stroke();
+  },
+
+  // PDF Generation utilities
+  generatePDF(title, content, options = {}) {
+    const { jsPDF } = window.jspdf;
+    if (!jsPDF) {
+      this.showToast('Error: Librería PDF no disponible', 'error');
+      return null;
+    }
+
+    const doc = new jsPDF({
+      orientation: options.orientation || 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+
+    // Header
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text(title, pageWidth / 2, 20, { align: 'center' });
+
+    // Subtitle with date
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Generado: ${this.formatDateTime(new Date().toISOString())}`, pageWidth / 2, 28, { align: 'center' });
+
+    // Line separator
+    doc.setDrawColor(200);
+    doc.line(margin, 32, pageWidth - margin, 32);
+
+    return doc;
+  },
+
+  addPDFTable(doc, headers, rows, startY = 40) {
+    if (!doc.autoTable) {
+      console.error('autoTable plugin not loaded');
+      return startY;
+    }
+
+    doc.autoTable({
+      head: [headers],
+      body: rows,
+      startY: startY,
+      margin: { left: 15, right: 15 },
+      styles: {
+        fontSize: 9,
+        cellPadding: 3
+      },
+      headStyles: {
+        fillColor: [59, 130, 246],
+        textColor: 255,
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: {
+        fillColor: [245, 247, 250]
+      }
+    });
+
+    return doc.lastAutoTable.finalY + 10;
+  },
+
+  addPDFSection(doc, title, y) {
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text(title, 15, y);
+    doc.setFont(undefined, 'normal');
+    return y + 8;
+  },
+
+  addPDFText(doc, text, y, options = {}) {
+    doc.setFontSize(options.fontSize || 10);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+    const maxWidth = pageWidth - margin * 2;
+
+    const lines = doc.splitTextToSize(text, maxWidth);
+    doc.text(lines, margin, y);
+
+    return y + (lines.length * 5) + 5;
+  },
+
+  savePDF(doc, filename) {
+    doc.save(filename);
+    this.showToast('PDF descargado correctamente', 'success');
   },
 
   drawLineChart(canvas, data, labels) {

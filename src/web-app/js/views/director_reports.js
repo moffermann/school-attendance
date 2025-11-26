@@ -35,6 +35,7 @@ Views.directorReports = function() {
           </div>
 
           <button class="btn btn-primary" onclick="Views.directorReports.generateReport()">Generar</button>
+          <button class="btn btn-secondary" onclick="Views.directorReports.exportPDF()">Exportar PDF</button>
         </div>
       </div>
     </div>
@@ -131,5 +132,72 @@ Views.directorReports = function() {
     }, 100);
 
     Components.showToast('Reporte generado', 'success');
+  };
+
+  Views.directorReports.exportPDF = function() {
+    const courseId = document.getElementById('course-select').value;
+    const dateStart = document.getElementById('date-start').value;
+    const dateEnd = document.getElementById('date-end').value;
+    const selectedCourses = courseId ? [State.getCourse(parseInt(courseId))] : courses;
+
+    const doc = Components.generatePDF('Reporte de Asistencia Escolar');
+    if (!doc) return;
+
+    let y = 40;
+
+    // Add date range info
+    y = Components.addPDFText(doc, `Período: ${Components.formatDate(dateStart)} - ${Components.formatDate(dateEnd)}`, y);
+    y += 5;
+
+    // Summary section
+    y = Components.addPDFSection(doc, 'Resumen por Curso', y);
+
+    const tableHeaders = ['Curso', 'Total Alumnos', 'Presentes', 'Atrasos', 'Ausentes', '% Asistencia'];
+    const tableRows = selectedCourses.map(course => {
+      const students = State.getStudentsByCourse(course.id);
+      const events = State.getAttendanceEvents({ courseId: course.id });
+      const inEvents = events.filter(e => e.type === 'IN');
+      const lateEvents = inEvents.filter(e => e.ts.split('T')[1] > '08:30:00');
+
+      const presentCount = new Set(inEvents.map(e => e.student_id)).size;
+      const absentCount = students.length - presentCount;
+      const attendancePercent = ((presentCount / students.length) * 100).toFixed(1);
+
+      return [
+        course.name,
+        students.length.toString(),
+        presentCount.toString(),
+        lateEvents.length.toString(),
+        absentCount.toString(),
+        attendancePercent + '%'
+      ];
+    });
+
+    y = Components.addPDFTable(doc, tableHeaders, tableRows, y);
+
+    // Totals
+    const totalStudents = selectedCourses.reduce((sum, c) => sum + State.getStudentsByCourse(c.id).length, 0);
+    const allEvents = State.getAttendanceEvents();
+    const allIn = allEvents.filter(e => e.type === 'IN');
+    const totalPresent = new Set(allIn.map(e => e.student_id)).size;
+    const totalLate = allIn.filter(e => e.ts.split('T')[1] > '08:30:00').length;
+    const overallRate = ((totalPresent / totalStudents) * 100).toFixed(1);
+
+    y = Components.addPDFSection(doc, 'Totales Generales', y);
+    y = Components.addPDFText(doc, `Total Alumnos: ${totalStudents}`, y);
+    y = Components.addPDFText(doc, `Total Presentes: ${totalPresent}`, y);
+    y = Components.addPDFText(doc, `Total Atrasos: ${totalLate}`, y);
+    y = Components.addPDFText(doc, `Tasa de Asistencia General: ${overallRate}%`, y);
+
+    // Footer
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setFontSize(8);
+    doc.setTextColor(128);
+    doc.text('Control de Ingreso/Salida Escolar - Reporte Automático', 15, pageHeight - 10);
+    doc.text(`Página 1 de 1`, doc.internal.pageSize.getWidth() - 30, pageHeight - 10);
+
+    // Save
+    const filename = `reporte_asistencia_${dateStart}_${dateEnd}.pdf`;
+    Components.savePDF(doc, filename);
   };
 };
