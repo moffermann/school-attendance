@@ -1,112 +1,216 @@
-// Auth view - Role selection
+// Auth view - Login with JWT
 const Views = window.Views || {};
 window.Views = Views;
 
 Views.auth = function() {
   const app = document.getElementById('app');
 
+  // Check if already authenticated
+  if (API.isAuthenticated() && State.isSessionValid()) {
+    const redirectPath = State.currentRole === 'parent' ? '/parent/home' : '/director/dashboard';
+    Router.navigate(redirectPath);
+    return;
+  }
+
   app.innerHTML = `
     <div class="auth-container">
       <div class="auth-card">
         <img src="assets/logo.svg" alt="Logo" class="auth-logo">
         <h1 class="auth-title">Control de Ingreso/Salida Escolar</h1>
-        <p class="mb-3">Selecciona tu perfil para continuar:</p>
 
-        <div class="role-buttons">
-          <button class="role-button" id="btn-director">
-            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🏫</div>
-            <div>Dirección / Inspectoría</div>
-          </button>
+        <div id="auth-mode-select">
+          <p class="mb-3">Selecciona tu perfil para continuar:</p>
+          <div class="role-buttons">
+            <button class="role-button" id="btn-staff">
+              <div style="font-size: 2rem; margin-bottom: 0.5rem;">🏫</div>
+              <div>Dirección / Inspectoría</div>
+            </button>
 
-          <button class="role-button" id="btn-parent">
-            <div style="font-size: 2rem; margin-bottom: 0.5rem;">👨‍👩‍👧</div>
-            <div>Apoderado</div>
-          </button>
+            <button class="role-button" id="btn-parent">
+              <div style="font-size: 2rem; margin-bottom: 0.5rem;">👨‍👩‍👧</div>
+              <div>Apoderado</div>
+            </button>
+          </div>
+        </div>
+
+        <div id="auth-login-form" style="display: none;">
+          <p class="mb-3" id="login-title">Iniciar sesión</p>
+          <form id="login-form">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" id="login-email" class="form-input" placeholder="usuario@colegio.cl" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Contraseña</label>
+              <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
+            </div>
+            <div id="login-error" class="error-message" style="display: none; color: var(--color-error); margin-bottom: 1rem;"></div>
+            <div class="flex gap-2">
+              <button type="button" class="btn btn-secondary" id="btn-back">Volver</button>
+              <button type="submit" class="btn btn-primary" id="login-btn">Iniciar Sesión</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="auth-demo-mode" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--color-gray-200);">
+          <p style="font-size: 0.875rem; color: var(--color-gray-500); margin-bottom: 0.5rem;">Modo demo (sin backend):</p>
+          <div class="flex gap-1 flex-wrap" style="justify-content: center;">
+            <button class="btn btn-secondary btn-sm" onclick="Views.auth.demoLogin('director')">Director</button>
+            <button class="btn btn-secondary btn-sm" onclick="Views.auth.demoLogin('inspector')">Inspector</button>
+            <button class="btn btn-secondary btn-sm" onclick="Views.auth.demoLogin('parent')">Apoderado</button>
+          </div>
         </div>
       </div>
     </div>
   `;
 
-  // Director/Inspector button
-  document.getElementById('btn-director').addEventListener('click', () => {
-    Components.showModal('Seleccionar Rol', `
-      <div class="form-group">
-        <label class="form-label">Rol</label>
-        <select id="director-role" class="form-select">
-          <option value="director">Director</option>
-          <option value="inspector">Inspector</option>
-        </select>
-      </div>
-    `, [
-      { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
-      {
-        label: 'Continuar',
-        action: 'submit',
-        className: 'btn-primary',
-        onClick: () => {
-          const role = document.getElementById('director-role').value;
-          State.setRole(role);
-          Router.navigate('/director/dashboard');
-        }
-      }
-    ]);
+  let selectedRole = null;
+
+  // Staff button
+  document.getElementById('btn-staff').addEventListener('click', () => {
+    selectedRole = 'staff';
+    showLoginForm('Dirección / Inspectoría');
   });
 
   // Parent button
   document.getElementById('btn-parent').addEventListener('click', () => {
-    const guardians = State.getGuardians();
-    const options = guardians.map(g => `
-      <option value="${g.id}">${g.full_name}</option>
-    `).join('');
+    selectedRole = 'parent';
+    showLoginForm('Apoderado');
+  });
 
-    Components.showModal('Seleccionar Apoderado', `
-      <div class="form-group">
-        <label class="form-label">Apoderado</label>
-        <select id="guardian-select" class="form-select">
-          <option value="">Seleccione...</option>
-          ${options}
-        </select>
-      </div>
-      <div id="students-preview" class="mt-2"></div>
-    `, [
-      { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
-      {
-        label: 'Continuar',
-        action: 'submit',
-        className: 'btn-primary',
-        onClick: () => {
-          const guardianId = parseInt(document.getElementById('guardian-select').value);
-          if (!guardianId) {
-            Components.showToast('Debe seleccionar un apoderado', 'error');
-            return;
-          }
-          State.setRole('parent', guardianId);
-          Router.navigate('/parent/home');
-        }
-      }
-    ]);
+  // Back button
+  document.getElementById('btn-back').addEventListener('click', () => {
+    showModeSelect();
+  });
 
-    // Show students preview when guardian is selected
-    document.getElementById('guardian-select').addEventListener('change', (e) => {
-      const guardianId = parseInt(e.target.value);
-      const preview = document.getElementById('students-preview');
+  // Login form submission
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errorDiv = document.getElementById('login-error');
+    const btn = document.getElementById('login-btn');
 
-      if (!guardianId) {
-        preview.innerHTML = '';
+    errorDiv.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Iniciando sesión...';
+
+    try {
+      // Login via API
+      await API.login(email, password);
+
+      // Get bootstrap data (user info, courses, students, etc.)
+      const bootstrap = await API.getBootstrap();
+
+      // Set up state with API data
+      State.setFromBootstrap(bootstrap);
+
+      Components.showToast(`Bienvenido, ${bootstrap.user.full_name}`, 'success');
+
+      // Navigate based on role
+      const redirectPath = bootstrap.user.role === 'PARENT' ? '/parent/home' : '/director/dashboard';
+      Router.navigate(redirectPath);
+    } catch (error) {
+      console.error('Login error:', error);
+      errorDiv.textContent = error.message || 'Error al iniciar sesión';
+      errorDiv.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Iniciar Sesión';
+    }
+  });
+
+  function showLoginForm(title) {
+    document.getElementById('auth-mode-select').style.display = 'none';
+    document.getElementById('auth-login-form').style.display = 'block';
+    document.getElementById('login-title').textContent = `Iniciar sesión - ${title}`;
+    document.getElementById('login-email').focus();
+  }
+
+  function showModeSelect() {
+    document.getElementById('auth-mode-select').style.display = 'block';
+    document.getElementById('auth-login-form').style.display = 'none';
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-password').value = '';
+    document.getElementById('login-error').style.display = 'none';
+  }
+
+  // Demo login (for testing without backend)
+  Views.auth.demoLogin = function(role) {
+    if (role === 'parent') {
+      // Show guardian selector for demo mode
+      const guardians = State.getGuardians();
+      if (guardians.length === 0) {
+        Components.showToast('No hay datos de demo cargados', 'error');
         return;
       }
 
-      const students = State.getGuardianStudents(guardianId);
-      preview.innerHTML = `
-        <div class="card">
-          <div class="card-header">Alumnos vinculados</div>
-          <div class="card-body">
-            <ul style="list-style: none; padding: 0;">
-              ${students.map(s => `<li>• ${s.full_name} - ${State.getCourse(s.course_id).name}</li>`).join('')}
-            </ul>
-          </div>
+      const options = guardians.map(g => `
+        <option value="${g.id}">${Components.escapeHtml(g.full_name)}</option>
+      `).join('');
+
+      Components.showModal('Seleccionar Apoderado (Demo)', `
+        <div class="form-group">
+          <label class="form-label">Apoderado</label>
+          <select id="guardian-select" class="form-select">
+            <option value="">Seleccione...</option>
+            ${options}
+          </select>
         </div>
-      `;
-    });
-  });
+        <div id="students-preview" class="mt-2"></div>
+      `, [
+        { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
+        {
+          label: 'Continuar',
+          action: 'submit',
+          className: 'btn-primary',
+          onClick: () => {
+            const guardianId = parseInt(document.getElementById('guardian-select').value);
+            if (!guardianId) {
+              Components.showToast('Debe seleccionar un apoderado', 'error');
+              return;
+            }
+            State.setRole('parent', guardianId);
+            Components.showToast('Modo demo activado', 'info');
+            Router.navigate('/parent/home');
+          }
+        }
+      ]);
+
+      // Show students preview when guardian is selected
+      setTimeout(() => {
+        const select = document.getElementById('guardian-select');
+        if (select) {
+          select.addEventListener('change', (e) => {
+            const guardianId = parseInt(e.target.value);
+            const preview = document.getElementById('students-preview');
+
+            if (!guardianId) {
+              preview.innerHTML = '';
+              return;
+            }
+
+            const students = State.getGuardianStudents(guardianId);
+            preview.innerHTML = `
+              <div class="card">
+                <div class="card-header">Alumnos vinculados</div>
+                <div class="card-body">
+                  <ul style="list-style: none; padding: 0;">
+                    ${students.map(s => {
+                      const course = State.getCourse(s.course_id);
+                      return `<li>• ${Components.escapeHtml(s.full_name)} - ${course ? Components.escapeHtml(course.name) : '-'}</li>`;
+                    }).join('')}
+                  </ul>
+                </div>
+              </div>
+            `;
+          });
+        }
+      }, 100);
+    } else {
+      // Staff demo login
+      State.setRole(role);
+      Components.showToast('Modo demo activado', 'info');
+      Router.navigate('/director/dashboard');
+    }
+  };
 };

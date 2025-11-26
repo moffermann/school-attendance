@@ -137,9 +137,77 @@ const State = {
     this.currentRole = null;
     this.currentGuardianId = null;
     this._sessionToken = null;
+    this._user = null;
     localStorage.removeItem('currentRole');
     localStorage.removeItem('currentGuardianId');
     localStorage.removeItem('sessionToken');
+    // Clear API tokens
+    if (typeof API !== 'undefined') {
+      API.logout();
+    }
+  },
+
+  /**
+   * Set state from API bootstrap data
+   * Called after successful JWT login
+   */
+  setFromBootstrap(bootstrap) {
+    // Store user info
+    this._user = bootstrap.user;
+
+    // Map API role to local role
+    const roleMap = {
+      'ADMIN': 'director',
+      'DIRECTOR': 'director',
+      'INSPECTOR': 'inspector',
+      'PARENT': 'parent'
+    };
+    const role = roleMap[bootstrap.user.role] || 'director';
+
+    // Set role and guardian ID
+    this.currentRole = role;
+    this.currentGuardianId = bootstrap.user.guardian_id || null;
+    this._sessionToken = this._generateSessionToken();
+
+    // Store in localStorage
+    localStorage.setItem('currentRole', role);
+    localStorage.setItem('sessionToken', this._sessionToken);
+    if (this.currentGuardianId) {
+      localStorage.setItem('currentGuardianId', this.currentGuardianId);
+    }
+
+    // Update data from bootstrap
+    if (bootstrap.courses) {
+      this.data.courses = bootstrap.courses;
+    }
+    if (bootstrap.students) {
+      this.data.students = bootstrap.students;
+    }
+    if (bootstrap.guardians) {
+      this.data.guardians = bootstrap.guardians;
+    }
+    if (bootstrap.schedules) {
+      this.data.schedules = bootstrap.schedules;
+    }
+    if (bootstrap.devices) {
+      this.data.devices = bootstrap.devices;
+    }
+
+    this.persist();
+  },
+
+  /**
+   * Get current user info (from API login)
+   */
+  getCurrentUser() {
+    return this._user || null;
+  },
+
+  /**
+   * Check if using real API auth (vs demo mode)
+   */
+  isApiAuthenticated() {
+    return typeof API !== 'undefined' && API.isAuthenticated();
   },
 
   // Getters
