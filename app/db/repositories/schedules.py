@@ -83,6 +83,10 @@ class ScheduleRepository:
     async def list_by_course_ids(self, course_ids: set[int]) -> list[Schedule]:
         if not course_ids:
             return []
-        stmt = select(Schedule).where(Schedule.course_id.in_(course_ids))
+        stmt = (
+            select(Schedule)
+            .where(Schedule.course_id.in_(course_ids))
+            .options(selectinload(Schedule.course))
+        )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())

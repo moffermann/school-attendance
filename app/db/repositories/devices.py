@@ -1,11 +1,15 @@
-"""Device repository stub."""
+"""Device repository with race condition protection."""
 
+import logging
 from datetime import datetime
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.device import Device
+
+logger = logging.getLogger(__name__)
 
 
 class DeviceRepository:
@@ -19,6 +23,12 @@ class DeviceRepository:
     async def get_by_id(self, device_id: int) -> Device | None:
         return await self.session.get(Device, device_id)
 
+    async def get_by_device_id(self, device_id: str) -> Device | None:
+        """Get device by its device_id string."""
+        stmt = select(Device).where(Device.device_id == device_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def upsert_heartbeat(
         self,
         *,
@@ -29,31 +39,58 @@ class DeviceRepository:
         pending_events: int,
         online: bool,
     ) -> Device:
-        stmt = select(Device).where(Device.device_id == device_id)
-        result = await self.session.execute(stmt)
-        device = result.scalar_one_or_none()
+        """Upsert device heartbeat atomically.
 
-        if device is None:
-            device = Device(
-                device_id=device_id,
-                gate_id=gate_id,
-                firmware_version=firmware_version,
-                battery_pct=battery_pct,
-                pending_events=pending_events,
-                online=online,
-                last_sync=datetime.utcnow(),
-            )
-            self.session.add(device)
-        else:
+        Uses the unique constraint on device_id to handle race conditions:
+        - If device exists, updates it
+        - If device doesn't exist, creates it
+        - If concurrent insert happens, catches IntegrityError and updates existing
+        """
+        device = await self.get_by_device_id(device_id)
+
+        if device is not None:
+            # Device exists - update it
             device.gate_id = gate_id
             device.firmware_version = firmware_version
             device.battery_pct = battery_pct
             device.pending_events = pending_events
             device.online = online
             device.last_sync = datetime.utcnow()
+            await self.session.flush()
+            return device
 
-        await self.session.flush()
-        return device
+        # Try to create new device
+        device = Device(
+            device_id=device_id,
+            gate_id=gate_id,
+            firmware_version=firmware_version,
+            battery_pct=battery_pct,
+            pending_events=pending_events,
+            online=online,
+            last_sync=datetime.utcnow(),
+        )
+        self.session.add(device)
+
+        try:
+            await self.session.flush()
+            return device
+        except IntegrityError:
+            # Race condition: another process created the device
+            await self.session.rollback()
+            logger.info(f"Race condition handled: device {device_id} already exists")
+            # Fetch existing and update
+            device = await self.get_by_device_id(device_id)
+            if device:
+                device.gate_id = gate_id
+                device.firmware_version = firmware_version
+                device.battery_pct = battery_pct
+                device.pending_events = pending_events
+                device.online = online
+                device.last_sync = datetime.utcnow()
+                await self.session.flush()
+                return device
+            # This shouldn't happen, but re-raise if it does
+            raise
 
     async def touch_ping(self, device: Device) -> Device:
         device.last_sync = datetime.utcnow()

@@ -24,7 +24,11 @@ class StudentRepository:
     async def list_by_course_ids(self, course_ids: set[int]) -> list[Student]:
         if not course_ids:
             return []
-        stmt = select(Student).where(Student.course_id.in_(course_ids))
+        stmt = (
+            select(Student)
+            .where(Student.course_id.in_(course_ids))
+            .options(selectinload(Student.guardians))
+        )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
