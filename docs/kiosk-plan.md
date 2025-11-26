@@ -54,12 +54,16 @@ El rediseño v2.0 del kiosk está casi completo. **Fase 1 completada** - todos l
 - `help-view.spec.js` - 6 tests E2E de documentación
 
 ### FASE 2: Completar Feature NFC
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADA
 
-- [ ] 2.1 Agregar debounce anti-duplicados (300-500ms entre scans)
-- [ ] 2.2 Agregar feedback sonoro (beep) al escanear exitosamente
-- [ ] 2.3 Agregar vibración en dispositivos móviles
-- [ ] 2.4 Implementar timeout de sesión para panel admin (5 min inactividad)
+- [x] 2.1 Agregar debounce anti-duplicados (500ms entre scans) (commit: f19d2ba)
+- [x] 2.2 Agregar feedback sonoro (beep 880Hz) al escanear (commit: f19d2ba)
+- [x] 2.3 Agregar vibración en dispositivos móviles (100ms) (commit: f19d2ba)
+- [x] 2.4 Implementar timeout de sesión para panel admin (5 min) (commit: f19d2ba)
+
+**Tests agregados:**
+- `admin-timeout.spec.js` - 3 tests E2E de timeout
+- `home-ux.spec.js` - 1 test E2E de UX
 
 ### FASE 3: Mejoras de UX
 **Estado:** Pendiente
@@ -118,4 +122,4 @@ El rediseño v2.0 del kiosk está casi completo. **Fase 1 completada** - todos l
 
 ---
 
-_Última actualización: 2025-11-26 - Fase 1 completada_
+_Última actualización: 2025-11-26 - Fase 1 y 2 completadas_
