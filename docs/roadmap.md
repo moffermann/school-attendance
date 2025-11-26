@@ -139,16 +139,54 @@
 
 ---
 
-## Seguridad y despliegue
+## Seguridad y despliegue (Parcialmente implementado)
 
-- [ ] Agregar rate limiting efectivo (slowapi)
-- [ ] CORS restrictivo en producción
-- [ ] Fortalecer refresh tokens (rotación, revocación)
-- [ ] Device keys individuales por kiosco con rotación
-- [ ] MFA para staff (opcional)
-- [ ] Documentar despliegue producción (env vars, S3, Redis/RQ, scheduler)
-- [ ] Configurar staging environment
-- [ ] Monitoring/Alerting básico
+### Rate Limiting ⚠️ PARCIAL
+- [x] slowapi instalado y configurado (`main.py:8-18`, `config.py:41`)
+- [x] `RATE_LIMIT_DEFAULT=100/minute` configurable via env
+- [ ] **Falta:** Aplicar decoradores `@limiter.limit()` a endpoints críticos
+
+### CORS ⚠️ PARCIAL
+- [x] CORSMiddleware configurado (`main.py:41-47`)
+- [x] `CORS_ORIGINS` configurable via env (default restrictivo)
+- [ ] **Falta:** Restringir `allow_methods` y `allow_headers` (actualmente `"*"`)
+
+### Refresh Tokens ⚠️ PARCIAL
+- [x] Tokens con expiración configurable (7 días default)
+- [x] Rotación implementada en `auth_service.py:32-43`
+- [ ] **Falta:** Blacklist/revocación de tokens
+- [ ] **Falta:** JTI claim para tracking individual
+- [ ] **Falta:** Endpoint de logout
+
+### Device Keys ⚠️ PARCIAL
+- [x] Autenticación via `X-Device-Key` header (`deps.py:100-103`)
+- [x] Validación en producción de key no-default
+- [ ] **Falta:** Keys individuales por kiosco (actualmente compartida)
+- [ ] **Falta:** Rotación automática de keys
+
+### MFA ❌ NO IMPLEMENTADO
+- [ ] TOTP/Authenticator para staff
+- [ ] Códigos de verificación email/SMS
+
+### Documentación Despliegue ⚠️ PARCIAL
+- [x] Dockerfile con healthcheck
+- [x] `scripts/build_and_push.sh` para registry
+- [x] `scripts/provision_kiosk.sh` para dispositivos
+- [x] `.env.example` básico
+- [ ] **Falta:** Guía de producción (env vars, S3, Redis/RQ, scheduler)
+- [ ] **Falta:** Documentación de backup/recovery
+
+### Staging Environment ❌ NO IMPLEMENTADO
+- [ ] `.env.staging` y compose separado
+- [ ] CI/CD workflow para staging
+
+### Monitoring/Alerting ⚠️ PARCIAL
+- [x] Health endpoints: `/health`, `/healthz` (`main.py:60-71`)
+- [x] Logging con loguru + structlog (`core/logging.py`)
+- [x] RQ Dashboard en puerto 9181
+- [ ] **Falta:** Sentry para error tracking
+- [ ] **Falta:** Prometheus metrics
+- [ ] **Falta:** Alertas para eventos críticos
 
 ---
 
