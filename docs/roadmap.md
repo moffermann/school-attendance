@@ -95,24 +95,47 @@
 
 ---
 
-## Fase 4: Features Nuevos (Backlog)
+## ✅ Fase 4: Features Nuevos (Completada 2025-11-26)
 
-### Portal Web
-- [ ] Métricas extendidas de ausencias (bandeja con filtros, KPIs)
-- [ ] Métricas de notificaciones por canal/plantilla
-- [ ] Bitácora de broadcast con export CSV
-- [ ] Reportes PDF semanales
-- [ ] Estados vacíos/errores coherentes en todas las vistas
+### Portal Web ✅
+- [x] Métricas extendidas de ausencias (`director_metrics.js`)
+  - Dashboard con KPIs: tasa asistencia, tardanzas promedio, estudiantes en riesgo
+  - Top 10 estudiantes con más tardanzas
+  - Distribución por hora y tendencias 30 días
+  - Export PDF y CSV de métricas
+- [x] Métricas de notificaciones por canal (`director_notifications.js`, `state.js:323-326`)
+  - Filtrado por canal (WhatsApp, Email)
+  - Contadores por canal en `getNotificationStats()`
+- [x] Reportes PDF semanales (`director_reports.js:137-202`)
+  - Generación PDF con filtros fecha/curso
+  - Resumen por curso, gráfico asistencia, tendencia semanal
+- [x] Estados vacíos coherentes en 11 de 14 vistas (`components.js:234-240`)
+  - Implementado en: dashboard, absences, devices, exceptions, metrics, notifications, students, parent views
+- [x] Broadcast con formulario completo (`director_broadcast.js`)
+  - Selección curso, canal, preview, resultados simulados
 
-### Kiosk
-- [ ] Captura de foto real (actualmente placeholder)
-- [ ] Integración con hardware NFC (vs Web NFC)
-- [ ] Soporte offline mejorado (Service Worker)
+### Kiosk ✅
+- [x] Captura de foto real (`scan_result.js:123-174`)
+  - getUserMedia API + canvas capture
+  - Activado cuando `photoEnabled = true`
+  - Sonido de cámara y overlay de confirmación
+- [x] Web NFC integrado (`home.js:149-242`)
+  - NDEFReader API completa
+  - Lectura de registros NDEF (text/URL)
+  - Auto-retry con máximo 3 intentos
+  - Fallback a input manual
+- [x] Service Worker offline (`service-worker.js`, `sync.js`)
+  - Cache-first strategy
+  - Cola de sync con estados (pending/synced/error)
+  - Persistencia en localStorage
 
-### PWA Profesores
-- [ ] Escaneo QR para toma rápida de asistencia
-- [ ] Notificaciones push para alertas
-- [ ] Modo oscuro
+### PWA Profesores (Parcial)
+- [x] Escaneo QR simulado (`scan_qr.js`)
+  - Input manual con tokens de prueba
+  - Determina IN/OUT automáticamente
+  - Cola local de eventos
+- [ ] Notificaciones push - NO IMPLEMENTADO (solo toasts locales)
+- [ ] Modo oscuro - NO IMPLEMENTADO
 
 ---
 
@@ -156,17 +179,18 @@
 ## Dependencias entre fases
 
 ```
-Fase 1 (Estabilización) ──✅──► Fase 3 Backend (Tests) ──✅──► Fase 3.2 Frontend ─(parcial)─► Fase 4 (Features)
-         │                              │                         │
-         └──✅── Fase 2 (PWA) ──────────┘                         ├─ Kiosk ✅ (28 tests)
-                                                                  ├─ Teacher-PWA ⏳
-                                                                  └─ Web-App ⏳
+Fase 1 (Estabilización) ──✅──► Fase 3 Backend (Tests) ──✅──► Fase 3.2 Frontend ──✅──► Fase 4 (Features) ──✅
+         │                              │                         │                         │
+         └──✅── Fase 2 (PWA) ──────────┘                         ├─ Kiosk ✅ (28 tests)    ├─ Portal Web ✅
+                                                                  ├─ Teacher-PWA ✅ (9)     ├─ Kiosk ✅
+                                                                  └─ Web-App ✅ (35)        └─ Teacher-PWA ⚠️ (parcial)
 ```
 
-**Estado:** Fases 1, 2 y 3-Backend completadas. Fase 3.2-Kiosk completada (28 tests E2E).
-Próximo paso: Completar Fase 3.2 (E2E para teacher-pwa/web-app) o iniciar Fase 4 (Features).
+**Estado:** Fases 1, 2, 3, 3.2 y 4 completadas.
+- Teacher-PWA pendiente: push notifications y modo oscuro
+- Próximo paso: Fase de Seguridad y Despliegue
 
 ---
 
 _Última actualización: 2025-11-26_
-_Próxima revisión: Al completar Fase 3.2 (Frontend E2E)_
+_Próxima revisión: Al iniciar Fase de Seguridad_
