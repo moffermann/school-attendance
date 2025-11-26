@@ -16,5 +16,7 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     guardian_id: Mapped[int | None] = mapped_column(ForeignKey("guardians.id"))
+    teacher_id: Mapped[int | None] = mapped_column(ForeignKey("teachers.id"))
 
     guardian = relationship("Guardian", backref="users")
+    teacher = relationship("Teacher", backref="users")

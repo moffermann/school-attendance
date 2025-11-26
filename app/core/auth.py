@@ -11,6 +11,7 @@ class AuthUser:
     role: str
     full_name: str
     guardian_id: int | None = None
+    teacher_id: int | None = None
 
 
 # NOTE: El MVP usará una tabla de usuarios completa; por ahora dejamos un stub

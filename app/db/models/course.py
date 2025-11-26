@@ -4,6 +4,7 @@ from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.db.models.associations import teacher_course_table
 
 
 class Course(Base):
@@ -15,3 +16,4 @@ class Course(Base):
 
     students = relationship("Student", back_populates="course")
     schedules = relationship("Schedule", back_populates="course")
+    teachers = relationship("Teacher", secondary=teacher_course_table, back_populates="courses")

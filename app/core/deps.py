@@ -53,7 +53,13 @@ async def get_current_user(
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no disponible")
 
-    return AuthUser(id=user.id, role=user.role, full_name=user.full_name, guardian_id=user.guardian_id)
+    return AuthUser(
+        id=user.id,
+        role=user.role,
+        full_name=user.full_name,
+        guardian_id=user.guardian_id,
+        teacher_id=user.teacher_id,
+    )
 
 
 def require_roles(*roles: str) -> Callable[[AuthUser], AuthUser]:
@@ -82,7 +88,13 @@ async def get_current_user_optional(
     user = await repo.get(int(user_id))
     if not user or not user.is_active:
         return None
-    return AuthUser(id=user.id, role=user.role, full_name=user.full_name, guardian_id=user.guardian_id)
+    return AuthUser(
+        id=user.id,
+        role=user.role,
+        full_name=user.full_name,
+        guardian_id=user.guardian_id,
+        teacher_id=user.teacher_id,
+    )
 
 
 async def verify_device_key(x_device_key: str | None = Header(default=None)) -> bool:
