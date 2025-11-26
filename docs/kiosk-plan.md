@@ -7,7 +7,7 @@
 
 ## Estado Actual
 
-El rediseño v2.0 del kiosk está casi completo. La funcionalidad NFC ha sido implementada y está lista para commit.
+El rediseño v2.0 del kiosk está casi completo. **Fase 1 completada** - todos los bugs críticos han sido resueltos con cobertura de tests E2E.
 
 ---
 
@@ -38,13 +38,20 @@ El rediseño v2.0 del kiosk está casi completo. La funcionalidad NFC ha sido im
 ## PLAN DE ACCIÓN
 
 ### FASE 1: Estabilización (Bugs Críticos)
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADA
 
-- [ ] 1.1 Actualizar `service-worker.js` para incluir archivos nuevos
-- [ ] 1.2 Unificar `scan.js` para usar `resolveByToken()` y detectar profesores
-- [ ] 1.3 Filtrar solo `student_id` en generación aleatoria de `scan.js`
-- [ ] 1.4 Usar `State.config.schoolName` en `scan_result.js`
-- [ ] 1.5 Actualizar `help.js` con información de profesores y panel admin
+- [x] 1.1 Actualizar `service-worker.js` para incluir archivos nuevos (commit: f437b9e)
+- [x] 1.2 Unificar `scan.js` para usar `resolveByToken()` y detectar profesores (commit: b47c91c)
+- [x] 1.3 Filtrar solo `student_id` en generación aleatoria de `scan.js` (commit: b47c91c)
+- [x] 1.4 Usar `State.config.schoolName` en `scan_result.js` (commit: 8c9b275)
+- [x] 1.5 Actualizar `help.js` con información de profesores y panel admin (commit: c405ef8)
+
+**Tests agregados:**
+- `service-worker-consistency.test.js` - valida consistencia de cache SW
+- `service-worker.spec.js` - 5 tests E2E de funcionamiento offline
+- `scan-view.spec.js` - 6 tests E2E de detección tokens
+- `scan-result.spec.js` - 7 tests E2E de vista de resultado
+- `help-view.spec.js` - 6 tests E2E de documentación
 
 ### FASE 2: Completar Feature NFC
 **Estado:** Pendiente
@@ -111,4 +118,4 @@ El rediseño v2.0 del kiosk está casi completo. La funcionalidad NFC ha sido im
 
 ---
 
-_Última actualización: 2025-11-26_
+_Última actualización: 2025-11-26 - Fase 1 completada_
