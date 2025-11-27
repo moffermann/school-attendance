@@ -52,6 +52,7 @@ COPY --from=builder /opt/venv /opt/venv
 # Copy application code
 COPY --from=builder /app/app /app/app
 COPY --from=builder /app/pyproject.toml /app/README.md /app/
+COPY --from=builder /app/alembic.ini /app/Makefile /app/
 
 # Copy frontend SPAs (monolith deployment)
 COPY --from=builder /app/src/kiosk-app /app/src/kiosk-app
