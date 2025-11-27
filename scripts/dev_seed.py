@@ -22,6 +22,7 @@ from app.db.models import (
     Enrollment,
     Schedule,
     Tag,
+    Teacher,
     User,
 )
 from app.db.session import async_session
@@ -31,7 +32,7 @@ from app.core.security import hash_password
 async def seed() -> None:
     async with async_session() as session:
         # limpiar tablas principales
-        for model in [User, Tag, Schedule, Enrollment, Student, Guardian, Course]:
+        for model in [User, Tag, Schedule, Enrollment, Student, Guardian, Teacher, Course]:
             await session.execute(delete(model))
 
         # cursos
@@ -95,6 +96,16 @@ async def seed() -> None:
         ]
         session.add_all(schedules)
 
+        # profesores
+        teacher = Teacher(
+            full_name="Carlos Profesor",
+            email="profesor@example.com",
+            status="ACTIVE",
+        )
+        teacher.courses = [courses[0], courses[1]]  # asignar ambos cursos
+        session.add(teacher)
+        await session.flush()
+
         session.add_all(
             [
                 User(
@@ -115,6 +126,13 @@ async def seed() -> None:
                     role="PARENT",
                     hashed_password=hash_password("secret123"),
                     guardian_id=guardians[0].id,
+                ),
+                User(
+                    email="profesor@example.com",
+                    full_name="Carlos Profesor",
+                    role="TEACHER",
+                    hashed_password=hash_password("secret123"),
+                    teacher_id=teacher.id,
                 ),
             ]
         )

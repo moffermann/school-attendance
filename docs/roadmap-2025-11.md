@@ -194,20 +194,54 @@ Este documento consolida el análisis de bugs, mejoras críticas y plan de traba
 **Objetivo:** Conectar frontends con backend real
 
 #### 4.1 Teacher PWA → Backend
-- [ ] Reemplazar sync simulado con API real
-- [ ] Implementar autenticación JWT
-- [ ] Agregar endpoints de profesor (`/teachers/courses`, `/attendance/bulk`)
+- [x] Reemplazar sync simulado con API real
+- [x] Implementar autenticación JWT
+- [x] Agregar endpoints de profesor (`/teachers/courses`, `/attendance/bulk`)
 - [ ] Manejo offline/online con reconciliación
 
 #### 4.2 Web App → Backend
-- [ ] Validar sesión en cada request
-- [ ] Eliminar datos mock restantes
-- [ ] Implementar role-based data filtering
+- [x] Validar sesión en cada request
+- [x] Eliminar datos mock restantes
+- [x] Implementar role-based data filtering
 
 #### 4.3 Kiosk App → Backend
-- [ ] Ya tiene integración (Fase 4 completada)
+- [x] Ya tiene integración (Fase 4 completada)
 - [ ] Agregar provisioning script
 - [ ] Documentar rotación de device keys
+
+### FASE 4.5: Testing E2E Integral (1-2 semanas)
+
+**Objetivo:** Tests E2E completos contra backend real en dev
+
+**Estado:** EN PROGRESO (2025-11-27)
+
+#### 4.5.1 Configuración
+- [ ] Configurar Playwright para apuntar a `school-attendance.dev.gocode.cl`
+- [ ] Crear fixtures con usuarios de prueba reales (director, inspector, parent, teacher)
+- [ ] Configurar CI para ejecutar tests contra entorno dev
+
+#### 4.5.2 Web App E2E Tests
+- [ ] Login/logout con credenciales reales
+- [ ] Dashboard director: métricas, estudiantes, cursos
+- [ ] Vista de apoderado: historial de hijo
+- [ ] Navegación entre roles
+
+#### 4.5.3 Teacher PWA E2E Tests
+- [ ] Login con usuario profesor
+- [ ] Listado de cursos asignados
+- [ ] Toma de asistencia de curso
+- [ ] Sincronización de datos
+
+#### 4.5.4 Kiosk App E2E Tests
+- [ ] Configuración inicial (device provisioning)
+- [ ] Escaneo de tag y registro de entrada/salida
+- [ ] Modo offline y sincronización
+- [ ] Vista de administrador
+
+#### 4.5.5 Tests de Integración Cross-App
+- [ ] Flujo completo: Kiosk registra entrada → Director ve en dashboard
+- [ ] Profesor toma asistencia → Parent ve en historial
+- [ ] Alertas de no ingreso end-to-end
 
 ### FASE 5: Features Nuevos (Ongoing)
 
