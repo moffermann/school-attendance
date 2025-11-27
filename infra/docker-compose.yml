@@ -99,3 +99,8 @@ services:
 volumes:
   postgres_data:
   minio_data:
+
+networks:
+  app_net:
+    external: true
+    name: ${DOCKER_NETWORK:-net_dev}
