@@ -9,6 +9,8 @@ const State = {
   courses: [],
   localSeq: 0,
   deviceId: '',
+  demoMode: false,
+  data: {},
 
   async init() {
     await IDB.open();
@@ -195,5 +197,45 @@ const State = {
     const config = JSON.parse(localStorage.getItem('pwaConfig') || '{}');
     config.online = !config.online;
     localStorage.setItem('pwaConfig', JSON.stringify(config));
+  },
+
+  /**
+   * Set demo mode
+   */
+  setDemoMode(enabled) {
+    this.demoMode = enabled;
+  },
+
+  /**
+   * Load fallback data from JSON files for demo mode
+   */
+  async loadFallbackData() {
+    const files = ['teachers', 'courses', 'rosters', 'students'];
+    for (const file of files) {
+      try {
+        const res = await fetch(`data/${file}.json`);
+        this.data[file] = await res.json();
+      } catch (e) {
+        console.warn(`Could not load ${file}.json`, e);
+        this.data[file] = [];
+      }
+    }
+  },
+
+  /**
+   * Get students for a course (demo mode)
+   */
+  getStudentsByCourse(courseId) {
+    if (!this.data.rosters || !this.data.students) return [];
+    const roster = this.data.rosters.find(r => r.course_id === courseId && r.teacher_id === this.currentTeacherId);
+    if (!roster) return [];
+    return this.data.students.filter(s => roster.student_ids.includes(s.id));
+  },
+
+  /**
+   * Get course by ID
+   */
+  getCourse(courseId) {
+    return this.courses.find(c => c.id === courseId) || null;
   },
 };

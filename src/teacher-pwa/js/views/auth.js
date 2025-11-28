@@ -11,9 +11,12 @@ Views.auth = async function() {
   }
 
   app.innerHTML = `
-    <div class="container" style="padding-top: 3rem">
-      <div class="card">
-        <div class="card-header">PWA Profesores - Asistencia</div>
+    <div class="auth-container">
+      <div class="auth-card">
+        <div class="auth-logo">👨‍🏫</div>
+        <h1 class="auth-title">Portal Profesores</h1>
+        <p class="auth-subtitle">Sistema de control de asistencia</p>
+
         <form id="login-form">
           <div class="form-group">
             <label class="form-label">Email</label>
@@ -24,10 +27,24 @@ Views.auth = async function() {
             <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
           </div>
           <div id="login-error" class="error-message" style="display: none;"></div>
-          <button type="submit" class="btn btn-primary" id="login-btn">Iniciar Sesión</button>
+          <button type="submit" class="btn btn-primary btn-block" id="login-btn">
+            Iniciar Sesión
+          </button>
         </form>
-        <div class="help-text" style="margin-top: 1rem; font-size: 0.875rem; color: #666;">
-          Use sus credenciales de profesor para acceder.
+
+        <div class="demo-section">
+          <p class="demo-label">Modo Demostración</p>
+          <div class="flex flex-col gap-1">
+            <button type="button" class="btn btn-secondary btn-block" onclick="Views.auth.demoLogin(1)">
+              👩‍🏫 María González López
+            </button>
+            <button type="button" class="btn btn-secondary btn-block" onclick="Views.auth.demoLogin(2)">
+              👨‍🏫 Pedro Ramírez Castro
+            </button>
+            <button type="button" class="btn btn-secondary btn-block" onclick="Views.auth.demoLogin(3)">
+              👩‍🏫 Carmen Silva Morales
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -63,4 +80,42 @@ Views.auth = async function() {
       btn.textContent = 'Iniciar Sesión';
     }
   });
+
+  // Demo login function
+  Views.auth.demoLogin = async function(teacherId) {
+    UI.showToast('Cargando modo demo...', 'info', 1500);
+
+    try {
+      // Load demo data from JSON files
+      await State.loadFallbackData();
+
+      // Get teacher from demo data
+      const teachers = State.data.teachers || [];
+      const teacher = teachers.find(t => t.id === teacherId);
+
+      if (!teacher) {
+        UI.showToast('Profesor no encontrado', 'error');
+        return;
+      }
+
+      // Get courses for this teacher
+      const rosters = State.data.rosters || [];
+      const teacherRosters = rosters.filter(r => r.teacher_id === teacherId);
+      const courseIds = [...new Set(teacherRosters.map(r => r.course_id))];
+      const courses = (State.data.courses || []).filter(c => courseIds.includes(c.id));
+
+      // Set demo mode
+      State.setDemoMode(true);
+      State.setTeacherProfile(teacher, courses);
+
+      // Set fake token for demo
+      localStorage.setItem('accessToken', 'demo_token_' + teacherId);
+
+      UI.showToast(`Bienvenido, ${teacher.full_name}`, 'success');
+      Router.navigate('/classes');
+    } catch (error) {
+      console.error('Demo login error:', error);
+      UI.showToast('Error al cargar modo demo', 'error');
+    }
+  };
 };
