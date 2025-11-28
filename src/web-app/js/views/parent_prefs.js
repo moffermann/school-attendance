@@ -1,4 +1,4 @@
-// Parent Notification Preferences
+// Parent Notification Preferences - Preferencias de Notificación
 Views.parentPrefs = async function() {
   const app = document.getElementById('app');
   app.innerHTML = Components.createLayout('parent');
@@ -31,7 +31,6 @@ Views.parentPrefs = async function() {
   try {
     const serverPrefs = await API.getGuardianPreferences(State.currentGuardianId);
     if (serverPrefs.preferences) {
-      // Merge server prefs with defaults
       Object.keys(serverPrefs.preferences).forEach(key => {
         prefs[key] = { ...defaultPrefs[key], ...serverPrefs.preferences[key] };
       });
@@ -39,7 +38,6 @@ Views.parentPrefs = async function() {
     photoConsents = serverPrefs.photo_consents || {};
   } catch (error) {
     console.warn('Could not load preferences from server, using defaults:', error);
-    // Fall back to localStorage if API fails
     const localPrefs = JSON.parse(localStorage.getItem(`prefs_${State.currentGuardianId}`) || '{}');
     if (localPrefs.preferences) {
       prefs = { ...prefs, ...localPrefs.preferences };
@@ -47,155 +45,164 @@ Views.parentPrefs = async function() {
     photoConsents = localPrefs.photo_consents || {};
   }
 
+  const notificationTypes = [
+    { key: 'INGRESO_OK', label: 'Ingreso registrado', desc: 'Cuando su hijo/a ingresa al colegio', icon: '📥' },
+    { key: 'SALIDA_OK', label: 'Salida registrada', desc: 'Cuando su hijo/a sale del colegio', icon: '📤' },
+    { key: 'NO_INGRESO_UMBRAL', label: 'Alerta de no ingreso', desc: 'Si no registra ingreso antes del horario límite', icon: '⚠️' },
+    { key: 'CAMBIO_HORARIO', label: 'Cambios de horario', desc: 'Modificaciones en el horario de clases', icon: '📅' }
+  ];
+
   content.innerHTML = `
-    <h2 class="mb-3">Preferencias de Notificación</h2>
-
-    <div class="card mb-3">
-      <div class="card-header">Canales de Notificación</div>
-      <div class="card-body">
-        <p class="mb-2" style="color: var(--color-gray-600);">
-          Seleccione cómo desea recibir notificaciones para cada tipo de evento:
-        </p>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Tipo de Evento</th>
-              <th>WhatsApp</th>
-              <th>Email</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Ingreso registrado</td>
-              <td>
-                <input type="checkbox" id="pref_INGRESO_OK_whatsapp" class="form-checkbox"
-                  ${prefs.INGRESO_OK?.whatsapp ? 'checked' : ''}>
-              </td>
-              <td>
-                <input type="checkbox" id="pref_INGRESO_OK_email" class="form-checkbox"
-                  ${prefs.INGRESO_OK?.email ? 'checked' : ''}>
-              </td>
-            </tr>
-            <tr>
-              <td>Salida registrada</td>
-              <td>
-                <input type="checkbox" id="pref_SALIDA_OK_whatsapp" class="form-checkbox"
-                  ${prefs.SALIDA_OK?.whatsapp ? 'checked' : ''}>
-              </td>
-              <td>
-                <input type="checkbox" id="pref_SALIDA_OK_email" class="form-checkbox"
-                  ${prefs.SALIDA_OK?.email ? 'checked' : ''}>
-              </td>
-            </tr>
-            <tr>
-              <td>No registró ingreso antes de horario</td>
-              <td>
-                <input type="checkbox" id="pref_NO_INGRESO_UMBRAL_whatsapp" class="form-checkbox"
-                  ${prefs.NO_INGRESO_UMBRAL?.whatsapp ? 'checked' : ''}>
-              </td>
-              <td>
-                <input type="checkbox" id="pref_NO_INGRESO_UMBRAL_email" class="form-checkbox"
-                  ${prefs.NO_INGRESO_UMBRAL?.email ? 'checked' : ''}>
-              </td>
-            </tr>
-            <tr>
-              <td>Cambios de horario</td>
-              <td>
-                <input type="checkbox" id="pref_CAMBIO_HORARIO_whatsapp" class="form-checkbox"
-                  ${prefs.CAMBIO_HORARIO?.whatsapp ? 'checked' : ''}>
-              </td>
-              <td>
-                <input type="checkbox" id="pref_CAMBIO_HORARIO_email" class="form-checkbox"
-                  ${prefs.CAMBIO_HORARIO?.email ? 'checked' : ''}>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <div style="margin-bottom: 1.5rem;">
+      <a href="#/parent/home" class="btn btn-secondary btn-sm" style="margin-bottom: 1rem;">
+        ← Volver al inicio
+      </a>
+      <h2 style="font-size: 1.75rem; font-weight: 700; color: var(--color-gray-900); margin-bottom: 0.5rem;">
+        Preferencias de Notificación
+      </h2>
+      <p style="color: var(--color-gray-500);">Configure cómo y cuándo desea recibir notificaciones</p>
     </div>
 
-    <div class="card mb-3">
-      <div class="card-header">Captura de Foto</div>
-      <div class="card-body">
-        <p class="mb-2" style="color: var(--color-gray-600);">
-          Autorizar captura de foto como evidencia del registro de asistencia.
-          Las fotos se enviarán junto con las notificaciones de ingreso/salida.
-          <br><strong>Retención:</strong> 60 días. <strong>Uso:</strong> Solo evidencia de asistencia.
-        </p>
-
-        ${students.length === 0 ? '<p>No hay estudiantes asociados.</p>' : students.map(student => {
-          // photoConsents keys are strings from the API
-          const checked = photoConsents[String(student.id)] !== false;
-          return `
-            <div class="mb-2">
+    <!-- Canales de Notificación -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-header" style="display: flex; align-items: center; gap: 0.75rem;">
+        ${Components.icons.notifications}
+        <span>Canales de Notificación</span>
+      </div>
+      <div class="card-body" style="padding: 0;">
+        ${notificationTypes.map((type, index) => `
+          <div style="display: flex; align-items: center; padding: 1.25rem 1.5rem; ${index < notificationTypes.length - 1 ? 'border-bottom: 1px solid var(--color-gray-100);' : ''}">
+            <div style="width: 48px; height: 48px; background: var(--color-primary-50); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-right: 1rem; flex-shrink: 0;">
+              ${type.icon}
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-weight: 600; color: var(--color-gray-900);">${type.label}</div>
+              <div style="font-size: 0.85rem; color: var(--color-gray-500);">${type.desc}</div>
+            </div>
+            <div style="display: flex; gap: 1.5rem; flex-shrink: 0;">
               <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                <input type="checkbox" id="photo_${student.id}" class="form-checkbox" ${checked ? 'checked' : ''}>
-                <span><strong>${student.full_name}</strong></span>
-                ${checked ?
-                  '<span style="color: var(--color-success); font-size: 0.875rem;">Foto autorizada</span>' :
-                  '<span style="color: var(--color-warning); font-size: 0.875rem;">Sin foto</span>'
-                }
+                <input type="checkbox" id="pref_${type.key}_whatsapp" class="form-checkbox"
+                  ${prefs[type.key]?.whatsapp ? 'checked' : ''}>
+                <span style="font-size: 0.85rem; color: var(--color-gray-600);">WhatsApp</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" id="pref_${type.key}_email" class="form-checkbox"
+                  ${prefs[type.key]?.email ? 'checked' : ''}>
+                <span style="font-size: 0.85rem; color: var(--color-gray-600);">Email</span>
               </label>
             </div>
-          `;
-        }).join('')}
+          </div>
+        `).join('')}
       </div>
     </div>
 
-    <div class="card mb-3">
-      <div class="card-header">Contactos Registrados</div>
+    <!-- Captura de Foto -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-header" style="display: flex; align-items: center; gap: 0.75rem;">
+        📷
+        <span>Autorización de Foto</span>
+      </div>
       <div class="card-body">
-        ${guardian.contacts && guardian.contacts.length > 0 ? `
-          <ul style="list-style: none; padding: 0; margin: 0;">
-            ${guardian.contacts.map(c => `
-              <li class="mb-1">
-                <strong>${c.type.toUpperCase()}:</strong> ${c.value}
-                ${c.verified ? Components.createChip('Verificado', 'success') : Components.createChip('No verificado', 'warning')}
-              </li>
-            `).join('')}
-          </ul>
-        ` : `
-          <p style="color: var(--color-gray-600);">
-            No hay contactos registrados. Contacte al colegio para actualizar sus datos.
+        <div style="background: var(--color-gray-50); border-radius: 12px; padding: 1rem; margin-bottom: 1.25rem;">
+          <p style="color: var(--color-gray-600); font-size: 0.9rem; margin: 0;">
+            Las fotos se capturan como evidencia del registro de asistencia y se envían junto con las notificaciones.
+            <br><strong>Retención:</strong> 60 días &nbsp;•&nbsp; <strong>Uso:</strong> Solo evidencia de asistencia
           </p>
+        </div>
+
+        ${students.length === 0 ? '<p style="color: var(--color-gray-500);">No hay estudiantes asociados.</p>' : `
+          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            ${students.map(student => {
+              const checked = photoConsents[String(student.id)] !== false;
+              const course = State.getCourse(student.course_id);
+              return `
+                <div style="display: flex; align-items: center; padding: 1rem; background: white; border: 2px solid ${checked ? 'var(--color-success)' : 'var(--color-gray-200)'}; border-radius: 12px; transition: all 0.2s;" id="photo-card-${student.id}">
+                  <div style="width: 44px; height: 44px; background: var(--gradient-primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.1rem; margin-right: 1rem;">
+                    ${student.full_name.charAt(0)}
+                  </div>
+                  <div style="flex: 1;">
+                    <div style="font-weight: 600; color: var(--color-gray-900);">${student.full_name}</div>
+                    <div style="font-size: 0.85rem; color: var(--color-gray-500);">${course ? course.name : ''}</div>
+                  </div>
+                  <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                    <span id="photo-status-${student.id}" style="font-size: 0.85rem; font-weight: 500; color: ${checked ? 'var(--color-success)' : 'var(--color-warning)'};">
+                      ${checked ? '✓ Autorizada' : 'Sin autorizar'}
+                    </span>
+                    <input type="checkbox" id="photo_${student.id}" class="form-checkbox" ${checked ? 'checked' : ''}
+                      onchange="Views.parentPrefs.updatePhotoStatus(${student.id}, this.checked)">
+                  </label>
+                </div>
+              `;
+            }).join('')}
+          </div>
         `}
       </div>
     </div>
 
-    <div class="flex gap-2">
-      <button class="btn btn-primary" id="btn-save-prefs" onclick="Views.parentPrefs.savePreferences()">
+    <!-- Contactos Registrados -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-header" style="display: flex; align-items: center; gap: 0.75rem;">
+        📱
+        <span>Contactos Registrados</span>
+      </div>
+      <div class="card-body">
+        ${guardian.contacts && guardian.contacts.length > 0 ? `
+          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            ${guardian.contacts.map(c => `
+              <div style="display: flex; align-items: center; padding: 1rem; background: var(--color-gray-50); border-radius: 12px;">
+                <div style="width: 40px; height: 40px; background: ${c.type === 'whatsapp' ? '#25D366' : 'var(--color-primary)'}; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; margin-right: 1rem;">
+                  ${c.type === 'whatsapp' ? '📱' : '✉️'}
+                </div>
+                <div style="flex: 1;">
+                  <div style="font-weight: 500; color: var(--color-gray-900);">${c.value}</div>
+                  <div style="font-size: 0.8rem; color: var(--color-gray-500); text-transform: capitalize;">${c.type}</div>
+                </div>
+                ${c.verified
+                  ? '<span class="chip chip-success">Verificado</span>'
+                  : '<span class="chip chip-warning">Pendiente</span>'}
+              </div>
+            `).join('')}
+          </div>
+        ` : `
+          <div style="text-align: center; padding: 2rem; color: var(--color-gray-500);">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📭</div>
+            <p>No hay contactos registrados.</p>
+            <p style="font-size: 0.9rem;">Contacte al colegio para actualizar sus datos.</p>
+          </div>
+        `}
+      </div>
+    </div>
+
+    <!-- Botones de acción -->
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+      <button class="btn btn-primary btn-lg" id="btn-save-prefs" onclick="Views.parentPrefs.savePreferences()" style="flex: 1; min-width: 200px;">
+        ${Components.icons.settings}
         Guardar Preferencias
       </button>
-      <a href="#/parent/home" class="btn btn-secondary">Volver</a>
+      <a href="#/parent/home" class="btn btn-secondary btn-lg" style="flex: 1; min-width: 200px; justify-content: center;">
+        Cancelar
+      </a>
     </div>
   `;
 
-  // Update checkbox labels dynamically
-  students.forEach(student => {
-    const checkbox = document.getElementById(`photo_${student.id}`);
-    if (checkbox) {
-      checkbox.addEventListener('change', function() {
-        const label = this.closest('label');
-        const statusSpan = label.querySelector('span:last-child');
-        if (this.checked) {
-          statusSpan.textContent = 'Foto autorizada';
-          statusSpan.style.color = 'var(--color-success)';
-        } else {
-          statusSpan.textContent = 'Sin foto';
-          statusSpan.style.color = 'var(--color-warning)';
-        }
-      });
+  // Dynamic photo status update
+  Views.parentPrefs.updatePhotoStatus = function(studentId, checked) {
+    const card = document.getElementById(`photo-card-${studentId}`);
+    const status = document.getElementById(`photo-status-${studentId}`);
+    if (card) {
+      card.style.borderColor = checked ? 'var(--color-success)' : 'var(--color-gray-200)';
     }
-  });
+    if (status) {
+      status.textContent = checked ? '✓ Autorizada' : 'Sin autorizar';
+      status.style.color = checked ? 'var(--color-success)' : 'var(--color-warning)';
+    }
+  };
 
   Views.parentPrefs.savePreferences = async function() {
     const btn = document.getElementById('btn-save-prefs');
-    const originalText = btn.textContent;
-    btn.textContent = 'Guardando...';
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div> Guardando...';
     btn.disabled = true;
-
-    const notificationTypes = ['INGRESO_OK', 'SALIDA_OK', 'NO_INGRESO_UMBRAL', 'CAMBIO_HORARIO'];
 
     const newPrefs = {
       preferences: {},
@@ -204,9 +211,9 @@ Views.parentPrefs = async function() {
 
     // Collect notification preferences
     notificationTypes.forEach(type => {
-      newPrefs.preferences[type] = {
-        whatsapp: document.getElementById(`pref_${type}_whatsapp`)?.checked || false,
-        email: document.getElementById(`pref_${type}_email`)?.checked || false
+      newPrefs.preferences[type.key] = {
+        whatsapp: document.getElementById(`pref_${type.key}_whatsapp`)?.checked || false,
+        email: document.getElementById(`pref_${type.key}_email`)?.checked || false
       };
     });
 
@@ -217,20 +224,15 @@ Views.parentPrefs = async function() {
     });
 
     try {
-      // Save to API
       await API.updateGuardianPreferences(State.currentGuardianId, newPrefs);
-
-      // Also save to localStorage as backup
       localStorage.setItem(`prefs_${State.currentGuardianId}`, JSON.stringify(newPrefs));
-
       Components.showToast('Preferencias guardadas exitosamente', 'success');
     } catch (error) {
       console.error('Error saving preferences:', error);
-      // Save to localStorage if API fails
       localStorage.setItem(`prefs_${State.currentGuardianId}`, JSON.stringify(newPrefs));
-      Components.showToast('Preferencias guardadas localmente (sincronización pendiente)', 'warning');
+      Components.showToast('Preferencias guardadas localmente', 'warning');
     } finally {
-      btn.textContent = originalText;
+      btn.innerHTML = originalHTML;
       btn.disabled = false;
     }
   };

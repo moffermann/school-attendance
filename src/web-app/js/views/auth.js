@@ -153,7 +153,7 @@ Views.auth = function() {
         <option value="${g.id}">${Components.escapeHtml(g.full_name)}</option>
       `).join('');
 
-      Components.showModal('Seleccionar Apoderado (Demo)', `
+      const modal = Components.showModal('Seleccionar Apoderado (Demo)', `
         <div class="form-group">
           <label class="form-label">Apoderado</label>
           <select id="guardian-select" class="form-select">
@@ -174,6 +174,7 @@ Views.auth = function() {
               Components.showToast('Debe seleccionar un apoderado', 'error');
               return;
             }
+            modal.close();
             State.setRole('parent', guardianId);
             Components.showToast('Modo demo activado', 'info');
             Router.navigate('/parent/home');
