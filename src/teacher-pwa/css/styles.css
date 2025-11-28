@@ -1079,3 +1079,127 @@ tbody tr:active {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
+
+/* ============================================
+   STUDENT PROFILE PAGE
+   ============================================ */
+.student-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: var(--spacing-md) 0;
+}
+
+.student-avatar {
+  width: 64px;
+  height: 64px;
+  background: var(--gradient-primary);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 800;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.student-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.student-name-large {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+.student-course {
+  font-size: 0.9rem;
+  color: var(--gray-500);
+  margin-top: 0.25rem;
+}
+
+.student-rut {
+  font-size: 0.8rem;
+  color: var(--gray-400);
+  margin-top: 0.25rem;
+}
+
+/* Stats Grid 4 columns */
+.stats-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-bottom: var(--spacing-md);
+}
+
+@media (min-width: 400px) {
+  .stats-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.stats-summary {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--gray-100);
+}
+
+/* Manual Attendance Buttons */
+.manual-attendance-buttons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-lg {
+  min-height: 56px;
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+}
+
+.btn-icon {
+  font-size: 1.25rem;
+  margin-right: 0.25rem;
+}
+
+/* Events List */
+.events-list {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.event-item {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: 0.85rem;
+}
+
+.event-item:last-child {
+  border-bottom: none;
+}
+
+.event-date {
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.event-time {
+  color: var(--gray-600);
+}
+
+@media (max-width: 400px) {
+  .event-item {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem;
+  }
+}

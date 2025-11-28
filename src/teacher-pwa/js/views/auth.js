@@ -98,15 +98,26 @@ Views.auth = async function() {
         return;
       }
 
-      // Get courses for this teacher
-      const rosters = State.data.rosters || [];
-      const teacherRosters = rosters.filter(r => r.teacher_id === teacherId);
-      const courseIds = [...new Set(teacherRosters.map(r => r.course_id))];
-      const courses = (State.data.courses || []).filter(c => courseIds.includes(c.id));
+      // Get courses for this teacher (courses have teacher_ids array)
+      const allCourses = State.data.courses || [];
+      const courses = allCourses.filter(c =>
+        c.teacher_ids && c.teacher_ids.includes(teacherId)
+      );
 
       // Set demo mode
       State.setDemoMode(true);
       State.setTeacherProfile(teacher, courses);
+
+      // Cache students for each course in IDB for demo mode
+      const rosters = State.data.rosters || [];
+      const allStudents = State.data.students || [];
+      for (const course of courses) {
+        const roster = rosters.find(r => r.course_id === course.id);
+        if (roster) {
+          const courseStudents = allStudents.filter(s => roster.student_ids.includes(s.id));
+          await State.cacheStudents(course.id, courseStudents);
+        }
+      }
 
       // Set fake token for demo
       localStorage.setItem('accessToken', 'demo_token_' + teacherId);

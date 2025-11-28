@@ -12,7 +12,8 @@ const State = {
     attendance_events: [],
     devices: [],
     absences: [],
-    notifications: []
+    notifications: [],
+    teachers: []
   },
   currentRole: null, // 'director', 'inspector', 'parent'
   currentGuardianId: null,
@@ -78,7 +79,7 @@ const State = {
     const files = [
       'students', 'guardians', 'courses', 'schedules',
       'schedule_exceptions', 'attendance_events', 'devices',
-      'absences', 'notifications'
+      'absences', 'notifications', 'teachers'
     ];
 
     for (const file of files) {
@@ -415,5 +416,190 @@ const State = {
     const guardian = this.getGuardian(guardianId);
     if (!guardian) return [];
     return guardian.student_ids.map(id => this.getStudent(id)).filter(Boolean);
+  },
+
+  // ============================================
+  // CRUD: Students
+  // ============================================
+  addStudent(student) {
+    const id = Math.max(0, ...this.data.students.map(s => s.id)) + 1;
+    student.id = id;
+    student.photo_pref_opt_in = student.photo_pref_opt_in || false;
+    this.data.students.push(student);
+    this.persist();
+    return student;
+  },
+
+  updateStudent(id, data) {
+    const index = this.data.students.findIndex(s => s.id === id);
+    if (index !== -1) {
+      this.data.students[index] = { ...this.data.students[index], ...data };
+      this.persist();
+      return this.data.students[index];
+    }
+    return null;
+  },
+
+  deleteStudent(id) {
+    this.data.students = this.data.students.filter(s => s.id !== id);
+    // Also remove from guardians
+    this.data.guardians.forEach(g => {
+      g.student_ids = g.student_ids.filter(sid => sid !== id);
+    });
+    // Remove attendance events
+    this.data.attendance_events = this.data.attendance_events.filter(e => e.student_id !== id);
+    this.persist();
+  },
+
+  // ============================================
+  // CRUD: Teachers
+  // ============================================
+  getTeachers() {
+    return this.data.teachers || [];
+  },
+
+  getTeacher(id) {
+    return (this.data.teachers || []).find(t => t.id === id);
+  },
+
+  addTeacher(teacher) {
+    if (!this.data.teachers) this.data.teachers = [];
+    const id = Math.max(0, ...this.data.teachers.map(t => t.id)) + 1;
+    teacher.id = id;
+    this.data.teachers.push(teacher);
+    this.persist();
+    return teacher;
+  },
+
+  updateTeacher(id, data) {
+    if (!this.data.teachers) return null;
+    const index = this.data.teachers.findIndex(t => t.id === id);
+    if (index !== -1) {
+      this.data.teachers[index] = { ...this.data.teachers[index], ...data };
+      this.persist();
+      return this.data.teachers[index];
+    }
+    return null;
+  },
+
+  deleteTeacher(id) {
+    if (!this.data.teachers) return;
+    this.data.teachers = this.data.teachers.filter(t => t.id !== id);
+    // Remove teacher from courses
+    this.data.courses.forEach(c => {
+      if (c.teacher_ids) {
+        c.teacher_ids = c.teacher_ids.filter(tid => tid !== id);
+      }
+      if (c.teacher_id === id) {
+        c.teacher_id = null;
+      }
+    });
+    this.persist();
+  },
+
+  // ============================================
+  // CRUD: Devices
+  // ============================================
+  addDevice(device) {
+    const id = Math.max(0, ...this.data.devices.map(d => d.id)) + 1;
+    device.id = id;
+    device.status = device.status || 'QUEUE';
+    device.battery_pct = device.battery_pct || 100;
+    device.pending_count = device.pending_count || 0;
+    device.last_sync = device.last_sync || new Date().toISOString();
+    this.data.devices.push(device);
+    this.persist();
+    return device;
+  },
+
+  updateDevice(id, data) {
+    const index = this.data.devices.findIndex(d => d.id === id);
+    if (index !== -1) {
+      this.data.devices[index] = { ...this.data.devices[index], ...data };
+      this.persist();
+      return this.data.devices[index];
+    }
+    return null;
+  },
+
+  deleteDevice(id) {
+    this.data.devices = this.data.devices.filter(d => d.id !== id);
+    this.persist();
+  },
+
+  // ============================================
+  // Attendance with statistics
+  // ============================================
+  addAttendanceEvent(event) {
+    const id = Math.max(0, ...this.data.attendance_events.map(e => e.id)) + 1;
+    event.id = id;
+    event.ts = event.ts || new Date().toISOString();
+    event.source = event.source || 'MANUAL';
+    this.data.attendance_events.push(event);
+    this.persist();
+    return event;
+  },
+
+  getStudentAttendanceStats(studentId, dateFrom = null, dateTo = null) {
+    let events = this.data.attendance_events.filter(e => e.student_id === studentId);
+
+    if (dateFrom) {
+      events = events.filter(e => e.ts >= dateFrom);
+    }
+    if (dateTo) {
+      events = events.filter(e => e.ts <= dateTo + 'T23:59:59');
+    }
+
+    // Group by date
+    const dayEvents = {};
+    events.forEach(e => {
+      const date = e.ts.split('T')[0];
+      if (!dayEvents[date]) dayEvents[date] = [];
+      dayEvents[date].push(e);
+    });
+
+    // Count days with IN events
+    const daysPresent = Object.keys(dayEvents).filter(date =>
+      dayEvents[date].some(e => e.type === 'IN')
+    ).length;
+
+    // Count total school days (simplified: weekdays)
+    const start = dateFrom ? new Date(dateFrom) : new Date(new Date().getFullYear(), 0, 1);
+    const end = dateTo ? new Date(dateTo) : new Date();
+    let totalDays = 0;
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const day = d.getDay();
+      if (day !== 0 && day !== 6) totalDays++;
+    }
+
+    const percentage = totalDays > 0 ? Math.round((daysPresent / totalDays) * 100) : 0;
+
+    return {
+      totalEvents: events.length,
+      daysPresent,
+      totalSchoolDays: totalDays,
+      percentage,
+      inEvents: events.filter(e => e.type === 'IN').length,
+      outEvents: events.filter(e => e.type === 'OUT').length,
+      lateArrivals: events.filter(e => e.type === 'IN' && e.ts.split('T')[1] > '08:30:00').length
+    };
+  },
+
+  getCourseAttendanceStats(courseId, date = null) {
+    const students = this.getStudentsByCourse(courseId);
+    const targetDate = date || new Date().toISOString().split('T')[0];
+
+    const events = this.data.attendance_events.filter(e =>
+      e.ts.startsWith(targetDate) && students.some(s => s.id === e.student_id)
+    );
+
+    const studentsWithIn = new Set(events.filter(e => e.type === 'IN').map(e => e.student_id));
+
+    return {
+      totalStudents: students.length,
+      present: studentsWithIn.size,
+      absent: students.length - studentsWithIn.size,
+      percentage: students.length > 0 ? Math.round((studentsWithIn.size / students.length) * 100) : 0
+    };
   }
 };

@@ -81,8 +81,10 @@ Views.roster = async function() {
                   <tr>
                     <td>${safeName}</td>
                     <td>${UI.createChip(status, inEvent ? 'success' : 'gray')}</td>
-                    <td>
-                      <button class="btn btn-secondary" style="font-size:.75rem;padding:.25rem .5rem" onclick="Views.roster.markIN(${s.id})">IN</button>
+                    <td style="white-space: nowrap;">
+                      <button class="btn btn-sm btn-icon" style="font-size:.75rem;padding:.25rem .5rem" onclick="Router.navigate('/student-profile?id=${s.id}')" title="Ver perfil">&#128100;</button>
+                      <button class="btn btn-success btn-sm" style="font-size:.75rem;padding:.25rem .5rem" onclick="Views.roster.markIN(${s.id})" title="Entrada">IN</button>
+                      <button class="btn btn-secondary btn-sm" style="font-size:.75rem;padding:.25rem .5rem" onclick="Views.roster.markOUT(${s.id})" title="Salida">OUT</button>
                     </td>
                   </tr>
                 `;
@@ -114,6 +116,19 @@ Views.roster = async function() {
       ts: new Date().toISOString()
     });
     UI.showToast('Ingreso registrado', 'success');
+    Views.roster();
+  };
+
+  Views.roster.markOUT = async function(studentId) {
+    await State.enqueueEvent({
+      student_id: studentId,
+      type: 'OUT',
+      course_id: State.currentCourseId,
+      source: 'MANUAL',
+      occurred_at: new Date().toISOString(),
+      ts: new Date().toISOString()
+    });
+    UI.showToast('Salida registrada', 'success');
     Views.roster();
   };
 };
