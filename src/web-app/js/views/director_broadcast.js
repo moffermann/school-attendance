@@ -1,11 +1,11 @@
-// Director Broadcast Messages
+// Director Broadcast Messages (Comunicados Masivos)
 Views.directorBroadcast = function() {
   const app = document.getElementById('app');
   app.innerHTML = Components.createLayout(State.currentRole);
 
   const content = document.getElementById('view-content');
   const pageTitle = document.getElementById('page-title');
-  if (pageTitle) pageTitle.textContent = 'Broadcast Masivo';
+  if (pageTitle) pageTitle.textContent = 'Comunicados Masivos';
 
   const courses = State.getCourses();
 
@@ -189,7 +189,7 @@ Dirección</textarea>
         </div>
       `;
 
-      Components.showToast(`Broadcast completado: ${delivered} entregados`, 'success');
+      Components.showToast(`Envío completado: ${delivered} entregados`, 'success');
     }, 2000);
   };
 };

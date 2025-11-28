@@ -14,23 +14,62 @@ Views.directorDashboard = function() {
   let filteredEvents = [...todayEvents];
   let filters = { course: '', type: '', search: '' };
 
+  // Stat card con icono y color personalizado
+  function createEnhancedStatCard(label, value, icon, colorClass) {
+    const colors = {
+      primary: { bg: 'var(--gradient-primary)', light: 'var(--color-primary-50)' },
+      success: { bg: 'var(--gradient-success)', light: 'var(--color-success-light)' },
+      warning: { bg: 'var(--gradient-warning)', light: 'var(--color-warning-light)' },
+      error: { bg: 'var(--gradient-error)', light: 'var(--color-error-light)' }
+    };
+    const color = colors[colorClass] || colors.primary;
+
+    return `
+      <div class="stat-card" style="position: relative;">
+        <div style="position: absolute; top: 1rem; right: 1rem; width: 48px; height: 48px; background: ${color.light}; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+          ${icon}
+        </div>
+        <div class="stat-label">${Components.escapeHtml(label)}</div>
+        <div class="stat-value">${Components.escapeHtml(String(value))}</div>
+      </div>
+    `;
+  }
+
   function renderDashboard() {
     const courses = State.getCourses();
+    const todayFormatted = new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
 
     content.innerHTML = `
+      <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <p style="color: var(--color-gray-500); font-size: 0.9rem; text-transform: capitalize;">${todayFormatted}</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <span style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--color-success-light); color: #065f46; border-radius: 9999px; font-size: 0.8rem; font-weight: 600;">
+            <span style="width: 8px; height: 8px; background: var(--color-success); border-radius: 50%; animation: pulse 2s infinite;"></span>
+            En vivo
+          </span>
+        </div>
+      </div>
+
       <div class="cards-grid">
-        ${Components.createStatCard('Ingresos Hoy', stats.totalIn)}
-        ${Components.createStatCard('Salidas Hoy', stats.totalOut)}
-        ${Components.createStatCard('Atrasos', stats.lateCount)}
-        ${Components.createStatCard('Sin Ingreso', stats.noInCount)}
+        ${createEnhancedStatCard('Ingresos Hoy', stats.totalIn, '📥', 'success')}
+        ${createEnhancedStatCard('Salidas Hoy', stats.totalOut, '📤', 'primary')}
+        ${createEnhancedStatCard('Atrasos', stats.lateCount, '⏰', 'warning')}
+        ${createEnhancedStatCard('Sin Ingreso', stats.noInCount, '❌', 'error')}
       </div>
 
       <div class="card">
         <div class="card-header flex justify-between items-center">
-          <span>Eventos de Hoy</span>
+          <span style="font-size: 1.1rem;">Eventos de Hoy</span>
           <div class="flex gap-2">
-            <button class="btn btn-secondary btn-sm" onclick="Views.directorDashboard.exportCSV()">Exportar CSV</button>
-            <button class="btn btn-secondary btn-sm" onclick="Views.directorDashboard.showPhotos()">Ver Fotos</button>
+            <button class="btn btn-secondary btn-sm" onclick="Views.directorDashboard.exportCSV()">
+              ${Components.icons.reports}
+              Exportar CSV
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="Views.directorDashboard.showPhotos()">
+              📷 Ver Fotos
+            </button>
           </div>
         </div>
 
@@ -38,13 +77,13 @@ Views.directorDashboard = function() {
           <div class="filter-group">
             <label class="form-label">Curso</label>
             <select id="filter-course" class="form-select">
-              <option value="">Todos</option>
+              <option value="">Todos los cursos</option>
               ${courses.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
             </select>
           </div>
 
           <div class="filter-group">
-            <label class="form-label">Tipo</label>
+            <label class="form-label">Tipo de Evento</label>
             <select id="filter-type" class="form-select">
               <option value="">Todos</option>
               <option value="IN">Ingreso</option>
@@ -54,12 +93,14 @@ Views.directorDashboard = function() {
 
           <div class="filter-group">
             <label class="form-label">Buscar alumno</label>
-            <input type="text" id="filter-search" class="form-input" placeholder="Nombre...">
+            <input type="text" id="filter-search" class="form-input" placeholder="Escriba un nombre...">
           </div>
 
           <div class="filter-group">
             <label class="form-label">&nbsp;</label>
-            <button class="btn btn-primary" onclick="Views.directorDashboard.applyFilters()">Filtrar</button>
+            <button class="btn btn-primary" onclick="Views.directorDashboard.applyFilters()">
+              Aplicar Filtros
+            </button>
           </div>
         </div>
 
@@ -67,6 +108,13 @@ Views.directorDashboard = function() {
           <div id="events-table"></div>
         </div>
       </div>
+
+      <style>
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      </style>
     `;
 
     renderEventsTable();

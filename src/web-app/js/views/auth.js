@@ -15,20 +15,25 @@ Views.auth = function() {
   app.innerHTML = `
     <div class="auth-container">
       <div class="auth-card">
-        <img src="assets/logo.svg" alt="Logo" class="auth-logo">
-        <h1 class="auth-title">Control de Ingreso/Salida Escolar</h1>
+        <div class="auth-logo">
+          <img src="assets/logo.svg" alt="Logo">
+        </div>
+        <h1 class="auth-title">Control de Asistencia Escolar</h1>
+        <p style="color: var(--color-gray-500); margin-bottom: 2rem; font-size: 0.95rem;">Sistema de registro de ingreso y salida</p>
 
         <div id="auth-mode-select">
-          <p class="mb-3">Selecciona tu perfil para continuar:</p>
+          <p class="mb-3" style="font-weight: 500; color: var(--color-gray-700);">Selecciona tu perfil para continuar:</p>
           <div class="role-buttons">
             <button class="role-button" id="btn-staff">
-              <div style="font-size: 2rem; margin-bottom: 0.5rem;">🏫</div>
-              <div>Dirección / Inspectoría</div>
+              <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🏫</div>
+              <div style="font-size: 1.1rem;">Dirección / Inspectoría</div>
+              <div style="font-size: 0.8rem; color: var(--color-gray-500); margin-top: 0.5rem;">Gestión administrativa del colegio</div>
             </button>
 
             <button class="role-button" id="btn-parent">
-              <div style="font-size: 2rem; margin-bottom: 0.5rem;">👨‍👩‍👧</div>
-              <div>Apoderado</div>
+              <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">👨‍👩‍👧</div>
+              <div style="font-size: 1.1rem;">Apoderado</div>
+              <div style="font-size: 0.8rem; color: var(--color-gray-500); margin-top: 0.5rem;">Consulta de asistencia de sus hijos</div>
             </button>
           </div>
         </div>
@@ -52,12 +57,12 @@ Views.auth = function() {
           </form>
         </div>
 
-        <div id="auth-demo-mode" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--color-gray-200);">
-          <p style="font-size: 0.875rem; color: var(--color-gray-500); margin-bottom: 0.5rem;">Modo demo (sin backend):</p>
-          <div class="flex gap-1 flex-wrap" style="justify-content: center;">
-            <button class="btn btn-secondary btn-sm" onclick="Views.auth.demoLogin('director')">Director</button>
-            <button class="btn btn-secondary btn-sm" onclick="Views.auth.demoLogin('inspector')">Inspector</button>
-            <button class="btn btn-secondary btn-sm" onclick="Views.auth.demoLogin('parent')">Apoderado</button>
+        <div id="auth-demo-mode" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--color-gray-200);">
+          <p style="font-size: 0.8rem; color: var(--color-gray-400); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Modo demostración</p>
+          <div class="flex gap-2 flex-wrap" style="justify-content: center;">
+            <button class="btn btn-secondary btn-sm" onclick="Views.auth.demoLogin('director')" style="min-width: 100px;">Director</button>
+            <button class="btn btn-secondary btn-sm" onclick="Views.auth.demoLogin('inspector')" style="min-width: 100px;">Inspector</button>
+            <button class="btn btn-secondary btn-sm" onclick="Views.auth.demoLogin('parent')" style="min-width: 100px;">Apoderado</button>
           </div>
         </div>
       </div>
