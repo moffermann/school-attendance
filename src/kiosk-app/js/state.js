@@ -136,5 +136,65 @@ const State = {
   toggleOnline() {
     this.device.online = !this.device.online;
     this.persist();
+  },
+
+  // Update students from server data (includes photo_pref_opt_in)
+  updateStudents(serverStudents) {
+    // Merge server data with local data, preserving local-only fields
+    const studentMap = new Map(this.students.map(s => [s.id, s]));
+
+    for (const serverStudent of serverStudents) {
+      const existing = studentMap.get(serverStudent.id);
+      if (existing) {
+        // Update existing student with server data
+        existing.full_name = serverStudent.full_name;
+        existing.course_id = serverStudent.course_id;
+        existing.photo_ref = serverStudent.photo_ref;
+        existing.photo_opt_in = serverStudent.photo_pref_opt_in ?? false;
+      } else {
+        // Add new student
+        this.students.push({
+          id: serverStudent.id,
+          full_name: serverStudent.full_name,
+          course_id: serverStudent.course_id,
+          photo_ref: serverStudent.photo_ref,
+          photo_opt_in: serverStudent.photo_pref_opt_in ?? false,
+          guardian_name: null // Not provided by kiosk endpoint
+        });
+      }
+    }
+
+    // Remove students that no longer exist on server
+    const serverIds = new Set(serverStudents.map(s => s.id));
+    this.students = this.students.filter(s => serverIds.has(s.id));
+
+    this.persist();
+  },
+
+  // Update tags from server data
+  updateTags(serverTags) {
+    this.tags = serverTags.map(t => ({
+      token: t.token,
+      student_id: t.student_id,
+      teacher_id: t.teacher_id,
+      status: t.status
+    }));
+    this.persist();
+  },
+
+  // Update teachers from server data
+  updateTeachers(serverTeachers) {
+    this.teachers = serverTeachers.map(t => ({
+      id: t.id,
+      full_name: t.full_name
+    }));
+    this.persist();
+  },
+
+  // Check if student has photo consent
+  hasPhotoConsent(studentId) {
+    const student = this.students.find(s => s.id === studentId);
+    // Default to true for backwards compatibility if field not present
+    return student ? (student.photo_opt_in !== false) : true;
   }
 };

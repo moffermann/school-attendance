@@ -190,6 +190,87 @@ const Sync = {
   isRealApiMode() {
     const config = this.getApiConfig();
     return !!config.deviceKey;
+  },
+
+  // Sync student data including photo preferences from backend
+  async syncStudents() {
+    const config = this.getApiConfig();
+
+    if (!config.deviceKey) {
+      console.log('No device API key configured, skipping student sync');
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${config.baseUrl}/kiosk/students`, {
+        method: 'GET',
+        headers: {
+          'X-Device-Key': config.deviceKey
+        }
+      });
+
+      if (response.ok) {
+        const students = await response.json();
+
+        // Update local student data with server data
+        State.updateStudents(students);
+        console.log(`Synced ${students.length} students with photo preferences`);
+        return true;
+      } else {
+        console.error('Student sync failed:', response.status);
+        return false;
+      }
+    } catch (err) {
+      console.error('Error syncing students:', err);
+      return false;
+    }
+  },
+
+  // Full bootstrap sync - get all kiosk data
+  async syncBootstrap() {
+    const config = this.getApiConfig();
+
+    if (!config.deviceKey) {
+      console.log('No device API key configured, skipping bootstrap sync');
+      return false;
+    }
+
+    try {
+      UI.showToast('Sincronizando datos...', 'info', 2000);
+
+      const response = await fetch(`${config.baseUrl}/kiosk/bootstrap`, {
+        method: 'GET',
+        headers: {
+          'X-Device-Key': config.deviceKey
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Update all local data
+        State.updateStudents(data.students);
+        State.updateTags(data.tags);
+        State.updateTeachers(data.teachers);
+
+        console.log('Bootstrap sync complete:', {
+          students: data.students.length,
+          tags: data.tags.length,
+          teachers: data.teachers.length
+        });
+
+        UI.showToast('Datos sincronizados', 'success');
+        return true;
+      } else {
+        console.error('Bootstrap sync failed:', response.status);
+        UI.showToast('Error al sincronizar', 'error');
+        return false;
+      }
+    } catch (err) {
+      console.error('Error in bootstrap sync:', err);
+      UI.showToast('Error de conexión', 'error');
+      return false;
+    }
   }
 };
 
@@ -199,3 +280,10 @@ setInterval(() => {
     Sync.processQueue();
   }
 }, 30000);
+
+// Sync student preferences every 5 minutes
+setInterval(() => {
+  if (State.device.online && Sync.isRealApiMode()) {
+    Sync.syncStudents();
+  }
+}, 5 * 60 * 1000);
