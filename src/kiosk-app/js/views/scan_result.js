@@ -15,6 +15,10 @@ Views.scanResult = function() {
   const eventType = State.nextEventTypeFor(studentId);
   const timestamp = new Date();
 
+  // Check if student has photo consent - respect their privacy preference
+  const studentHasPhotoConsent = State.hasPhotoConsent(studentId);
+  const photoEnabled = State.config.photoEnabled && studentHasPhotoConsent;
+
   let video = null;
   let canvas = null;
   let canvasContext = null;
@@ -72,7 +76,7 @@ Views.scanResult = function() {
 
             <!-- Columna derecha: Cámara y botón -->
             <div class="result-right-column">
-              ${State.config.photoEnabled ? `
+              ${photoEnabled ? `
                 <div class="evidence-section">
                   <div class="evidence-label">📷 Captura de Evidencia</div>
                   <div class="camera-preview-container">
@@ -96,8 +100,8 @@ Views.scanResult = function() {
     // Start live clock update
     startLiveClock();
 
-    // Start camera for evidence if enabled
-    if (State.config.photoEnabled) {
+    // Start camera for evidence if enabled and student consents
+    if (photoEnabled) {
       startEvidenceCamera();
     }
   }
@@ -183,7 +187,7 @@ Views.scanResult = function() {
     const confirmTimestamp = new Date();
     const isEntry = eventType === 'IN';
 
-    if (State.config.photoEnabled && video && video.srcObject) {
+    if (photoEnabled && video && video.srcObject) {
       photoDataUrl = capturePhoto();
 
       if (photoDataUrl) {
