@@ -52,8 +52,12 @@ class ConsentService:
         )
 
     @staticmethod
-    def _collect_photo_consents(guardian) -> dict[int, bool]:
+    def _collect_photo_consents(guardian) -> dict[str, bool]:
+        """Collect photo consents for all students of a guardian.
+
+        Returns dict with string keys for JSON serialization compatibility.
+        """
         return {
-            student.id: bool(getattr(student, "photo_pref_opt_in", False))
+            str(student.id): bool(getattr(student, "photo_pref_opt_in", False))
             for student in getattr(guardian, "students", [])
         }

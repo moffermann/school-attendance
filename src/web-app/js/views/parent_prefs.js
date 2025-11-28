@@ -1,5 +1,5 @@
 // Parent Notification Preferences
-Views.parentPrefs = function() {
+Views.parentPrefs = async function() {
   const app = document.getElementById('app');
   app.innerHTML = Components.createLayout('parent');
 
@@ -13,18 +13,39 @@ Views.parentPrefs = function() {
   const guardian = State.getGuardian(State.currentGuardianId);
   const students = State.getGuardianStudents(State.currentGuardianId);
 
-  // Load preferences from localStorage
-  const prefsKey = `prefs_${State.currentGuardianId}`;
-  let prefs = JSON.parse(localStorage.getItem(prefsKey) || '{}');
+  // Show loading while fetching preferences from API
+  content.innerHTML = Components.createLoader();
 
-  // Default preferences
-  prefs = {
-    notify_in: { whatsapp: true, email: true, ...prefs.notify_in },
-    notify_out: { whatsapp: true, email: false, ...prefs.notify_out },
-    notify_no_in: { whatsapp: true, email: true, ...prefs.notify_no_in },
-    notify_schedule: { whatsapp: true, email: true, ...prefs.notify_schedule },
-    photo_opt_in: prefs.photo_opt_in || {}
+  // Default preferences structure
+  const defaultPrefs = {
+    INGRESO_OK: { whatsapp: true, email: false },
+    SALIDA_OK: { whatsapp: true, email: false },
+    NO_INGRESO_UMBRAL: { whatsapp: true, email: true },
+    CAMBIO_HORARIO: { whatsapp: true, email: true }
   };
+
+  let prefs = { ...defaultPrefs };
+  let photoConsents = {};
+
+  // Try to load preferences from API
+  try {
+    const serverPrefs = await API.getGuardianPreferences(State.currentGuardianId);
+    if (serverPrefs.preferences) {
+      // Merge server prefs with defaults
+      Object.keys(serverPrefs.preferences).forEach(key => {
+        prefs[key] = { ...defaultPrefs[key], ...serverPrefs.preferences[key] };
+      });
+    }
+    photoConsents = serverPrefs.photo_consents || {};
+  } catch (error) {
+    console.warn('Could not load preferences from server, using defaults:', error);
+    // Fall back to localStorage if API fails
+    const localPrefs = JSON.parse(localStorage.getItem(`prefs_${State.currentGuardianId}`) || '{}');
+    if (localPrefs.preferences) {
+      prefs = { ...prefs, ...localPrefs.preferences };
+    }
+    photoConsents = localPrefs.photo_consents || {};
+  }
 
   content.innerHTML = `
     <h2 class="mb-3">Preferencias de Notificación</h2>
@@ -48,45 +69,45 @@ Views.parentPrefs = function() {
             <tr>
               <td>Ingreso registrado</td>
               <td>
-                <input type="checkbox" id="notify_in_whatsapp" class="form-checkbox"
-                  ${prefs.notify_in.whatsapp ? 'checked' : ''}>
+                <input type="checkbox" id="pref_INGRESO_OK_whatsapp" class="form-checkbox"
+                  ${prefs.INGRESO_OK?.whatsapp ? 'checked' : ''}>
               </td>
               <td>
-                <input type="checkbox" id="notify_in_email" class="form-checkbox"
-                  ${prefs.notify_in.email ? 'checked' : ''}>
+                <input type="checkbox" id="pref_INGRESO_OK_email" class="form-checkbox"
+                  ${prefs.INGRESO_OK?.email ? 'checked' : ''}>
               </td>
             </tr>
             <tr>
               <td>Salida registrada</td>
               <td>
-                <input type="checkbox" id="notify_out_whatsapp" class="form-checkbox"
-                  ${prefs.notify_out.whatsapp ? 'checked' : ''}>
+                <input type="checkbox" id="pref_SALIDA_OK_whatsapp" class="form-checkbox"
+                  ${prefs.SALIDA_OK?.whatsapp ? 'checked' : ''}>
               </td>
               <td>
-                <input type="checkbox" id="notify_out_email" class="form-checkbox"
-                  ${prefs.notify_out.email ? 'checked' : ''}>
+                <input type="checkbox" id="pref_SALIDA_OK_email" class="form-checkbox"
+                  ${prefs.SALIDA_OK?.email ? 'checked' : ''}>
               </td>
             </tr>
             <tr>
               <td>No registró ingreso antes de horario</td>
               <td>
-                <input type="checkbox" id="notify_no_in_whatsapp" class="form-checkbox"
-                  ${prefs.notify_no_in.whatsapp ? 'checked' : ''}>
+                <input type="checkbox" id="pref_NO_INGRESO_UMBRAL_whatsapp" class="form-checkbox"
+                  ${prefs.NO_INGRESO_UMBRAL?.whatsapp ? 'checked' : ''}>
               </td>
               <td>
-                <input type="checkbox" id="notify_no_in_email" class="form-checkbox"
-                  ${prefs.notify_no_in.email ? 'checked' : ''}>
+                <input type="checkbox" id="pref_NO_INGRESO_UMBRAL_email" class="form-checkbox"
+                  ${prefs.NO_INGRESO_UMBRAL?.email ? 'checked' : ''}>
               </td>
             </tr>
             <tr>
               <td>Cambios de horario</td>
               <td>
-                <input type="checkbox" id="notify_schedule_whatsapp" class="form-checkbox"
-                  ${prefs.notify_schedule.whatsapp ? 'checked' : ''}>
+                <input type="checkbox" id="pref_CAMBIO_HORARIO_whatsapp" class="form-checkbox"
+                  ${prefs.CAMBIO_HORARIO?.whatsapp ? 'checked' : ''}>
               </td>
               <td>
-                <input type="checkbox" id="notify_schedule_email" class="form-checkbox"
-                  ${prefs.notify_schedule.email ? 'checked' : ''}>
+                <input type="checkbox" id="pref_CAMBIO_HORARIO_email" class="form-checkbox"
+                  ${prefs.CAMBIO_HORARIO?.email ? 'checked' : ''}>
               </td>
             </tr>
           </tbody>
@@ -95,19 +116,26 @@ Views.parentPrefs = function() {
     </div>
 
     <div class="card mb-3">
-      <div class="card-header">Captura de Foto (Opt-in)</div>
+      <div class="card-header">Captura de Foto</div>
       <div class="card-body">
         <p class="mb-2" style="color: var(--color-gray-600);">
-          La foto solo se usa como evidencia del registro. Retención: 60 días.
+          Autorizar captura de foto como evidencia del registro de asistencia.
+          Las fotos se enviarán junto con las notificaciones de ingreso/salida.
+          <br><strong>Retención:</strong> 60 días. <strong>Uso:</strong> Solo evidencia de asistencia.
         </p>
 
-        ${students.map(student => {
-          const checked = prefs.photo_opt_in[student.id] !== false; // default true
+        ${students.length === 0 ? '<p>No hay estudiantes asociados.</p>' : students.map(student => {
+          // photoConsents keys are strings from the API
+          const checked = photoConsents[String(student.id)] !== false;
           return `
             <div class="mb-2">
-              <label style="display: flex; align-items: center;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
                 <input type="checkbox" id="photo_${student.id}" class="form-checkbox" ${checked ? 'checked' : ''}>
-                <span><strong>${student.full_name}</strong> - Autorizar captura de foto</span>
+                <span><strong>${student.full_name}</strong></span>
+                ${checked ?
+                  '<span style="color: var(--color-success); font-size: 0.875rem;">Foto autorizada</span>' :
+                  '<span style="color: var(--color-warning); font-size: 0.875rem;">Sin foto</span>'
+                }
               </label>
             </div>
           `;
@@ -118,51 +146,92 @@ Views.parentPrefs = function() {
     <div class="card mb-3">
       <div class="card-header">Contactos Registrados</div>
       <div class="card-body">
-        <ul style="list-style: none; padding: 0;">
-          ${guardian.contacts.map(c => `
-            <li class="mb-1">
-              <strong>${c.type.toUpperCase()}:</strong> ${c.value}
-              ${c.verified ? Components.createChip('Verificado', 'success') : Components.createChip('No verificado', 'warning')}
-            </li>
-          `).join('')}
-        </ul>
+        ${guardian.contacts && guardian.contacts.length > 0 ? `
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            ${guardian.contacts.map(c => `
+              <li class="mb-1">
+                <strong>${c.type.toUpperCase()}:</strong> ${c.value}
+                ${c.verified ? Components.createChip('Verificado', 'success') : Components.createChip('No verificado', 'warning')}
+              </li>
+            `).join('')}
+          </ul>
+        ` : `
+          <p style="color: var(--color-gray-600);">
+            No hay contactos registrados. Contacte al colegio para actualizar sus datos.
+          </p>
+        `}
       </div>
     </div>
 
-    <div>
-      <button class="btn btn-primary" onclick="Views.parentPrefs.savePreferences()">
+    <div class="flex gap-2">
+      <button class="btn btn-primary" id="btn-save-prefs" onclick="Views.parentPrefs.savePreferences()">
         Guardar Preferencias
       </button>
       <a href="#/parent/home" class="btn btn-secondary">Volver</a>
     </div>
   `;
 
-  Views.parentPrefs.savePreferences = function() {
+  // Update checkbox labels dynamically
+  students.forEach(student => {
+    const checkbox = document.getElementById(`photo_${student.id}`);
+    if (checkbox) {
+      checkbox.addEventListener('change', function() {
+        const label = this.closest('label');
+        const statusSpan = label.querySelector('span:last-child');
+        if (this.checked) {
+          statusSpan.textContent = 'Foto autorizada';
+          statusSpan.style.color = 'var(--color-success)';
+        } else {
+          statusSpan.textContent = 'Sin foto';
+          statusSpan.style.color = 'var(--color-warning)';
+        }
+      });
+    }
+  });
+
+  Views.parentPrefs.savePreferences = async function() {
+    const btn = document.getElementById('btn-save-prefs');
+    const originalText = btn.textContent;
+    btn.textContent = 'Guardando...';
+    btn.disabled = true;
+
+    const notificationTypes = ['INGRESO_OK', 'SALIDA_OK', 'NO_INGRESO_UMBRAL', 'CAMBIO_HORARIO'];
+
     const newPrefs = {
-      notify_in: {
-        whatsapp: document.getElementById('notify_in_whatsapp').checked,
-        email: document.getElementById('notify_in_email').checked
-      },
-      notify_out: {
-        whatsapp: document.getElementById('notify_out_whatsapp').checked,
-        email: document.getElementById('notify_out_email').checked
-      },
-      notify_no_in: {
-        whatsapp: document.getElementById('notify_no_in_whatsapp').checked,
-        email: document.getElementById('notify_no_in_email').checked
-      },
-      notify_schedule: {
-        whatsapp: document.getElementById('notify_schedule_whatsapp').checked,
-        email: document.getElementById('notify_schedule_email').checked
-      },
-      photo_opt_in: {}
+      preferences: {},
+      photo_consents: {}
     };
 
-    students.forEach(student => {
-      newPrefs.photo_opt_in[student.id] = document.getElementById(`photo_${student.id}`).checked;
+    // Collect notification preferences
+    notificationTypes.forEach(type => {
+      newPrefs.preferences[type] = {
+        whatsapp: document.getElementById(`pref_${type}_whatsapp`)?.checked || false,
+        email: document.getElementById(`pref_${type}_email`)?.checked || false
+      };
     });
 
-    localStorage.setItem(prefsKey, JSON.stringify(newPrefs));
-    Components.showToast('Preferencias guardadas exitosamente', 'success');
+    // Collect photo consents
+    students.forEach(student => {
+      const checkbox = document.getElementById(`photo_${student.id}`);
+      newPrefs.photo_consents[String(student.id)] = checkbox ? checkbox.checked : false;
+    });
+
+    try {
+      // Save to API
+      await API.updateGuardianPreferences(State.currentGuardianId, newPrefs);
+
+      // Also save to localStorage as backup
+      localStorage.setItem(`prefs_${State.currentGuardianId}`, JSON.stringify(newPrefs));
+
+      Components.showToast('Preferencias guardadas exitosamente', 'success');
+    } catch (error) {
+      console.error('Error saving preferences:', error);
+      // Save to localStorage if API fails
+      localStorage.setItem(`prefs_${State.currentGuardianId}`, JSON.stringify(newPrefs));
+      Components.showToast('Preferencias guardadas localmente (sincronización pendiente)', 'warning');
+    } finally {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
   };
 };
