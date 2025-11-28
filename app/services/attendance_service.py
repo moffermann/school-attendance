@@ -1,9 +1,13 @@
 """Attendance service implementation."""
 
-from typing import List
+from __future__ import annotations
+
+from typing import List, TYPE_CHECKING
 
 from datetime import datetime, timedelta, timezone
 import uuid
+
+from loguru import logger
 
 from app.db.repositories.attendance import AttendanceRepository
 from app.db.repositories.guardians import GuardianRepository
@@ -14,9 +18,12 @@ from app.schemas.attendance import AttendanceEventCreate, AttendanceEventRead
 from app.core.config import settings
 from app.services.photo_service import PhotoService
 
+if TYPE_CHECKING:
+    from app.services.attendance_notification_service import AttendanceNotificationService
+
 
 class AttendanceService:
-    def __init__(self, session):
+    def __init__(self, session, notification_service: AttendanceNotificationService | None = None):
         self.session = session
         self.attendance_repo = AttendanceRepository(session)
         self.student_repo = StudentRepository(session)
@@ -24,6 +31,7 @@ class AttendanceService:
         self.guardian_repo = GuardianRepository(session)
         self.photo_service = PhotoService()
         self.no_show_repo = NoShowAlertRepository(session)
+        self._notification_service = notification_service
 
     async def register_event(self, payload: AttendanceEventCreate) -> AttendanceEventRead:
         student = await self.student_repo.get(payload.student_id)
@@ -41,7 +49,43 @@ class AttendanceService:
         )
 
         await self.session.commit()
+
+        # Trigger notifications to guardians
+        await self._send_attendance_notifications(event)
+
         return AttendanceEventRead.model_validate(event, from_attributes=True)
+
+    async def _send_attendance_notifications(self, event) -> None:
+        """Send notifications to guardians after attendance event is registered."""
+        if not self._notification_service:
+            logger.debug("Notification service not configured, skipping notifications")
+            return
+
+        try:
+            # Generate photo URL if photo exists and student allows photos
+            photo_url = None
+            if event.photo_ref:
+                student = await self.student_repo.get(event.student_id)
+                if student and getattr(student, "photo_pref_opt_in", False):
+                    # Generate presigned URL valid for 7 days (for WhatsApp delivery)
+                    photo_url = self.photo_service.generate_presigned_url(
+                        event.photo_ref,
+                        expires=7 * 24 * 3600,
+                    )
+
+            notification_ids = await self._notification_service.notify_attendance_event(
+                event=event,
+                photo_url=photo_url,
+            )
+            await self.session.commit()
+
+            if notification_ids:
+                logger.info(
+                    f"Queued {len(notification_ids)} notifications for event {event.id}"
+                )
+        except Exception as e:
+            # Don't fail the attendance registration if notifications fail
+            logger.error(f"Failed to send notifications for event {event.id}: {e}")
 
     async def list_events_by_student(self, student_id: int) -> List[AttendanceEventRead]:
         events = await self.attendance_repo.list_by_student(student_id)
