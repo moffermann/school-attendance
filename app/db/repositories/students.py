@@ -46,3 +46,13 @@ class StudentRepository:
         stmt = select(Student).order_by(Student.full_name)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_with_guardians(self, student_id: int) -> Student | None:
+        """Get a student with their guardians eagerly loaded."""
+        stmt = (
+            select(Student)
+            .where(Student.id == student_id)
+            .options(selectinload(Student.guardians))
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()

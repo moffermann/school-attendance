@@ -13,6 +13,7 @@ from app.core.security import decode_token
 from app.db.repositories.users import UserRepository
 from app.db.session import get_session
 from app.services.attendance_service import AttendanceService
+from app.services.attendance_notification_service import AttendanceNotificationService
 from app.services.broadcast_service import BroadcastService
 from app.services.consent_service import ConsentService
 from app.services.device_service import DeviceService
@@ -103,10 +104,17 @@ async def verify_device_key(x_device_key: str | None = Header(default=None)) -> 
     return False
 
 
+async def get_attendance_notification_service(
+    session: AsyncSession = Depends(get_db),
+) -> AttendanceNotificationService:
+    return AttendanceNotificationService(session)
+
+
 async def get_attendance_service(
     session: AsyncSession = Depends(get_db),
+    notification_service: AttendanceNotificationService = Depends(get_attendance_notification_service),
 ) -> AttendanceService:
-    return AttendanceService(session)
+    return AttendanceService(session, notification_service=notification_service)
 
 
 async def get_notification_dispatcher(
