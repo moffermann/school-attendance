@@ -1,10 +1,9 @@
 """Router for server-rendered pages."""
 
-from datetime import date, datetime, timezone
-from pathlib import Path
+from datetime import date, timezone
 
 from fastapi import APIRouter, Depends, Request, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,7 +24,6 @@ from app.services.alert_service import AlertService
 
 
 templates = Jinja2Templates(directory="app/web/templates")
-SPA_INDEX = Path("app/web/static/spa/index.html")
 
 web_router = APIRouter()
 
@@ -111,18 +109,6 @@ async def logout() -> RedirectResponse:
     response = RedirectResponse("/login", status_code=303)
     response.delete_cookie("session_token")
     return response
-
-
-@web_router.get("/app", response_model=None)
-async def spa_entrypoint(
-    request: Request, session: AsyncSession = Depends(deps.get_db)
-) -> FileResponse | RedirectResponse:
-    auth = await _require_staff_user(request, session, ("ADMIN", "DIRECTOR", "INSPECTOR", "PARENT"))
-    if isinstance(auth, RedirectResponse):
-        return auth
-    if not SPA_INDEX.exists():  # pragma: no cover - sanity fallback during development
-        raise HTTPException(status_code=404, detail="SPA no disponible")
-    return FileResponse(SPA_INDEX)
 
 
 @web_router.get("/", response_class=HTMLResponse)
