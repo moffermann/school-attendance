@@ -110,10 +110,12 @@ Views.auth = function() {
       // Set up state with API data
       State.setFromBootstrap(bootstrap);
 
-      Components.showToast(`Bienvenido, ${bootstrap.user.full_name}`, 'success');
+      // API returns current_user, fallback to user for backwards compatibility
+      const user = bootstrap.current_user || bootstrap.user;
+      Components.showToast(`Bienvenido, ${user.full_name}`, 'success');
 
       // Navigate based on role
-      const redirectPath = bootstrap.user.role === 'PARENT' ? '/parent/home' : '/director/dashboard';
+      const redirectPath = user.role === 'PARENT' ? '/parent/home' : '/director/dashboard';
       Router.navigate(redirectPath);
     } catch (error) {
       console.error('Login error:', error);

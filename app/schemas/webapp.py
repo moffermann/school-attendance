@@ -93,6 +93,14 @@ class NotificationSummary(BaseModel):
     status: str
 
 
+class TeacherSummary(BaseModel):
+    id: int
+    full_name: str
+    email: str
+    phone: str | None = None
+    course_ids: list[int] = Field(default_factory=list)
+
+
 class DashboardEvent(BaseModel):
     id: int
     student_id: int
@@ -154,3 +162,4 @@ class WebAppBootstrap(BaseModel):
     devices: list[DeviceSummary] = Field(default_factory=list)
     absences: list[AbsenceSummary] = Field(default_factory=list)
     notifications: list[NotificationSummary] = Field(default_factory=list)
+    teachers: list[TeacherSummary] = Field(default_factory=list)

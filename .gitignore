@@ -26,3 +26,8 @@ nul
 
 # Claude Code
 claude.md
+
+# Secrets (solo commitear .env.example)
+secrets/*/.env
+secrets/*/credentials*
+!secrets/*/.env.example

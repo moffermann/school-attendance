@@ -139,7 +139,7 @@ const API = {
    * Get bootstrap data (user info, courses, students, etc.)
    */
   async getBootstrap() {
-    const response = await this.request('/webapp/bootstrap');
+    const response = await this.request('/web-app/bootstrap');
     if (!response.ok) {
       throw new Error('No se pudo obtener datos iniciales');
     }
@@ -157,7 +157,7 @@ const API = {
     if (filters.search) params.append('search', filters.search);
 
     const queryString = params.toString();
-    const response = await this.request(`/webapp/dashboard${queryString ? '?' + queryString : ''}`);
+    const response = await this.request(`/web-app/dashboard${queryString ? '?' + queryString : ''}`);
     if (!response.ok) {
       throw new Error('No se pudo obtener el dashboard');
     }
@@ -175,7 +175,7 @@ const API = {
     if (filters.search) params.append('search', filters.search);
 
     const queryString = params.toString();
-    const response = await this.request(`/webapp/dashboard/export${queryString ? '?' + queryString : ''}`);
+    const response = await this.request(`/web-app/dashboard/export${queryString ? '?' + queryString : ''}`);
     if (!response.ok) {
       throw new Error('No se pudo exportar el dashboard');
     }
@@ -191,7 +191,7 @@ const API = {
     params.append('end', endDate);
     if (courseId) params.append('course_id', courseId);
 
-    const response = await this.request(`/webapp/reports?${params.toString()}`);
+    const response = await this.request(`/web-app/reports?${params.toString()}`);
     if (!response.ok) {
       throw new Error('No se pudo obtener los reportes');
     }

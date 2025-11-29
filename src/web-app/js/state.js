@@ -153,8 +153,8 @@ const State = {
    * Called after successful JWT login
    */
   setFromBootstrap(bootstrap) {
-    // Store user info
-    this._user = bootstrap.user;
+    // Store user info (API returns current_user)
+    this._user = bootstrap.current_user || bootstrap.user;
 
     // Map API role to local role
     const roleMap = {
@@ -192,6 +192,21 @@ const State = {
     }
     if (bootstrap.devices) {
       this.data.devices = bootstrap.devices;
+    }
+    if (bootstrap.teachers) {
+      this.data.teachers = bootstrap.teachers;
+    }
+    if (bootstrap.absences) {
+      this.data.absences = bootstrap.absences;
+    }
+    if (bootstrap.notifications) {
+      this.data.notifications = bootstrap.notifications;
+    }
+    if (bootstrap.attendance_events) {
+      this.data.attendance_events = bootstrap.attendance_events;
+    }
+    if (bootstrap.schedule_exceptions) {
+      this.data.schedule_exceptions = bootstrap.schedule_exceptions;
     }
 
     this.persist();

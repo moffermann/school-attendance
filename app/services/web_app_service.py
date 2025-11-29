@@ -19,6 +19,7 @@ from app.db.models.notification import Notification
 from app.db.models.schedule import Schedule
 from app.db.models.schedule_exception import ScheduleException
 from app.db.models.student import Student
+from app.db.models.teacher import Teacher
 from app.schemas.auth import SessionUser
 from app.schemas.webapp import (
     AbsenceSummary,
@@ -31,6 +32,7 @@ from app.schemas.webapp import (
     ScheduleExceptionSummary,
     ScheduleSummary,
     StudentSummary,
+    TeacherSummary,
     WebAppBootstrap,
 )
 
@@ -76,6 +78,7 @@ class WebAppDataService:
         devices = await self._load_devices(is_staff)
         absences = await self._load_absences(student_ids, is_staff)
         notifications = await self._load_notifications(student_ids, guardians, is_staff)
+        teachers = await self._load_teachers(is_staff)
 
         session_user = SessionUser(
             id=user.id,
@@ -95,6 +98,7 @@ class WebAppDataService:
             devices=[self._map_device(device) for device in devices],
             absences=[self._map_absence(absence) for absence in absences],
             notifications=[self._map_notification(notification) for notification in notifications],
+            teachers=[self._map_teacher(teacher) for teacher in teachers],
         )
 
     async def _resolve_student_ids(self, is_staff: bool, guardian: Guardian | None) -> list[int]:
@@ -171,6 +175,13 @@ class WebAppDataService:
         if not is_staff:
             return []
         result = await self.session.execute(select(Device).order_by(Device.gate_id))
+        return list(result.scalars().all())
+
+    async def _load_teachers(self, is_staff: bool) -> list[Teacher]:
+        if not is_staff:
+            return []
+        stmt = select(Teacher).options(selectinload(Teacher.courses)).order_by(Teacher.full_name)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def _load_absences(self, student_ids: list[int], is_staff: bool) -> list[AbsenceRequest]:
@@ -303,4 +314,14 @@ class WebAppDataService:
             channel=notification.channel,
             sent_at=self._format_time(sent_at),
             status=notification.status,
+        )
+
+    @staticmethod
+    def _map_teacher(teacher: Teacher) -> TeacherSummary:
+        return TeacherSummary(
+            id=teacher.id,
+            full_name=teacher.full_name,
+            email=teacher.email or "",
+            phone=None,
+            course_ids=[course.id for course in teacher.courses],
         )

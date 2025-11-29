@@ -19,11 +19,16 @@ if [[ -n "${REGISTRY_PASSWORD:-}" ]]; then
 fi
 
 FULL_IMAGE="${REGISTRY_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+LATEST_IMAGE="${REGISTRY_USER}/${IMAGE_NAME}:latest"
+
 echo "Construyendo ${FULL_IMAGE}..."
-docker buildx build --platform linux/amd64 -t "${FULL_IMAGE}" .
+docker buildx build --platform linux/amd64 -t "${FULL_IMAGE}" -t "${LATEST_IMAGE}" .
 
 echo "Pushing ${FULL_IMAGE}..."
 docker push "${FULL_IMAGE}"
+
+echo "Pushing ${LATEST_IMAGE}..."
+docker push "${LATEST_IMAGE}"
 
 echo "Validando contenedor local..."
 cid=$(docker run -d -p 8080:8080 "${FULL_IMAGE}")
