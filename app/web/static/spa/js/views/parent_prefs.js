@@ -1,27 +1,4 @@
-// Parent notification preferences powered by backend APIs
-
-const TEMPLATE_KEY_MAP = {
-  notify_in: 'INGRESO_OK',
-  notify_out: 'SALIDA_OK',
-  notify_no_in: 'NO_INGRESO_UMBRAL',
-  notify_schedule: 'CAMBIO_HORARIO'
-};
-
-const DEFAULT_CHANNEL_SELECTION = {
-  INGRESO_OK: { whatsapp: true, email: true },
-  SALIDA_OK: { whatsapp: true, email: false },
-  NO_INGRESO_UMBRAL: { whatsapp: true, email: true },
-  CAMBIO_HORARIO: { whatsapp: true, email: true }
-};
-
-const CHANNEL_CONTROL_IDS = {
-  notify_in: { whatsapp: 'notify_in_whatsapp', email: 'notify_in_email' },
-  notify_out: { whatsapp: 'notify_out_whatsapp', email: 'notify_out_email' },
-  notify_no_in: { whatsapp: 'notify_no_in_whatsapp', email: 'notify_no_in_email' },
-  notify_schedule: { whatsapp: 'notify_schedule_whatsapp', email: 'notify_schedule_email' }
-};
-
-// Parent Notification Preferences
+// Parent Notification Preferences - Preferencias de Notificación
 Views.parentPrefs = async function() {
   const app = document.getElementById('app');
   app.innerHTML = Components.createLayout('parent');
@@ -36,249 +13,227 @@ Views.parentPrefs = async function() {
   const guardian = State.getGuardian(State.currentGuardianId);
   const students = State.getGuardianStudents(State.currentGuardianId);
 
-  if (!guardian) {
-    content.innerHTML = Components.createEmptyState('Error', 'No fue posible cargar la información del apoderado.');
-    return;
-  }
+  // Show loading while fetching preferences from API
+  content.innerHTML = Components.createLoader();
 
-  if (!students.length) {
-    content.innerHTML = Components.createEmptyState('Sin alumnos', 'No hay estudiantes asociados a tu cuenta.');
-    return;
-  }
+  // Default preferences structure
+  const defaultPrefs = {
+    INGRESO_OK: { whatsapp: true, email: false },
+    SALIDA_OK: { whatsapp: true, email: false },
+    NO_INGRESO_UMBRAL: { whatsapp: true, email: true },
+    CAMBIO_HORARIO: { whatsapp: true, email: true }
+  };
 
-  content.innerHTML = Components.createLoader('Cargando preferencias...');
+  let prefs = { ...defaultPrefs };
+  let photoConsents = {};
 
-  function normalizeNotificationPrefs(rawPrefs) {
-    const normalized = {};
-    Object.entries(TEMPLATE_KEY_MAP).forEach(([localKey, templateKey]) => {
-      const defaults = { ...DEFAULT_CHANNEL_SELECTION[templateKey] };
-      const entries = rawPrefs[templateKey] || [];
-      entries.forEach((entry) => {
-        const channel = (entry?.channel || entry || '').toString().toUpperCase();
-        const enabled = entry?.enabled !== undefined ? Boolean(entry.enabled) : true;
-        if (channel === 'WHATSAPP') {
-          defaults.whatsapp = enabled;
-        } else if (channel === 'EMAIL') {
-          defaults.email = enabled;
-        }
-      });
-      normalized[localKey] = defaults;
-    });
-    return normalized;
-  }
-
-  function normalizePhotoConsents(rawConsents) {
-    const map = {};
-    Object.entries(rawConsents || {}).forEach(([key, value]) => {
-      const studentId = Number.parseInt(key, 10);
-      if (!Number.isNaN(studentId)) {
-        map[studentId] = Boolean(value);
-      }
-    });
-    students.forEach((student) => {
-      if (!Object.prototype.hasOwnProperty.call(map, student.id)) {
-        map[student.id] = Boolean(student.photo_pref_opt_in);
-      }
-    });
-    return map;
-  }
-
-  function render(prefs, photoMap) {
-    const notificationRows = [
-      { label: 'Ingreso registrado', key: 'notify_in' },
-      { label: 'Salida registrada', key: 'notify_out' },
-      { label: 'No registró ingreso antes de horario', key: 'notify_no_in' },
-      { label: 'Cambios de horario', key: 'notify_schedule' }
-    ];
-
-    content.innerHTML = `
-      <h2 class="mb-3">Preferencias de Notificación</h2>
-
-      <div class="card mb-3">
-        <div class="card-header">Canales de Notificación</div>
-        <div class="card-body">
-          <p class="mb-2" style="color: var(--color-gray-600);">
-            Ajusta cómo deseas recibir notificaciones para cada evento relevante.
-          </p>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Tipo de Evento</th>
-                <th>WhatsApp</th>
-                <th>Email</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${notificationRows.map(({ label, key }) => {
-                const controls = CHANNEL_CONTROL_IDS[key];
-                const values = prefs[key] || { whatsapp: true, email: true };
-                return `
-                  <tr>
-                    <td>${label}</td>
-                    <td>
-                      <input type="checkbox" id="${controls.whatsapp}" class="form-checkbox"
-                        ${values.whatsapp ? 'checked' : ''}>
-                    </td>
-                    <td>
-                      <input type="checkbox" id="${controls.email}" class="form-checkbox"
-                        ${values.email ? 'checked' : ''}>
-                    </td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="card mb-3">
-        <div class="card-header">Captura de Foto (Opt-in)</div>
-        <div class="card-body">
-          <p class="mb-2" style="color: var(--color-gray-600);">
-            Las fotos se utilizan únicamente como respaldo de ingreso y se eliminan automáticamente tras 60 días.
-          </p>
-          ${students.map((student) => {
-            const checked = photoMap[student.id] !== false;
-            return `
-              <div class="mb-2">
-                <label style="display: flex; align-items: center; gap: 0.5rem;">
-                  <input type="checkbox" id="photo_${student.id}" class="form-checkbox" ${checked ? 'checked' : ''}>
-                  <span><strong>${student.full_name}</strong> · Autorizar captura de foto</span>
-                </label>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
-
-      <div class="card mb-3">
-        <div class="card-header">Contactos Registrados</div>
-        <div class="card-body">
-          <ul style="list-style: none; padding: 0; margin: 0;">
-            ${guardiansContacts()}
-          </ul>
-        </div>
-      </div>
-
-      <div id="prefs-status" class="form-message" aria-live="polite"></div>
-
-      <div class="mt-3" style="display: flex; gap: 1rem; flex-wrap: wrap;">
-        <button class="btn btn-primary" id="save-prefs-button" onclick="Views.parentPrefs.savePreferences()">
-          Guardar Preferencias
-        </button>
-        <a href="#/parent/home" class="btn btn-secondary">Volver</a>
-      </div>
-    `;
-  }
-
-  function guardiansContacts() {
-    if (!guardian.contacts || !guardian.contacts.length) {
-      return '<li>No hay contactos configurados.</li>';
-    }
-    return guardian.contacts.map((contact) => {
-      const label = contact.type ? contact.type.toUpperCase() : 'CANAL';
-      const chip = contact.verified
-        ? Components.createChip('Verificado', 'success')
-        : Components.createChip('No verificado', 'warning');
-      return `
-        <li class="mb-1">
-          <strong>${label}:</strong> ${contact.value}
-          ${chip}
-        </li>
-      `;
-    }).join('');
-  }
-
-  function buildPreferencesPayload() {
-    const payload = {};
-    Object.entries(TEMPLATE_KEY_MAP).forEach(([localKey, templateKey]) => {
-      const controls = CHANNEL_CONTROL_IDS[localKey];
-      const channels = [];
-      const whatsappEl = document.getElementById(controls.whatsapp);
-      const emailEl = document.getElementById(controls.email);
-      if (whatsappEl && whatsappEl.checked) {
-        channels.push({ channel: 'WHATSAPP', enabled: true });
-      }
-      if (emailEl && emailEl.checked) {
-        channels.push({ channel: 'EMAIL', enabled: true });
-      }
-      payload[templateKey] = channels;
-    });
-    return payload;
-  }
-
-  function buildPhotoPayload() {
-    const payload = {};
-    students.forEach((student) => {
-      const checkbox = document.getElementById(`photo_${student.id}`);
-      if (checkbox) {
-        payload[student.id] = checkbox.checked;
-      }
-    });
-    return payload;
-  }
-
-  let remotePrefs;
+  // Try to load preferences from API
   try {
-    remotePrefs = await State.apiFetch(`/parents/${State.currentGuardianId}/preferences`);
+    const serverPrefs = await API.getGuardianPreferences(State.currentGuardianId);
+    if (serverPrefs.preferences) {
+      Object.keys(serverPrefs.preferences).forEach(key => {
+        prefs[key] = { ...defaultPrefs[key], ...serverPrefs.preferences[key] };
+      });
+    }
+    photoConsents = serverPrefs.photo_consents || {};
   } catch (error) {
-    console.error('Error al cargar preferencias del apoderado', error);
-    content.innerHTML = Components.createEmptyState(
-      'Error',
-      'No fue posible cargar tus preferencias. Intenta nuevamente más tarde.'
-    );
-    return;
+    console.warn('Could not load preferences from server, using defaults:', error);
+    const localPrefs = JSON.parse(localStorage.getItem(`prefs_${State.currentGuardianId}`) || '{}');
+    if (localPrefs.preferences) {
+      prefs = { ...prefs, ...localPrefs.preferences };
+    }
+    photoConsents = localPrefs.photo_consents || {};
   }
 
-  const notificationPrefs = normalizeNotificationPrefs(remotePrefs?.preferences || {});
-  const photoConsents = normalizePhotoConsents(remotePrefs?.photo_consents || {});
+  const notificationTypes = [
+    { key: 'INGRESO_OK', label: 'Ingreso registrado', desc: 'Cuando su hijo/a ingresa al colegio', icon: '📥' },
+    { key: 'SALIDA_OK', label: 'Salida registrada', desc: 'Cuando su hijo/a sale del colegio', icon: '📤' },
+    { key: 'NO_INGRESO_UMBRAL', label: 'Alerta de no ingreso', desc: 'Si no registra ingreso antes del horario límite', icon: '⚠️' },
+    { key: 'CAMBIO_HORARIO', label: 'Cambios de horario', desc: 'Modificaciones en el horario de clases', icon: '📅' }
+  ];
 
-  render(notificationPrefs, photoConsents);
+  content.innerHTML = `
+    <div style="margin-bottom: 1.5rem;">
+      <a href="#/parent/home" class="btn btn-secondary btn-sm" style="margin-bottom: 1rem;">
+        ← Volver al inicio
+      </a>
+      <h2 style="font-size: 1.75rem; font-weight: 700; color: var(--color-gray-900); margin-bottom: 0.5rem;">
+        Preferencias de Notificación
+      </h2>
+      <p style="color: var(--color-gray-500);">Configure cómo y cuándo desea recibir notificaciones</p>
+    </div>
+
+    <!-- Canales de Notificación -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-header" style="display: flex; align-items: center; gap: 0.75rem;">
+        ${Components.icons.notifications}
+        <span>Canales de Notificación</span>
+      </div>
+      <div class="card-body" style="padding: 0;">
+        ${notificationTypes.map((type, index) => `
+          <div style="display: flex; align-items: center; padding: 1.25rem 1.5rem; ${index < notificationTypes.length - 1 ? 'border-bottom: 1px solid var(--color-gray-100);' : ''}">
+            <div style="width: 48px; height: 48px; background: var(--color-primary-50); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-right: 1rem; flex-shrink: 0;">
+              ${type.icon}
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-weight: 600; color: var(--color-gray-900);">${type.label}</div>
+              <div style="font-size: 0.85rem; color: var(--color-gray-500);">${type.desc}</div>
+            </div>
+            <div style="display: flex; gap: 1.5rem; flex-shrink: 0;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" id="pref_${type.key}_whatsapp" class="form-checkbox"
+                  ${prefs[type.key]?.whatsapp ? 'checked' : ''}>
+                <span style="font-size: 0.85rem; color: var(--color-gray-600);">WhatsApp</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" id="pref_${type.key}_email" class="form-checkbox"
+                  ${prefs[type.key]?.email ? 'checked' : ''}>
+                <span style="font-size: 0.85rem; color: var(--color-gray-600);">Email</span>
+              </label>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- Captura de Foto -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-header" style="display: flex; align-items: center; gap: 0.75rem;">
+        📷
+        <span>Autorización de Foto</span>
+      </div>
+      <div class="card-body">
+        <div style="background: var(--color-gray-50); border-radius: 12px; padding: 1rem; margin-bottom: 1.25rem;">
+          <p style="color: var(--color-gray-600); font-size: 0.9rem; margin: 0;">
+            Las fotos se capturan como evidencia del registro de asistencia y se envían junto con las notificaciones.
+            <br><strong>Retención:</strong> 60 días &nbsp;•&nbsp; <strong>Uso:</strong> Solo evidencia de asistencia
+          </p>
+        </div>
+
+        ${students.length === 0 ? '<p style="color: var(--color-gray-500);">No hay estudiantes asociados.</p>' : `
+          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            ${students.map(student => {
+              const checked = photoConsents[String(student.id)] !== false;
+              const course = State.getCourse(student.course_id);
+              return `
+                <div style="display: flex; align-items: center; padding: 1rem; background: white; border: 2px solid ${checked ? 'var(--color-success)' : 'var(--color-gray-200)'}; border-radius: 12px; transition: all 0.2s;" id="photo-card-${student.id}">
+                  <div style="width: 44px; height: 44px; background: var(--gradient-primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.1rem; margin-right: 1rem;">
+                    ${student.full_name.charAt(0)}
+                  </div>
+                  <div style="flex: 1;">
+                    <div style="font-weight: 600; color: var(--color-gray-900);">${student.full_name}</div>
+                    <div style="font-size: 0.85rem; color: var(--color-gray-500);">${course ? course.name : ''}</div>
+                  </div>
+                  <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                    <span id="photo-status-${student.id}" style="font-size: 0.85rem; font-weight: 500; color: ${checked ? 'var(--color-success)' : 'var(--color-warning)'};">
+                      ${checked ? '✓ Autorizada' : 'Sin autorizar'}
+                    </span>
+                    <input type="checkbox" id="photo_${student.id}" class="form-checkbox" ${checked ? 'checked' : ''}
+                      onchange="Views.parentPrefs.updatePhotoStatus(${student.id}, this.checked)">
+                  </label>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
+      </div>
+    </div>
+
+    <!-- Contactos Registrados -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-header" style="display: flex; align-items: center; gap: 0.75rem;">
+        📱
+        <span>Contactos Registrados</span>
+      </div>
+      <div class="card-body">
+        ${guardian.contacts && guardian.contacts.length > 0 ? `
+          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            ${guardian.contacts.map(c => `
+              <div style="display: flex; align-items: center; padding: 1rem; background: var(--color-gray-50); border-radius: 12px;">
+                <div style="width: 40px; height: 40px; background: ${c.type === 'whatsapp' ? '#25D366' : 'var(--color-primary)'}; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; margin-right: 1rem;">
+                  ${c.type === 'whatsapp' ? '📱' : '✉️'}
+                </div>
+                <div style="flex: 1;">
+                  <div style="font-weight: 500; color: var(--color-gray-900);">${c.value}</div>
+                  <div style="font-size: 0.8rem; color: var(--color-gray-500); text-transform: capitalize;">${c.type}</div>
+                </div>
+                ${c.verified
+                  ? '<span class="chip chip-success">Verificado</span>'
+                  : '<span class="chip chip-warning">Pendiente</span>'}
+              </div>
+            `).join('')}
+          </div>
+        ` : `
+          <div style="text-align: center; padding: 2rem; color: var(--color-gray-500);">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📭</div>
+            <p>No hay contactos registrados.</p>
+            <p style="font-size: 0.9rem;">Contacte al colegio para actualizar sus datos.</p>
+          </div>
+        `}
+      </div>
+    </div>
+
+    <!-- Botones de acción -->
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+      <button class="btn btn-primary btn-lg" id="btn-save-prefs" onclick="Views.parentPrefs.savePreferences()" style="flex: 1; min-width: 200px;">
+        ${Components.icons.settings}
+        Guardar Preferencias
+      </button>
+      <a href="#/parent/home" class="btn btn-secondary btn-lg" style="flex: 1; min-width: 200px; justify-content: center;">
+        Cancelar
+      </a>
+    </div>
+  `;
+
+  // Dynamic photo status update
+  Views.parentPrefs.updatePhotoStatus = function(studentId, checked) {
+    const card = document.getElementById(`photo-card-${studentId}`);
+    const status = document.getElementById(`photo-status-${studentId}`);
+    if (card) {
+      card.style.borderColor = checked ? 'var(--color-success)' : 'var(--color-gray-200)';
+    }
+    if (status) {
+      status.textContent = checked ? '✓ Autorizada' : 'Sin autorizar';
+      status.style.color = checked ? 'var(--color-success)' : 'var(--color-warning)';
+    }
+  };
 
   Views.parentPrefs.savePreferences = async function() {
-    const button = document.getElementById('save-prefs-button');
-    const statusEl = document.getElementById('prefs-status');
+    const btn = document.getElementById('btn-save-prefs');
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div> Guardando...';
+    btn.disabled = true;
 
-    if (button) button.disabled = true;
-    if (statusEl) {
-      statusEl.textContent = 'Guardando...';
-      statusEl.className = 'form-message';
-    }
-
-    const payload = {
-      preferences: buildPreferencesPayload(),
-      photo_consents: buildPhotoPayload()
+    const newPrefs = {
+      preferences: {},
+      photo_consents: {}
     };
 
+    // Collect notification preferences
+    notificationTypes.forEach(type => {
+      newPrefs.preferences[type.key] = {
+        whatsapp: document.getElementById(`pref_${type.key}_whatsapp`)?.checked || false,
+        email: document.getElementById(`pref_${type.key}_email`)?.checked || false
+      };
+    });
+
+    // Collect photo consents
+    students.forEach(student => {
+      const checkbox = document.getElementById(`photo_${student.id}`);
+      newPrefs.photo_consents[String(student.id)] = checkbox ? checkbox.checked : false;
+    });
+
     try {
-      const response = await State.apiFetch(`/parents/${State.currentGuardianId}/preferences`, {
-        method: 'PUT',
-        body: JSON.stringify(payload)
-      });
-
-      const updatedPhoto = normalizePhotoConsents(response?.photo_consents || {});
-      State.data.students = State.data.students.map((student) => {
-        if (Object.prototype.hasOwnProperty.call(updatedPhoto, student.id)) {
-          return { ...student, photo_pref_opt_in: updatedPhoto[student.id] };
-        }
-        return student;
-      });
-
-      if (statusEl) {
-        statusEl.textContent = 'Preferencias guardadas correctamente.';
-        statusEl.className = 'form-message success';
-      }
-      Components.showToast('Preferencias actualizadas', 'success');
+      await API.updateGuardianPreferences(State.currentGuardianId, newPrefs);
+      localStorage.setItem(`prefs_${State.currentGuardianId}`, JSON.stringify(newPrefs));
+      Components.showToast('Preferencias guardadas exitosamente', 'success');
     } catch (error) {
-      console.error('No se pudo guardar las preferencias', error);
-      if (statusEl) {
-        statusEl.textContent = error?.message || 'No fue posible guardar tus preferencias.';
-        statusEl.className = 'form-message error';
-      }
-      Components.showToast('No se pudo guardar tus preferencias', 'error');
+      console.error('Error saving preferences:', error);
+      localStorage.setItem(`prefs_${State.currentGuardianId}`, JSON.stringify(newPrefs));
+      Components.showToast('Preferencias guardadas localmente', 'warning');
     } finally {
-      if (button) button.disabled = false;
+      btn.innerHTML = originalHTML;
+      btn.disabled = false;
     }
   };
 };

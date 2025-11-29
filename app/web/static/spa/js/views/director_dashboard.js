@@ -1,95 +1,106 @@
-// Director Dashboard - Live events (real data)
+// Director Dashboard - Live events
 Views.directorDashboard = function() {
   const app = document.getElementById('app');
+  const stats = State.getTodayStats();
+  const todayEvents = State.getTodayEvents();
+
   app.innerHTML = Components.createLayout(State.currentRole);
 
   const content = document.getElementById('view-content');
   const pageTitle = document.getElementById('page-title');
   if (pageTitle) pageTitle.textContent = 'Tablero en Vivo';
 
-  const today = new Date().toISOString().split('T')[0];
-  let filters = { date: today, course_id: '', type: '', search: '' };
-  let snapshot = { stats: { total_in: 0, total_out: 0, late_count: 0, no_in_count: 0, with_photos: 0 }, events: [], date: today };
   let currentPage = 1;
-  const absences = State.getAbsences();
-  const notifications = State.data.notifications || [];
+  let filteredEvents = [...todayEvents];
+  let filters = { course: '', type: '', search: '' };
 
-  async function loadDashboard(showToast = false) {
-    content.innerHTML = Components.createLoader('Cargando tablero en vivo...');
-    try {
-      snapshot = await State.fetchDashboardSnapshot({
-        date: filters.date,
-        course_id: filters.course_id || undefined,
-        type: filters.type || undefined,
-        search: filters.search || undefined
-      });
-      currentPage = 1;
-      renderDashboard();
-      if (showToast) Components.showToast('Tablero actualizado', 'success');
-    } catch (error) {
-      console.error('No se pudo cargar el tablero', error);
-      content.innerHTML = Components.createEmptyState('No disponible', 'No se pudo cargar la información del tablero.');
-    }
+  // Stat card con icono y color personalizado
+  function createEnhancedStatCard(label, value, icon, colorClass) {
+    const colors = {
+      primary: { bg: 'var(--gradient-primary)', light: 'var(--color-primary-50)' },
+      success: { bg: 'var(--gradient-success)', light: 'var(--color-success-light)' },
+      warning: { bg: 'var(--gradient-warning)', light: 'var(--color-warning-light)' },
+      error: { bg: 'var(--gradient-error)', light: 'var(--color-error-light)' }
+    };
+    const color = colors[colorClass] || colors.primary;
+
+    return `
+      <div class="stat-card" style="position: relative;">
+        <div style="position: absolute; top: 1rem; right: 1rem; width: 48px; height: 48px; background: ${color.light}; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+          ${icon}
+        </div>
+        <div class="stat-label">${Components.escapeHtml(label)}</div>
+        <div class="stat-value">${Components.escapeHtml(String(value))}</div>
+      </div>
+    `;
   }
 
   function renderDashboard() {
     const courses = State.getCourses();
-    const stats = snapshot.stats || { total_in: 0, total_out: 0, late_count: 0, no_in_count: 0, with_photos: 0 };
-    const pendingAbsences = absences.filter((a) => a.status === 'PENDING').length;
-    const sentNotifications = notifications.length;
+    const todayFormatted = new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
 
     content.innerHTML = `
+      <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <p style="color: var(--color-gray-500); font-size: 0.9rem; text-transform: capitalize;">${todayFormatted}</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <span style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--color-success-light); color: #065f46; border-radius: 9999px; font-size: 0.8rem; font-weight: 600;">
+            <span style="width: 8px; height: 8px; background: var(--color-success); border-radius: 50%; animation: pulse 2s infinite;"></span>
+            En vivo
+          </span>
+        </div>
+      </div>
+
       <div class="cards-grid">
-        ${Components.createStatCard('Ingresos', stats.total_in)}
-        ${Components.createStatCard('Salidas', stats.total_out)}
-        ${Components.createStatCard('Atrasos', stats.late_count)}
-        ${Components.createStatCard('Sin ingreso', stats.no_in_count)}
-        ${Components.createStatCard('Con foto', stats.with_photos)}
-        ${Components.createStatCard('Ausencias pendientes', pendingAbsences)}
-        ${Components.createStatCard('Notificaciones enviadas', sentNotifications)}
+        ${createEnhancedStatCard('Ingresos Hoy', stats.totalIn, '📥', 'success')}
+        ${createEnhancedStatCard('Salidas Hoy', stats.totalOut, '📤', 'primary')}
+        ${createEnhancedStatCard('Atrasos', stats.lateCount, '⏰', 'warning')}
+        ${createEnhancedStatCard('Sin Ingreso', stats.noInCount, '❌', 'error')}
       </div>
 
       <div class="card">
         <div class="card-header flex justify-between items-center">
-          <span>Eventos del ${snapshot.date || filters.date}</span>
+          <span style="font-size: 1.1rem;">Eventos de Hoy</span>
           <div class="flex gap-2">
-            <button class="btn btn-secondary btn-sm" onclick="Views.directorDashboard.exportCSV()">Exportar CSV</button>
-            <button class="btn btn-secondary btn-sm" onclick="Views.directorDashboard.showPhotos()">Ver fotos</button>
-            <button class="btn btn-primary btn-sm" onclick="Views.directorDashboard.refresh()">Refrescar</button>
+            <button class="btn btn-secondary btn-sm" onclick="Views.directorDashboard.exportCSV()">
+              ${Components.icons.reports}
+              Exportar CSV
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="Views.directorDashboard.showPhotos()">
+              📷 Ver Fotos
+            </button>
           </div>
         </div>
 
         <div class="filters">
           <div class="filter-group">
-            <label class="form-label">Fecha</label>
-            <input type="date" id="filter-date" class="form-input" value="${filters.date}">
-          </div>
-
-          <div class="filter-group">
             <label class="form-label">Curso</label>
             <select id="filter-course" class="form-select">
-              <option value="">Todos</option>
-              ${courses.map(c => `<option value="${c.id}" ${filters.course_id === String(c.id) ? 'selected' : ''}>${c.name}</option>`).join('')}
+              <option value="">Todos los cursos</option>
+              ${courses.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
             </select>
           </div>
 
           <div class="filter-group">
-            <label class="form-label">Tipo</label>
+            <label class="form-label">Tipo de Evento</label>
             <select id="filter-type" class="form-select">
               <option value="">Todos</option>
-              <option value="IN" ${filters.type === 'IN' ? 'selected' : ''}>Ingreso</option>
-              <option value="OUT" ${filters.type === 'OUT' ? 'selected' : ''}>Salida</option>
+              <option value="IN">Ingreso</option>
+              <option value="OUT">Salida</option>
             </select>
           </div>
 
           <div class="filter-group">
             <label class="form-label">Buscar alumno</label>
-            <input type="text" id="filter-search" class="form-input" placeholder="Nombre..." value="${filters.search}">
+            <input type="text" id="filter-search" class="form-input" placeholder="Escriba un nombre...">
           </div>
 
           <div class="filter-group">
             <label class="form-label">&nbsp;</label>
-            <button class="btn btn-primary" onclick="Views.directorDashboard.applyFilters()">Filtrar</button>
+            <button class="btn btn-primary" onclick="Views.directorDashboard.applyFilters()">
+              Aplicar Filtros
+            </button>
           </div>
         </div>
 
@@ -97,6 +108,13 @@ Views.directorDashboard = function() {
           <div id="events-table"></div>
         </div>
       </div>
+
+      <style>
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      </style>
     `;
 
     renderEventsTable();
@@ -104,24 +122,33 @@ Views.directorDashboard = function() {
 
   function renderEventsTable() {
     const tableDiv = document.getElementById('events-table');
-    const events = snapshot.events || [];
+
+    if (filteredEvents.length === 0) {
+      tableDiv.innerHTML = Components.createEmptyState(
+        'Sin eventos',
+        filters.course || filters.type || filters.search
+          ? 'No hay eventos que coincidan con los filtros seleccionados'
+          : 'No hay eventos registrados hoy'
+      );
+      return;
+    }
 
     const headers = ['Alumno', 'Curso', 'Tipo', 'Puerta', 'Hora', 'Foto'];
-    const rows = events.map(event => {
+    const rows = filteredEvents.map(event => {
+      const student = State.getStudent(event.student_id);
+      const course = State.getCourse(student?.course_id);
       const typeChip = event.type === 'IN'
         ? Components.createChip('Ingreso', 'success')
         : Components.createChip('Salida', 'info');
-      const photoButton = event.photo_url
-        ? `<button class="btn btn-link" onclick="Views.directorDashboard.previewPhoto(${event.id})">📷 Ver</button>`
-        : '-';
+      const photoIcon = event.photo_ref ? '📷' : '-';
 
       return [
-        event.student_name,
-        event.course_name,
+        student ? Components.escapeHtml(student.full_name) : '-',
+        course ? Components.escapeHtml(course.name) : '-',
         typeChip,
         event.gate_id,
         Components.formatTime(event.ts),
-        photoButton
+        photoIcon
       ];
     });
 
@@ -132,10 +159,6 @@ Views.directorDashboard = function() {
     });
   }
 
-  function findEvent(eventId) {
-    return (snapshot.events || []).find(e => e.id === eventId);
-  }
-
   // Public methods
   Views.directorDashboard.changePage = function(page) {
     currentPage = page;
@@ -143,79 +166,59 @@ Views.directorDashboard = function() {
   };
 
   Views.directorDashboard.applyFilters = function() {
-    filters = {
-      date: document.getElementById('filter-date').value || today,
-      course_id: document.getElementById('filter-course').value,
-      type: document.getElementById('filter-type').value,
-      search: document.getElementById('filter-search').value.trim()
-    };
+    filters.course = document.getElementById('filter-course').value;
+    filters.type = document.getElementById('filter-type').value;
+    filters.search = document.getElementById('filter-search').value.toLowerCase();
+
+    filteredEvents = todayEvents.filter(event => {
+      const student = State.getStudent(event.student_id);
+
+      if (filters.course && student.course_id !== parseInt(filters.course)) {
+        return false;
+      }
+
+      if (filters.type && event.type !== filters.type) {
+        return false;
+      }
+
+      if (filters.search && !student.full_name.toLowerCase().includes(filters.search)) {
+        return false;
+      }
+
+      return true;
+    });
+
     currentPage = 1;
-    loadDashboard(true);
+    renderEventsTable();
+    Components.showToast('Filtros aplicados', 'success');
   };
 
-  Views.directorDashboard.refresh = function() {
-    loadDashboard(true);
-  };
-
-  Views.directorDashboard.exportCSV = async function() {
-    try {
-      const blob = await State.exportDashboardCsv({
-        date: filters.date,
-        course_id: filters.course_id || undefined,
-        type: filters.type || undefined,
-        search: filters.search || undefined
-      });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `dashboard_${filters.date || today}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      Components.showToast('CSV exportado', 'success');
-    } catch (error) {
-      console.error('Error al exportar CSV', error);
-      Components.showToast('No se pudo exportar el CSV', 'error');
-    }
+  Views.directorDashboard.exportCSV = function() {
+    Components.showToast('Exportando CSV... (simulado)', 'info');
   };
 
   Views.directorDashboard.showPhotos = function() {
-    const eventsWithPhotos = (snapshot.events || []).filter(e => e.photo_url);
-    const photosHTML = eventsWithPhotos.slice(0, 6).map(e => `
-      <div class="card" style="margin-bottom: 1rem;">
-        <div class="card-body">
-          <strong>${e.student_name}</strong> - ${Components.formatTime(e.ts)}
-          <div style="margin-top: 0.5rem;">
-            <img src="${e.photo_url}" alt="Foto de ingreso" style="max-width: 240px; border-radius: 4px; width: 100%; height: auto;">
+    const eventsWithPhotos = filteredEvents.filter(e => e.photo_ref);
+    const photosHTML = eventsWithPhotos.slice(0, 6).map(e => {
+      const student = State.getStudent(e.student_id);
+      return `
+        <div class="card" style="margin-bottom: 1rem;">
+          <div class="card-body">
+            <strong>${student.full_name}</strong> - ${Components.formatTime(e.ts)}
+            <div style="margin-top: 0.5rem;">
+              <img src="assets/placeholder_photo.svg" alt="Foto" style="max-width: 200px; border-radius: 4px;">
+            </div>
           </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
-    Components.showModal('Fotos de evidencia', `
+    Components.showModal('Fotos de Evidencia', `
       <div>${photosHTML || '<p>No hay fotos disponibles</p>'}</div>
     `, [
       { label: 'Cerrar', action: 'close', className: 'btn-secondary' }
     ]);
   };
 
-  Views.directorDashboard.previewPhoto = function(eventId) {
-    const event = findEvent(eventId);
-    if (!event || !event.photo_url) {
-      Components.showToast('El evento no tiene foto asociada', 'info');
-      return;
-    }
-
-    Components.showModal('Foto de evidencia', `
-      <p><strong>${event.student_name}</strong> - ${Components.formatTime(event.ts)} (${event.course_name})</p>
-      <div style="text-align:center;">
-        <img src="${event.photo_url}" alt="Foto de asistencia" style="max-width: 100%; border-radius: 6px;">
-      </div>
-    `, [
-      { label: 'Cerrar', action: 'close', className: 'btn-secondary' }
-    ]);
-  };
-
-  loadDashboard();
+  renderDashboard();
 };

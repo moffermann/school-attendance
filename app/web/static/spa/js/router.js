@@ -8,14 +8,15 @@ const Router = {
     this.addRoute('/auth', Views.auth);
     this.addRoute('/director/dashboard', Views.directorDashboard, ['director', 'inspector']);
     this.addRoute('/director/reports', Views.directorReports, ['director', 'inspector']);
+    this.addRoute('/director/metrics', Views.directorMetrics, ['director', 'inspector']);
     this.addRoute('/director/schedules', Views.directorSchedules, ['director', 'inspector']);
     this.addRoute('/director/exceptions', Views.directorExceptions, ['director', 'inspector']);
     this.addRoute('/director/broadcast', Views.directorBroadcast, ['director', 'inspector']);
     this.addRoute('/director/devices', Views.directorDevices, ['director', 'inspector']);
     this.addRoute('/director/students', Views.directorStudents, ['director', 'inspector']);
-    this.addRoute('/director/alerts', Views.directorAlerts, ['director', 'inspector']);
-    this.addRoute('/director/notifications', Views.directorNotifications, ['director', 'inspector']);
+    this.addRoute('/director/teachers', Views.directorTeachers, ['director']);
     this.addRoute('/director/absences', Views.directorAbsences, ['director', 'inspector']);
+    this.addRoute('/director/notifications', Views.directorNotifications, ['director', 'inspector']);
     this.addRoute('/parent/home', Views.parentHome, ['parent']);
     this.addRoute('/parent/history', Views.parentHistory, ['parent']);
     this.addRoute('/parent/prefs', Views.parentPrefs, ['parent']);
@@ -42,15 +43,22 @@ const Router = {
       return;
     }
 
-    // Check role guard
-    if (route.allowedRoles && !route.allowedRoles.includes(State.currentRole)) {
-      if (!State.currentRole) {
+    // Security: Validate session integrity before checking roles
+    if (route.allowedRoles) {
+      // Use State's validation method which checks role validity
+      if (!State.isSessionValid()) {
+        console.warn('Invalid session detected, redirecting to auth');
+        State.logout(); // Clear potentially tampered data
         this.navigate('/auth');
-      } else {
+        return;
+      }
+
+      // Check if user has required role
+      if (!route.allowedRoles.includes(State.currentRole)) {
         Components.showToast('No tienes permiso para acceder a esta página', 'error');
         this.navigate(State.currentRole === 'parent' ? '/parent/home' : '/director/dashboard');
+        return;
       }
-      return;
     }
 
     // Render the view

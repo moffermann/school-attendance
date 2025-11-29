@@ -82,20 +82,26 @@ Views.directorSchedules = function() {
     `;
   }
 
-  Views.directorSchedules.saveSchedule = async function(scheduleId, courseId, weekday) {
+  Views.directorSchedules.saveSchedule = function(scheduleId, courseId, weekday) {
     const inTime = document.querySelector(`[data-course-id="${courseId}"][data-weekday="${weekday}"][data-field="in_time"]`).value;
     const outTime = document.querySelector(`[data-course-id="${courseId}"][data-weekday="${weekday}"][data-field="out_time"]`).value;
-    try {
-      await State.upsertSchedule(scheduleId, courseId, weekday, {
+
+    if (scheduleId) {
+      State.updateSchedule(scheduleId, { in_time: inTime, out_time: outTime });
+    } else {
+      // Create new schedule (simplified)
+      const newSchedule = {
+        id: Math.max(0, ...State.data.schedules.map(s => s.id)) + 1,
+        course_id: courseId,
+        weekday: weekday,
         in_time: inTime,
         out_time: outTime
-      });
-      Components.showToast('Horario guardado exitosamente', 'success');
-      renderSchedules();
-    } catch (error) {
-      console.error(error);
-      Components.showToast(error.message || 'No fue posible guardar el horario', 'error');
+      };
+      State.data.schedules.push(newSchedule);
+      State.persist();
     }
+
+    Components.showToast('Horario guardado exitosamente', 'success');
   };
 
   renderSchedules();

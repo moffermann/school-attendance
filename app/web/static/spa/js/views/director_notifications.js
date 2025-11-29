@@ -1,161 +1,269 @@
-// Director Notifications - bitácora y métricas
+// Director Notifications Log (Bitácora de Notificaciones)
 Views.directorNotifications = function() {
   const app = document.getElementById('app');
   app.innerHTML = Components.createLayout(State.currentRole);
 
   const content = document.getElementById('view-content');
   const pageTitle = document.getElementById('page-title');
-  if (pageTitle) pageTitle.textContent = 'Notificaciones';
+  if (pageTitle) pageTitle.textContent = 'Bitácora de Notificaciones';
 
-  let filters = { status: '', channel: '', template: '' };
-  let notifications = [];
-
-  async function loadNotifications(showToast = false) {
-    content.innerHTML = Components.createLoader('Cargando notificaciones...');
-    try {
-      const query = State.buildQuery({
-        status: filters.status || undefined,
-        channel: filters.channel || undefined,
-        template: filters.template || undefined,
-      });
-      notifications = await State.apiFetch(`/notifications${query ? `?${query}` : ''}`);
-      render();
-      if (showToast) Components.showToast('Notificaciones actualizadas', 'success');
-    } catch (error) {
-      console.error('No se pudieron cargar las notificaciones', error);
-      content.innerHTML = Components.createEmptyState('No disponible', 'No se pudo cargar la bitácora de notificaciones.');
-    }
-  }
+  let filters = {
+    status: '',
+    channel: '',
+    type: '',
+    dateFrom: '',
+    dateTo: ''
+  };
+  let currentPage = 1;
 
   function render() {
-    const totals = {
-      total: notifications.length,
-      sent: notifications.filter(n => n.status === 'sent').length,
-      failed: notifications.filter(n => n.status === 'failed').length,
-      queued: notifications.filter(n => n.status === 'queued').length,
-    };
+    const stats = State.getNotificationStats();
+    const notifications = State.getNotifications(filters);
 
     content.innerHTML = `
       <div class="cards-grid">
-        ${Components.createStatCard('Total', totals.total)}
-        ${Components.createStatCard('Enviadas', totals.sent)}
-        ${Components.createStatCard('Fallidas', totals.failed)}
-        ${Components.createStatCard('En cola', totals.queued)}
+        ${Components.createStatCard('Total Enviadas', stats.total)}
+        ${Components.createStatCard('Entregadas', stats.delivered)}
+        ${Components.createStatCard('Fallidas', stats.failed)}
+        ${Components.createStatCard('Pendientes', stats.pending)}
       </div>
 
-      <div class="card mb-3">
-        <div class="card-header flex justify-between items-center">
-          <span>Filtros</span>
-          <div class="flex gap-2">
-            <button class="btn btn-secondary btn-sm" onclick="Views.directorNotifications.export()">Exportar CSV</button>
-            <button class="btn btn-primary btn-sm" onclick="Views.directorNotifications.refresh()">Refrescar</button>
+      <div class="card">
+        <div class="card-header">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <span>Filtros</span>
+            <button class="btn btn-secondary btn-sm" onclick="Views.directorNotifications.exportCSV()">
+              Exportar CSV
+            </button>
           </div>
         </div>
         <div class="card-body">
-          <div class="filters">
-            <div class="filter-group">
+          <div class="filters-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+            <div class="form-group" style="margin-bottom: 0;">
               <label class="form-label">Estado</label>
-              <select id="filter-status" class="form-select">
+              <select id="filter-status" class="form-select" onchange="Views.directorNotifications.applyFilters()">
                 <option value="">Todos</option>
-                <option value="queued" ${filters.status === 'queued' ? 'selected' : ''}>En cola</option>
-                <option value="sent" ${filters.status === 'sent' ? 'selected' : ''}>Enviadas</option>
+                <option value="delivered" ${filters.status === 'delivered' ? 'selected' : ''}>Entregadas</option>
                 <option value="failed" ${filters.status === 'failed' ? 'selected' : ''}>Fallidas</option>
+                <option value="pending" ${filters.status === 'pending' ? 'selected' : ''}>Pendientes</option>
               </select>
             </div>
-            <div class="filter-group">
+            <div class="form-group" style="margin-bottom: 0;">
               <label class="form-label">Canal</label>
-              <select id="filter-channel" class="form-select">
+              <select id="filter-channel" class="form-select" onchange="Views.directorNotifications.applyFilters()">
                 <option value="">Todos</option>
-                <option value="WHATSAPP" ${filters.channel === 'WHATSAPP' ? 'selected' : ''}>WhatsApp</option>
-                <option value="EMAIL" ${filters.channel === 'EMAIL' ? 'selected' : ''}>Email</option>
+                <option value="whatsapp" ${filters.channel === 'whatsapp' ? 'selected' : ''}>WhatsApp</option>
+                <option value="email" ${filters.channel === 'email' ? 'selected' : ''}>Email</option>
               </select>
             </div>
-            <div class="filter-group">
-              <label class="form-label">Plantilla</label>
-              <select id="filter-template" class="form-select">
-                <option value="">Todas</option>
-                <option value="INGRESO_OK" ${filters.template === 'INGRESO_OK' ? 'selected' : ''}>Ingreso OK</option>
-                <option value="SALIDA_OK" ${filters.template === 'SALIDA_OK' ? 'selected' : ''}>Salida OK</option>
-                <option value="NO_INGRESO_UMBRAL" ${filters.template === 'NO_INGRESO_UMBRAL' ? 'selected' : ''}>No ingreso</option>
-                <option value="CAMBIO_HORARIO" ${filters.template === 'CAMBIO_HORARIO' ? 'selected' : ''}>Cambio horario</option>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Tipo</label>
+              <select id="filter-type" class="form-select" onchange="Views.directorNotifications.applyFilters()">
+                <option value="">Todos</option>
+                <option value="IN" ${filters.type === 'IN' ? 'selected' : ''}>Ingreso</option>
+                <option value="OUT" ${filters.type === 'OUT' ? 'selected' : ''}>Salida</option>
+                <option value="NO_SHOW" ${filters.type === 'NO_SHOW' ? 'selected' : ''}>Sin Ingreso</option>
+                <option value="ABSENCE_APPROVED" ${filters.type === 'ABSENCE_APPROVED' ? 'selected' : ''}>Ausencia Aprobada</option>
+                <option value="SCHEDULE_CHANGE" ${filters.type === 'SCHEDULE_CHANGE' ? 'selected' : ''}>Cambio Horario</option>
+                <option value="BROADCAST" ${filters.type === 'BROADCAST' ? 'selected' : ''}>Broadcast</option>
               </select>
             </div>
-            <div class="filter-group">
-              <label class="form-label">&nbsp;</label>
-              <button class="btn btn-primary" onclick="Views.directorNotifications.applyFilters()">Aplicar</button>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Desde</label>
+              <input type="date" id="filter-date-from" class="form-input" value="${filters.dateFrom}" onchange="Views.directorNotifications.applyFilters()">
             </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Hasta</label>
+              <input type="date" id="filter-date-to" class="form-input" value="${filters.dateTo}" onchange="Views.directorNotifications.applyFilters()">
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-secondary btn-sm" onclick="Views.directorNotifications.clearFilters()">Limpiar Filtros</button>
+            <span style="color: var(--color-gray-500); font-size: 0.875rem; line-height: 2rem;">
+              ${notifications.length} notificación(es) encontrada(s)
+            </span>
           </div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-header">Bitácora</div>
-        <div class="card-body" id="notifications-table"></div>
+        <div class="card-header">Historial de Notificaciones</div>
+        <div class="card-body" id="notifications-list">
+          ${renderNotificationsList(notifications)}
+        </div>
       </div>
     `;
-
-    renderTable();
   }
 
-  function renderTable() {
-    const tableDiv = document.getElementById('notifications-table');
-    const headers = ['Fecha', 'Canal', 'Plantilla', 'Estado', 'Destinatario', 'Intentos'];
-    const rows = notifications.map((item) => {
-      const statusChip =
-        item.status === 'sent'
-          ? Components.createChip('Enviada', 'success')
-          : item.status === 'failed'
-            ? Components.createChip('Fallida', 'error')
-            : Components.createChip('En cola', 'warning');
-      const channelChip =
-        item.channel === 'WHATSAPP'
-          ? Components.createChip('WhatsApp', 'success')
-          : Components.createChip('Email', 'info');
-      const dest = item.payload?.recipient || item.payload?.email || '-';
+  function renderNotificationsList(notifications) {
+    if (notifications.length === 0) {
+      return Components.createEmptyState(
+        'Sin notificaciones',
+        'No hay notificaciones que coincidan con los filtros seleccionados'
+      );
+    }
+
+    const headers = ['Fecha/Hora', 'Alumno', 'Apoderado', 'Tipo', 'Canal', 'Estado', 'Mensaje', 'Acciones'];
+
+    const rows = notifications.map(n => {
+      const student = State.getStudent(n.student_id);
+      const guardian = State.getGuardian(n.guardian_id);
+
+      const statusChip = n.status === 'delivered'
+        ? Components.createChip('Entregada', 'success')
+        : n.status === 'failed'
+          ? Components.createChip('Fallida', 'error')
+          : Components.createChip('Pendiente', 'warning');
+
+      const channelChip = n.channel === 'whatsapp'
+        ? Components.createChip('WhatsApp', 'success')
+        : Components.createChip('Email', 'info');
+
+      const typeLabel = getTypeLabel(n.type);
+
+      const actions = n.status === 'failed'
+        ? `<button class="btn btn-secondary btn-sm" onclick="Views.directorNotifications.retry(${n.id})">Reintentar</button>`
+        : n.status === 'pending'
+          ? Components.createChip('En cola', 'gray')
+          : '-';
+
+      const messagePreview = n.message
+        ? (n.message.length > 40 ? Components.escapeHtml(n.message.substring(0, 40)) + '...' : Components.escapeHtml(n.message))
+        : '-';
 
       return [
-        Components.formatDateTime(item.ts_sent || item.ts_created),
+        Components.formatDateTime(n.sent_at),
+        student ? Components.escapeHtml(student.full_name) : '-',
+        guardian ? Components.escapeHtml(guardian.name || `Apoderado #${guardian.id}`) : '-',
+        typeLabel,
         channelChip,
-        item.template,
         statusChip,
-        dest,
-        item.retries ?? 0
+        `<span title="${Components.escapeHtml(n.message || '')}">${messagePreview}</span>`,
+        actions
       ];
     });
 
-    tableDiv.innerHTML = Components.createTable(headers, rows, { perPage: 20, currentPage: 1 });
+    return Components.createTable(headers, rows, {
+      perPage: 15,
+      currentPage: currentPage,
+      onPageChange: 'Views.directorNotifications.changePage'
+    });
   }
 
-  Views.directorNotifications.refresh = function() {
-    loadNotifications(true);
-  };
+  function getTypeLabel(type) {
+    const types = {
+      'IN': 'Ingreso',
+      'OUT': 'Salida',
+      'NO_SHOW': 'Sin Ingreso',
+      'ABSENCE_APPROVED': 'Ausencia',
+      'ABSENCE_REJECTED': 'Ausencia Rech.',
+      'SCHEDULE_CHANGE': 'Cambio Horario',
+      'BROADCAST': 'Broadcast'
+    };
+    return types[type] || type;
+  }
 
   Views.directorNotifications.applyFilters = function() {
-    filters = {
-      status: document.getElementById('filter-status').value,
-      channel: document.getElementById('filter-channel').value,
-      template: document.getElementById('filter-template').value,
-    };
-    loadNotifications(true);
+    filters.status = document.getElementById('filter-status').value;
+    filters.channel = document.getElementById('filter-channel').value;
+    filters.type = document.getElementById('filter-type').value;
+    filters.dateFrom = document.getElementById('filter-date-from').value;
+    filters.dateTo = document.getElementById('filter-date-to').value;
+    currentPage = 1;
+    render();
   };
 
-  Views.directorNotifications.export = async function() {
-    try {
-      const blob = await State.exportNotifications(filters);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'notifications.csv';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      Components.showToast('Exportación lista', 'success');
-    } catch (error) {
-      console.error('No se pudo exportar notificaciones', error);
-      Components.showToast('Error al exportar notificaciones', 'error');
+  Views.directorNotifications.clearFilters = function() {
+    filters = { status: '', channel: '', type: '', dateFrom: '', dateTo: '' };
+    currentPage = 1;
+    render();
+  };
+
+  Views.directorNotifications.changePage = function(page) {
+    currentPage = page;
+    const notifications = State.getNotifications(filters);
+    document.getElementById('notifications-list').innerHTML = renderNotificationsList(notifications);
+  };
+
+  Views.directorNotifications.retry = function(id) {
+    if (State.retryNotification(id)) {
+      Components.showToast('Notificación reenviada a la cola', 'success');
+      render();
+    } else {
+      Components.showToast('No se pudo reenviar la notificación', 'error');
     }
   };
 
-  loadNotifications();
+  Views.directorNotifications.exportCSV = function() {
+    const notifications = State.getNotifications(filters);
+
+    if (notifications.length === 0) {
+      Components.showToast('No hay datos para exportar', 'warning');
+      return;
+    }
+
+    const headers = ['ID', 'Fecha', 'Hora', 'Alumno', 'Apoderado', 'Tipo', 'Canal', 'Estado', 'Mensaje', 'Error'];
+
+    const rows = notifications.map(n => {
+      const student = State.getStudent(n.student_id);
+      const guardian = State.getGuardian(n.guardian_id);
+      const date = n.sent_at ? n.sent_at.split('T')[0] : '';
+      const time = n.sent_at ? n.sent_at.split('T')[1].substring(0, 5) : '';
+
+      return [
+        n.id,
+        date,
+        time,
+        student ? student.full_name : '',
+        guardian ? (guardian.name || `Apoderado #${guardian.id}`) : '',
+        getTypeLabel(n.type),
+        n.channel,
+        n.status,
+        n.message || '',
+        n.error || ''
+      ];
+    });
+
+    // Create CSV content
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    // Download
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `notificaciones_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+
+    Components.showToast(`${notifications.length} notificaciones exportadas`, 'success');
+  };
+
+  Views.directorNotifications.showDetails = function(id) {
+    const notification = State.getNotifications().find(n => n.id === id);
+    if (!notification) return;
+
+    const student = State.getStudent(notification.student_id);
+    const guardian = State.getGuardian(notification.guardian_id);
+
+    const content = `
+      <div style="display: grid; gap: 1rem;">
+        <div><strong>Fecha:</strong> ${Components.formatDateTime(notification.sent_at)}</div>
+        <div><strong>Alumno:</strong> ${student ? Components.escapeHtml(student.full_name) : '-'}</div>
+        <div><strong>Apoderado:</strong> ${guardian ? Components.escapeHtml(guardian.name || `#${guardian.id}`) : '-'}</div>
+        <div><strong>Tipo:</strong> ${getTypeLabel(notification.type)}</div>
+        <div><strong>Canal:</strong> ${notification.channel}</div>
+        <div><strong>Estado:</strong> ${notification.status}</div>
+        <div><strong>Mensaje:</strong><br><div style="background: var(--color-gray-100); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">${Components.escapeHtml(notification.message || '-')}</div></div>
+        ${notification.error ? `<div><strong>Error:</strong> <span style="color: var(--color-error);">${Components.escapeHtml(notification.error)}</span></div>` : ''}
+      </div>
+    `;
+
+    Components.showModal('Detalle de Notificación', content, [
+      { label: 'Cerrar', action: 'close' }
+    ]);
+  };
+
+  render();
 };

@@ -159,7 +159,7 @@ Views.directorExceptions = function() {
     ]);
   };
 
-  Views.directorExceptions.createException = async function() {
+  Views.directorExceptions.createException = function() {
     const form = document.getElementById('exception-form');
     if (!Components.validateForm(form)) {
       Components.showToast('Complete los campos requeridos', 'error');
@@ -175,33 +175,22 @@ Views.directorExceptions = function() {
       reason: document.getElementById('exc-reason').value
     };
 
-    try {
-      await State.addScheduleException(exception);
-      Components.showToast('Excepción creada exitosamente', 'success');
+    State.addScheduleException(exception);
+    Components.showToast('Excepción creada exitosamente', 'success');
 
-      const notify = document.getElementById('exc-notify').checked;
-      if (notify) {
-        Components.showToast('Notificaciones enviadas (simulado)', 'info');
-      }
-
-      document.querySelector('#modal-container .modal-close')?.click();
-      renderExceptions();
-    } catch (error) {
-      console.error(error);
-      Components.showToast(error.message || 'No fue posible crear la excepción', 'error');
+    const notify = document.getElementById('exc-notify').checked;
+    if (notify) {
+      Components.showToast('Notificaciones enviadas (simulado)', 'info');
     }
+
+    renderExceptions();
   };
 
-  Views.directorExceptions.deleteException = async function(id) {
+  Views.directorExceptions.deleteException = function(id) {
     if (confirm('¿Está seguro de eliminar esta excepción?')) {
-      try {
-        await State.deleteScheduleException(id);
-        Components.showToast('Excepción eliminada', 'success');
-        renderExceptions();
-      } catch (error) {
-        console.error(error);
-        Components.showToast(error.message || 'No fue posible eliminar la excepción', 'error');
-      }
+      State.deleteScheduleException(id);
+      Components.showToast('Excepción eliminada', 'success');
+      renderExceptions();
     }
   };
 

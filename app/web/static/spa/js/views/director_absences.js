@@ -7,20 +7,8 @@ Views.directorAbsences = function() {
   const pageTitle = document.getElementById('page-title');
   if (pageTitle) pageTitle.textContent = 'Solicitudes de Ausencia';
 
-  let absences = [];
+  const absences = State.getAbsences();
   let activeTab = 'PENDING';
-
-  async function loadAbsences(showToast = false) {
-    content.innerHTML = Components.createLoader('Cargando solicitudes...');
-    try {
-      absences = await State.fetchAbsences();
-      renderAbsences();
-      if (showToast) Components.showToast('Solicitudes actualizadas', 'success');
-    } catch (error) {
-      console.error('No se pudieron cargar solicitudes', error);
-      content.innerHTML = Components.createEmptyState('No disponible', 'No se pudo cargar la bandeja de ausencias.');
-    }
-  }
 
   function renderAbsences() {
     const pending = absences.filter(a => a.status === 'PENDING');
@@ -35,7 +23,7 @@ Views.directorAbsences = function() {
       </div>
 
       <div class="card">
-        <div class="card-header flex justify-between items-center">
+        <div class="card-header">
           <div style="display: flex; gap: 1rem; border-bottom: 1px solid var(--color-gray-200); margin: -1rem -1.5rem 1rem; padding: 0 1.5rem;">
             <button class="btn btn-secondary ${activeTab === 'PENDING' ? 'active' : ''}" style="border-radius: 0; border-bottom: 2px solid ${activeTab === 'PENDING' ? 'var(--color-primary)' : 'transparent'};" onclick="Views.directorAbsences.switchTab('PENDING')">
               Pendientes (${pending.length})
@@ -46,10 +34,6 @@ Views.directorAbsences = function() {
             <button class="btn btn-secondary ${activeTab === 'REJECTED' ? 'active' : ''}" style="border-radius: 0; border-bottom: 2px solid ${activeTab === 'REJECTED' ? 'var(--color-primary)' : 'transparent'};" onclick="Views.directorAbsences.switchTab('REJECTED')">
               Rechazadas (${rejected.length})
             </button>
-          </div>
-          <div class="flex gap-2">
-            <button class="btn btn-secondary btn-sm" onclick="Views.directorAbsences.export()">Exportar CSV</button>
-            <button class="btn btn-primary btn-sm" onclick="Views.directorAbsences.refresh()">Refrescar</button>
           </div>
         </div>
 
@@ -119,49 +103,17 @@ Views.directorAbsences = function() {
     renderAbsences();
   };
 
-  Views.directorAbsences.refresh = function() {
-    loadAbsences(true);
+  Views.directorAbsences.approve = function(absenceId) {
+    State.updateAbsence(absenceId, { status: 'APPROVED' });
+    Components.showToast('Solicitud aprobada', 'success');
+    renderAbsences();
   };
 
-  Views.directorAbsences.export = async function() {
-    try {
-      const blob = await State.exportAbsences();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'absences.csv';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      Components.showToast('Exportación lista', 'success');
-    } catch (error) {
-      console.error('No se pudo exportar ausencias', error);
-      Components.showToast('Error al exportar', 'error');
-    }
+  Views.directorAbsences.reject = function(absenceId) {
+    State.updateAbsence(absenceId, { status: 'REJECTED' });
+    Components.showToast('Solicitud rechazada', 'error');
+    renderAbsences();
   };
 
-  Views.directorAbsences.approve = async function(absenceId) {
-    try {
-      await State.updateAbsence(absenceId, 'APPROVED');
-      Components.showToast('Solicitud aprobada', 'success');
-      await loadAbsences();
-    } catch (error) {
-      console.error('No se pudo aprobar', error);
-      Components.showToast('Error al aprobar la solicitud', 'error');
-    }
-  };
-
-  Views.directorAbsences.reject = async function(absenceId) {
-    try {
-      await State.updateAbsence(absenceId, 'REJECTED');
-      Components.showToast('Solicitud rechazada', 'error');
-      await loadAbsences();
-    } catch (error) {
-      console.error('No se pudo rechazar', error);
-      Components.showToast('Error al rechazar la solicitud', 'error');
-    }
-  };
-
-  loadAbsences();
+  renderAbsences();
 };
