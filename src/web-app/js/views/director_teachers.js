@@ -62,6 +62,9 @@ Views.directorTeachers = function() {
                     <td>${coursesChips}</td>
                     <td>${statusChip}</td>
                     <td style="white-space: nowrap;">
+                      <button class="btn btn-secondary btn-sm" onclick="Views.directorTeachers.viewProfile(${teacher.id})" title="Ver perfil">
+                        👁️
+                      </button>
                       <button class="btn btn-secondary btn-sm" onclick="Views.directorTeachers.showEditForm(${teacher.id})" title="Editar">
                         ✏️
                       </button>
@@ -239,6 +242,65 @@ Views.directorTeachers = function() {
         document.querySelector('.modal-container').click();
         Components.showToast('Cursos actualizados correctamente', 'success');
         renderTeachers();
+      }}
+    ]);
+  };
+
+  Views.directorTeachers.viewProfile = function(teacherId) {
+    const teacher = State.getTeacher(teacherId);
+    if (!teacher) return;
+
+    // Get courses assigned to this teacher
+    const teacherCourses = courses.filter(c =>
+      (c.teacher_ids && c.teacher_ids.includes(teacherId)) ||
+      c.teacher_id === teacherId
+    );
+
+    const coursesHTML = teacherCourses.length > 0
+      ? teacherCourses.map(c => `
+          <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--color-gray-100);">
+            <strong>${Components.escapeHtml(c.name)}</strong>
+            <span style="color: var(--color-gray-500);"> - ${Components.escapeHtml(c.grade || '')}</span>
+          </li>
+        `).join('')
+      : '<li style="color: var(--color-gray-500);">Sin cursos asignados</li>';
+
+    Components.showModal(`Perfil - ${teacher.full_name}`, `
+      <div class="card mb-2">
+        <div class="card-header">Informacion del Profesor</div>
+        <div class="card-body">
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+            <div><strong>Nombre:</strong><br>${Components.escapeHtml(teacher.full_name)}</div>
+            <div><strong>Email:</strong><br>${teacher.email || 'No registrado'}</div>
+            <div><strong>Telefono:</strong><br>${teacher.phone || 'No registrado'}</div>
+            <div><strong>Especialidad:</strong><br>${teacher.specialty || 'No especificada'}</div>
+            <div><strong>Estado:</strong><br>${teacher.active !== false ? Components.createChip('Activo', 'success') : Components.createChip('Inactivo', 'gray')}</div>
+            <div><strong>ID:</strong><br>${teacher.id}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">Cursos Asignados</div>
+        <div class="card-body">
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            ${coursesHTML}
+          </ul>
+        </div>
+      </div>
+    `, [
+      { label: 'Cerrar', action: 'close', className: 'btn-secondary' },
+      { label: 'Enrolar NFC', action: 'nfc', className: 'btn-secondary', onClick: () => {
+        document.querySelector('.modal-container').click();
+        if (typeof NFCEnrollment !== 'undefined') {
+          NFCEnrollment.showTeacherEnrollmentModal(teacherId);
+        } else {
+          Components.showToast('Servicio NFC no disponible', 'error');
+        }
+      }},
+      { label: 'Editar', action: 'edit', className: 'btn-primary', onClick: () => {
+        document.querySelector('.modal-container').click();
+        Views.directorTeachers.showEditForm(teacherId);
       }}
     ]);
   };

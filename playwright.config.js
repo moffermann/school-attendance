@@ -35,6 +35,14 @@ module.exports = defineConfig({
         baseURL: 'http://localhost:8083',
       },
     },
+    {
+      name: 'web-app-unit',
+      testDir: './src/web-app/tests/unit',
+      use: {
+        browserName: 'chromium',
+        baseURL: 'http://localhost:8083',
+      },
+    },
   ],
   webServer: [
     {

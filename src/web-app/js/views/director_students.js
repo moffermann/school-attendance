@@ -304,6 +304,14 @@ Views.directorStudents = function() {
       </div>
     `, [
       { label: 'Cerrar', action: 'close', className: 'btn-secondary' },
+      { label: 'Enrolar NFC', action: 'nfc', className: 'btn-secondary', onClick: () => {
+        document.querySelector('.modal-container').click();
+        if (typeof NFCEnrollment !== 'undefined') {
+          NFCEnrollment.showStudentEnrollmentModal(studentId);
+        } else {
+          Components.showToast('Servicio NFC no disponible', 'error');
+        }
+      }},
       { label: 'Ver Asistencia', action: 'attendance', className: 'btn-primary', onClick: () => {
         document.querySelector('.modal-container').click();
         Views.directorStudents.viewAttendance(studentId);
