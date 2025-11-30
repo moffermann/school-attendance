@@ -80,10 +80,10 @@ test.describe('Student QR Enrollment Flow', () => {
     await page.goto('/#/director/students');
     await page.waitForTimeout(1500);
 
-    // Check if QRCode library is available
-    const qrCodeAvailable = await page.evaluate(() => typeof QRCode !== 'undefined');
+    // Check if qrcode library is available
+    const qrCodeAvailable = await page.evaluate(() => typeof qrcode !== 'undefined');
     if (!qrCodeAvailable) {
-      test.skip('QRCode library not available in test environment');
+      test.skip('qrcode library not available in test environment');
       return;
     }
 
@@ -101,9 +101,9 @@ test.describe('Student QR Enrollment Flow', () => {
     const qrImage = page.locator('#qr-code-image');
     await expect(qrImage).toBeVisible({ timeout: 10000 });
 
-    // Check image has valid src
+    // Check image has valid src (qrcode-generator produces GIF format)
     const src = await qrImage.getAttribute('src');
-    expect(src).toMatch(/^data:image\/png;base64,/);
+    expect(src).toMatch(/^data:image\/(png|gif);base64,/);
   });
 
   test('should show download and print buttons after QR generation', async ({ page }) => {
@@ -111,10 +111,10 @@ test.describe('Student QR Enrollment Flow', () => {
     await page.goto('/#/director/students');
     await page.waitForTimeout(1500);
 
-    // Check if QRCode library is available
-    const qrCodeAvailable = await page.evaluate(() => typeof QRCode !== 'undefined');
+    // Check if qrcode library is available
+    const qrCodeAvailable = await page.evaluate(() => typeof qrcode !== 'undefined');
     if (!qrCodeAvailable) {
-      test.skip('QRCode library not available in test environment');
+      test.skip('qrcode library not available in test environment');
       return;
     }
 
@@ -222,10 +222,10 @@ test.describe('Teacher QR Enrollment Flow', () => {
     await page.goto('/#/director/teachers');
     await page.waitForTimeout(1500);
 
-    // Check if QRCode library is available
-    const qrCodeAvailable = await page.evaluate(() => typeof QRCode !== 'undefined');
+    // Check if qrcode library is available
+    const qrCodeAvailable = await page.evaluate(() => typeof qrcode !== 'undefined');
     if (!qrCodeAvailable) {
-      test.skip('QRCode library not available in test environment');
+      test.skip('qrcode library not available in test environment');
       return;
     }
 
@@ -343,10 +343,10 @@ test.describe('QR Enrollment - Download and Print', () => {
     await page.goto('/#/director/students');
     await page.waitForTimeout(1500);
 
-    // Check if QRCode library is available
-    const qrCodeAvailable = await page.evaluate(() => typeof QRCode !== 'undefined');
+    // Check if qrcode library is available
+    const qrCodeAvailable = await page.evaluate(() => typeof qrcode !== 'undefined');
     if (!qrCodeAvailable) {
-      test.skip('QRCode library not available in test environment');
+      test.skip('qrcode library not available in test environment');
       return;
     }
 
@@ -377,10 +377,10 @@ test.describe('QR Enrollment - Download and Print', () => {
     await page.goto('/#/director/students');
     await page.waitForTimeout(1500);
 
-    // Check if QRCode library is available
-    const qrCodeAvailable = await page.evaluate(() => typeof QRCode !== 'undefined');
+    // Check if qrcode library is available
+    const qrCodeAvailable = await page.evaluate(() => typeof qrcode !== 'undefined');
     if (!qrCodeAvailable) {
-      test.skip('QRCode library not available in test environment');
+      test.skip('qrcode library not available in test environment');
       return;
     }
 

@@ -83,38 +83,33 @@ const QREnrollment = {
 
   /**
    * Generate QR code as data URL
+   * Uses qrcode-generator library (local, no CDN)
    * @param {string} data - Data to encode in QR
    * @param {Object} options - QR options
    * @returns {Promise<string>} Data URL of QR code image
    */
   async generateQRDataURL(data, options = {}) {
-    const size = options.size || 256;
-    const margin = options.margin || 2;
+    const cellSize = options.cellSize || 4;
+    const margin = options.margin || 4;
 
-    // Check if QRCode library is available
-    if (typeof QRCode === 'undefined') {
-      throw new Error('QRCode library not loaded');
+    // Check if qrcode library is available (qrcode-generator)
+    if (typeof qrcode === 'undefined') {
+      throw new Error('qrcode library not loaded');
     }
 
     return new Promise((resolve, reject) => {
-      // Create temporary canvas
-      const canvas = document.createElement('canvas');
+      try {
+        // Type 0 = auto-detect, 'M' = medium error correction
+        const qr = qrcode(0, 'M');
+        qr.addData(data);
+        qr.make();
 
-      QRCode.toCanvas(canvas, data, {
-        width: size,
-        margin: margin,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        },
-        errorCorrectionLevel: 'M'
-      }, (error) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(canvas.toDataURL('image/png'));
-        }
-      });
+        // createDataURL returns a base64 PNG data URL
+        const dataURL = qr.createDataURL(cellSize, margin);
+        resolve(dataURL);
+      } catch (error) {
+        reject(error);
+      }
     });
   },
 
