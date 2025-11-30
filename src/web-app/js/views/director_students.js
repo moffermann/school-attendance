@@ -304,6 +304,14 @@ Views.directorStudents = function() {
       </div>
     `, [
       { label: 'Cerrar', action: 'close', className: 'btn-secondary' },
+      { label: 'Enrolar QR', action: 'qr', className: 'btn-secondary', onClick: () => {
+        document.querySelector('.modal-container').click();
+        if (typeof QREnrollment !== 'undefined') {
+          QREnrollment.showStudentEnrollmentModal(studentId);
+        } else {
+          Components.showToast('Servicio QR no disponible', 'error');
+        }
+      }},
       { label: 'Enrolar NFC', action: 'nfc', className: 'btn-secondary', onClick: () => {
         document.querySelector('.modal-container').click();
         if (typeof NFCEnrollment !== 'undefined') {
