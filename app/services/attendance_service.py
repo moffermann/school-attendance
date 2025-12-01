@@ -158,15 +158,27 @@ class AttendanceService:
                 f"Tipos permitidos: {', '.join(self.ALLOWED_MIME_TYPES)}"
             )
 
-        # Read and validate file size
-        data = await file.read()
-        if not data:
+        # Read file in chunks to avoid loading large files before validation
+        chunks = []
+        total_size = 0
+        chunk_size = 64 * 1024  # 64KB chunks
+
+        while True:
+            chunk = await file.read(chunk_size)
+            if not chunk:
+                break
+            total_size += len(chunk)
+            if total_size > self.MAX_PHOTO_SIZE:
+                raise ValueError(
+                    f"Archivo muy grande: >{self.MAX_PHOTO_SIZE / 1024 / 1024:.0f}MB. "
+                    f"Máximo permitido: {self.MAX_PHOTO_SIZE / 1024 / 1024:.0f}MB"
+                )
+            chunks.append(chunk)
+
+        if not chunks:
             raise ValueError("Archivo vacío")
-        if len(data) > self.MAX_PHOTO_SIZE:
-            raise ValueError(
-                f"Archivo muy grande: {len(data) / 1024 / 1024:.1f}MB. "
-                f"Máximo permitido: {self.MAX_PHOTO_SIZE / 1024 / 1024:.0f}MB"
-            )
+
+        data = b"".join(chunks)
 
         # Validate and sanitize extension
         filename = file.filename or "photo.jpg"

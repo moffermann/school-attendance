@@ -208,7 +208,8 @@ Views.scanResult = function() {
     canvas.height = video.videoHeight || 480;
     canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    return canvas.toDataURL('image/jpeg', 0.8);
+    // Quality 0.6 reduces file size ~40% vs 0.8 with minimal visible difference
+    return canvas.toDataURL('image/jpeg', 0.6);
   }
 
   function stopCamera() {

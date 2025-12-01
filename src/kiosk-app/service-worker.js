@@ -1,6 +1,8 @@
 // Service Worker for offline caching
-const CACHE_NAME = 'kiosk-cache-v3';
-const urlsToCache = [
+const CACHE_NAME = 'kiosk-cache-v4';
+
+// Static assets - cache first, update in background
+const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/css/styles.css',
@@ -17,12 +19,6 @@ const urlsToCache = [
   '/js/views/settings.js',
   '/js/views/help.js',
   '/js/views/admin_panel.js',
-  '/data/students.json',
-  '/data/tags.json',
-  '/data/teachers.json',
-  '/data/device.json',
-  '/data/queue.json',
-  '/data/config.json',
   '/assets/logo.svg',
   '/assets/placeholder_photo.jpg',
   '/assets/qr_placeholder.svg',
@@ -32,17 +28,70 @@ const urlsToCache = [
   '/assets/camera-shutter-sound.mp3'
 ];
 
+// Dynamic data - stale-while-revalidate
+const DYNAMIC_DATA_PATTERNS = [
+  /\/data\/.+\.json$/,
+  /\/api\/v1\/kiosk\//
+];
+
+function isDynamicData(url) {
+  return DYNAMIC_DATA_PATTERNS.some(pattern => pattern.test(url));
+}
+
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
+      .then(cache => cache.addAll(STATIC_ASSETS))
+      .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+
+  // Dynamic data: stale-while-revalidate
+  if (isDynamicData(url.pathname)) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(cache => {
+        return cache.match(event.request).then(cachedResponse => {
+          const fetchPromise = fetch(event.request)
+            .then(networkResponse => {
+              // Update cache with fresh data
+              if (networkResponse.ok) {
+                cache.put(event.request, networkResponse.clone());
+              }
+              return networkResponse;
+            })
+            .catch(() => {
+              // Network failed, return cached if available
+              return cachedResponse;
+            });
+
+          // Return cached immediately, update in background
+          return cachedResponse || fetchPromise;
+        });
+      })
+    );
+    return;
+  }
+
+  // Static assets: cache-first with network fallback
   event.respondWith(
     caches.match(event.request)
-      .then(response => response || fetch(event.request))
+      .then(response => {
+        if (response) {
+          return response;
+        }
+        return fetch(event.request).then(networkResponse => {
+          // Cache successful responses for static assets
+          if (networkResponse.ok && event.request.method === 'GET') {
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, networkResponse.clone());
+            });
+          }
+          return networkResponse;
+        });
+      })
       .catch(() => caches.match('/index.html'))
   );
 });
@@ -57,6 +106,6 @@ self.addEventListener('activate', event => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
