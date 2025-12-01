@@ -32,6 +32,20 @@ const State = {
       this.deviceId = this.generateDeviceId();
     }
 
+    // Security: If we have a JWT token, validate it with the backend
+    if (typeof API !== 'undefined' && API.accessToken) {
+      try {
+        // Verify token by fetching teacher profile - this validates the JWT server-side
+        const data = await API.getTeacherMe();
+        // Token is valid - restore session from server data
+        this.setTeacherProfile(data.teacher, data.courses);
+      } catch (e) {
+        // Token invalid or expired - clear session
+        console.warn('JWT token invalid or expired, clearing session');
+        this.logout();
+      }
+    }
+
     // Load fallback data if no students in IDB (offline mode)
     const students = await IDB.getAll('students');
     if (!students.length) {

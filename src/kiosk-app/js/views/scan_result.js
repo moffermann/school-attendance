@@ -50,8 +50,8 @@ Views.scanResult = function() {
 
           <!-- Header con nombre del colegio -->
           <div class="result-header">
-            <div class="school-name">${State.config.schoolName || 'Colegio'}</div>
-            <div class="student-course">${student.course_id}° Básico</div>
+            <div class="school-name">${UI.escapeHtml(State.config.schoolName) || 'Colegio'}</div>
+            <div class="student-course">${UI.escapeHtml(student.course_id)}° Básico</div>
           </div>
 
           <!-- Layout de 2 columnas para tablet -->
@@ -62,8 +62,8 @@ Views.scanResult = function() {
               <div class="welcome-section">
                 <div class="welcome-icon-large">${isEntry ? '👋' : '🎒'}</div>
                 <div class="welcome-greeting">${messageText}</div>
-                <div class="welcome-student-name">${student.full_name}</div>
-                <div class="welcome-guardian">Apoderado: ${student.guardian_name || 'No registrado'}</div>
+                <div class="welcome-student-name">${UI.escapeHtml(student.full_name)}</div>
+                <div class="welcome-guardian">Apoderado: ${UI.escapeHtml(student.guardian_name) || 'No registrado'}</div>
               </div>
 
               <!-- Fecha y hora destacadas -->

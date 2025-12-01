@@ -28,8 +28,22 @@ class AttendanceNotificationService:
         self.notification_repo = NotificationRepository(session)
         self.guardian_repo = GuardianRepository(session)
         self.student_repo = StudentRepository(session)
-        self._redis = Redis.from_url(settings.redis_url)
-        self._queue = Queue("notifications", connection=self._redis)
+        self._redis: Redis | None = None
+        self._queue: Queue | None = None
+
+    @property
+    def queue(self) -> Queue | None:
+        """Lazy-load Redis queue with graceful fallback if unavailable."""
+        if self._queue is None:
+            try:
+                self._redis = Redis.from_url(settings.redis_url)
+                # Test connection
+                self._redis.ping()
+                self._queue = Queue("notifications", connection=self._redis)
+            except Exception as e:
+                logger.error(f"Redis unavailable, notifications disabled: {e}")
+                return None
+        return self._queue
 
     async def notify_attendance_event(
         self,
@@ -166,8 +180,19 @@ class AttendanceNotificationService:
         recipient: str,
         template: str,
         payload: dict,
-    ) -> None:
-        """Enqueue notification for async processing by worker."""
+    ) -> bool:
+        """Enqueue notification for async processing by worker.
+
+        Returns:
+            True if notification was enqueued, False if Redis unavailable.
+        """
+        queue = self.queue
+        if queue is None:
+            logger.warning(
+                f"Skipping notification {notification_id}: Redis unavailable"
+            )
+            return False
+
         job_func_map = {
             NotificationChannel.WHATSAPP: "app.workers.jobs.send_whatsapp.send_whatsapp_message",
             NotificationChannel.EMAIL: "app.workers.jobs.send_email.send_email_message",
@@ -176,13 +201,14 @@ class AttendanceNotificationService:
         job_func = job_func_map.get(channel)
         if not job_func:
             logger.error(f"Unknown notification channel: {channel}")
-            return
+            return False
 
         # Pass notification_id, recipient, template name, and variables
-        self._queue.enqueue(
+        queue.enqueue(
             job_func,
             notification_id,
             recipient,
             template,
             payload,
         )
+        return True

@@ -17,19 +17,38 @@ ATTENDANCE_MESSAGES = {
 }
 
 
+def _sanitize_format_value(value: str) -> str:
+    """Sanitize a value to prevent format string injection.
+
+    Escapes curly braces to prevent {variable} injection attacks.
+    """
+    if not isinstance(value, str):
+        value = str(value) if value is not None else ""
+    return value.replace("{", "{{").replace("}", "}}")
+
+
 def _build_caption(template: str, variables: dict) -> str:
-    """Build message caption from template and variables."""
+    """Build message caption from template and variables.
+
+    Sanitizes all variable values to prevent format string injection.
+    """
+    # Sanitize all string variables to prevent injection
+    safe_vars = {
+        k: _sanitize_format_value(v) if isinstance(v, str) else v
+        for k, v in variables.items()
+    }
+
     message_template = ATTENDANCE_MESSAGES.get(template)
     if message_template:
         try:
-            return message_template.format(**variables)
+            return message_template.format(**safe_vars)
         except KeyError:
             pass
     # Fallback to basic message
-    student_name = variables.get("student_name", "Alumno")
+    student_name = safe_vars.get("student_name", "Alumno")
     event_type = "ingresó" if template == "INGRESO_OK" else "salió"
-    time = variables.get("time", "")
-    date = variables.get("date", "")
+    time = safe_vars.get("time", "")
+    date = safe_vars.get("date", "")
     return f"{student_name} {event_type} del colegio el {date} a las {time}."
 
 

@@ -194,8 +194,8 @@ const State = {
   // Check if student has photo consent
   hasPhotoConsent(studentId) {
     const student = this.students.find(s => s.id === studentId);
-    // Default to true for backwards compatibility if field not present
-    return student ? (student.photo_opt_in !== false) : true;
+    // Privacy by default: require explicit opt-in for photo capture
+    return student ? (student.photo_opt_in === true) : false;
   },
 
   // Get student by ID

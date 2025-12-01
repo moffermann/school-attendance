@@ -118,11 +118,11 @@ Views.parentPrefs = async function() {
               return `
                 <div style="display: flex; align-items: center; padding: 1rem; background: white; border: 2px solid ${checked ? 'var(--color-success)' : 'var(--color-gray-200)'}; border-radius: 12px; transition: all 0.2s;" id="photo-card-${student.id}">
                   <div style="width: 44px; height: 44px; background: var(--gradient-primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.1rem; margin-right: 1rem;">
-                    ${student.full_name.charAt(0)}
+                    ${Components.escapeHtml(student.full_name.charAt(0))}
                   </div>
                   <div style="flex: 1;">
-                    <div style="font-weight: 600; color: var(--color-gray-900);">${student.full_name}</div>
-                    <div style="font-size: 0.85rem; color: var(--color-gray-500);">${course ? course.name : ''}</div>
+                    <div style="font-weight: 600; color: var(--color-gray-900);">${Components.escapeHtml(student.full_name)}</div>
+                    <div style="font-size: 0.85rem; color: var(--color-gray-500);">${course ? Components.escapeHtml(course.name) : ''}</div>
                   </div>
                   <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
                     <span id="photo-status-${student.id}" style="font-size: 0.85rem; font-weight: 500; color: ${checked ? 'var(--color-success)' : 'var(--color-warning)'};">

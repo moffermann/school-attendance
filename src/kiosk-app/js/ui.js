@@ -1,5 +1,19 @@
 // UI components for kiosk
 const UI = {
+  // Security: HTML escape function to prevent XSS
+  escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const str = String(text);
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    return str.replace(/[&<>"']/g, char => map[char]);
+  },
+
   showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');

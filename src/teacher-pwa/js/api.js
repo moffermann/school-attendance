@@ -9,28 +9,31 @@ const API = {
     return config.apiUrl || '/api/v1';
   },
 
-  // Access token storage
+  // Access token storage - use sessionStorage to limit XSS exposure
+  // Tokens are cleared when browser tab closes
   get accessToken() {
-    return localStorage.getItem('accessToken');
+    return sessionStorage.getItem('accessToken');
   },
 
   set accessToken(token) {
     if (token) {
-      localStorage.setItem('accessToken', token);
+      sessionStorage.setItem('accessToken', token);
     } else {
-      localStorage.removeItem('accessToken');
+      sessionStorage.removeItem('accessToken');
     }
   },
 
+  // Refresh token - also in sessionStorage for security
+  // Note: For better security, consider HttpOnly cookies in backend
   get refreshToken() {
-    return localStorage.getItem('refreshToken');
+    return sessionStorage.getItem('refreshToken');
   },
 
   set refreshToken(token) {
     if (token) {
-      localStorage.setItem('refreshToken', token);
+      sessionStorage.setItem('refreshToken', token);
     } else {
-      localStorage.removeItem('refreshToken');
+      sessionStorage.removeItem('refreshToken');
     }
   },
 

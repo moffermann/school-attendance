@@ -41,6 +41,23 @@ const State = {
     const guardianId = localStorage.getItem('currentGuardianId');
     const sessionToken = localStorage.getItem('sessionToken');
 
+    // Security: If we have a JWT token, validate it with the backend
+    if (typeof API !== 'undefined' && API.accessToken) {
+      try {
+        // Verify token by fetching bootstrap - this validates the JWT server-side
+        const bootstrap = await API.getBootstrap();
+        // Token is valid - restore session from server data
+        this.setFromBootstrap(bootstrap);
+        return; // Session restored from server
+      } catch (e) {
+        // Token invalid or expired - clear session
+        console.warn('JWT token invalid or expired, clearing session');
+        this.logout();
+        return;
+      }
+    }
+
+    // No JWT token - fallback to demo mode with localStorage validation
     // Security: Validate role is in allowed list
     if (role && this.VALID_ROLES.includes(role)) {
       // For parent role, validate guardian exists
