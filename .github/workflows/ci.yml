@@ -7,7 +7,8 @@ on:
     branches: ["*"]
 
 jobs:
-  build:
+  # Backend tests with Python
+  backend:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,5 +30,88 @@ jobs:
       - name: Type check (mypy)
         run: mypy app
 
-      - name: Tests
-        run: pytest
+      - name: Tests with coverage
+        run: pytest --cov=app --cov-report=xml --cov-report=html --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: htmlcov/
+          retention-days: 7
+
+  # Frontend E2E tests with Playwright
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: npx playwright test --reporter=list
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  # Docker build validation
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: school-attendance:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image health
+        run: |
+          docker run -d --name test-container \
+            -e DATABASE_URL=sqlite+aiosqlite:///./test.db \
+            -e SECRET_KEY=test-secret-key-for-ci \
+            -e REDIS_URL=redis://localhost:6379 \
+            -p 8000:8000 \
+            school-attendance:test
+
+          # Wait for container to start
+          sleep 5
+
+          # Check health endpoint
+          curl -f http://localhost:8000/health || exit 1
+
+          # Cleanup
+          docker stop test-container
+          docker rm test-container
