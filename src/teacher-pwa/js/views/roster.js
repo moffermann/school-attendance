@@ -1,5 +1,6 @@
 Views.roster = async function() {
   if (!State.currentCourseId) {
+    UI.showToast('Selecciona un curso primero', 'warning');
     Router.navigate('/classes');
     return;
   }
