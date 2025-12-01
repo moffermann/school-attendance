@@ -29,6 +29,9 @@ async def _detect_and_notify(target_dt: datetime | None = None) -> None:
 
         reminder_delta = timedelta(minutes=settings.no_show_grace_minutes)
 
+        success_count = 0
+        error_count = 0
+
         for entry in alerts:
             alert_record = entry["alert"]
             guardian = entry["guardian"]
@@ -79,7 +82,13 @@ async def _detect_and_notify(target_dt: datetime | None = None) -> None:
                 try:
                     await dispatcher.enqueue_manual_notification(payload)
                     await alert_repo.mark_notified(alert_record.id, current_dt)
+                    # Commit each successful notification individually
+                    await session.commit()
+                    success_count += 1
                 except Exception as exc:  # pragma: no cover - handled downstream
+                    # Rollback failed notification, continue with others
+                    await session.rollback()
+                    error_count += 1
                     logger.error(
                         "[NoIngreso] Failed to enqueue notification guardian=%s channel=%s error=%s",
                         guardian.id,
@@ -87,7 +96,11 @@ async def _detect_and_notify(target_dt: datetime | None = None) -> None:
                         exc,
                     )
 
-        await session.commit()
+        logger.info(
+            "[NoIngreso] Completed: %d notifications sent, %d errors",
+            success_count,
+            error_count,
+        )
 
 
 def detect_no_ingreso_job(target_iso: str | None = None) -> None:

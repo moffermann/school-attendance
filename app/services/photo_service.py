@@ -40,7 +40,15 @@ class PhotoService:
         self._client.delete_object(Bucket=self._bucket, Key=key)
         logger.info("Deleted photo bucket=%s key=%s", self._bucket, key)
 
-    def generate_presigned_url(self, key: str, expires: int = 3600) -> str:
+    def generate_presigned_url(self, key: str, expires: int = 3600) -> str | None:
+        """Generate a presigned URL for accessing a photo.
+
+        Returns:
+            The presigned URL string, or None if generation fails.
+        """
+        if not key:
+            return None
+
         try:
             return self._client.generate_presigned_url(
                 "get_object",
@@ -49,4 +57,4 @@ class PhotoService:
             )
         except Exception as exc:  # pragma: no cover - best effort URL generation
             logger.error("Failed to generate presigned URL for %s: %s", key, exc)
-            return ""
+            return None

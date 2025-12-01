@@ -120,6 +120,17 @@ const State = {
     }
   },
 
+  // Mark event as partially synced (event OK, photo failed)
+  markPartialSync(id, serverId) {
+    const event = this.queue.find(e => e.id === id);
+    if (event) {
+      event.status = 'partial_sync';
+      event.server_id = serverId;
+      event.photo_retries = (event.photo_retries || 0) + 1;
+      this.persist();
+    }
+  },
+
   updateEventStatus(id, status) {
     const event = this.queue.find(e => e.id === id);
     if (event) {
@@ -130,7 +141,11 @@ const State = {
   },
 
   getPendingCount() {
-    return this.queue.filter(e => e.status === 'pending' || e.status === 'in_progress').length;
+    return this.queue.filter(e =>
+      e.status === 'pending' ||
+      e.status === 'in_progress' ||
+      e.status === 'partial_sync'
+    ).length;
   },
 
   toggleOnline() {

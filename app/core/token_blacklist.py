@@ -16,10 +16,14 @@ from app.core.config import settings
 class TokenBlacklist:
     """Token blacklist with Redis backend and in-memory fallback."""
 
+    # Maximum entries in memory store to prevent unbounded growth
+    MAX_MEMORY_ENTRIES = 10000
+
     def __init__(self):
         self._memory_store: dict[str, int] = {}  # hash -> expiration timestamp
         self._redis: Optional[redis.Redis] = None
         self._redis_available = False
+        self._last_cleanup = 0
         self._init_redis()
 
     def _init_redis(self) -> None:
@@ -81,6 +85,9 @@ class TokenBlacklist:
             except Exception:
                 pass  # Fall back to memory
 
+        # Periodic cleanup during reads (low overhead due to time check)
+        self._cleanup_memory()
+
         # In-memory check
         exp = self._memory_store.get(token_hash)
         if exp is None:
@@ -90,12 +97,32 @@ class TokenBlacklist:
             return False
         return True
 
-    def _cleanup_memory(self) -> None:
-        """Remove expired entries from memory store."""
+    def _cleanup_memory(self, force: bool = False) -> None:
+        """Remove expired entries from memory store.
+
+        Args:
+            force: Force cleanup even if not due (for size limits)
+        """
         now = int(time.time())
+
+        # Only run cleanup every 60 seconds unless forced
+        if not force and now - self._last_cleanup < 60:
+            return
+
+        self._last_cleanup = now
+
+        # Remove expired entries
         expired = [k for k, v in self._memory_store.items() if v < now]
         for k in expired:
             del self._memory_store[k]
+
+        # If still over limit, remove oldest entries
+        if len(self._memory_store) > self.MAX_MEMORY_ENTRIES:
+            # Sort by expiration time (oldest first) and remove excess
+            sorted_entries = sorted(self._memory_store.items(), key=lambda x: x[1])
+            excess = len(self._memory_store) - self.MAX_MEMORY_ENTRIES
+            for k, _ in sorted_entries[:excess]:
+                del self._memory_store[k]
 
 
 # Singleton instance

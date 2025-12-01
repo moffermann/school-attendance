@@ -17,14 +17,21 @@ const Sync = {
       return;
     }
 
+    // Process events that need full sync
     const pending = State.queue.filter(e => e.status === 'pending' || e.status === 'error');
-    if (pending.length === 0) {
+    // Also process events that need photo retry (max 3 retries)
+    const partialSync = State.queue.filter(e =>
+      e.status === 'partial_sync' && (e.photo_retries || 0) < 3
+    );
+
+    if (pending.length === 0 && partialSync.length === 0) {
       return;
     }
 
     this.isSyncing = true;
     UI.showToast('Sincronizando...', 'info', 2000);
 
+    // Process pending events first
     for (const event of pending.slice(0, 5)) { // Process 5 at a time
       State.updateEventStatus(event.id, 'in_progress');
 
@@ -33,6 +40,25 @@ const Sync = {
       if (!success) {
         // Stop processing if we hit an error (might be network issue)
         break;
+      }
+    }
+
+    // Retry photo uploads for partial_sync events
+    for (const event of partialSync.slice(0, 3)) {
+      if (event.server_id && event.photo_data) {
+        try {
+          const photoSuccess = await this.uploadPhoto(event.server_id, event.photo_data);
+          if (photoSuccess) {
+            State.markSynced(event.id);
+            console.log('Photo retry successful for event:', event.id);
+          } else {
+            // Increment retry counter
+            State.markPartialSync(event.id, event.server_id);
+          }
+        } catch (e) {
+          console.error('Photo retry failed:', e);
+          State.markPartialSync(event.id, event.server_id);
+        }
       }
     }
 
@@ -78,11 +104,22 @@ const Sync = {
         event.server_id = result.id;
 
         // If there's a photo to upload, do it now
+        let photoSuccess = true;
         if (event.photo_data && result.id) {
-          await this.uploadPhoto(result.id, event.photo_data);
+          try {
+            photoSuccess = await this.uploadPhoto(result.id, event.photo_data);
+          } catch (e) {
+            console.error('Photo upload failed:', e);
+            photoSuccess = false;
+          }
         }
 
-        State.markSynced(event.id);
+        if (photoSuccess || !event.photo_data) {
+          State.markSynced(event.id);
+        } else {
+          // Event synced but photo failed - mark for retry
+          State.markPartialSync(event.id, result.id);
+        }
         return true;
       } else {
         const errorData = await response.json().catch(() => ({}));

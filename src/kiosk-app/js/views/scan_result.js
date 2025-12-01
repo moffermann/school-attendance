@@ -112,8 +112,20 @@ Views.scanResult = function() {
     const timeElement = document.getElementById('live-time');
     if (!timeElement) return;
 
+    // Prevent multiple intervals
+    if (clockInterval) {
+      clearInterval(clockInterval);
+    }
+
     clockInterval = setInterval(() => {
-      timeElement.textContent = formatTime(new Date());
+      // Check if element still exists (view may have changed)
+      const el = document.getElementById('live-time');
+      if (!el) {
+        clearInterval(clockInterval);
+        clockInterval = null;
+        return;
+      }
+      el.textContent = formatTime(new Date());
     }, 1000);
   }
 
@@ -124,18 +136,38 @@ Views.scanResult = function() {
     }
   }
 
+  let cameraInitializing = false;
+
   async function startEvidenceCamera() {
     video = document.getElementById('evidence-video');
     canvas = document.getElementById('evidence-canvas');
 
     if (!video || !canvas) return;
 
+    // Prevent race condition: don't initialize if already active or initializing
+    if (video.srcObject) {
+      console.log('Camera already active');
+      return;
+    }
+    if (cameraInitializing) {
+      console.log('Camera initialization already in progress');
+      return;
+    }
+
+    cameraInitializing = true;
     canvasContext = canvas.getContext('2d');
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: 640, height: 480 }
       });
+
+      // Check if video element still exists (view may have changed during async)
+      video = document.getElementById('evidence-video');
+      if (!video) {
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
 
       video.srcObject = stream;
       video.play();
@@ -150,6 +182,8 @@ Views.scanResult = function() {
           </div>
         `;
       }
+    } finally {
+      cameraInitializing = false;
     }
   }
 
