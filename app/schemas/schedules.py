@@ -3,13 +3,26 @@
 from datetime import date, time
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
 
 
 class ScheduleCreate(BaseModel):
     weekday: int
     in_time: time
     out_time: time
+
+    @field_validator("weekday")
+    @classmethod
+    def validate_weekday(cls, v: int) -> int:
+        if not 0 <= v <= 6:
+            raise ValueError("El día de la semana debe estar entre 0 (lunes) y 6 (domingo)")
+        return v
+
+    @model_validator(mode="after")
+    def validate_times(self) -> "ScheduleCreate":
+        if self.out_time <= self.in_time:
+            raise ValueError("La hora de salida debe ser posterior a la hora de entrada")
+        return self
 
 
 class ScheduleRead(ScheduleCreate):

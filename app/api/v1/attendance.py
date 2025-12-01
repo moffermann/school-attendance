@@ -1,9 +1,10 @@
 """Attendance endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File, status
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, status
 
 from app.core import deps
 from app.core.auth import AuthUser
+from app.core.rate_limiter import limiter
 from app.schemas.attendance import AttendanceEventCreate, AttendanceEventRead
 from app.services.attendance_service import AttendanceService
 
@@ -12,7 +13,9 @@ router = APIRouter()
 
 
 @router.post("/events", response_model=AttendanceEventRead, status_code=status.HTTP_201_CREATED)
+@limiter.limit("60/minute")
 async def register_event(
+    request: Request,
     payload: AttendanceEventCreate,
     service: AttendanceService = Depends(deps.get_attendance_service),
     user: AuthUser | None = Depends(deps.get_current_user_optional),
@@ -40,7 +43,9 @@ async def list_events_by_student(
 
 
 @router.post("/events/{event_id}/photo", response_model=AttendanceEventRead)
+@limiter.limit("30/minute")
 async def upload_event_photo(
+    request: Request,
     event_id: int,
     file: UploadFile = File(...),
     service: AttendanceService = Depends(deps.get_attendance_service),

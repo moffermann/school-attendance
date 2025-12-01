@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class AbsenceType(str, Enum):
@@ -27,6 +27,12 @@ class AbsenceRequestCreate(BaseModel):
     end: date
     comment: str | None = None
     attachment_name: str | None = None
+
+    @model_validator(mode="after")
+    def validate_dates(self) -> "AbsenceRequestCreate":
+        if self.end < self.start:
+            raise ValueError("La fecha de fin no puede ser anterior a la fecha de inicio")
+        return self
 
 
 class AbsenceRequestRead(BaseModel):

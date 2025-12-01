@@ -1,14 +1,16 @@
 """Absence request endpoints."""
 
+import csv
 from datetime import date
+from io import StringIO
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 
 from app.core import deps
 from app.core.auth import AuthUser
 from app.schemas.absences import AbsenceRequestCreate, AbsenceRequestRead, AbsenceStatus, AbsenceStatusUpdate, AbsenceType
 from app.services.absence_service import AbsenceService
-from fastapi.responses import Response
 
 
 router = APIRouter()
@@ -50,14 +52,23 @@ async def export_absences(
     # Use the actual authenticated user instead of a fake admin user
     # Staff roles (ADMIN, DIRECTOR, INSPECTOR) are already verified by require_roles
     records = await service.list_absences(user, start_date=start_date, end_date=end_date, status=status_filter)
-    lines = ["student_id,type,start,end,status,comment,attachment"]
+
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["student_id", "type", "start", "end", "status", "comment", "attachment"])
     for record in records:
-        lines.append(
-            f"{record.student_id},{record.type},{record.start_date},{record.end_date},{record.status},{record.comment or ''},{record.attachment_ref or ''}"
-        )
-    csv_data = "\n".join(lines)
+        writer.writerow([
+            record.student_id,
+            record.type,
+            record.start_date,
+            record.end_date,
+            record.status,
+            record.comment or "",
+            record.attachment_ref or "",
+        ])
+
     return Response(
-        content=csv_data,
+        content=buffer.getvalue(),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=absences.csv"},
     )

@@ -1,5 +1,6 @@
 """No-show alerts API."""
 
+import csv
 from datetime import date
 from io import StringIO
 
@@ -76,11 +77,17 @@ async def export_no_entry_alerts(
     )
 
     buffer = StringIO()
-    buffer.write("guardian,student,course,date,status,notes\n")
+    writer = csv.writer(buffer)
+    writer.writerow(["guardian", "student", "course", "date", "status", "notes"])
     for alert in alerts:
-        buffer.write(
-            f"{alert.guardian_name or ''},{alert.student_name or ''},{alert.course_name or ''},{alert.alert_date},{alert.status},{alert.notes or ''}\n"
-        )
+        writer.writerow([
+            alert.guardian_name or "",
+            alert.student_name or "",
+            alert.course_name or "",
+            alert.alert_date,
+            alert.status,
+            alert.notes or "",
+        ])
 
     return Response(
         content=buffer.getvalue(),

@@ -1,9 +1,11 @@
 """Kiosk device endpoints for provisioning and data sync."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from loguru import logger
 from pydantic import BaseModel
 
 from app.core import deps
+from app.core.rate_limiter import limiter
 from app.db.repositories.students import StudentRepository
 from app.db.repositories.tags import TagRepository
 from app.db.repositories.teachers import TeacherRepository
@@ -49,7 +51,9 @@ class KioskBootstrapResponse(BaseModel):
 
 
 @router.get("/bootstrap", response_model=KioskBootstrapResponse)
+@limiter.limit("10/minute")
 async def get_kiosk_bootstrap(
+    request: Request,
     session: AsyncSession = Depends(deps.get_db),
     device_authenticated: bool = Depends(deps.verify_device_key),
 ) -> KioskBootstrapResponse:
@@ -59,6 +63,12 @@ async def get_kiosk_bootstrap(
     Requires device API key authentication via X-Device-Key header.
     Returns students, tags, and teachers for local caching.
     """
+    # Log access for audit
+    logger.info(
+        "Kiosk bootstrap accessed from %s",
+        request.client.host if request.client else "unknown",
+    )
+
     if not device_authenticated:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -114,7 +124,9 @@ async def get_kiosk_bootstrap(
 
 
 @router.get("/students", response_model=list[KioskStudentRead])
+@limiter.limit("20/minute")
 async def get_kiosk_students(
+    request: Request,
     session: AsyncSession = Depends(deps.get_db),
     device_authenticated: bool = Depends(deps.verify_device_key),
 ) -> list[KioskStudentRead]:
@@ -141,7 +153,9 @@ async def get_kiosk_students(
 
 
 @router.get("/tags", response_model=list[KioskTagRead])
+@limiter.limit("20/minute")
 async def get_kiosk_tags(
+    request: Request,
     session: AsyncSession = Depends(deps.get_db),
     device_authenticated: bool = Depends(deps.verify_device_key),
 ) -> list[KioskTagRead]:
@@ -167,7 +181,9 @@ async def get_kiosk_tags(
 
 
 @router.get("/teachers", response_model=list[KioskTeacherRead])
+@limiter.limit("20/minute")
 async def get_kiosk_teachers(
+    request: Request,
     session: AsyncSession = Depends(deps.get_db),
     device_authenticated: bool = Depends(deps.verify_device_key),
 ) -> list[KioskTeacherRead]:

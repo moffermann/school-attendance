@@ -1,8 +1,11 @@
 """Notification endpoints."""
 
+import csv
 from datetime import datetime
+from io import StringIO
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 
 from app.core import deps
 from app.core.auth import AuthUser
@@ -14,7 +17,6 @@ from app.schemas.notifications import (
 )
 from app.services.notification_service import NotificationService
 from app.services.notifications.dispatcher import NotificationDispatcher
-from fastapi.responses import Response
 
 
 router = APIRouter()
@@ -72,17 +74,28 @@ async def export_notifications(
         end=end,
         limit=limit,
     )
-    lines = ["ts_created,ts_sent,channel,template,status,retries,guardian_id,student_id,recipient"]
+
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["ts_created", "ts_sent", "channel", "template", "status", "retries", "guardian_id", "student_id", "recipient"])
     for item in logs:
         recipient = ""
         if isinstance(item.payload, dict):
             recipient = item.payload.get("recipient") or item.payload.get("email") or ""
-        lines.append(
-            f"{item.ts_created},{item.ts_sent or ''},{item.channel},{item.template},{item.status},{item.retries or 0},{item.guardian_id},{item.student_id or ''},{recipient}"
-        )
-    csv_data = "\n".join(lines)
+        writer.writerow([
+            item.ts_created,
+            item.ts_sent or "",
+            item.channel,
+            item.template,
+            item.status,
+            item.retries or 0,
+            item.guardian_id,
+            item.student_id or "",
+            recipient,
+        ])
+
     return Response(
-        content=csv_data,
+        content=buffer.getvalue(),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=notifications.csv"},
     )
