@@ -17,6 +17,7 @@ const Router = {
     this.addRoute('/director/teachers', Views.directorTeachers, ['director']);
     this.addRoute('/director/absences', Views.directorAbsences, ['director', 'inspector']);
     this.addRoute('/director/notifications', Views.directorNotifications, ['director', 'inspector']);
+    this.addRoute('/director/biometric', Views.directorBiometric, ['director', 'inspector']);
     this.addRoute('/parent/home', Views.parentHome, ['parent']);
     this.addRoute('/parent/history', Views.parentHistory, ['parent']);
     this.addRoute('/parent/prefs', Views.parentPrefs, ['parent']);

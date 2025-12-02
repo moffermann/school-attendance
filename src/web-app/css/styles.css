@@ -1263,3 +1263,369 @@ tbody tr:last-child td {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ============================================
+   BIOMETRIC ENROLLMENT SECTION
+   ============================================ */
+
+.biometric-section {
+  padding: var(--spacing-lg);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.biometric-section .section-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-gray-800);
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.biometric-section .section-subtitle {
+  color: var(--color-gray-500);
+  margin-bottom: var(--spacing-xl);
+}
+
+.biometric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+@media (max-width: 1024px) {
+  .biometric-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.biometric-panel {
+  background: white;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.biometric-panel-header {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-gray-50);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.biometric-panel-header h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-gray-800);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.biometric-panel-body {
+  padding: var(--spacing-lg);
+}
+
+/* Student Search */
+.student-search-input {
+  width: 100%;
+  padding: var(--spacing-md);
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  transition: all var(--transition-fast);
+}
+
+.student-search-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-100);
+  outline: none;
+}
+
+.student-search-results {
+  margin-top: var(--spacing-md);
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--border-radius);
+}
+
+.student-result-item {
+  padding: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-gray-100);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.student-result-item:last-child {
+  border-bottom: none;
+}
+
+.student-result-item:hover {
+  background: var(--color-gray-50);
+}
+
+.student-result-item.selected {
+  background: var(--color-primary-50);
+  border-left: 3px solid var(--color-primary);
+}
+
+.student-result-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.student-result-name {
+  font-weight: 600;
+  color: var(--color-gray-800);
+}
+
+.student-result-course {
+  font-size: 0.875rem;
+  color: var(--color-gray-500);
+}
+
+.student-result-badge {
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.student-result-badge.has-biometric {
+  background: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.student-result-badge.no-biometric {
+  background: var(--color-gray-100);
+  color: var(--color-gray-500);
+}
+
+/* Selected Student Card */
+.selected-student-card {
+  background: var(--gradient-primary);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  color: white;
+  margin-top: var(--spacing-md);
+}
+
+.selected-student-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.selected-student-avatar {
+  width: 64px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.selected-student-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.selected-student-details {
+  font-size: 0.875rem;
+  opacity: 0.9;
+}
+
+.selected-student-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.btn-biometric {
+  flex: 1;
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+}
+
+.btn-biometric-enroll {
+  background: white;
+  color: var(--color-primary);
+  border: none;
+}
+
+.btn-biometric-enroll:hover {
+  background: var(--color-gray-100);
+  transform: translateY(-1px);
+}
+
+.btn-biometric-delete {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-biometric-delete:hover {
+  background: rgba(239, 68, 68, 0.8);
+}
+
+/* Enrollment Status */
+.enrollment-status {
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius);
+  text-align: center;
+}
+
+.enrollment-status.status-waiting {
+  background: var(--color-gray-50);
+}
+
+.enrollment-status.status-processing {
+  background: var(--color-info-light);
+}
+
+.enrollment-status.status-success {
+  background: var(--color-success-light);
+}
+
+.enrollment-status.status-error {
+  background: var(--color-error-light);
+}
+
+.enrollment-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+.enrollment-message {
+  font-size: 1rem;
+  color: var(--color-gray-700);
+}
+
+/* Credentials List */
+.credentials-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.credential-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  background: var(--color-gray-50);
+  border-radius: var(--border-radius);
+  transition: all var(--transition-fast);
+}
+
+.credential-item:hover {
+  background: var(--color-gray-100);
+}
+
+.credential-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.credential-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--gradient-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.25rem;
+}
+
+.credential-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.credential-name {
+  font-weight: 600;
+  color: var(--color-gray-800);
+}
+
+.credential-meta {
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+}
+
+.credential-actions .btn-icon {
+  padding: var(--spacing-xs);
+  color: var(--color-gray-400);
+  cursor: pointer;
+  border: none;
+  background: none;
+  border-radius: var(--border-radius);
+  transition: all var(--transition-fast);
+}
+
+.credential-actions .btn-icon:hover {
+  color: var(--color-error);
+  background: var(--color-error-light);
+}
+
+/* Empty State */
+.biometric-empty {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--color-gray-500);
+}
+
+.biometric-empty-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-md);
+  opacity: 0.5;
+}
+
+/* WebAuthn browser support check */
+.webauthn-unsupported {
+  background: var(--color-warning-light);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-lg);
+  text-align: center;
+  color: var(--color-gray-700);
+}
+
+.webauthn-unsupported-icon {
+  font-size: 2rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Fingerprint animation */
+@keyframes fingerprint-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+}
+
+.fingerprint-animating {
+  animation: fingerprint-pulse 1.5s ease-in-out infinite;
+}
