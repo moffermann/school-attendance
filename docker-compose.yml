@@ -70,7 +70,7 @@ services:
       SES_SOURCE_EMAIL: ${SES_SOURCE_EMAIL:-no-reply@example.com}
       WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-dummy}
       WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-dummy}
-      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-[]}
       RATE_LIMIT_DEFAULT: ${RATE_LIMIT_DEFAULT:-100/minute}
       # WebAuthn / Biometric Authentication
       WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-localhost}
