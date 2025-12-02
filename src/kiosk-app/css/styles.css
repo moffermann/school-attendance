@@ -1792,3 +1792,465 @@ td {
 .auto-resume-indicator:hover .auto-resume-text {
   color: var(--color-gray-900);
 }
+
+/* =====================================================
+   BIOMETRIC AUTHENTICATION STYLES
+   ===================================================== */
+
+/* Button to access biometric auth from scanner */
+.btn-biometric {
+  pointer-events: auto;
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 1rem 2rem;
+  border-radius: 50px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.btn-biometric:hover {
+  background: rgba(59, 130, 246, 0.9);
+  border-color: rgba(59, 130, 246, 0.5);
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+}
+
+/* Biometric Screen Layout */
+.biometric-screen,
+.enroll-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #3b7cb8 100%);
+  padding: 1rem;
+}
+
+.biometric-card,
+.enroll-card {
+  background: white;
+  border-radius: 24px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.enroll-card-wide {
+  max-width: 900px;
+}
+
+.biometric-header,
+.enroll-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.biometric-icon,
+.enroll-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.biometric-title,
+.enroll-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-gray-900);
+  margin-bottom: 0.5rem;
+}
+
+.biometric-subtitle,
+.enroll-subtitle {
+  font-size: 1rem;
+  color: var(--color-gray-500);
+}
+
+/* Fingerprint Sensor Animation */
+.biometric-auth-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.fingerprint-sensor {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.fingerprint-sensor .fingerprint-icon {
+  font-size: 3.5rem;
+  z-index: 1;
+}
+
+.fingerprint-sensor .fingerprint-pulse {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3px solid rgba(99, 102, 241, 0.5);
+  animation: fingerprint-pulse 2s ease-out infinite;
+}
+
+@keyframes fingerprint-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+/* Sensor States */
+.fingerprint-sensor.sensor-idle {
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+}
+
+.fingerprint-sensor.sensor-waiting {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  animation: sensor-glow 1.5s ease-in-out infinite;
+}
+
+.fingerprint-sensor.sensor-reading {
+  background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+}
+
+.fingerprint-sensor.sensor-reading .fingerprint-pulse {
+  animation: fingerprint-pulse 0.5s ease-out infinite;
+  border-color: rgba(59, 130, 246, 0.7);
+}
+
+.fingerprint-sensor.sensor-success {
+  background: linear-gradient(135deg, #d1fae5 0%, #6ee7b7 100%);
+}
+
+.fingerprint-sensor.sensor-success .fingerprint-pulse {
+  animation: none;
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.fingerprint-sensor.sensor-error {
+  background: linear-gradient(135deg, #fee2e2 0%, #fca5a5 100%);
+}
+
+.fingerprint-sensor.sensor-error .fingerprint-pulse {
+  animation: none;
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+@keyframes sensor-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(245, 158, 11, 0.6);
+  }
+}
+
+.auth-instruction {
+  font-size: 1.1rem;
+  color: var(--color-gray-600);
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Status Messages */
+.biometric-status,
+.enroll-status {
+  margin-top: 1.5rem;
+}
+
+.status-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.status-message.status-info {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-message.status-success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-message.status-error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-message.status-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-message.status-loading {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+/* Enrollment Screen Specific */
+.enroll-content-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .enroll-content-grid {
+    flex-direction: row;
+    gap: 2rem;
+  }
+
+  .enroll-left-column {
+    flex: 1;
+    max-width: 350px;
+  }
+
+  .enroll-right-column {
+    flex: 1;
+  }
+}
+
+.search-section {
+  margin-bottom: 1rem;
+}
+
+.search-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--color-gray-700);
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 2px solid var(--color-gray-300);
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.student-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 2px solid var(--color-gray-200);
+  border-radius: 12px;
+  background: var(--color-gray-50);
+}
+
+.student-list-hint {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-gray-500);
+}
+
+.student-list-item {
+  padding: 1rem;
+  border-bottom: 1px solid var(--color-gray-200);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.student-list-item:hover {
+  background: white;
+}
+
+.student-list-item:last-child {
+  border-bottom: none;
+}
+
+.student-list-name {
+  font-weight: 600;
+  color: var(--color-gray-900);
+}
+
+.student-list-info {
+  font-size: 0.875rem;
+  color: var(--color-gray-500);
+  margin-top: 0.25rem;
+}
+
+/* Selected Student Area */
+.selected-student-area {
+  background: var(--color-gray-50);
+  border-radius: 16px;
+  padding: 1.5rem;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.no-selection {
+  text-align: center;
+  color: var(--color-gray-400);
+}
+
+.no-selection-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.selected-student {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+}
+
+.student-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--color-gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.student-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-placeholder {
+  font-size: 2.5rem;
+}
+
+.student-name-large {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-gray-900);
+  margin-bottom: 0.25rem;
+}
+
+.student-details {
+  font-size: 1rem;
+  color: var(--color-gray-500);
+  margin-bottom: 0.75rem;
+}
+
+.biometric-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.biometric-registered {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.biometric-not-registered {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.enroll-actions {
+  width: 100%;
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.btn-enroll {
+  width: 100%;
+  max-width: 300px;
+}
+
+.enroll-note {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-gray-500);
+}
+
+.fingerprint-guide {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.guide-text {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--color-gray-600);
+  text-align: center;
+}
+
+.sensor-enrollment {
+  width: 100px;
+  height: 100px;
+}
+
+.sensor-enrollment .fingerprint-icon {
+  font-size: 2.5rem;
+}
+
+/* Admin menu highlight for biometric */
+.admin-menu-item-highlight {
+  border-color: var(--color-primary);
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+.admin-menu-item-highlight:hover {
+  background: white;
+}
+
+/* Biometric unsupported message */
+.biometric-unsupported,
+.enroll-unsupported {
+  text-align: center;
+  padding: 2rem;
+}
+
+.biometric-unsupported p,
+.enroll-unsupported p {
+  margin-bottom: 1.5rem;
+  color: var(--color-gray-600);
+}

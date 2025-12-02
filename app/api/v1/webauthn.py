@@ -1,0 +1,456 @@
+"""WebAuthn/Passkey authentication endpoints."""
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core import deps
+from app.core.auth import AuthUser
+from app.db.repositories.teachers import TeacherRepository
+from app.schemas.webauthn import (
+    BiometricStatusResponse,
+    CompleteRegistrationRequest,
+    CredentialListResponse,
+    CredentialResponse,
+    DeleteCredentialResponse,
+    KioskAuthenticationResult,
+    KioskStudentRegistrationRequest,
+    StartAuthenticationResponse,
+    StartRegistrationRequest,
+    StartRegistrationResponse,
+    StudentAuthenticationResponse,
+    VerifyAuthenticationRequest,
+)
+from app.services.webauthn_service import WebAuthnService
+
+
+router = APIRouter()
+
+
+# =============================================================================
+# Kiosk Endpoints (Device-authenticated)
+# =============================================================================
+
+
+@router.post(
+    "/kiosk/students/register/start",
+    response_model=StartRegistrationResponse,
+    summary="Iniciar registro biométrico de estudiante desde kiosk",
+)
+async def kiosk_start_student_registration(
+    request: KioskStudentRegistrationRequest,
+    session: AsyncSession = Depends(deps.get_db),
+    device_authenticated: bool = Depends(deps.verify_device_key),
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Inicia el proceso de registro biométrico para un estudiante desde el kiosk.
+
+    Requiere autenticación del dispositivo (X-Device-Key header).
+    El profesor que inicia el registro debe tener permiso can_enroll_biometric.
+
+    Retorna las opciones WebAuthn para pasar a navigator.credentials.create()
+    """
+    if not device_authenticated:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Device key inválida"
+        )
+
+    result = await webauthn_service.start_student_registration(
+        student_id=request.student_id,
+        device_name=request.device_name,
+    )
+
+    return StartRegistrationResponse(
+        challenge_id=result["challenge_id"],
+        options=result["options"],
+    )
+
+
+@router.post(
+    "/kiosk/students/register/complete",
+    response_model=CredentialResponse,
+    summary="Completar registro biométrico de estudiante",
+)
+async def kiosk_complete_student_registration(
+    request: CompleteRegistrationRequest,
+    device_authenticated: bool = Depends(deps.verify_device_key),
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Completa el registro biométrico de un estudiante.
+
+    Recibe la respuesta de navigator.credentials.create() y verifica la credencial.
+    """
+    if not device_authenticated:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Device key inválida"
+        )
+
+    credential = await webauthn_service.complete_student_registration(
+        challenge_id=request.challenge_id,
+        credential_response=request.credential,
+    )
+
+    return CredentialResponse(
+        credential_id=credential.credential_id,
+        device_name=credential.device_name,
+        created_at=credential.created_at,
+    )
+
+
+@router.post(
+    "/kiosk/authenticate/start",
+    response_model=StartAuthenticationResponse,
+    summary="Iniciar autenticación biométrica en kiosk",
+)
+async def kiosk_start_authentication(
+    device_authenticated: bool = Depends(deps.verify_device_key),
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Inicia el proceso de autenticación biométrica para identificar un estudiante.
+
+    Este es un flujo "usernameless" - el estudiante solo presenta su huella
+    y el sistema identifica quién es basándose en la credencial registrada.
+
+    Retorna las opciones WebAuthn para pasar a navigator.credentials.get()
+    """
+    if not device_authenticated:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Device key inválida"
+        )
+
+    result = await webauthn_service.start_student_authentication()
+
+    return StartAuthenticationResponse(
+        challenge_id=result["challenge_id"],
+        options=result["options"],
+    )
+
+
+@router.post(
+    "/kiosk/authenticate/verify",
+    response_model=KioskAuthenticationResult,
+    summary="Verificar autenticación biométrica",
+)
+async def kiosk_verify_authentication(
+    request: VerifyAuthenticationRequest,
+    device_authenticated: bool = Depends(deps.verify_device_key),
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Verifica la autenticación biométrica y retorna los datos del estudiante.
+
+    Recibe la respuesta de navigator.credentials.get() y verifica la firma.
+    Si es válida, retorna la información del estudiante para continuar
+    con el flujo de registro de asistencia.
+    """
+    if not device_authenticated:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Device key inválida"
+        )
+
+    student = await webauthn_service.verify_student_authentication(
+        challenge_id=request.challenge_id,
+        credential_response=request.credential,
+    )
+
+    return KioskAuthenticationResult(
+        student_id=student.id,
+        full_name=student.full_name,
+        rut=student.rut,
+        course_name=student.course.name if student.course else None,
+        photo_url=student.photo_ref,
+        has_photo_consent=student.photo_pref_opt_in,
+    )
+
+
+@router.get(
+    "/kiosk/students/{student_id}/biometric-status",
+    response_model=BiometricStatusResponse,
+    summary="Verificar si estudiante tiene biometría registrada",
+)
+async def kiosk_check_biometric_status(
+    student_id: int,
+    device_authenticated: bool = Depends(deps.verify_device_key),
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Verifica si un estudiante tiene credenciales biométricas registradas.
+
+    Útil para el kiosk para saber si mostrar la opción de huella digital
+    o si ofrecer el registro.
+    """
+    if not device_authenticated:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Device key inválida"
+        )
+
+    credentials = await webauthn_service.list_student_credentials(student_id)
+
+    return BiometricStatusResponse(
+        has_biometric=len(credentials) > 0,
+        credential_count=len(credentials),
+    )
+
+
+# =============================================================================
+# Admin Endpoints (Role-authenticated)
+# =============================================================================
+
+
+@router.post(
+    "/admin/students/{student_id}/register/start",
+    response_model=StartRegistrationResponse,
+    summary="Iniciar registro biométrico desde panel de administración",
+)
+async def admin_start_student_registration(
+    student_id: int,
+    request: StartRegistrationRequest,
+    current_user: AuthUser = Depends(deps.require_roles("DIRECTOR", "INSPECTOR")),
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Inicia el registro biométrico de un estudiante desde el panel de administración.
+
+    Solo disponible para directores e inspectores.
+    """
+    result = await webauthn_service.start_student_registration(
+        student_id=student_id,
+        device_name=request.device_name,
+    )
+
+    return StartRegistrationResponse(
+        challenge_id=result["challenge_id"],
+        options=result["options"],
+    )
+
+
+@router.post(
+    "/admin/students/{student_id}/register/complete",
+    response_model=CredentialResponse,
+    summary="Completar registro biométrico desde panel de administración",
+)
+async def admin_complete_student_registration(
+    student_id: int,
+    request: CompleteRegistrationRequest,
+    current_user: AuthUser = Depends(deps.require_roles("DIRECTOR", "INSPECTOR")),
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Completa el registro biométrico de un estudiante desde el panel de administración.
+    """
+    credential = await webauthn_service.complete_student_registration(
+        challenge_id=request.challenge_id,
+        credential_response=request.credential,
+    )
+
+    return CredentialResponse(
+        credential_id=credential.credential_id,
+        device_name=credential.device_name,
+        created_at=credential.created_at,
+    )
+
+
+@router.get(
+    "/admin/students/{student_id}/credentials",
+    response_model=CredentialListResponse,
+    summary="Listar credenciales de un estudiante",
+)
+async def admin_list_student_credentials(
+    student_id: int,
+    current_user: AuthUser = Depends(deps.require_roles("DIRECTOR", "INSPECTOR")),
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Lista todas las credenciales biométricas registradas para un estudiante.
+    """
+    credentials = await webauthn_service.list_student_credentials(student_id)
+
+    return CredentialListResponse(
+        credentials=credentials,
+        count=len(credentials),
+    )
+
+
+@router.delete(
+    "/admin/students/{student_id}/credentials/{credential_id}",
+    response_model=DeleteCredentialResponse,
+    summary="Eliminar credencial de estudiante",
+)
+async def admin_delete_student_credential(
+    student_id: int,
+    credential_id: str,
+    current_user: AuthUser = Depends(deps.require_roles("DIRECTOR", "INSPECTOR")),
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Elimina una credencial biométrica de un estudiante.
+
+    Solo directores e inspectores pueden eliminar credenciales.
+    """
+    deleted = await webauthn_service.delete_credential(credential_id)
+
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Credencial no encontrada"
+        )
+
+    return DeleteCredentialResponse(
+        deleted=True,
+        message="Credencial eliminada exitosamente",
+    )
+
+
+# =============================================================================
+# Teacher Enrollment Permission Check
+# =============================================================================
+
+
+@router.get(
+    "/teachers/{teacher_id}/can-enroll",
+    summary="Verificar si profesor puede enrolar biometría",
+)
+async def check_teacher_can_enroll(
+    teacher_id: int,
+    session: AsyncSession = Depends(deps.get_db),
+    device_authenticated: bool = Depends(deps.verify_device_key),
+):
+    """
+    Verifica si un profesor tiene permiso para enrolar estudiantes
+    con biometría desde el kiosk.
+
+    Usado por el kiosk para mostrar/ocultar la opción de registro.
+    """
+    if not device_authenticated:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Device key inválida"
+        )
+
+    teacher_repo = TeacherRepository(session)
+    teacher = await teacher_repo.get(teacher_id)
+
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profesor no encontrado"
+        )
+
+    return {
+        "teacher_id": teacher_id,
+        "can_enroll_biometric": teacher.can_enroll_biometric,
+    }
+
+
+# =============================================================================
+# User Passkey Endpoints (for web-app/teacher-pwa login)
+# =============================================================================
+
+
+@router.post(
+    "/users/register/start",
+    response_model=StartRegistrationResponse,
+    summary="Iniciar registro de passkey para usuario",
+)
+async def start_user_passkey_registration(
+    request: StartRegistrationRequest,
+    current_user: AuthUser = Depends(deps.get_current_user),
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Inicia el registro de un passkey para el usuario autenticado.
+
+    Permite a usuarios del web-app y teacher-pwa registrar un passkey
+    para futuras autenticaciones sin contraseña.
+    """
+    result = await webauthn_service.start_user_registration(
+        user_id=current_user.id,
+        device_name=request.device_name,
+    )
+
+    return StartRegistrationResponse(
+        challenge_id=result["challenge_id"],
+        options=result["options"],
+    )
+
+
+@router.post(
+    "/users/register/complete",
+    response_model=CredentialResponse,
+    summary="Completar registro de passkey",
+)
+async def complete_user_passkey_registration(
+    request: CompleteRegistrationRequest,
+    current_user: AuthUser = Depends(deps.get_current_user),
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Completa el registro de un passkey para el usuario autenticado.
+    """
+    credential = await webauthn_service.complete_user_registration(
+        challenge_id=request.challenge_id,
+        credential_response=request.credential,
+    )
+
+    return CredentialResponse(
+        credential_id=credential.credential_id,
+        device_name=credential.device_name,
+        created_at=credential.created_at,
+    )
+
+
+@router.get(
+    "/users/me/credentials",
+    response_model=CredentialListResponse,
+    summary="Listar mis passkeys",
+)
+async def list_my_passkeys(
+    current_user: AuthUser = Depends(deps.get_current_user),
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Lista todos los passkeys registrados para el usuario actual.
+    """
+    credentials = await webauthn_service.list_user_credentials(current_user.id)
+
+    return CredentialListResponse(
+        credentials=credentials,
+        count=len(credentials),
+    )
+
+
+@router.delete(
+    "/users/me/credentials/{credential_id}",
+    response_model=DeleteCredentialResponse,
+    summary="Eliminar mi passkey",
+)
+async def delete_my_passkey(
+    credential_id: str,
+    current_user: AuthUser = Depends(deps.get_current_user),
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Elimina uno de los passkeys del usuario actual.
+    """
+    deleted = await webauthn_service.delete_credential(
+        credential_id=credential_id,
+        user_id=current_user.id,
+    )
+
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Credencial no encontrada"
+        )
+
+    return DeleteCredentialResponse(
+        deleted=True,
+        message="Passkey eliminado exitosamente",
+    )

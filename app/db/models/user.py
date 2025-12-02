@@ -20,3 +20,6 @@ class User(Base):
 
     guardian = relationship("Guardian", backref="users")
     teacher = relationship("Teacher", backref="users")
+    webauthn_credentials = relationship(
+        "WebAuthnCredential", back_populates="user", cascade="all, delete-orphan"
+    )

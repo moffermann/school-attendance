@@ -17,6 +17,7 @@ from app.db.models.user import User
 from app.db.models.teacher import Teacher
 from app.db.models.associations import student_guardian_table, teacher_course_table
 from app.db.models.no_show_alert import NoShowAlert
+from app.db.models.webauthn_credential import WebAuthnCredential
 
 __all__ = [
     "Student",
@@ -37,4 +38,5 @@ __all__ = [
     "student_guardian_table",
     "teacher_course_table",
     "NoShowAlert",
+    "WebAuthnCredential",
 ]

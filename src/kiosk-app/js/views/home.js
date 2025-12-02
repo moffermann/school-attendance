@@ -64,6 +64,10 @@ Views.home = function() {
               ? I18n.t('scanner.instruction_both')
               : I18n.t('scanner.instruction_qr')}
           </div>
+          <!-- Fingerprint option button -->
+          <button class="btn btn-biometric" onclick="Router.navigate('/biometric-auth')" aria-label="Usar huella digital">
+            🖐️ ¿Olvidaste tu tarjeta? Usa tu huella
+          </button>
         </div>
       </div>
     `;

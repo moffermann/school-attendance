@@ -17,6 +17,7 @@ from app.api.v1 import (
     tags,
     teachers,
     webapp,
+    webauthn,
 )
 
 
@@ -36,3 +37,4 @@ api_router.include_router(webapp.router, prefix="/web-app", tags=["web-app"])
 api_router.include_router(absences.router, prefix="/absences", tags=["absences"])
 api_router.include_router(teachers.router, prefix="/teachers", tags=["teachers"])
 api_router.include_router(kiosk.router, prefix="/kiosk", tags=["kiosk"])
+api_router.include_router(webauthn.router, prefix="/webauthn", tags=["webauthn"])

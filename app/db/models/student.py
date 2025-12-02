@@ -20,3 +20,6 @@ class Student(Base):
     course = relationship("Course", back_populates="students")
     enrollments = relationship("Enrollment", back_populates="student")
     guardians = relationship("Guardian", secondary=student_guardian_table, back_populates="students")
+    webauthn_credentials = relationship(
+        "WebAuthnCredential", back_populates="student", cascade="all, delete-orphan"
+    )

@@ -26,6 +26,7 @@ from app.services.web_app_service import WebAppDataService
 from app.services.absence_service import AbsenceService
 from app.services.dashboard_service import DashboardService
 from app.services.notification_service import NotificationService
+from app.services.webauthn_service import WebAuthnService
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=True)
@@ -181,3 +182,9 @@ async def get_notification_service(
     session: AsyncSession = Depends(get_db),
 ) -> NotificationService:
     return NotificationService(session)
+
+
+async def get_webauthn_service(
+    session: AsyncSession = Depends(get_db),
+) -> WebAuthnService:
+    return WebAuthnService(session)

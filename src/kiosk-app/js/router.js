@@ -12,6 +12,8 @@ const Router = {
     this.addRoute('/settings', Views.settings);
     this.addRoute('/help', Views.help);
     this.addRoute('/admin-panel', Views.adminPanel);
+    this.addRoute('/biometric-auth', Views.biometricAuth);
+    this.addRoute('/biometric-enroll', Views.biometricEnroll);
 
     window.addEventListener('hashchange', () => this.handleRoute());
     this.handleRoute();

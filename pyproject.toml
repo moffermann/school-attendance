@@ -35,7 +35,8 @@ dependencies = [
   "tenacity>=8.2",
   "python-multipart>=0.0.9",
   "apscheduler>=3.10",
-  "aiosqlite>=0.20.0"
+  "aiosqlite>=0.20.0",
+  "webauthn>=2.0.0"
 ]
 
 [project.optional-dependencies]

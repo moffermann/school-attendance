@@ -51,6 +51,12 @@ Views.adminPanel = function() {
               <div class="admin-menu-title">${I18n.t('admin.help')}</div>
               <div class="admin-menu-desc">${I18n.t('admin.help_desc')}</div>
             </div>
+
+            <div class="admin-menu-item admin-menu-item-highlight" onclick="Views.adminPanel.openBiometricEnroll()">
+              <div class="admin-menu-icon">🖐️</div>
+              <div class="admin-menu-title">Registro Biométrico</div>
+              <div class="admin-menu-desc">Registrar huellas de estudiantes</div>
+            </div>
           </div>
 
           <div class="mt-3">
@@ -149,6 +155,15 @@ Views.adminPanel = function() {
   Views.adminPanel.logout = function() {
     clearTimers();
     Router.navigate('/home');
+  };
+
+  // Open biometric enrollment (needs teacher ID)
+  // TODO: Get actual teacher ID from session
+  Views.adminPanel.openBiometricEnroll = function() {
+    clearTimers();
+    // For now, use teacher_id=1 as placeholder
+    // In real implementation, this would come from the login session
+    Router.navigate('/biometric-enroll?teacher_id=1');
   };
 
   // Expose handleTimeout for testing

@@ -196,5 +196,33 @@ const State = {
     const student = this.students.find(s => s.id === studentId);
     // Default to true for backwards compatibility if field not present
     return student ? (student.photo_opt_in !== false) : true;
+  },
+
+  // Get student by ID
+  getStudentById(studentId) {
+    return this.students.find(s => s.id === studentId) || null;
+  },
+
+  // Update or add a student from biometric auth response
+  updateStudentFromBiometric(studentData) {
+    const existing = this.students.find(s => s.id === studentData.student_id);
+    if (existing) {
+      // Update existing student
+      existing.full_name = studentData.full_name || existing.full_name;
+      existing.photo_ref = studentData.photo_url || existing.photo_ref;
+      existing.photo_opt_in = studentData.has_photo_consent ?? existing.photo_opt_in;
+    } else {
+      // Add new student from biometric response
+      this.students.push({
+        id: studentData.student_id,
+        full_name: studentData.full_name,
+        rut: studentData.rut,
+        course_id: null,
+        photo_ref: studentData.photo_url,
+        photo_opt_in: studentData.has_photo_consent ?? false,
+        guardian_name: null
+      });
+    }
+    this.persist();
   }
 };

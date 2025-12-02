@@ -52,6 +52,28 @@ class Settings(BaseSettings):
         description="Kiosk device authentication key - MUST be changed in production"
     )
 
+    # WebAuthn / Passkeys configuration for biometric authentication
+    webauthn_rp_id: str = Field(
+        default="localhost",
+        env="WEBAUTHN_RP_ID",
+        description="Relying Party ID - must be the domain (e.g., 'escuela.cl')"
+    )
+    webauthn_rp_name: str = Field(
+        default="Sistema de Asistencia Escolar",
+        env="WEBAUTHN_RP_NAME",
+        description="Human-readable name shown to users during authentication"
+    )
+    webauthn_rp_origin: str = Field(
+        default="http://localhost:8000",
+        env="WEBAUTHN_RP_ORIGIN",
+        description="Full origin URL (e.g., 'https://escuela.cl')"
+    )
+    webauthn_timeout_ms: int = Field(
+        default=60000,
+        env="WEBAUTHN_TIMEOUT_MS",
+        description="Timeout for WebAuthn operations in milliseconds"
+    )
+
     def validate_production_secrets(self) -> list[str]:
         """Check if secrets are using insecure defaults. Returns list of warnings."""
         warnings = []
