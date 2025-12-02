@@ -215,18 +215,16 @@ class TestAbsenceService:
     @pytest.mark.asyncio
     async def test_submit_absence_invalid_date_range(self, absence_service, admin_user):
         """Should raise error when end date is before start date."""
-        fake_student = SimpleNamespace(id=1, full_name="Student")
-        absence_service.student_repo.get = AsyncMock(return_value=fake_student)
+        # Pydantic validates date range in the model constructor
+        from pydantic import ValidationError
 
-        payload = AbsenceRequestCreate(
-            student_id=1,
-            type=AbsenceType.SICK,
-            start=date(2025, 1, 20),
-            end=date(2025, 1, 15),  # Before start
-        )
-
-        with pytest.raises(ValueError, match="fecha de fin"):
-            await absence_service.submit_absence(admin_user, payload)
+        with pytest.raises(ValidationError, match="fecha de fin"):
+            AbsenceRequestCreate(
+                student_id=1,
+                type=AbsenceType.SICK,
+                start=date(2025, 1, 20),
+                end=date(2025, 1, 15),  # Before start
+            )
 
     @pytest.mark.asyncio
     async def test_submit_absence_parent_no_guardian(self, absence_service):

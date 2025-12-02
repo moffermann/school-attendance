@@ -590,6 +590,7 @@ async def test_web_app_data_service_bootstrap(monkeypatch) -> None:
         SimpleNamespace(id=2, full_name="Ben", course_id=11, photo_pref_opt_in=False, guardians=[]),
     ])
     service._load_courses = AsyncMock(return_value=[SimpleNamespace(id=10, name="1A", grade="1")])
+    service._load_teachers = AsyncMock(return_value=[])
     service._load_schedules = AsyncMock(return_value=[])
     service._load_schedule_exceptions = AsyncMock(return_value=[])
     service._load_guardians = AsyncMock(return_value=[])

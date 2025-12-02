@@ -1,17 +1,19 @@
 """Add evidence_preference column to students and audio_ref to attendance_events.
 
-Revision ID: 0005
-Revises: 0004
-Create Date: 2024-12-02
+Revision ID: 0008_add_evidence_preference
+Revises: 0007_merge_0006_heads
+Create Date: 2025-12-02
 
 """
+
+from __future__ import annotations
+
 from alembic import op
 import sqlalchemy as sa
 
 
-# revision identifiers, used by Alembic.
-revision = "0005"
-down_revision = "0004"
+revision = "0008_add_evidence_preference"
+down_revision = "0007_merge_0006_heads"
 branch_labels = None
 depends_on = None
 

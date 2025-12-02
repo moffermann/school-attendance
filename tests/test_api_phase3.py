@@ -449,7 +449,7 @@ class TestParentsAPI:
             async def get_guardian_preferences(self, guardian_id):
                 return SimpleNamespace(
                     guardian_id=guardian_id,
-                    preferences={"email": [{"channel": "email", "enabled": True}]},
+                    preferences={"INGRESO_OK": {"whatsapp": True, "email": False}},
                     photo_consents={},
                 )
 
@@ -508,16 +508,16 @@ class TestParentsAPI:
             async def update_guardian_preferences(self, guardian_id, payload):
                 return SimpleNamespace(
                     guardian_id=guardian_id,
-                    preferences=payload.preferences,
-                    photo_consents=payload.photo_consents,
+                    preferences=payload.preferences or {},
+                    photo_consents=payload.photo_consents or {},
                 )
 
         app.dependency_overrides[deps.get_consent_service] = lambda: FakeConsentService()
 
         with TestClient(app) as client:
             resp = client.put("/api/v1/parents/10/preferences", json={
-                "preferences": {"email": [{"channel": "email", "enabled": False}]},
-                "photo_consents": {1: True},
+                "preferences": {"INGRESO_OK": {"whatsapp": True, "email": False}},
+                "photo_consents": {"1": True},
             })
             assert resp.status_code == 200
             assert resp.json()["guardian_id"] == 10

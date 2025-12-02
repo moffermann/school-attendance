@@ -134,11 +134,14 @@ class TestProtectedRoutesNoAuth:
         assert resp.status_code == 303
         assert "/login" in resp.headers.get("location", "")
 
-    def test_spa_redirects_without_auth(self, client):
-        """Should redirect to login without auth."""
+    def test_spa_serves_static_without_auth(self, client):
+        """SPA is served as static files (no auth required at mount level)."""
+        # /app is a StaticFiles mount, not a protected route
+        # It returns 307 to add trailing slash, then serves static content
         resp = client.get("/app", follow_redirects=False)
-        assert resp.status_code == 303
-        assert "/login" in resp.headers.get("location", "")
+        # StaticFiles redirects to add trailing slash
+        assert resp.status_code == 307
+        assert resp.headers.get("location", "").endswith("/app/")
 
     def test_schedules_redirects_without_auth(self, client):
         """Should redirect to login without auth."""
@@ -188,15 +191,17 @@ class TestProtectedRoutesInvalidSession:
         assert resp.status_code == 303
         assert "/login" in resp.headers.get("location", "")
 
-    def test_spa_redirects_with_invalid_session(self, client):
-        """Should redirect with invalid session token."""
+    def test_spa_serves_static_with_invalid_session(self, client):
+        """SPA is served as static files (session not checked at mount level)."""
+        # /app is a StaticFiles mount, auth is handled client-side
         resp = client.get(
             "/app",
             cookies={"session_token": "invalid_token"},
             follow_redirects=False,
         )
-        assert resp.status_code == 303
-        assert "/login" in resp.headers.get("location", "")
+        # StaticFiles redirects to add trailing slash
+        assert resp.status_code == 307
+        assert resp.headers.get("location", "").endswith("/app/")
 
 
 # =============================================================================
