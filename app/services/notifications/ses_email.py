@@ -11,6 +11,18 @@ from loguru import logger
 from app.core.config import settings
 
 
+def mask_email(email: str) -> str:
+    """Mask email for logging, showing only first 2 chars and domain."""
+    if "@" not in email:
+        return "****"
+    local, domain = email.split("@", 1)
+    if len(local) <= 2:
+        masked_local = "*" * len(local)
+    else:
+        masked_local = local[:2] + "*" * (len(local) - 2)
+    return f"{masked_local}@{domain}"
+
+
 class SESEmailClient:
     def __init__(self) -> None:
         self._region = settings.ses_region
@@ -18,7 +30,7 @@ class SESEmailClient:
 
     async def send_email(self, to: str, subject: str, body_html: str) -> None:
         if not settings.enable_real_notifications:
-            logger.info("[SES] Dry-run email to=%s subject=%s", to, subject)
+            logger.info("[SES] Dry-run email to=%s subject=%s", mask_email(to), subject)
             return
 
         client = boto3.client("ses", region_name=self._region)

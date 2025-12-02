@@ -27,6 +27,9 @@ jobs:
       - name: Lint (ruff)
         run: ruff check app tests
 
+      - name: Security scan (bandit)
+        run: bandit -r app -ll --format txt
+
       - name: Type check (mypy)
         run: mypy app
 

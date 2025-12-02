@@ -7,7 +7,7 @@ from loguru import logger
 
 from app.db.repositories.notifications import NotificationRepository
 from app.db.session import async_session
-from app.services.notifications.ses_email import SESEmailClient
+from app.services.notifications.ses_email import SESEmailClient, mask_email
 
 
 async def _send(notification_id: int, to: str, template: str, variables: dict) -> None:
@@ -27,7 +27,7 @@ async def _send(notification_id: int, to: str, template: str, variables: dict) -
             await client.send_email(to=to, subject=subject, body_html=body_html)
             await repo.mark_sent(notification)
             await session.commit()
-            logger.info("[Worker] Email sent notification_id=%s to=%s", notification_id, to)
+            logger.info("[Worker] Email sent notification_id=%s to=%s", notification_id, mask_email(to))
         except Exception as exc:  # pragma: no cover - network failure
             await repo.mark_failed(notification)
             await session.commit()

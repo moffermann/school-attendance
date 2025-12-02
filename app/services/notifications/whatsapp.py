@@ -10,6 +10,13 @@ from loguru import logger
 from app.core.config import settings
 
 
+def mask_phone(phone: str) -> str:
+    """Mask phone number for logging, showing only last 4 digits."""
+    if len(phone) <= 4:
+        return "****"
+    return "*" * (len(phone) - 4) + phone[-4:]
+
+
 class WhatsAppClient:
     def __init__(self) -> None:
         self._access_token = settings.whatsapp_access_token
@@ -20,7 +27,7 @@ class WhatsAppClient:
         if not settings.enable_real_notifications:
             logger.info(
                 "[WhatsApp] Dry-run send to=%s template=%s components=%s",
-                to,
+                mask_phone(to),
                 template,
                 components,
             )
@@ -62,7 +69,7 @@ class WhatsAppClient:
         if not settings.enable_real_notifications:
             logger.info(
                 "[WhatsApp] Dry-run image send to=%s image_url=%s caption=%s",
-                to,
+                mask_phone(to),
                 image_url,
                 caption[:50] + "..." if len(caption) > 50 else caption,
             )
@@ -86,4 +93,4 @@ class WhatsAppClient:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(self._base_url, headers=headers, json=payload)
             response.raise_for_status()
-            logger.info("[WhatsApp] Image message sent to=%s", to)
+            logger.info("[WhatsApp] Image message sent to=%s", mask_phone(to))

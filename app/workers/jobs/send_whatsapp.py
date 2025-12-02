@@ -7,7 +7,7 @@ from loguru import logger
 
 from app.db.repositories.notifications import NotificationRepository
 from app.db.session import async_session
-from app.services.notifications.whatsapp import WhatsAppClient
+from app.services.notifications.whatsapp import WhatsAppClient, mask_phone
 
 
 # Message templates for attendance notifications
@@ -98,7 +98,7 @@ async def _send(notification_id: int, to: str, template: str, variables: dict) -
             logger.info(
                 "[Worker] WhatsApp sent notification_id=%s to=%s with_photo=%s",
                 notification_id,
-                to,
+                mask_phone(to),
                 has_photo and photo_url is not None,
             )
         except Exception as exc:  # pragma: no cover - network failure
