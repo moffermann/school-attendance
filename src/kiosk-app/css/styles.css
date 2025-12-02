@@ -6,6 +6,28 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Skip link for accessibility */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-primary);
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  z-index: 10000;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 1rem;
+  outline: 3px solid var(--color-gray-900);
+  outline-offset: 2px;
+}
+
 :root {
   --color-primary: #3b82f6;
   --color-success: #10b981;

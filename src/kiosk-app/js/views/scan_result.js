@@ -88,7 +88,7 @@ Views.scanResult = function() {
               ` : ''}
 
               <!-- Botón de confirmación -->
-              <button class="btn ${buttonClass} btn-xl btn-confirm-main" onclick="Views.scanResult.confirm()">
+              <button class="btn ${buttonClass} btn-xl btn-confirm-main" onclick="Views.scanResult.confirm()" aria-label="Confirmar ${actionText}">
                 ✓ Confirmar ${actionText}
               </button>
             </div>

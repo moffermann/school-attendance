@@ -124,27 +124,32 @@ const Components = {
 
   // Layout
   createLayout(role) {
+    // Skip link for keyboard/screen reader users
+    const skipLink = '<a href="#view-content" class="skip-link">Saltar al contenido principal</a>';
+
     if (role === 'parent') {
       return `
+        ${skipLink}
         <div class="app-layout">
           <div class="main-content no-sidebar">
             <header class="header">
               <h1 class="header-title">Portal de Apoderados</h1>
               <div class="header-actions">
-                <button class="btn btn-secondary btn-sm" onclick="State.logout(); Router.navigate('/auth')">
+                <button class="btn btn-secondary btn-sm" onclick="State.logout(); Router.navigate('/auth')" aria-label="Cerrar sesión">
                   ${this.icons.logout}
                   Cerrar sesión
                 </button>
               </div>
             </header>
-            <div class="content" id="view-content"></div>
+            <main class="content" id="view-content" tabindex="-1"></main>
           </div>
         </div>
       `;
     } else {
       return `
+        ${skipLink}
         <div class="app-layout">
-          <aside class="sidebar">
+          <aside class="sidebar" role="navigation" aria-label="Navegación principal">
             <div class="sidebar-logo">
               <img src="assets/logo.svg" alt="Logo">
               <h1>Control Escolar</h1>
@@ -171,13 +176,13 @@ const Components = {
               <h1 class="header-title" id="page-title">Tablero</h1>
               <div class="header-actions">
                 <span class="role-selector">${role === 'director' ? 'Director' : 'Inspector'}</span>
-                <button class="btn btn-secondary btn-sm" onclick="State.logout(); Router.navigate('/auth')">
+                <button class="btn btn-secondary btn-sm" onclick="State.logout(); Router.navigate('/auth')" aria-label="Cerrar sesión">
                   ${this.icons.logout}
                   Cerrar sesión
                 </button>
               </div>
             </header>
-            <div class="content" id="view-content"></div>
+            <main class="content" id="view-content" tabindex="-1"></main>
           </div>
         </div>
       `;
