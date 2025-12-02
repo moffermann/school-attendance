@@ -73,7 +73,7 @@ class AttendanceNotificationService:
         # Determine notification type based on event
         notification_type = (
             NotificationType.INGRESO_OK
-            if event.event_type == "IN"
+            if event.type == "IN"
             else NotificationType.SALIDA_OK
         )
 
@@ -144,7 +144,7 @@ class AttendanceNotificationService:
         return {
             "student_name": student.full_name,
             "student_id": student.id,
-            "event_type": event.event_type,
+            "type": event.type,
             "event_id": event.id,
             "occurred_at": occurred_at.isoformat() if occurred_at else None,
             "date": occurred_at.strftime("%d/%m/%Y") if occurred_at else None,

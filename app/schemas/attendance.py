@@ -1,6 +1,6 @@
 """Attendance schemas."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
@@ -16,7 +16,7 @@ class AttendanceEventCreate(BaseModel):
     device_id: str
     gate_id: str
     type: AttendanceType
-    occurred_at: datetime = Field(default_factory=datetime.utcnow)
+    occurred_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     photo_ref: str | None = None
     audio_ref: str | None = None
     local_seq: int | None = None
@@ -24,7 +24,11 @@ class AttendanceEventCreate(BaseModel):
     @field_validator("occurred_at")
     @classmethod
     def validate_occurred_at(cls, v: datetime) -> datetime:
-        now = datetime.utcnow()
+        # Ensure timezone-aware comparison
+        now = datetime.now(timezone.utc)
+        # Make v timezone-aware if it isn't
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
         # Allow events up to 1 hour in the future (clock sync tolerance)
         max_future = now + timedelta(hours=1)
         # Allow events up to 7 days in the past (offline sync)

@@ -105,7 +105,7 @@ async def attendance_event(db_session: AsyncSession, sample_student: Student) ->
     """Create a sample attendance event."""
     event = AttendanceEvent(
         student_id=sample_student.id,
-        event_type="IN",
+        type="IN",
         gate_id="GATE-A",
         device_id="DEV-01",
         occurred_at=datetime.utcnow(),
@@ -134,7 +134,7 @@ class TestAttendanceNotificationService:
 
         event = AttendanceEvent(
             student_id=sample_student.id,
-            event_type="IN",
+            type="IN",
             gate_id="GATE-A",
             device_id="DEV-01",
             occurred_at=datetime.utcnow(),
@@ -168,7 +168,7 @@ class TestAttendanceNotificationService:
 
         event = AttendanceEvent(
             student_id=sample_student.id,
-            event_type="OUT",
+            type="OUT",
             gate_id="GATE-A",
             device_id="DEV-01",
             occurred_at=datetime.utcnow(),
@@ -211,7 +211,7 @@ class TestAttendanceNotificationService:
 
         event = AttendanceEvent(
             student_id=student.id,
-            event_type="IN",
+            type="IN",
             gate_id="GATE-A",
             device_id="DEV-01",
             occurred_at=datetime.utcnow(),
@@ -256,7 +256,7 @@ class TestAttendanceNotificationService:
 
         event = AttendanceEvent(
             student_id=student.id,
-            event_type="IN",
+            type="IN",
             gate_id="GATE-A",
             device_id="DEV-01",
             occurred_at=datetime.utcnow(),
@@ -312,7 +312,7 @@ class TestAttendanceNotificationService:
 
         event = AttendanceEvent(
             student_id=student.id,
-            event_type="IN",
+            type="IN",
             gate_id="GATE-A",
             device_id="DEV-01",
             occurred_at=datetime.utcnow(),
@@ -359,7 +359,7 @@ class TestAttendanceNotificationService:
 
         event = AttendanceEvent(
             student_id=student.id,
-            event_type="IN",
+            type="IN",
             gate_id="GATE-A",
             device_id="DEV-01",
             occurred_at=datetime.utcnow(),
@@ -386,7 +386,7 @@ class TestAttendanceNotificationService:
         occurred_at = datetime(2024, 3, 15, 8, 30, 0)
         event = AttendanceEvent(
             student_id=sample_student.id,
-            event_type="IN",
+            type="IN",
             gate_id="GATE-A",
             device_id="DEV-01",
             occurred_at=occurred_at,
@@ -414,12 +414,12 @@ class TestAttendanceNotificationService:
             # Verify required fields
             assert "student_name" in payload
             assert "student_id" in payload
-            assert "event_type" in payload
+            assert "type" in payload
             assert "event_id" in payload
             assert "occurred_at" in payload
             assert "date" in payload
             assert "time" in payload
             assert payload["student_name"] == sample_student.full_name
-            assert payload["event_type"] == "IN"
+            assert payload["type"] == "IN"
             assert payload["date"] == "15/03/2024"
             assert payload["time"] == "08:30"

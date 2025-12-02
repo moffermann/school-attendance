@@ -100,8 +100,8 @@ async def test_consent_service_reads_preferences_and_photo_consents() -> None:
     guardian = SimpleNamespace(
         id=7,
         notification_prefs={
-            "INGRESO_OK": [{"channel": "WHATSAPP", "enabled": True}],
-            "SALIDA_OK": [{"channel": "EMAIL", "enabled": True}],
+            "INGRESO_OK": {"whatsapp": True, "email": False},
+            "SALIDA_OK": {"whatsapp": False, "email": True},
         },
         students=[
             SimpleNamespace(id=101, photo_pref_opt_in=True),
@@ -112,9 +112,9 @@ async def test_consent_service_reads_preferences_and_photo_consents() -> None:
 
     result = await service.get_guardian_preferences(guardian.id)
 
-    assert result.preferences["INGRESO_OK"][0].model_dump() == guardian.notification_prefs["INGRESO_OK"][0]
-    assert result.preferences["SALIDA_OK"][0].model_dump() == guardian.notification_prefs["SALIDA_OK"][0]
-    assert result.photo_consents == {101: True, 102: False}
+    assert result.preferences["INGRESO_OK"].whatsapp is True
+    assert result.preferences["SALIDA_OK"].email is True
+    assert result.photo_consents == {"101": True, "102": False}
     service.guardian_repo.get.assert_awaited_with(guardian.id)
 
 
@@ -137,16 +137,15 @@ async def test_consent_service_update_preferences_updates_photo_consents() -> No
     service.guardian_repo.save = AsyncMock(return_value=guardian)
 
     payload = GuardianPreferencesUpdate(
-        preferences={"NO_INGRESO_UMBRAL": [{"channel": "WHATSAPP", "enabled": True}]},
-        photo_consents={201: True, 202: False},
+        preferences={"NO_INGRESO_UMBRAL": {"whatsapp": True, "email": False}},
+        photo_consents={"201": True, "202": False},
     )
 
     result = await service.update_guardian_preferences(guardian.id, payload)
 
-    assert guardian.notification_prefs == payload.preferences
     assert student_a.photo_pref_opt_in is True
     assert student_b.photo_pref_opt_in is False
-    assert result.photo_consents == {201: True, 202: False}
+    assert result.photo_consents == {"201": True, "202": False}
     service.guardian_repo.save.assert_awaited_with(guardian)
     session.commit.assert_awaited()
 

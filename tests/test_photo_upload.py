@@ -12,16 +12,31 @@ import pytest
 from app.services.attendance_service import AttendanceService
 
 
+# Valid magic bytes for different image types
+JPEG_MAGIC = b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"\x00" * 100  # JPEG header
+PNG_MAGIC = b"\x89PNG\r\n\x1a\n" + b"\x00" * 100  # PNG header
+WEBP_MAGIC = b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 100  # WebP header
+GIF_MAGIC = b"GIF89a" + b"\x00" * 100  # GIF header
+
+
 class FakeUploadFile:
-    """Fake UploadFile for testing."""
+    """Fake UploadFile for testing with chunk support."""
 
     def __init__(self, content: bytes, content_type: str, filename: str):
         self._content = content
+        self._position = 0
         self.content_type = content_type
         self.filename = filename
 
-    async def read(self) -> bytes:
-        return self._content
+    async def read(self, size: int = -1) -> bytes:
+        """Read content in chunks, like real UploadFile."""
+        if size == -1 or size >= len(self._content) - self._position:
+            result = self._content[self._position:]
+            self._position = len(self._content)
+            return result
+        result = self._content[self._position:self._position + size]
+        self._position += size
+        return result
 
 
 @pytest.fixture
@@ -89,7 +104,7 @@ class TestPhotoUploadValidation:
     async def test_rejects_invalid_extension(self, attendance_service):
         """Should reject files with invalid extensions."""
         fake_file = FakeUploadFile(
-            content=b"fake image content",
+            content=JPEG_MAGIC,  # Valid JPEG content
             content_type="image/jpeg",  # Valid MIME but wrong extension
             filename="malicious.exe",
         )
@@ -104,7 +119,7 @@ class TestPhotoUploadValidation:
     async def test_accepts_valid_jpeg(self, attendance_service):
         """Should accept valid JPEG files."""
         fake_file = FakeUploadFile(
-            content=b"fake jpeg content",
+            content=JPEG_MAGIC,
             content_type="image/jpeg",
             filename="photo.jpg",
         )
@@ -132,7 +147,7 @@ class TestPhotoUploadValidation:
     async def test_accepts_valid_png(self, attendance_service):
         """Should accept valid PNG files."""
         fake_file = FakeUploadFile(
-            content=b"fake png content",
+            content=PNG_MAGIC,
             content_type="image/png",
             filename="photo.png",
         )
@@ -159,7 +174,7 @@ class TestPhotoUploadValidation:
     async def test_accepts_valid_webp(self, attendance_service):
         """Should accept valid WebP files."""
         fake_file = FakeUploadFile(
-            content=b"fake webp content",
+            content=WEBP_MAGIC,
             content_type="image/webp",
             filename="photo.webp",
         )
@@ -185,7 +200,7 @@ class TestPhotoUploadValidation:
     async def test_sanitizes_path_traversal_in_filename(self, attendance_service):
         """Should sanitize path traversal attempts in filename."""
         fake_file = FakeUploadFile(
-            content=b"fake content",
+            content=JPEG_MAGIC,
             content_type="image/jpeg",
             filename="../../../etc/passwd.jpg",
         )
@@ -217,7 +232,7 @@ class TestPhotoUploadValidation:
     async def test_handles_missing_filename(self, attendance_service):
         """Should handle files with no filename."""
         fake_file = FakeUploadFile(
-            content=b"fake content",
+            content=JPEG_MAGIC,
             content_type="image/jpeg",
             filename=None,
         )
@@ -243,7 +258,7 @@ class TestPhotoUploadValidation:
     async def test_case_insensitive_mime_type(self, attendance_service):
         """Should handle MIME types case-insensitively."""
         fake_file = FakeUploadFile(
-            content=b"fake content",
+            content=JPEG_MAGIC,
             content_type="IMAGE/JPEG",  # Uppercase
             filename="photo.jpg",
         )
