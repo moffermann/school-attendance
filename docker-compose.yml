@@ -72,6 +72,11 @@ services:
       WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-dummy}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       RATE_LIMIT_DEFAULT: ${RATE_LIMIT_DEFAULT:-100/minute}
+      # WebAuthn / Biometric Authentication
+      WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-localhost}
+      WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-Sistema Asistencia Escolar}
+      WEBAUTHN_RP_ORIGIN: ${WEBAUTHN_RP_ORIGIN:-http://localhost:8080}
+      WEBAUTHN_TIMEOUT_MS: ${WEBAUTHN_TIMEOUT_MS:-60000}
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:
