@@ -2,7 +2,7 @@
 
 import os
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -123,9 +123,7 @@ class WebAuthnService:
             "entity_type": "student",
             "entity_id": student_id,
             "device_name": device_name,
-            "expires": datetime.utcnow().replace(
-                second=datetime.utcnow().second + settings.webauthn_timeout_ms // 1000
-            ),
+            "expires": datetime.utcnow() + timedelta(milliseconds=settings.webauthn_timeout_ms),
         }
 
         _cleanup_expired_challenges()
@@ -241,9 +239,7 @@ class WebAuthnService:
         _challenge_store[challenge_id] = {
             "challenge": options.challenge,
             "entity_type": "student_auth",
-            "expires": datetime.utcnow().replace(
-                second=datetime.utcnow().second + settings.webauthn_timeout_ms // 1000
-            ),
+            "expires": datetime.utcnow() + timedelta(milliseconds=settings.webauthn_timeout_ms),
         }
 
         _cleanup_expired_challenges()
@@ -379,9 +375,7 @@ class WebAuthnService:
             "entity_type": "user",
             "entity_id": user_id,
             "device_name": device_name,
-            "expires": datetime.utcnow().replace(
-                second=datetime.utcnow().second + settings.webauthn_timeout_ms // 1000
-            ),
+            "expires": datetime.utcnow() + timedelta(milliseconds=settings.webauthn_timeout_ms),
         }
 
         _cleanup_expired_challenges()
