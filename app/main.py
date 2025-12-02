@@ -69,6 +69,10 @@ def create_app() -> FastAPI:
     # Legacy static mount for web portal templates
     app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
 
+    # Mount shared library for frontend apps
+    if (FRONTEND_BASE / "lib").exists():
+        app.mount("/lib", StaticFiles(directory=str(FRONTEND_BASE / "lib")), name="shared-lib")
+
     # Mount frontend SPAs (only if directories exist)
     if (FRONTEND_BASE / "kiosk-app").exists():
         app.mount("/kiosk", StaticFiles(directory=str(FRONTEND_BASE / "kiosk-app"), html=True), name="kiosk")
