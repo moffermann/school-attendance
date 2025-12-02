@@ -6,8 +6,6 @@ services:
       POSTGRES_USER: ${DB_USER:-school_attendance}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-school_attendance}
       POSTGRES_DB: ${DB_NAME:-school_attendance}
-    ports:
-      - "${DB_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-school_attendance} -d ${DB_NAME:-school_attendance}"]
       interval: 5s
@@ -21,8 +19,6 @@ services:
   redis:
     container_name: ${APP_NAME:-school-attendance}-redis-${APP_ENV:-dev}
     image: redis:7
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -38,9 +34,6 @@ services:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY:-dev-access}
       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-dev-secret}
     command: server /data --console-address ":9001"
-    ports:
-      - "${MINIO_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
@@ -77,8 +70,6 @@ services:
       WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-Sistema Asistencia Escolar}
       WEBAUTHN_RP_ORIGIN: ${WEBAUTHN_RP_ORIGIN:-http://localhost:8080}
       WEBAUTHN_TIMEOUT_MS: ${WEBAUTHN_TIMEOUT_MS:-60000}
-    ports:
-      - "${API_PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -148,8 +139,6 @@ services:
     image: eoranged/rq-dashboard
     environment:
       RQ_DASHBOARD_REDIS_URL: redis://redis:6379/0
-    ports:
-      - "${RQ_DASHBOARD_PORT:-9181}:9181"
     depends_on:
       redis:
         condition: service_healthy

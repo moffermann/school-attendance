@@ -26,6 +26,72 @@ Servicios de soporte:
    export REGISTRY_PASSWORD="tu-token"
    ```
 
+## Redes Docker y Proxy Reverso
+
+### Arquitectura de Red
+
+Cada ambiente (dev, qa, prod) tiene su propia red Docker aislada:
+
+```
+net_dev   ← Contenedores de desarrollo
+net_qa    ← Contenedores de QA
+net_prod  ← Contenedores de producción
+```
+
+**Importante:** Las redes usan guión bajo (`net_qa`), no guión (`net-qa`).
+
+### Nginx como Proxy Reverso
+
+Un contenedor nginx centralizado actúa como proxy reverso para todos los ambientes:
+
+```
+Internet → nginx (443) → school-attendance-dev:8080  (via net_dev)
+                       → school-attendance-qa:8080   (via net_qa)
+                       → school-attendance-prod:8080 (via net_prod)
+```
+
+Nginx está conectado a todas las redes Docker y rutea el tráfico basándose en el dominio:
+- `school-attendance.dev.gocode.cl` → `school-attendance-dev:8080`
+- `school-attendance.qa.gocode.cl` → `school-attendance-qa:8080`
+
+### Configuración de Nginx
+
+Los archivos de configuración están en `/srv/nginx/conf.d/`:
+
+```bash
+# Crear configuración para un nuevo ambiente
+sudo tee /srv/nginx/conf.d/50-school-attendance.qa.gocode.cl-ssl.conf << 'EOF'
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name school-attendance.qa.gocode.cl;
+
+  ssl_certificate     /etc/letsencrypt/live/qa.gocode.cl/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/qa.gocode.cl/privkey.pem;
+
+  location / {
+    proxy_pass http://school-attendance-qa:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+  }
+}
+EOF
+
+# Recargar nginx (después de que los contenedores estén corriendo)
+docker exec nginx-nginx-1 nginx -s reload
+```
+
+### ¿Por qué no se necesitan puertos expuestos al host?
+
+El `docker-compose.yml` define puertos (`ports: - "8080:8080"`), pero estos **solo son necesarios para desarrollo local** donde se accede directamente vía `localhost:8080`.
+
+En QA y producción, nginx hace proxy interno via la red Docker, por lo que:
+- No hay conflicto de puertos entre ambientes
+- No se exponen servicios directamente a Internet
+- Todo el tráfico pasa por nginx (SSL, rate limiting, etc.)
+
+Para evitar conflictos de puertos al correr múltiples ambientes en el mismo servidor, el archivo `.env` de cada ambiente puede definir puertos diferentes o simplemente no mapearlos (docker compose ignora puertos no definidos si el servicio no los necesita expuestos).
+
 ## Estructura de Directorios
 
 ### En el proyecto (repositorio)
@@ -188,18 +254,82 @@ appctl status --env dev --app school-attendance
 
 ### QA
 
-```bash
-# Preparar secrets
-cp secrets/qa/.env.example secrets/qa/.env
-# Editar con valores de QA
+#### 1. Preparar archivo .env
 
-# Copiar al servidor
+```bash
+# Copiar plantilla
+cp secrets/qa/.env.example secrets/qa/.env
+
+# Generar keys seguras
+openssl rand -hex 32  # Para SECRET_KEY
+openssl rand -hex 32  # Para DEVICE_API_KEY
+openssl rand -hex 16  # Para DB_PASSWORD
+
+# Editar secrets/qa/.env con los valores generados
+```
+
+Variables importantes para QA:
+```bash
+APP_ENV=qa
+DOCKER_NETWORK=net_qa
+CORS_ORIGINS=["https://school-attendance.qa.gocode.cl"]
+WEBAUTHN_RP_ID=school-attendance.qa.gocode.cl
+WEBAUTHN_RP_ORIGIN=https://school-attendance.qa.gocode.cl
+```
+
+#### 2. Configurar nginx (si no existe)
+
+```bash
+# Verificar si existe configuración
+ls /srv/nginx/conf.d/ | grep school-attendance.qa
+
+# Si no existe, crearla
+sudo tee /srv/nginx/conf.d/50-school-attendance.qa.gocode.cl-ssl.conf << 'EOF'
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name school-attendance.qa.gocode.cl;
+
+  ssl_certificate     /etc/letsencrypt/live/qa.gocode.cl/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/qa.gocode.cl/privkey.pem;
+
+  location / {
+    proxy_pass http://school-attendance-qa:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+  }
+}
+EOF
+```
+
+#### 3. Deploy
+
+```bash
+# Copiar secrets al servidor
 sudo mkdir -p /srv/qa/apps/school-attendance
 sudo cp secrets/qa/.env /srv/qa/apps/school-attendance/.env
 
 # Deploy
 appctl pull --env qa --app school-attendance
+
+# Recargar nginx (después de que los contenedores estén corriendo)
+docker exec nginx-nginx-1 nginx -s reload
 ```
+
+#### 4. Verificar
+
+```bash
+# Estado de contenedores
+appctl status --env qa --app school-attendance
+
+# Health check
+appctl verify --env qa --app school-attendance
+
+# Probar desde el navegador
+# https://school-attendance.qa.gocode.cl/app
+```
+
+**URL de acceso:** https://school-attendance.qa.gocode.cl/app
 
 ### Production (prod)
 

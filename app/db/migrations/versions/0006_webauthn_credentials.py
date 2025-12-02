@@ -1,4 +1,4 @@
-"""Add WebAuthn credentials table and teacher biometric permission
+"""Add WebAuthn credentials table, teachers table, and teacher biometric permission
 
 Revision ID: 0006_webauthn_credentials
 Revises: 0005_merge_heads
@@ -18,6 +18,23 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Create teachers table (was missing from initial migrations)
+    op.create_table(
+        "teachers",
+        sa.Column("id", sa.Integer(), primary_key=True),
+        sa.Column("full_name", sa.String(255), nullable=False),
+        sa.Column("email", sa.String(255), unique=True, index=True, nullable=True),
+        sa.Column("status", sa.String(32), nullable=False, server_default="ACTIVE"),
+        sa.Column("can_enroll_biometric", sa.Boolean(), nullable=False, server_default="false"),
+    )
+
+    # Create teacher_courses association table
+    op.create_table(
+        "teacher_courses",
+        sa.Column("teacher_id", sa.Integer(), sa.ForeignKey("teachers.id"), primary_key=True),
+        sa.Column("course_id", sa.Integer(), sa.ForeignKey("courses.id"), primary_key=True),
+    )
+
     # Create webauthn_credentials table
     op.create_table(
         "webauthn_credentials",
@@ -45,16 +62,13 @@ def upgrade() -> None:
         sa.Column("last_used_at", sa.DateTime(), nullable=True),
     )
 
-    # Add can_enroll_biometric column to teachers table
-    op.add_column(
-        "teachers",
-        sa.Column("can_enroll_biometric", sa.Boolean(), nullable=False, server_default="false"),
-    )
-
 
 def downgrade() -> None:
-    # Remove can_enroll_biometric column from teachers
-    op.drop_column("teachers", "can_enroll_biometric")
-
     # Drop webauthn_credentials table
     op.drop_table("webauthn_credentials")
+
+    # Drop teacher_courses association table
+    op.drop_table("teacher_courses")
+
+    # Drop teachers table
+    op.drop_table("teachers")
