@@ -76,6 +76,15 @@ class AttendanceRepository:
         await self.session.flush()
         return event
 
+    async def update_audio_ref(self, event_id: int, audio_ref: str | None) -> AttendanceEvent:
+        """Update the audio reference for an attendance event."""
+        event = await self.session.get(AttendanceEvent, event_id)
+        if event is None:
+            raise ValueError("Evento no encontrado")
+        event.audio_ref = audio_ref
+        await self.session.flush()
+        return event
+
     async def list_recent_with_photos(self, limit: int = 50) -> list[AttendanceEvent]:
         stmt = (
             select(AttendanceEvent)

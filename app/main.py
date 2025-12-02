@@ -15,6 +15,7 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.rate_limiter import limiter
+from app.core.security_headers import SecurityHeadersMiddleware
 from app.web.router import web_router
 
 logger = logging.getLogger(__name__)
@@ -43,6 +44,9 @@ def create_app() -> FastAPI:
 
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    # Security headers middleware
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # CORS: Restrictive configuration for production
     allowed_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]

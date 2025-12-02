@@ -1815,6 +1815,7 @@ td {
   color: var(--color-gray-900);
 }
 
+<<<<<<< HEAD
 /* =====================================================
    BIOMETRIC AUTHENTICATION STYLES
    ===================================================== */
@@ -2275,4 +2276,103 @@ td {
 .enroll-unsupported p {
   margin-bottom: 1.5rem;
   color: var(--color-gray-600);
+}
+
+/* =====================================================
+   AUDIO RECORDING STYLES
+   ===================================================== */
+
+.audio-record-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--color-gray-50);
+  border-radius: 12px;
+  min-height: 200px;
+}
+
+.audio-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.125rem;
+  color: var(--color-gray-700);
+}
+
+.audio-icon {
+  font-size: 2rem;
+}
+
+.audio-icon.recording-pulse {
+  animation: audio-pulse 1s ease-in-out infinite;
+}
+
+@keyframes audio-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+.btn-audio-record {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 140px;
+  padding: 1rem 2rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-audio-record:hover {
+  background: #2563eb;
+  transform: scale(1.02);
+}
+
+.btn-audio-record.recording {
+  background: var(--color-error);
+  animation: recording-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes recording-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 20px 10px rgba(239, 68, 68, 0.2); }
+}
+
+.record-icon {
+  font-size: 1.25rem;
+}
+
+.audio-timer {
+  font-size: 2rem;
+  font-weight: 700;
+  font-family: 'SF Mono', Monaco, monospace;
+  color: var(--color-error);
+}
+
+.audio-preview {
+  width: 100%;
+  max-width: 300px;
+  margin-top: 0.5rem;
+}
+
+.audio-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-gray-500);
+  padding: 2rem;
+}
+
+.audio-error span {
+  font-size: 3rem;
+  opacity: 0.5;
 }

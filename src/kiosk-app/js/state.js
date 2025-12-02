@@ -166,6 +166,7 @@ const State = {
         existing.course_id = serverStudent.course_id;
         existing.photo_ref = serverStudent.photo_ref;
         existing.photo_opt_in = serverStudent.photo_pref_opt_in ?? false;
+        existing.evidence_preference = serverStudent.evidence_preference ?? 'none';
       } else {
         // Add new student
         this.students.push({
@@ -174,6 +175,7 @@ const State = {
           course_id: serverStudent.course_id,
           photo_ref: serverStudent.photo_ref,
           photo_opt_in: serverStudent.photo_pref_opt_in ?? false,
+          evidence_preference: serverStudent.evidence_preference ?? 'none',
           guardian_name: null // Not provided by kiosk endpoint
         });
       }
@@ -239,5 +241,23 @@ const State = {
       });
     }
     this.persist();
+  },
+
+  // Get evidence preference for a student: "photo", "audio", or "none"
+  getEvidencePreference(studentId) {
+    const student = this.students.find(s => s.id === studentId);
+    if (!student) return 'none';
+
+    // Use new evidence_preference field if available
+    if (student.evidence_preference && student.evidence_preference !== 'none') {
+      return student.evidence_preference;
+    }
+
+    // Fall back to legacy photo_opt_in
+    if (student.photo_opt_in === true) {
+      return 'photo';
+    }
+
+    return 'none';
   }
 };

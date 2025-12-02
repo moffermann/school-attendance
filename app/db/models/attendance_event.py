@@ -25,6 +25,7 @@ class AttendanceEvent(Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     local_seq: Mapped[int | None] = mapped_column(Integer)
     photo_ref: Mapped[str | None] = mapped_column(String(512))
+    audio_ref: Mapped[str | None] = mapped_column(String(512))
     synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     student = relationship("Student")

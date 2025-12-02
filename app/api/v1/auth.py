@@ -5,6 +5,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import deps
+from app.core.audit import AuditEvent, audit_log
+from app.core.rate_limiter import limiter
 from app.core.security import create_access_token, decode_session, decode_token
 from app.core.token_blacklist import token_blacklist
 from app.db.repositories.users import UserRepository
@@ -18,9 +20,15 @@ from app.schemas.auth import (
 )
 from app.services.auth_service import AuthService
 
-from app.core.rate_limiter import limiter
-
 router = APIRouter()
+
+
+def _get_client_ip(request: Request) -> str:
+    """Extract client IP from request, considering proxies."""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 @router.post("/token", response_model=TokenPair)
@@ -31,7 +39,23 @@ async def login_token(
     auth_service: AuthService = Depends(deps.get_auth_service),
 ) -> TokenPair:
     """Login with OAuth2 form (rate limited: 5/minute)."""
-    return await auth_service.authenticate(form_data.username, form_data.password)
+    ip = _get_client_ip(request)
+    try:
+        result = await auth_service.authenticate(form_data.username, form_data.password)
+        audit_log(
+            AuditEvent.LOGIN_SUCCESS,
+            ip_address=ip,
+            details={"method": "oauth2_form", "username": form_data.username[:3] + "***"},
+        )
+        return result
+    except HTTPException:
+        audit_log(
+            AuditEvent.LOGIN_FAILURE,
+            ip_address=ip,
+            success=False,
+            details={"method": "oauth2_form", "username": form_data.username[:3] + "***"},
+        )
+        raise
 
 
 @router.post("/login", response_model=TokenPair)
@@ -42,7 +66,23 @@ async def login_json(
     auth_service: AuthService = Depends(deps.get_auth_service),
 ) -> TokenPair:
     """Login with JSON body (rate limited: 5/minute)."""
-    return await auth_service.authenticate(payload.email, payload.password)
+    ip = _get_client_ip(request)
+    try:
+        result = await auth_service.authenticate(payload.email, payload.password)
+        audit_log(
+            AuditEvent.LOGIN_SUCCESS,
+            ip_address=ip,
+            details={"method": "json", "email": payload.email[:3] + "***"},
+        )
+        return result
+    except HTTPException:
+        audit_log(
+            AuditEvent.LOGIN_FAILURE,
+            ip_address=ip,
+            success=False,
+            details={"method": "json", "email": payload.email[:3] + "***"},
+        )
+        raise
 
 
 @router.post("/refresh", response_model=TokenPair)
@@ -66,14 +106,24 @@ async def logout(
     payload: LogoutRequest,
 ) -> dict[str, str]:
     """Logout and revoke refresh token."""
+    ip = _get_client_ip(request)
     try:
         # Decode to get expiration time
         token_data = decode_token(payload.refresh_token)
         exp = token_data.get("exp")
         # Add to blacklist until expiration
         token_blacklist.add(payload.refresh_token, exp)
+        audit_log(
+            AuditEvent.LOGOUT,
+            ip_address=ip,
+            details={"token_revoked": True},
+        )
     except Exception:
-        pass  # Token already invalid, nothing to revoke
+        audit_log(
+            AuditEvent.LOGOUT,
+            ip_address=ip,
+            details={"token_revoked": False},
+        )
     return {"message": "Sesión cerrada"}
 
 

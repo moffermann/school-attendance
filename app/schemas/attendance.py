@@ -18,6 +18,7 @@ class AttendanceEventCreate(BaseModel):
     type: AttendanceType
     occurred_at: datetime = Field(default_factory=datetime.utcnow)
     photo_ref: str | None = None
+    audio_ref: str | None = None
     local_seq: int | None = None
 
     @field_validator("occurred_at")

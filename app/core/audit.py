@@ -1,0 +1,105 @@
+"""Audit logging for security-sensitive events."""
+
+import json
+from datetime import datetime, timezone
+from enum import Enum
+from typing import Any, Optional
+
+from loguru import logger
+
+
+class AuditEvent(str, Enum):
+    """Security-sensitive events that should be audited."""
+
+    # Authentication events
+    LOGIN_SUCCESS = "auth.login.success"
+    LOGIN_FAILURE = "auth.login.failure"
+    LOGOUT = "auth.logout"
+    TOKEN_REFRESH = "auth.token.refresh"
+    TOKEN_REVOKED = "auth.token.revoked"
+
+    # Authorization events
+    ACCESS_DENIED = "authz.access.denied"
+    ROLE_CHANGED = "authz.role.changed"
+
+    # Data events
+    STUDENT_CREATED = "data.student.created"
+    STUDENT_UPDATED = "data.student.updated"
+    STUDENT_DELETED = "data.student.deleted"
+    GUARDIAN_LINKED = "data.guardian.linked"
+
+    # Attendance events
+    ATTENDANCE_REGISTERED = "attendance.registered"
+    ATTENDANCE_PHOTO_UPLOADED = "attendance.photo.uploaded"
+
+    # Settings events
+    PREFERENCES_UPDATED = "settings.preferences.updated"
+    CONSENT_CHANGED = "settings.consent.changed"
+
+    # Security events
+    RATE_LIMIT_EXCEEDED = "security.rate_limit.exceeded"
+    INVALID_TOKEN = "security.token.invalid"
+    SUSPICIOUS_ACTIVITY = "security.suspicious"
+
+
+def audit_log(
+    event: AuditEvent,
+    *,
+    user_id: Optional[int] = None,
+    ip_address: Optional[str] = None,
+    resource_type: Optional[str] = None,
+    resource_id: Optional[int] = None,
+    details: Optional[dict[str, Any]] = None,
+    success: bool = True,
+) -> None:
+    """Log a security audit event.
+
+    Args:
+        event: The type of audit event
+        user_id: ID of the user performing the action (if authenticated)
+        ip_address: Client IP address
+        resource_type: Type of resource affected (e.g., "student", "attendance")
+        resource_id: ID of the affected resource
+        details: Additional event-specific details
+        success: Whether the action succeeded
+    """
+    audit_entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "event": event.value,
+        "success": success,
+        "user_id": user_id,
+        "ip_address": _mask_ip(ip_address) if ip_address else None,
+        "resource": {
+            "type": resource_type,
+            "id": resource_id,
+        } if resource_type else None,
+        "details": details,
+    }
+
+    # Remove None values for cleaner logs
+    audit_entry = {k: v for k, v in audit_entry.items() if v is not None}
+
+    # Log as structured JSON for easy parsing
+    logger.bind(audit=True).info(
+        "[AUDIT] {event} user={user_id} success={success}",
+        event=event.value,
+        user_id=user_id or "anonymous",
+        success=success,
+        extra={"audit_data": json.dumps(audit_entry)},
+    )
+
+
+def _mask_ip(ip: str) -> str:
+    """Partially mask IP address for privacy.
+
+    IPv4: 192.168.1.100 -> 192.168.1.***
+    IPv6: 2001:db8::1 -> 2001:db8::***
+    """
+    if ":" in ip:
+        # IPv6
+        parts = ip.rsplit(":", 1)
+        return f"{parts[0]}:***"
+    else:
+        # IPv4
+        parts = ip.rsplit(".", 1)
+        return f"{parts[0]}.***"

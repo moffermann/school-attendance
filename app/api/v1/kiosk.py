@@ -22,6 +22,8 @@ class KioskStudentRead(BaseModel):
     course_id: int | None = None
     photo_ref: str | None = None
     photo_pref_opt_in: bool = False
+    # New field: "photo", "audio", or "none"
+    evidence_preference: str = "none"
 
 
 class KioskTagRead(BaseModel):
@@ -86,8 +88,9 @@ async def get_kiosk_bootstrap(
             id=s.id,
             full_name=s.full_name,
             course_id=s.course_id,
-            photo_ref=s.photo_ref,
+            photo_ref=getattr(s, "photo_ref", None),
             photo_pref_opt_in=s.photo_pref_opt_in,
+            evidence_preference=getattr(s, "effective_evidence_preference", "none"),
         )
         for s in students_raw
     ]
@@ -145,8 +148,9 @@ async def get_kiosk_students(
             id=s.id,
             full_name=s.full_name,
             course_id=s.course_id,
-            photo_ref=s.photo_ref,
+            photo_ref=getattr(s, "photo_ref", None),
             photo_pref_opt_in=s.photo_pref_opt_in,
+            evidence_preference=getattr(s, "effective_evidence_preference", "none"),
         )
         for s in students_raw
     ]

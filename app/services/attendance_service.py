@@ -149,6 +149,38 @@ class AttendanceService:
     ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
     MAX_PHOTO_SIZE = 10 * 1024 * 1024  # 10MB
 
+    # Magic bytes for image validation (first few bytes of file)
+    IMAGE_MAGIC_BYTES = {
+        b"\xff\xd8\xff": "image/jpeg",  # JPEG
+        b"\x89PNG\r\n\x1a\n": "image/png",  # PNG
+        b"GIF87a": "image/gif",  # GIF87a
+        b"GIF89a": "image/gif",  # GIF89a
+        b"RIFF": "image/webp",  # WebP (needs additional check)
+    }
+
+    def _validate_magic_bytes(self, data: bytes, claimed_type: str) -> bool:
+        """Validate file content matches claimed MIME type using magic bytes."""
+        if len(data) < 12:
+            return False
+
+        # Check JPEG
+        if data[:3] == b"\xff\xd8\xff":
+            return claimed_type == "image/jpeg"
+
+        # Check PNG
+        if data[:8] == b"\x89PNG\r\n\x1a\n":
+            return claimed_type == "image/png"
+
+        # Check GIF
+        if data[:6] in (b"GIF87a", b"GIF89a"):
+            return claimed_type == "image/gif"
+
+        # Check WebP (RIFF....WEBP)
+        if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+            return claimed_type == "image/webp"
+
+        return False
+
     async def attach_photo(self, event_id: int, file) -> AttendanceEventRead:
         # Validate MIME type
         content_type = (file.content_type or "").lower()
@@ -180,6 +212,13 @@ class AttendanceService:
 
         data = b"".join(chunks)
 
+        # Validate magic bytes match claimed MIME type
+        if not self._validate_magic_bytes(data, content_type):
+            raise ValueError(
+                "El contenido del archivo no coincide con el tipo declarado. "
+                "Por favor suba una imagen válida."
+            )
+
         # Validate and sanitize extension
         filename = file.filename or "photo.jpg"
         # Prevent path traversal - only use the last part after any slashes
@@ -194,6 +233,104 @@ class AttendanceService:
         key = f"events/{event_id}/{uuid.uuid4().hex}.{extension}"
         await self.photo_service.store_photo(key, data, content_type)
         event = await self.attendance_repo.update_photo_ref(event_id, key)
+        await self.session.commit()
+        return AttendanceEventRead.model_validate(event, from_attributes=True)
+
+    # Audio evidence constants
+    ALLOWED_AUDIO_MIME_TYPES = {"audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav"}
+    ALLOWED_AUDIO_EXTENSIONS = {"webm", "ogg", "mp4", "m4a", "mp3", "wav"}
+    MAX_AUDIO_SIZE = 5 * 1024 * 1024  # 5MB
+    MAX_AUDIO_DURATION_SECONDS = 30  # Maximum 30 seconds
+
+    # Magic bytes for audio validation
+    AUDIO_MAGIC_BYTES = {
+        b"RIFF": "audio/wav",  # WAV files start with RIFF
+        b"OggS": "audio/ogg",  # OGG files
+        b"\x1aE\xdf\xa3": "audio/webm",  # WebM/EBML header
+        b"\xff\xfb": "audio/mpeg",  # MP3 with ID3
+        b"\xff\xfa": "audio/mpeg",  # MP3 variant
+        b"ID3": "audio/mpeg",  # MP3 with ID3v2 header
+    }
+
+    def _validate_audio_magic_bytes(self, data: bytes, claimed_type: str) -> bool:
+        """Validate audio file content matches claimed MIME type."""
+        if len(data) < 12:
+            return False
+
+        # Check WAV (RIFF....WAVE)
+        if data[:4] == b"RIFF" and data[8:12] == b"WAVE":
+            return claimed_type == "audio/wav"
+
+        # Check OGG
+        if data[:4] == b"OggS":
+            return claimed_type in ("audio/ogg", "audio/webm")
+
+        # Check WebM (EBML header)
+        if data[:4] == b"\x1aE\xdf\xa3":
+            return claimed_type in ("audio/webm", "audio/ogg")
+
+        # Check MP3
+        if data[:3] == b"ID3" or data[:2] in (b"\xff\xfb", b"\xff\xfa"):
+            return claimed_type == "audio/mpeg"
+
+        # Check MP4/M4A (ftyp box)
+        if data[4:8] == b"ftyp":
+            return claimed_type in ("audio/mp4", "audio/mpeg")
+
+        return False
+
+    async def attach_audio(self, event_id: int, file) -> AttendanceEventRead:
+        """Attach audio evidence to an attendance event."""
+        # Validate MIME type
+        content_type = (file.content_type or "").lower()
+        if content_type not in self.ALLOWED_AUDIO_MIME_TYPES:
+            raise ValueError(
+                f"Tipo de audio no permitido: {content_type}. "
+                f"Tipos permitidos: {', '.join(self.ALLOWED_AUDIO_MIME_TYPES)}"
+            )
+
+        # Read file in chunks
+        chunks = []
+        total_size = 0
+        chunk_size = 64 * 1024
+
+        while True:
+            chunk = await file.read(chunk_size)
+            if not chunk:
+                break
+            total_size += len(chunk)
+            if total_size > self.MAX_AUDIO_SIZE:
+                raise ValueError(
+                    f"Archivo de audio muy grande: >{self.MAX_AUDIO_SIZE / 1024 / 1024:.0f}MB. "
+                    f"Máximo permitido: {self.MAX_AUDIO_SIZE / 1024 / 1024:.0f}MB"
+                )
+            chunks.append(chunk)
+
+        if not chunks:
+            raise ValueError("Archivo vacío")
+
+        data = b"".join(chunks)
+
+        # Validate magic bytes
+        if not self._validate_audio_magic_bytes(data, content_type):
+            raise ValueError(
+                "El contenido del archivo no coincide con el tipo declarado. "
+                "Por favor suba un archivo de audio válido."
+            )
+
+        # Validate and sanitize extension
+        filename = file.filename or "audio.webm"
+        filename = filename.replace("\\", "/").split("/")[-1]
+        extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else "webm"
+        if extension not in self.ALLOWED_AUDIO_EXTENSIONS:
+            raise ValueError(
+                f"Extensión de audio no permitida: {extension}. "
+                f"Extensiones permitidas: {', '.join(self.ALLOWED_AUDIO_EXTENSIONS)}"
+            )
+
+        key = f"events/{event_id}/audio_{uuid.uuid4().hex}.{extension}"
+        await self.photo_service.store_photo(key, data, content_type)
+        event = await self.attendance_repo.update_audio_ref(event_id, key)
         await self.session.commit()
         return AttendanceEventRead.model_validate(event, from_attributes=True)
 

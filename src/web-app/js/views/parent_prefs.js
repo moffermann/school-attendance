@@ -96,41 +96,71 @@ Views.parentPrefs = async function() {
       </div>
     </div>
 
-    <!-- Captura de Foto -->
+    <!-- Captura de Evidencia -->
     <div class="card" style="margin-bottom: 1.5rem;">
       <div class="card-header" style="display: flex; align-items: center; gap: 0.75rem;">
-        📷
-        <span>Autorización de Foto</span>
+        📸
+        <span>Tipo de Evidencia</span>
       </div>
       <div class="card-body">
         <div style="background: var(--color-gray-50); border-radius: 12px; padding: 1rem; margin-bottom: 1.25rem;">
           <p style="color: var(--color-gray-600); font-size: 0.9rem; margin: 0;">
-            Las fotos se capturan como evidencia del registro de asistencia y se envían junto con las notificaciones.
+            Seleccione el tipo de evidencia que desea capturar durante el registro de asistencia.
             <br><strong>Retención:</strong> 60 días &nbsp;•&nbsp; <strong>Uso:</strong> Solo evidencia de asistencia
           </p>
         </div>
 
         ${students.length === 0 ? '<p style="color: var(--color-gray-500);">No hay estudiantes asociados.</p>' : `
-          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
             ${students.map(student => {
-              const checked = photoConsents[String(student.id)] !== false;
+              const evidencePref = photoConsents[String(student.id)] === true ? 'photo' :
+                                   photoConsents[String(student.id)] === 'audio' ? 'audio' : 'none';
               const course = State.getCourse(student.course_id);
+              const statusColors = { photo: 'var(--color-success)', audio: 'var(--color-primary)', none: 'var(--color-gray-400)' };
+              const statusLabels = { photo: '📷 Foto', audio: '🎤 Audio', none: '⊘ Sin evidencia' };
               return `
-                <div style="display: flex; align-items: center; padding: 1rem; background: white; border: 2px solid ${checked ? 'var(--color-success)' : 'var(--color-gray-200)'}; border-radius: 12px; transition: all 0.2s;" id="photo-card-${student.id}">
-                  <div style="width: 44px; height: 44px; background: var(--gradient-primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.1rem; margin-right: 1rem;">
-                    ${Components.escapeHtml(student.full_name.charAt(0))}
-                  </div>
-                  <div style="flex: 1;">
-                    <div style="font-weight: 600; color: var(--color-gray-900);">${Components.escapeHtml(student.full_name)}</div>
-                    <div style="font-size: 0.85rem; color: var(--color-gray-500);">${course ? Components.escapeHtml(course.name) : ''}</div>
-                  </div>
-                  <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
-                    <span id="photo-status-${student.id}" style="font-size: 0.85rem; font-weight: 500; color: ${checked ? 'var(--color-success)' : 'var(--color-warning)'};">
-                      ${checked ? '✓ Autorizada' : 'Sin autorizar'}
+                <div style="padding: 1rem; background: white; border: 2px solid ${statusColors[evidencePref]}; border-radius: 12px; transition: all 0.2s;" id="evidence-card-${student.id}">
+                  <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                    <div style="width: 44px; height: 44px; background: var(--gradient-primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.1rem; margin-right: 1rem;">
+                      ${Components.escapeHtml(student.full_name.charAt(0))}
+                    </div>
+                    <div style="flex: 1;">
+                      <div style="font-weight: 600; color: var(--color-gray-900);">${Components.escapeHtml(student.full_name)}</div>
+                      <div style="font-size: 0.85rem; color: var(--color-gray-500);">${course ? Components.escapeHtml(course.name) : ''}</div>
+                    </div>
+                    <span id="evidence-status-${student.id}" style="font-size: 0.85rem; font-weight: 500; color: ${statusColors[evidencePref]};">
+                      ${statusLabels[evidencePref]}
                     </span>
-                    <input type="checkbox" id="photo_${student.id}" class="form-checkbox" ${checked ? 'checked' : ''}
-                      onchange="Views.parentPrefs.updatePhotoStatus(${student.id}, this.checked)">
-                  </label>
+                  </div>
+                  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <label style="flex: 1; min-width: 100px;">
+                      <input type="radio" name="evidence_${student.id}" value="photo" ${evidencePref === 'photo' ? 'checked' : ''}
+                        onchange="Views.parentPrefs.updateEvidencePreference(${student.id}, 'photo')" style="display: none;">
+                      <div class="evidence-option ${evidencePref === 'photo' ? 'selected' : ''}" id="opt-photo-${student.id}"
+                           onclick="document.querySelector('input[name=evidence_${student.id}][value=photo]').click()">
+                        <span style="font-size: 1.5rem;">📷</span>
+                        <span>Foto</span>
+                      </div>
+                    </label>
+                    <label style="flex: 1; min-width: 100px;">
+                      <input type="radio" name="evidence_${student.id}" value="audio" ${evidencePref === 'audio' ? 'checked' : ''}
+                        onchange="Views.parentPrefs.updateEvidencePreference(${student.id}, 'audio')" style="display: none;">
+                      <div class="evidence-option ${evidencePref === 'audio' ? 'selected' : ''}" id="opt-audio-${student.id}"
+                           onclick="document.querySelector('input[name=evidence_${student.id}][value=audio]').click()">
+                        <span style="font-size: 1.5rem;">🎤</span>
+                        <span>Audio</span>
+                      </div>
+                    </label>
+                    <label style="flex: 1; min-width: 100px;">
+                      <input type="radio" name="evidence_${student.id}" value="none" ${evidencePref === 'none' ? 'checked' : ''}
+                        onchange="Views.parentPrefs.updateEvidencePreference(${student.id}, 'none')" style="display: none;">
+                      <div class="evidence-option ${evidencePref === 'none' ? 'selected' : ''}" id="opt-none-${student.id}"
+                           onclick="document.querySelector('input[name=evidence_${student.id}][value=none]').click()">
+                        <span style="font-size: 1.5rem;">⊘</span>
+                        <span>Sin evidencia</span>
+                      </div>
+                    </label>
+                  </div>
                 </div>
               `;
             }).join('')}
@@ -185,17 +215,36 @@ Views.parentPrefs = async function() {
     </div>
   `;
 
-  // Dynamic photo status update
-  Views.parentPrefs.updatePhotoStatus = function(studentId, checked) {
-    const card = document.getElementById(`photo-card-${studentId}`);
-    const status = document.getElementById(`photo-status-${studentId}`);
+  // Dynamic evidence preference update
+  Views.parentPrefs.updateEvidencePreference = function(studentId, preference) {
+    const card = document.getElementById(`evidence-card-${studentId}`);
+    const status = document.getElementById(`evidence-status-${studentId}`);
+    const statusColors = { photo: 'var(--color-success)', audio: 'var(--color-primary)', none: 'var(--color-gray-400)' };
+    const statusLabels = { photo: '📷 Foto', audio: '🎤 Audio', none: '⊘ Sin evidencia' };
+
+    // Update card border
     if (card) {
-      card.style.borderColor = checked ? 'var(--color-success)' : 'var(--color-gray-200)';
+      card.style.borderColor = statusColors[preference];
     }
+
+    // Update status text
     if (status) {
-      status.textContent = checked ? '✓ Autorizada' : 'Sin autorizar';
-      status.style.color = checked ? 'var(--color-success)' : 'var(--color-warning)';
+      status.textContent = statusLabels[preference];
+      status.style.color = statusColors[preference];
     }
+
+    // Update option buttons
+    ['photo', 'audio', 'none'].forEach(opt => {
+      const optEl = document.getElementById(`opt-${opt}-${studentId}`);
+      if (optEl) {
+        optEl.classList.toggle('selected', opt === preference);
+      }
+    });
+  };
+
+  // Legacy support
+  Views.parentPrefs.updatePhotoStatus = function(studentId, checked) {
+    Views.parentPrefs.updateEvidencePreference(studentId, checked ? 'photo' : 'none');
   };
 
   Views.parentPrefs.savePreferences = async function() {
@@ -217,10 +266,19 @@ Views.parentPrefs = async function() {
       };
     });
 
-    // Collect photo consents
+    // Collect evidence preferences (stored in photo_consents for compatibility)
+    // Values: true = photo, "audio" = audio, false = none
     students.forEach(student => {
-      const checkbox = document.getElementById(`photo_${student.id}`);
-      newPrefs.photo_consents[String(student.id)] = checkbox ? checkbox.checked : false;
+      const photoRadio = document.querySelector(`input[name="evidence_${student.id}"][value="photo"]`);
+      const audioRadio = document.querySelector(`input[name="evidence_${student.id}"][value="audio"]`);
+
+      if (photoRadio?.checked) {
+        newPrefs.photo_consents[String(student.id)] = true;
+      } else if (audioRadio?.checked) {
+        newPrefs.photo_consents[String(student.id)] = 'audio';
+      } else {
+        newPrefs.photo_consents[String(student.id)] = false;
+      }
     });
 
     try {

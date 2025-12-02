@@ -59,3 +59,23 @@ async def upload_event_photo(
         return await service.attach_photo(event_id, file)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.post("/events/{event_id}/audio", response_model=AttendanceEventRead)
+@limiter.limit("30/minute")
+async def upload_event_audio(
+    request: Request,
+    event_id: int,
+    file: UploadFile = File(...),
+    service: AttendanceService = Depends(deps.get_attendance_service),
+    user: AuthUser | None = Depends(deps.get_current_user_optional),
+    device_authenticated: bool = Depends(deps.verify_device_key),
+) -> AttendanceEventRead:
+    """Upload audio evidence for an attendance event."""
+    if not device_authenticated:
+        if not user or user.role not in {"ADMIN", "DIRECTOR", "INSPECTOR"}:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+    try:
+        return await service.attach_audio(event_id, file)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

@@ -1287,6 +1287,7 @@ tbody tr:last-child td {
   100% { background-position: -200% 0; }
 }
 
+<<<<<<< HEAD
 /* ============================================
    BIOMETRIC ENROLLMENT SECTION
    ============================================ */
@@ -1651,4 +1652,36 @@ tbody tr:last-child td {
 
 .fingerprint-animating {
   animation: fingerprint-pulse 1.5s ease-in-out infinite;
+}
+
+/* ============================================
+   EVIDENCE PREFERENCE OPTIONS
+   ============================================ */
+
+.evidence-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--color-gray-50);
+  border: 2px solid var(--color-gray-200);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  color: var(--color-gray-600);
+}
+
+.evidence-option:hover {
+  border-color: var(--color-primary);
+  background: white;
+}
+
+.evidence-option.selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-50);
+  color: var(--color-primary);
+  font-weight: 600;
 }

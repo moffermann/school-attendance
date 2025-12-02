@@ -1,4 +1,4 @@
-// Scan result and confirmation with live camera
+// Scan result and confirmation with live camera or audio recording
 Views.scanResult = function() {
   const app = document.getElementById('app');
   const params = Router.getQueryParams();
@@ -15,14 +15,23 @@ Views.scanResult = function() {
   const eventType = State.nextEventTypeFor(studentId);
   const timestamp = new Date();
 
-  // Check if student has photo consent - respect their privacy preference
-  const studentHasPhotoConsent = State.hasPhotoConsent(studentId);
-  const photoEnabled = State.config.photoEnabled && studentHasPhotoConsent;
+  // Get evidence preference: "photo", "audio", or "none"
+  const evidencePreference = State.getEvidencePreference(studentId);
+  const photoEnabled = State.config.photoEnabled && evidencePreference === 'photo';
+  const audioEnabled = State.config.photoEnabled && evidencePreference === 'audio';
 
   let video = null;
   let canvas = null;
   let canvasContext = null;
   let photoDataUrl = null;
+
+  // Audio recording state
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let audioBlob = null;
+  let isRecording = false;
+  let recordingStartTime = null;
+  const MAX_AUDIO_DURATION = 10000; // 10 seconds max
 
   // Format date and time
   function formatDate(date) {
@@ -74,7 +83,7 @@ Views.scanResult = function() {
               </div>
             </div>
 
-            <!-- Columna derecha: Cámara y botón -->
+            <!-- Columna derecha: Evidencia y botón -->
             <div class="result-right-column">
               ${photoEnabled ? `
                 <div class="evidence-section">
@@ -83,6 +92,24 @@ Views.scanResult = function() {
                     <video id="evidence-video" class="evidence-video" autoplay playsinline></video>
                     <canvas id="evidence-canvas" class="evidence-canvas"></canvas>
                     <img id="captured-photo" class="captured-photo hidden" alt="Foto capturada">
+                  </div>
+                </div>
+              ` : ''}
+
+              ${audioEnabled ? `
+                <div class="evidence-section">
+                  <div class="evidence-label">🎤 Grabación de Audio</div>
+                  <div class="audio-record-container">
+                    <div id="audio-status" class="audio-status">
+                      <span class="audio-icon">🎤</span>
+                      <span class="audio-text">Presiona para grabar</span>
+                    </div>
+                    <button id="audio-record-btn" class="btn btn-audio-record" onclick="Views.scanResult.toggleRecording()" aria-label="Grabar audio">
+                      <span class="record-icon">⏺</span>
+                      <span class="record-text">Grabar</span>
+                    </button>
+                    <div id="audio-timer" class="audio-timer hidden">00:00</div>
+                    <audio id="audio-preview" class="audio-preview hidden" controls></audio>
                   </div>
                 </div>
               ` : ''}
@@ -103,6 +130,11 @@ Views.scanResult = function() {
     // Start camera for evidence if enabled and student consents
     if (photoEnabled) {
       startEvidenceCamera();
+    }
+
+    // Initialize audio recording if enabled
+    if (audioEnabled) {
+      initAudioRecording();
     }
   }
 
@@ -187,6 +219,140 @@ Views.scanResult = function() {
     }
   }
 
+  // Audio recording functions
+  let audioTimerInterval = null;
+
+  async function initAudioRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg'
+      });
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunks.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audioPreview = document.getElementById('audio-preview');
+        if (audioPreview) {
+          audioPreview.src = audioUrl;
+          audioPreview.classList.remove('hidden');
+        }
+        updateAudioStatus('recorded');
+      };
+
+      updateAudioStatus('ready');
+    } catch (err) {
+      console.error('Error accessing microphone:', err);
+      const container = document.querySelector('.audio-record-container');
+      if (container) {
+        container.innerHTML = `
+          <div class="audio-error">
+            <span>🎤</span>
+            <p>Micrófono no disponible</p>
+          </div>
+        `;
+      }
+    }
+  }
+
+  function updateAudioStatus(status) {
+    const statusEl = document.getElementById('audio-status');
+    const btnEl = document.getElementById('audio-record-btn');
+    const timerEl = document.getElementById('audio-timer');
+
+    if (!statusEl || !btnEl) return;
+
+    switch (status) {
+      case 'ready':
+        statusEl.innerHTML = '<span class="audio-icon">🎤</span><span class="audio-text">Listo para grabar</span>';
+        btnEl.innerHTML = '<span class="record-icon">⏺</span><span class="record-text">Grabar</span>';
+        btnEl.classList.remove('recording');
+        if (timerEl) timerEl.classList.add('hidden');
+        break;
+      case 'recording':
+        statusEl.innerHTML = '<span class="audio-icon recording-pulse">🔴</span><span class="audio-text">Grabando...</span>';
+        btnEl.innerHTML = '<span class="record-icon">⏹</span><span class="record-text">Detener</span>';
+        btnEl.classList.add('recording');
+        if (timerEl) timerEl.classList.remove('hidden');
+        break;
+      case 'recorded':
+        statusEl.innerHTML = '<span class="audio-icon">✅</span><span class="audio-text">Audio grabado</span>';
+        btnEl.innerHTML = '<span class="record-icon">🔄</span><span class="record-text">Regrabar</span>';
+        btnEl.classList.remove('recording');
+        if (timerEl) timerEl.classList.add('hidden');
+        break;
+    }
+  }
+
+  function startAudioTimer() {
+    const timerEl = document.getElementById('audio-timer');
+    if (!timerEl) return;
+
+    recordingStartTime = Date.now();
+
+    audioTimerInterval = setInterval(() => {
+      const elapsed = Date.now() - recordingStartTime;
+      const seconds = Math.floor(elapsed / 1000);
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      timerEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+      // Auto-stop at max duration
+      if (elapsed >= MAX_AUDIO_DURATION) {
+        Views.scanResult.toggleRecording();
+      }
+    }, 100);
+  }
+
+  function stopAudioTimer() {
+    if (audioTimerInterval) {
+      clearInterval(audioTimerInterval);
+      audioTimerInterval = null;
+    }
+  }
+
+  Views.scanResult.toggleRecording = function() {
+    if (!mediaRecorder) return;
+
+    if (isRecording) {
+      // Stop recording
+      mediaRecorder.stop();
+      isRecording = false;
+      stopAudioTimer();
+    } else {
+      // Start recording (clear previous)
+      audioChunks = [];
+      audioBlob = null;
+      const audioPreview = document.getElementById('audio-preview');
+      if (audioPreview) {
+        audioPreview.classList.add('hidden');
+        audioPreview.src = '';
+      }
+
+      mediaRecorder.start();
+      isRecording = true;
+      updateAudioStatus('recording');
+      startAudioTimer();
+    }
+  };
+
+  function stopAudioRecording() {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      isRecording = false;
+    }
+    stopAudioTimer();
+    if (mediaRecorder && mediaRecorder.stream) {
+      mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    }
+  }
+
   // Camera shutter sound - real audio file
   function playCameraSound() {
     try {
@@ -231,22 +397,30 @@ Views.scanResult = function() {
       }
     }
 
+    // Stop audio recording if in progress
+    if (audioEnabled && isRecording) {
+      Views.scanResult.toggleRecording();
+    }
+
     stopCamera();
+    stopAudioRecording();
     stopLiveClock();
 
-    const event = {
-      student_id: studentId,
-      type: eventType,
-      ts: confirmTimestamp.toISOString(),
-      source: source,
-      photo_ref: photoDataUrl ? `photo_${Date.now()}.jpg` : null,
-      photo_data: photoDataUrl || null  // Base64 data for upload
-    };
+    // Convert audio blob to base64 if exists
+    let audioDataUrl = null;
+    if (audioBlob) {
+      const reader = new FileReader();
+      reader.onloadend = function() {
+        audioDataUrl = reader.result;
+        enqueueEventWithData(confirmTimestamp, photoDataUrl, audioDataUrl);
+      };
+      reader.readAsDataURL(audioBlob);
+    } else {
+      enqueueEventWithData(confirmTimestamp, photoDataUrl, null);
+    }
 
-    State.enqueueEvent(event);
-
-    // Delay navigation to show the photo effect
-    const delay = photoDataUrl ? 3500 : 1500;
+    // Delay navigation to show the photo/audio confirmation effect
+    const delay = photoDataUrl ? 3500 : (audioBlob ? 2000 : 1500);
     setTimeout(function() {
       // Remove overlay if exists
       const overlay = document.querySelector('.photo-fullscreen-overlay');
@@ -256,6 +430,21 @@ Views.scanResult = function() {
       Router.navigate('/home');
     }, delay);
   };
+
+  function enqueueEventWithData(confirmTimestamp, photoData, audioData) {
+    const event = {
+      student_id: studentId,
+      type: eventType,
+      ts: confirmTimestamp.toISOString(),
+      source: source,
+      photo_ref: photoData ? `photo_${Date.now()}.jpg` : null,
+      photo_data: photoData || null,
+      audio_ref: audioData ? `audio_${Date.now()}.webm` : null,
+      audio_data: audioData || null
+    };
+
+    State.enqueueEvent(event);
+  }
 
   function showPhotoOverlay(photoUrl, timestamp, isEntry) {
     // Create fullscreen overlay
@@ -284,12 +473,14 @@ Views.scanResult = function() {
 
   Views.scanResult.cancel = function() {
     stopCamera();
+    stopAudioRecording();
     stopLiveClock();
     Router.navigate('/home');
   };
 
   window.addEventListener('hashchange', function cleanup() {
     stopCamera();
+    stopAudioRecording();
     stopLiveClock();
     window.removeEventListener('hashchange', cleanup);
   });
