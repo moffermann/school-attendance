@@ -285,3 +285,86 @@ python scripts/whatsapp_setup.py --validate
 2. Verify guardian_id matches logged-in user
 3. Check network tab for API errors
 4. Falls back to localStorage if API fails
+
+---
+
+## WebAuthn/Biometric Authentication (Session 2024-12-02)
+
+### Overview
+Students can use fingerprint/biometric authentication as an alternative to NFC/QR cards at kiosk devices.
+
+### Key Files
+
+#### Backend WebAuthn
+| File | Purpose |
+|------|---------|
+| `app/services/webauthn_service.py` | WebAuthn registration/authentication logic |
+| `app/db/repositories/webauthn.py` | Credential CRUD operations |
+| `app/api/v1/webauthn.py` | REST API endpoints |
+| `app/db/models/webauthn_credential.py` | Credential database model |
+| `app/schemas/webauthn.py` | Pydantic request/response schemas |
+
+#### Kiosk Biometric
+| File | Purpose |
+|------|---------|
+| `src/kiosk-app/js/webauthn.js` | WebAuthn client module |
+| `src/kiosk-app/js/views/biometric_auth.js` | Fingerprint authentication UI |
+| `src/kiosk-app/js/views/biometric_enroll.js` | Student enrollment UI for teachers |
+
+#### Web Admin
+| File | Purpose |
+|------|---------|
+| `src/web-app/js/views/director_biometric.js` | Admin panel for credential management |
+
+### API Endpoints
+
+#### Kiosk (Device-Authenticated)
+- `POST /api/v1/webauthn/kiosk/students/{id}/register/start` - Start enrollment
+- `POST /api/v1/webauthn/kiosk/students/register/complete` - Complete enrollment
+- `POST /api/v1/webauthn/kiosk/authenticate/start` - Start auth
+- `POST /api/v1/webauthn/kiosk/authenticate/verify` - Verify auth
+
+#### Admin (JWT-Authenticated)
+- `POST /api/v1/webauthn/admin/students/{id}/register/start` - Admin enrollment
+- `GET /api/v1/webauthn/admin/students/{id}/credentials` - List credentials
+- `DELETE /api/v1/webauthn/admin/students/{id}/credentials/{cred_id}` - Remove credential
+
+### Configuration
+
+```bash
+# WebAuthn Settings
+WEBAUTHN_RP_ID=localhost                    # Domain for credentials
+WEBAUTHN_RP_NAME=Sistema Asistencia Escolar
+WEBAUTHN_RP_ORIGIN=http://localhost:8000
+WEBAUTHN_TIMEOUT_MS=60000
+```
+
+### Database Migration
+
+```bash
+alembic upgrade head  # Creates webauthn_credentials table
+```
+
+Migration: `app/db/migrations/versions/0006_webauthn_credentials.py`
+
+### Usage Flow
+
+1. **Enrollment**: Teacher/Admin registers student's fingerprint
+2. **Authentication**: Student taps "Usa tu huella" at kiosk
+3. **Attendance**: System identifies student and records event
+
+### Troubleshooting
+
+#### "Tu dispositivo no soporta autenticación biométrica"
+- Browser doesn't support WebAuthn or no fingerprint sensor
+- Solution: Use NFC/QR card instead
+
+#### "Challenge inválido o expirado"
+- Registration/auth took too long (default 60s)
+- Solution: Start the process again
+
+#### "Credencial no reconocida"
+- Student's biometric not registered on this device
+- Solution: Re-register or use alternative method
+
+See `docs/webauthn-biometric.md` for complete documentation.
