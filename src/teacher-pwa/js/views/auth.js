@@ -119,8 +119,8 @@ Views.auth = async function() {
         }
       }
 
-      // Set fake token for demo
-      localStorage.setItem('accessToken', 'demo_token_' + teacherId);
+      // Set fake token for demo (use API.accessToken to ensure consistency with api-base.js)
+      API.accessToken = 'demo_token_' + teacherId;
 
       UI.showToast(`Bienvenido, ${teacher.full_name}`, 'success');
       Router.navigate('/classes');
