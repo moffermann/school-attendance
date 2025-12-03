@@ -1,546 +1,361 @@
-# Deployment Guide
+# Deployment - School Attendance
 
-## Arquitectura
+Este documento describe la configuración específica para desplegar School Attendance. Para la guía general del proceso de despliegue con `appctl`, ver [deployment_guide.md](./deployment_guide.md).
 
-School Attendance se despliega como un **monolito** containerizado:
+## Arquitectura de la Aplicación
 
-- **FastAPI Backend** - REST API (`/api/v1/*`)
-- **Kiosk App** - SPA para kioscos (`/kiosk/`)
-- **Teacher PWA** - App para profesores (`/teacher/`)
-- **Web App** - Dashboard director/apoderados (`/app/`)
-
-Servicios de soporte:
-- **PostgreSQL** - Base de datos
-- **Redis** - Cache + cola de trabajos (RQ)
-- **MinIO/S3** - Almacenamiento de fotos
-- **RQ Worker** - Procesamiento de jobs en background
-- **Scheduler** - Tareas periódicas
-
-## Requisitos Previos
-
-1. **Docker** instalado y corriendo
-2. **appctl** instalado en `/usr/local/bin/appctl`
-3. Credenciales de Docker Hub en `~/.bashrc`:
-   ```bash
-   export REGISTRY_USER="tu-usuario"
-   export REGISTRY_PASSWORD="tu-token"
-   ```
-
-## Redes Docker y Proxy Reverso
-
-### Arquitectura de Red
-
-Cada ambiente (dev, qa, prod) tiene su propia red Docker aislada:
+School Attendance se despliega como un **monolito** containerizado con múltiples servicios:
 
 ```
-net_dev   ← Contenedores de desarrollo
-net_qa    ← Contenedores de QA
-net_prod  ← Contenedores de producción
+┌─────────────────────────────────────────────────────────────┐
+│                      Docker Compose                         │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐                   │
+│  │   PostgreSQL    │  │      Redis      │                   │
+│  │   (DB principal)│  │  (Cache + RQ)   │                   │
+│  └────────┬────────┘  └────────┬────────┘                   │
+│           │                    │                            │
+│  ┌────────┴────────────────────┴────────┐                   │
+│  │         school-attendance             │                   │
+│  │  FastAPI + Kiosk + Teacher + WebApp  │                   │
+│  │            (puerto 8080)              │                   │
+│  └───────────────────────────────────────┘                   │
+│           │                    │                            │
+│  ┌────────┴────────┐  ┌────────┴────────┐                   │
+│  │     Worker      │  │    Scheduler    │                   │
+│  │ (Jobs RQ async) │  │ (Tareas cron)   │                   │
+│  └─────────────────┘  └─────────────────┘                   │
+│                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐                   │
+│  │     MinIO       │  │  RQ Dashboard   │                   │
+│  │ (S3 compatible) │  │  (solo dev/qa)  │                   │
+│  └─────────────────┘  └─────────────────┘                   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Importante:** Las redes usan guión bajo (`net_qa`), no guión (`net-qa`).
+### URLs de la Aplicación
 
-### Nginx como Proxy Reverso
-
-Un contenedor nginx centralizado actúa como proxy reverso para todos los ambientes:
-
-```
-Internet → nginx (443) → school-attendance-dev:8080  (via net_dev)
-                       → school-attendance-qa:8080   (via net_qa)
-                       → school-attendance-prod:8080 (via net_prod)
-```
-
-Nginx está conectado a todas las redes Docker y rutea el tráfico basándose en el dominio:
-- `school-attendance.dev.gocode.cl` → `school-attendance-dev:8080`
-- `school-attendance.qa.gocode.cl` → `school-attendance-qa:8080`
-
-### Configuración de Nginx (Automática)
-
-La configuración de nginx se maneja **automáticamente** por `appctl` durante el deploy:
-
-1. **Si existe** `nginx/<env>.conf` en el proyecto → se usa esa configuración
-2. **Si no existe** → `appctl` genera una desde template y la guarda en `nginx/<env>.conf`
-
-En ambos casos, el archivo se copia a `/srv/nginx/conf.d/` y se recarga nginx.
-
-#### Estructura en el proyecto
-
-```
-proyecto/
-└── nginx/
-    ├── dev.conf   # (opcional) Config personalizada para dev
-    ├── qa.conf    # (opcional) Config personalizada para qa
-    └── prod.conf  # (opcional) Config personalizada para prod
-```
-
-#### Template por defecto
-
-Si no existe configuración, `appctl` genera:
-
-```nginx
-server {
-  listen 443 ssl;
-  http2 on;
-  server_name <app>.<env>.gocode.cl;
-
-  ssl_certificate     /etc/letsencrypt/live/<env>.gocode.cl/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/<env>.gocode.cl/privkey.pem;
-
-  location / {
-    resolver 127.0.0.11 valid=30s;
-    set $upstream <app>-<env>:8080;
-
-    proxy_pass http://$upstream;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-}
-```
-
-#### Personalización
-
-Para personalizar la configuración de nginx (ej: agregar WebSocket, timeouts, headers adicionales):
-
-1. El archivo `nginx/<env>.conf` se genera automáticamente en el primer deploy
-2. Modifícalo en el proyecto según necesites
-3. Haz commit del cambio
-4. En el próximo deploy, `appctl` usará tu versión personalizada
-
-#### Repositorio centralizado
-
-Todas las configuraciones de nginx se versionan en `/srv/nginx/` (repo git):
-- `appctl` hace commit automático después de cada deploy
-- Sirve como backup y auditoría de cambios
-
-> **Nota:** El uso de `resolver 127.0.0.11` con una variable `$upstream` permite que nginx resuelva el DNS dinámicamente. Sin esto, nginx cachea la IP del contenedor al iniciar, causando errores 502 si el contenedor se reinicia y obtiene una nueva IP.
-
-### ¿Por qué no se necesitan puertos expuestos al host?
-
-El `docker-compose.yml` define puertos (`ports: - "8080:8080"`), pero estos **solo son necesarios para desarrollo local** donde se accede directamente vía `localhost:8080`.
-
-En QA y producción, nginx hace proxy interno via la red Docker, por lo que:
-- No hay conflicto de puertos entre ambientes
-- No se exponen servicios directamente a Internet
-- Todo el tráfico pasa por nginx (SSL, rate limiting, etc.)
-
-Para evitar conflictos de puertos al correr múltiples ambientes en el mismo servidor, el archivo `.env` de cada ambiente puede definir puertos diferentes o simplemente no mapearlos (docker compose ignora puertos no definidos si el servicio no los necesita expuestos).
-
-## Estructura de Directorios
-
-### En el proyecto (repositorio)
-
-```
-secrets/
-├── dev/
-│   └── .env.example   # Plantilla de referencia
-├── qa/
-│   └── .env.example
-└── prod/
-    └── .env.example
-```
-
-Los `.env.example` sirven como plantilla. Los `.env` reales están en `.gitignore`.
-
-### En el servidor (creados por appctl)
-
-```
-/srv/<env>/
-├── apps/school-attendance/
-│   ├── docker-compose.yml  # Copiado del proyecto
-│   └── .env                # Secrets (opcional, ver nota)
-└── workspaces/school-attendance/  # Solo en dev
-    └── (código sincronizado desde la imagen)
-```
-
-## Cómo Funciona appctl
-
-### Comandos Principales
-
-| Comando | Descripción |
-|---------|-------------|
-| `appctl pull` | Descarga imagen + deploy (equivale a `deploy --pull`) |
-| `appctl deploy` | Deploy sin actualizar imagen |
-| `appctl status` | Ver estado de contenedores |
-| `appctl logs` | Ver logs (`-f` para follow) |
-| `appctl verify` | Verificar health check |
-| `appctl rm` | Eliminar deployment |
-
-### Resolución de Tags
-
-appctl resuelve el tag de la imagen así:
-
-1. Si pasas `--tag <version>` (distinto de `latest`): usa ese tag
-2. Si existe `latest` en Docker Hub: usa `latest`
-3. Si no existe `latest`: consulta Docker Hub y usa el tag más reciente
-
-```bash
-# Usar tag específico (recomendado para prod)
-appctl pull --env prod --app school-attendance --tag 2025.11.28.2231
-
-# Usar latest o el más reciente automáticamente
-appctl pull --env dev --app school-attendance
-```
-
-### Variables de Entorno
-
-**Importante**: appctl NO copia automáticamente secrets desde `secrets/<env>/`.
-
-El `docker-compose.yml` del proyecto define variables con valores por defecto:
-```yaml
-environment:
-  DB_USER: ${DB_USER:-school_attendance}
-  DB_PASSWORD: ${DB_PASSWORD:-school_attendance}
-  SECRET_KEY: ${SECRET_KEY:-CHANGE-ME-IN-PRODUCTION}
-```
-
-Para sobrescribir estos defaults hay dos opciones:
-
-#### Opción 1: Archivo .env en /srv (recomendado para prod)
-```bash
-# Copiar secrets al directorio de la app
-sudo cp secrets/prod/.env /srv/prod/apps/school-attendance/.env
-appctl pull --env prod --app school-attendance
-```
-
-#### Opción 2: Usar defaults del docker-compose (OK para dev)
-En desarrollo, los defaults funcionan bien. No se necesita configuración adicional.
-
-### Workspace en Dev
-
-En `dev`, appctl sincroniza el código de la imagen a `/srv/dev/workspaces/school-attendance/`:
-
-- Permite editar código en el servidor sin rebuild
-- Se monta como volumen en el contenedor
-- Usar `--preserve-workspace` para evitar sobrescribir cambios locales
-
-```bash
-# Preservar cambios locales en workspace
-appctl pull --env dev --app school-attendance --preserve-workspace
-```
-
-## Flujo de Deployment
-
-### Paso 1: Build y Push de Imagen
-
-```bash
-cd /home/gocode/projects/school-attendance
-
-# Build y push con tag automático (formato: YYYY.MM.DD.HHMM)
-./scripts/build_and_push.sh
-
-# O con tag específico
-IMAGE_TAG=v1.2.3 ./scripts/build_and_push.sh
-```
-
-El script:
-1. Hace login en Docker Hub (usa `$REGISTRY_USER` y `$REGISTRY_PASSWORD`)
-2. Construye la imagen con `docker buildx` (linux/amd64)
-3. La sube a `moffermann/school-attendance:<tag>`
-4. Valida que responda en `/healthz`
-
-### Paso 2: Deploy con appctl
-
-```bash
-# Development (usa defaults, sin secrets adicionales)
-appctl pull --env dev --app school-attendance
-
-# QA/Production (con secrets)
-sudo cp secrets/prod/.env /srv/prod/apps/school-attendance/.env
-appctl pull --env prod --app school-attendance --tag 2025.11.28.2231
-```
-
-### ¿Qué hace `appctl pull`?
-
-1. Crea directorios en `/srv/<env>/apps/school-attendance/`
-2. Resuelve el tag de la imagen (ver sección anterior)
-3. Descarga la imagen de Docker Hub
-4. (Solo dev) Sincroniza workspace a `/srv/dev/workspaces/`
-5. Copia `docker-compose.yml` del proyecto
-6. Ejecuta `docker compose up -d`
-7. Ejecuta migraciones: `npm run migrate` → `alembic upgrade head`
-8. Verifica health en `http://school-attendance:8080/healthz`
-9. (Opcional) Ejecuta hook `scripts/appctl-postdeploy.sh` si existe
+| Ruta | Descripción |
+|------|-------------|
+| `/api/v1/*` | REST API (FastAPI) |
+| `/api/docs` | Documentación Swagger |
+| `/kiosk/` | App para kioscos (registro asistencia) |
+| `/teacher/` | PWA para profesores |
+| `/app/` | Dashboard director/apoderados |
 
 ## Configuración por Ambiente
 
-### Development (dev)
+### URLs de Acceso
+
+| Ambiente | URL |
+|----------|-----|
+| dev | https://school-attendance.dev.gocode.cl |
+| qa | https://school-attendance.qa.gocode.cl |
+| prod | https://school-attendance.gocode.cl |
+
+### Variables de Entorno
+
+#### Variables Comunes (todos los ambientes)
+
+| Variable | Descripción | Default |
+|----------|-------------|---------|
+| `APP_ENV` | Ambiente (`development`, `qa`, `production`) | `development` |
+| `APP_NAME` | Nombre de la aplicación | `school-attendance` |
+| `DOCKER_NETWORK` | Red Docker | `net-dev` |
+
+#### Base de Datos
+
+| Variable | Descripción | Default |
+|----------|-------------|---------|
+| `DB_USER` | Usuario PostgreSQL | `school_attendance` |
+| `DB_PASSWORD` | Password PostgreSQL | `school_attendance` |
+| `DB_NAME` | Nombre de la DB | `school_attendance` |
+
+> **PROD:** Usar passwords seguros generados con `openssl rand -hex 16`
+
+#### Seguridad
+
+| Variable | Descripción | Default |
+|----------|-------------|---------|
+| `SECRET_KEY` | Key para JWT tokens | `CHANGE-ME-IN-PRODUCTION` |
+| `DEVICE_API_KEY` | Key para autenticación de kioscos | `CHANGE-ME-IN-PRODUCTION` |
+| `CORS_ORIGINS` | Orígenes permitidos (JSON array) | `[]` (todos) |
+
+> **PROD:** Generar keys con `openssl rand -hex 32`
+
+#### Almacenamiento S3/MinIO
+
+| Variable | Descripción | Default |
+|----------|-------------|---------|
+| `S3_ENDPOINT` | URL del servicio S3 | `http://minio:9000` |
+| `S3_BUCKET` | Bucket para fotos | `attendance-photos` |
+| `S3_ACCESS_KEY` | Access key | `dev-access` |
+| `S3_SECRET_KEY` | Secret key | `dev-secret` |
+| `S3_REGION` | Región | `us-east-1` |
+| `S3_SECURE` | Usar HTTPS | `false` |
+
+> **PROD:** Usar AWS S3 real con credenciales IAM
+
+#### Notificaciones WhatsApp
+
+| Variable | Descripción | Default |
+|----------|-------------|---------|
+| `WHATSAPP_ACCESS_TOKEN` | Token de WhatsApp Cloud API | `dummy` |
+| `WHATSAPP_PHONE_NUMBER_ID` | ID del número de WhatsApp | `dummy` |
+| `ENABLE_REAL_NOTIFICATIONS` | Habilitar envío real | `false` |
+
+> Ver [whatsapp-templates.md](./whatsapp-templates.md) para configuración completa
+
+#### WebAuthn (Autenticación Biométrica)
+
+| Variable | Descripción | Default |
+|----------|-------------|---------|
+| `WEBAUTHN_RP_ID` | Dominio para credenciales | `localhost` |
+| `WEBAUTHN_RP_NAME` | Nombre visible | `Sistema Asistencia Escolar` |
+| `WEBAUTHN_RP_ORIGIN` | URL origen | `http://localhost:8080` |
+| `WEBAUTHN_TIMEOUT_MS` | Timeout en ms | `60000` |
+
+### Configuración por Ambiente
+
+#### Development
 
 ```bash
-# Deploy simple (usa defaults)
+# Usar defaults - no requiere .env
 appctl pull --env dev --app school-attendance
-
-# Ver estado
-appctl status --env dev --app school-attendance
 ```
 
-**URLs:**
-- API Docs: http://localhost:8080/api/docs
-- Kiosk: http://localhost:8080/kiosk/
-- Teacher PWA: http://localhost:8080/teacher/
-- Web App: http://localhost:8080/app/
-- MinIO Console: http://localhost:9001
-- RQ Dashboard: http://localhost:9181 (si está habilitado)
+Variables automáticas:
+- `DOCKER_NETWORK=net-dev`
+- `WEBAUTHN_RP_ID=school-attendance.dev.gocode.cl`
+- `WEBAUTHN_RP_ORIGIN=https://school-attendance.dev.gocode.cl`
 
-**Credenciales por defecto:**
-- DB: `school_attendance` / `school_attendance`
-- MinIO: `dev-access` / `dev-secret`
-
-### QA
-
-#### 1. Preparar archivo .env
+#### QA
 
 ```bash
-# Copiar plantilla
-cp secrets/qa/.env.example secrets/qa/.env
-
-# Generar keys seguras
-openssl rand -hex 32  # Para SECRET_KEY
-openssl rand -hex 32  # Para DEVICE_API_KEY
-openssl rand -hex 16  # Para DB_PASSWORD
-
-# Editar secrets/qa/.env con los valores generados
-```
-
-Variables importantes para QA:
-```bash
+# secrets/qa/.env
 APP_ENV=qa
-DOCKER_NETWORK=net_qa
+DOCKER_NETWORK=net-qa
 CORS_ORIGINS=["https://school-attendance.qa.gocode.cl"]
+SECRET_KEY=<generado con openssl rand -hex 32>
+DEVICE_API_KEY=<generado con openssl rand -hex 32>
+DB_PASSWORD=<generado con openssl rand -hex 16>
 WEBAUTHN_RP_ID=school-attendance.qa.gocode.cl
 WEBAUTHN_RP_ORIGIN=https://school-attendance.qa.gocode.cl
 ```
 
-#### 2. Configurar nginx (si no existe)
-
+Deploy:
 ```bash
-# Verificar si existe configuración
-ls /srv/nginx/conf.d/ | grep school-attendance.qa
-
-# Si no existe, crearla
-sudo tee /srv/nginx/conf.d/50-school-attendance.qa.gocode.cl-ssl.conf << 'EOF'
-server {
-  listen 443 ssl;
-  http2 on;
-  server_name school-attendance.qa.gocode.cl;
-
-  ssl_certificate     /etc/letsencrypt/live/qa.gocode.cl/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/qa.gocode.cl/privkey.pem;
-
-  location / {
-    proxy_pass http://school-attendance-qa:8080;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $remote_addr;
-  }
-}
-EOF
-```
-
-#### 3. Deploy
-
-```bash
-# Copiar secrets al servidor
 sudo mkdir -p /srv/qa/apps/school-attendance
 sudo cp secrets/qa/.env /srv/qa/apps/school-attendance/.env
-
-# Deploy
 appctl pull --env qa --app school-attendance
-
-# Recargar nginx (después de que los contenedores estén corriendo)
-docker exec nginx-nginx-1 nginx -s reload
 ```
 
-#### 4. Verificar
+#### Production
 
 ```bash
-# Estado de contenedores
-appctl status --env qa --app school-attendance
+# secrets/prod/.env
+APP_ENV=production
+DOCKER_NETWORK=net-prod
+CORS_ORIGINS=["https://school-attendance.gocode.cl"]
+SECRET_KEY=<generado con openssl rand -hex 32>
+DEVICE_API_KEY=<generado con openssl rand -hex 32>
+DB_PASSWORD=<password muy seguro>
 
-# Health check
-appctl verify --env qa --app school-attendance
+# S3 Real (AWS)
+S3_ENDPOINT=https://s3.us-east-1.amazonaws.com
+S3_BUCKET=school-attendance-prod
+S3_ACCESS_KEY=<AWS access key>
+S3_SECRET_KEY=<AWS secret key>
+S3_SECURE=true
 
-# Probar desde el navegador
-# https://school-attendance.qa.gocode.cl/app
+# WhatsApp (real)
+WHATSAPP_ACCESS_TOKEN=<token real>
+WHATSAPP_PHONE_NUMBER_ID=<phone id real>
+ENABLE_REAL_NOTIFICATIONS=true
+
+# WebAuthn
+WEBAUTHN_RP_ID=school-attendance.gocode.cl
+WEBAUTHN_RP_ORIGIN=https://school-attendance.gocode.cl
 ```
 
-**URL de acceso:** https://school-attendance.qa.gocode.cl/app
-
-### Production (prod)
-
+Deploy:
 ```bash
-# Preparar secrets (¡usar valores seguros!)
-cp secrets/prod/.env.example secrets/prod/.env
-
-# Generar keys seguras:
-openssl rand -hex 32  # Para SECRET_KEY
-openssl rand -hex 32  # Para DEVICE_API_KEY
-
-# Editar secrets/prod/.env con valores reales
-
-# Copiar al servidor
 sudo mkdir -p /srv/prod/apps/school-attendance
 sudo cp secrets/prod/.env /srv/prod/apps/school-attendance/.env
-
-# Deploy con tag específico (¡importante!)
-appctl pull --env prod --app school-attendance --tag 2025.11.28.2231
+appctl pull --env prod --app school-attendance --tag 2025.01.15.1430
 ```
 
-**Checklist de producción:**
-- [ ] Usar tag específico, nunca `latest`
-- [ ] `SECRET_KEY` y `DEVICE_API_KEY` generados con `openssl rand -hex 32`
-- [ ] `DB_PASSWORD` seguro
-- [ ] `ENABLE_REAL_NOTIFICATIONS=true` si se usan notificaciones
-- [ ] `CORS_ORIGINS` con dominios específicos
-- [ ] S3 real configurado (no MinIO)
+## Excepciones al Proceso Estándar
 
-## Variables de Entorno
+### 1. Migraciones Personalizadas
 
-| Variable | Descripción | Default |
-|----------|-------------|---------|
-| `APP_ENV` | Ambiente | `development` |
-| `DB_USER` | Usuario PostgreSQL | `school_attendance` |
-| `DB_PASSWORD` | Password PostgreSQL | `school_attendance` |
-| `DB_NAME` | Nombre de la DB | `school_attendance` |
-| `SECRET_KEY` | Key para JWT | `CHANGE-ME-IN-PRODUCTION` |
-| `DEVICE_API_KEY` | Key para kioscos | `CHANGE-ME-IN-PRODUCTION` |
-| `S3_ENDPOINT` | URL de S3/MinIO | `http://minio:9000` |
-| `S3_BUCKET` | Bucket de fotos | `attendance-photos` |
-| `S3_ACCESS_KEY` | Access key | `dev-access` |
-| `S3_SECRET_KEY` | Secret key | `dev-secret` |
-| `WHATSAPP_ACCESS_TOKEN` | Token WhatsApp | `dummy` |
-| `WHATSAPP_PHONE_NUMBER_ID` | Phone ID WhatsApp | `dummy` |
-| `ENABLE_REAL_NOTIFICATIONS` | Enviar notificaciones | `false` |
-| `CORS_ORIGINS` | Orígenes permitidos | (vacío = todos) |
+El proyecto usa un shim de npm para ejecutar migraciones:
 
-Ver `secrets/<env>/.env.example` para la lista completa.
+```
+npm run migrate → scripts/npm-shim.sh → make migrate → alembic upgrade head
+```
 
-## Migraciones
-
-Las migraciones se ejecutan automáticamente durante el deploy.
-
-El flujo es: `npm run migrate` → `scripts/npm-shim.sh` → `make migrate` → `alembic upgrade head`
-
-Para ejecutar manualmente:
+Si las migraciones fallan:
 ```bash
-# Dentro del contenedor
 docker exec -it school-attendance-<env> alembic upgrade head
-
-# O usando make
-docker exec -it school-attendance-<env> make migrate
 ```
+
+### 2. Worker y Scheduler Separados
+
+A diferencia de aplicaciones simples, school-attendance tiene contenedores separados para jobs:
+
+- `school-attendance-worker-<env>`: Procesa notificaciones WhatsApp
+- `school-attendance-scheduler-<env>`: Ejecuta tareas periódicas
+
+Verificar que ambos estén corriendo:
+```bash
+docker ps | grep school-attendance
+```
+
+### 3. RQ Dashboard (Solo dev/qa)
+
+El servicio `rq-dashboard` solo se levanta con profiles:
+```bash
+docker compose --profile dev up -d  # Incluye rq-dashboard
+```
+
+No disponible en producción.
+
+## Build y Push
+
+### Script Automático
+
+```bash
+cd /home/gocode/projects/school-attendance
+
+# Tag automático (YYYY.MM.DD.HHMM)
+./scripts/build_and_push.sh
+
+# Tag específico
+IMAGE_TAG=v2.0.0 ./scripts/build_and_push.sh
+```
+
+### Build Manual
+
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  -t moffermann/school-attendance:$(date +%Y.%m.%d.%H%M) \
+  --push \
+  .
+```
+
+## Flujo de Deploy Completo
+
+### Development
+
+```bash
+# 1. Build y push
+./scripts/build_and_push.sh
+
+# 2. Deploy
+appctl pull --env dev --app school-attendance
+
+# 3. Verificar
+appctl status --env dev --app school-attendance
+curl https://school-attendance.dev.gocode.cl/healthz
+```
+
+### Production
+
+```bash
+# 1. Build con tag específico
+IMAGE_TAG=2025.01.15.1430 ./scripts/build_and_push.sh
+
+# 2. Preparar secrets
+sudo cp secrets/prod/.env /srv/prod/apps/school-attendance/.env
+
+# 3. Deploy con tag específico (NUNCA usar latest en prod)
+appctl pull --env prod --app school-attendance --tag 2025.01.15.1430
+
+# 4. Verificar
+appctl verify --env prod --app school-attendance
+```
+
+## Checklist de Producción
+
+- [ ] Usar tag específico, NUNCA `latest`
+- [ ] `SECRET_KEY` generado con `openssl rand -hex 32`
+- [ ] `DEVICE_API_KEY` generado con `openssl rand -hex 32`
+- [ ] `DB_PASSWORD` seguro
+- [ ] `CORS_ORIGINS` con dominio específico
+- [ ] S3 real configurado (no MinIO)
+- [ ] `ENABLE_REAL_NOTIFICATIONS=true` si se usan notificaciones
+- [ ] `WEBAUTHN_RP_ID` y `WEBAUTHN_RP_ORIGIN` correctos
+- [ ] Templates de WhatsApp aprobados en Meta Business Suite
 
 ## Monitoreo
+
+### Logs por Servicio
+
+```bash
+# API principal
+docker logs -f school-attendance-prod
+
+# Worker (notificaciones)
+docker logs -f school-attendance-worker-prod
+
+# Scheduler (tareas periódicas)
+docker logs -f school-attendance-scheduler-prod
+```
 
 ### Health Checks
 
 ```bash
 # Liveness (rápido)
-curl http://localhost:8080/healthz
+curl https://school-attendance.gocode.cl/healthz
 
 # Readiness (incluye DB)
-curl http://localhost:8080/health
-
-# Verificar via appctl
-appctl verify --env dev --app school-attendance
-```
-
-### Logs
-
-```bash
-# Via appctl
-appctl logs --env dev --app school-attendance
-appctl logs --env dev --app school-attendance -f  # follow
-
-# Directo con docker
-docker logs -f school-attendance-dev
-docker logs -f school-attendance-worker-dev
-docker logs -f school-attendance-scheduler-dev
-```
-
-### Estado de Contenedores
-
-```bash
-appctl status --env dev --app school-attendance
-
-# O directo
-docker ps | grep school-attendance
+curl https://school-attendance.gocode.cl/health
 ```
 
 ## Troubleshooting
 
-### La imagen no se descarga
+### Notificaciones no se envían
+
+1. Verificar `ENABLE_REAL_NOTIFICATIONS=true`
+2. Verificar Redis corriendo:
+   ```bash
+   docker ps | grep redis
+   ```
+3. Verificar worker corriendo:
+   ```bash
+   docker logs school-attendance-worker-<env>
+   ```
+4. Validar config WhatsApp:
+   ```bash
+   docker exec school-attendance-<env> python scripts/whatsapp_setup.py --validate
+   ```
+
+### Kiosk no muestra cámara
+
+1. Verificar `photo_opt_in` del estudiante
+2. Verificar permisos del navegador
+3. Inspeccionar consola del kiosk
+
+### WebAuthn falla
+
+1. Verificar que `WEBAUTHN_RP_ID` coincide con el dominio
+2. Verificar HTTPS (WebAuthn requiere conexión segura)
+3. Revisar logs del contenedor
+
+### Base de datos no conecta
 
 ```bash
-# Verificar login en Docker Hub
-echo $REGISTRY_PASSWORD | docker login -u $REGISTRY_USER --password-stdin
+# Verificar PostgreSQL
+docker logs school-attendance-postgres-<env>
 
-# Verificar que la imagen existe
-docker pull moffermann/school-attendance:latest
-
-# Ver tags disponibles
-curl -s "https://hub.docker.com/v2/repositories/moffermann/school-attendance/tags?page_size=10" | jq '.results[].name'
-```
-
-### Migraciones fallan
-
-```bash
-# Ver logs del contenedor
-docker logs school-attendance-<env>
-
-# Verificar conectividad a PostgreSQL
+# Probar conexión
 docker exec school-attendance-<env> python -c "
 from app.core.config import settings
 print(settings.database_url)
 "
-
-# Ejecutar migraciones manualmente
-docker exec -it school-attendance-<env> alembic upgrade head
 ```
-
-### Health check falla
-
-```bash
-# Verificar que el contenedor está corriendo
-docker ps | grep school-attendance
-
-# Probar health manualmente
-curl -v http://localhost:8080/healthz
-
-# Ver logs de error
-docker logs school-attendance-<env> --tail 50
-
-# Verificar desde la red Docker
-docker run --rm --network net-dev curlimages/curl:8.10.1 \
-  http://school-attendance:8080/healthz
-```
-
-### Variables de entorno no se aplican
-
-```bash
-# Verificar que .env existe en el servidor
-ls -la /srv/<env>/apps/school-attendance/.env
-
-# Ver variables dentro del contenedor
-docker exec school-attendance-<env> env | grep -E "DB_|SECRET|S3_"
-
-# Recrear contenedores para aplicar cambios
-cd /srv/<env>/apps/school-attendance
-docker compose down && docker compose up -d
-```
-
-### Notificaciones no se envían
-
-1. Verificar `ENABLE_REAL_NOTIFICATIONS=true`
-2. Verificar que Redis está corriendo: `docker ps | grep redis`
-3. Verificar logs del worker:
-   ```bash
-   docker logs school-attendance-worker-<env>
-   ```
-4. Validar config de WhatsApp:
-   ```bash
-   docker exec school-attendance-<env> python scripts/whatsapp_setup.py --validate
-   ```
 
 ## Backup
 
@@ -549,41 +364,47 @@ docker compose down && docker compose up -d
 ```bash
 # Backup
 docker exec school-attendance-postgres-<env> \
-  pg_dump -U school_attendance school_attendance > backup.sql
+  pg_dump -U school_attendance school_attendance > backup_$(date +%Y%m%d).sql
 
 # Restore
 docker exec -i school-attendance-postgres-<env> \
   psql -U school_attendance school_attendance < backup.sql
 ```
 
-### Fotos (MinIO/S3)
+### Fotos (S3/MinIO)
 
 ```bash
-# MinIO
+# MinIO (dev/qa)
 mc mirror minio/attendance-photos ./backup/photos/
 
-# AWS S3
-aws s3 sync s3://your-bucket ./backup/photos/
+# AWS S3 (prod)
+aws s3 sync s3://school-attendance-prod ./backup/photos/
 ```
 
 ## Referencia Rápida
 
 ```bash
 # === BUILD ===
-./scripts/build_and_push.sh                    # Tag automático
-IMAGE_TAG=v1.0.0 ./scripts/build_and_push.sh   # Tag específico
+./scripts/build_and_push.sh                           # Tag automático
+IMAGE_TAG=v1.0.0 ./scripts/build_and_push.sh          # Tag específico
 
 # === DEV ===
 appctl pull --env dev --app school-attendance
 appctl logs --env dev --app school-attendance -f
-appctl status --env dev --app school-attendance
+
+# === QA ===
+sudo cp secrets/qa/.env /srv/qa/apps/school-attendance/.env
+appctl pull --env qa --app school-attendance
 
 # === PROD ===
 sudo cp secrets/prod/.env /srv/prod/apps/school-attendance/.env
-appctl pull --env prod --app school-attendance --tag 2025.11.28.2231
+appctl pull --env prod --app school-attendance --tag 2025.01.15.1430
 
-# === UTILS ===
-appctl verify --env dev --app school-attendance
-appctl rm --env dev --app school-attendance
-docker exec -it school-attendance-dev alembic upgrade head
+# === MONITOREO ===
+appctl status --env prod --app school-attendance
+appctl verify --env prod --app school-attendance
+docker logs -f school-attendance-worker-prod
+
+# === MIGRACIONES MANUALES ===
+docker exec -it school-attendance-<env> alembic upgrade head
 ```
