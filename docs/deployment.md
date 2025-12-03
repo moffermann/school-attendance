@@ -54,32 +54,67 @@ Nginx está conectado a todas las redes Docker y rutea el tráfico basándose en
 - `school-attendance.dev.gocode.cl` → `school-attendance-dev:8080`
 - `school-attendance.qa.gocode.cl` → `school-attendance-qa:8080`
 
-### Configuración de Nginx
+### Configuración de Nginx (Automática)
 
-Los archivos de configuración están en `/srv/nginx/conf.d/`:
+La configuración de nginx se maneja **automáticamente** por `appctl` durante el deploy:
 
-```bash
-# Crear configuración para un nuevo ambiente
-sudo tee /srv/nginx/conf.d/50-school-attendance.qa.gocode.cl-ssl.conf << 'EOF'
+1. **Si existe** `nginx/<env>.conf` en el proyecto → se usa esa configuración
+2. **Si no existe** → `appctl` genera una desde template y la guarda en `nginx/<env>.conf`
+
+En ambos casos, el archivo se copia a `/srv/nginx/conf.d/` y se recarga nginx.
+
+#### Estructura en el proyecto
+
+```
+proyecto/
+└── nginx/
+    ├── dev.conf   # (opcional) Config personalizada para dev
+    ├── qa.conf    # (opcional) Config personalizada para qa
+    └── prod.conf  # (opcional) Config personalizada para prod
+```
+
+#### Template por defecto
+
+Si no existe configuración, `appctl` genera:
+
+```nginx
 server {
   listen 443 ssl;
   http2 on;
-  server_name school-attendance.qa.gocode.cl;
+  server_name <app>.<env>.gocode.cl;
 
-  ssl_certificate     /etc/letsencrypt/live/qa.gocode.cl/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/qa.gocode.cl/privkey.pem;
+  ssl_certificate     /etc/letsencrypt/live/<env>.gocode.cl/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/<env>.gocode.cl/privkey.pem;
 
   location / {
-    proxy_pass http://school-attendance-qa:8080;
+    resolver 127.0.0.11 valid=30s;
+    set $upstream <app>-<env>:8080;
+
+    proxy_pass http://$upstream;
     proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
   }
 }
-EOF
-
-# Recargar nginx (después de que los contenedores estén corriendo)
-docker exec nginx-nginx-1 nginx -s reload
 ```
+
+#### Personalización
+
+Para personalizar la configuración de nginx (ej: agregar WebSocket, timeouts, headers adicionales):
+
+1. El archivo `nginx/<env>.conf` se genera automáticamente en el primer deploy
+2. Modifícalo en el proyecto según necesites
+3. Haz commit del cambio
+4. En el próximo deploy, `appctl` usará tu versión personalizada
+
+#### Repositorio centralizado
+
+Todas las configuraciones de nginx se versionan en `/srv/nginx/` (repo git):
+- `appctl` hace commit automático después de cada deploy
+- Sirve como backup y auditoría de cambios
+
+> **Nota:** El uso de `resolver 127.0.0.11` con una variable `$upstream` permite que nginx resuelva el DNS dinámicamente. Sin esto, nginx cachea la IP del contenedor al iniciar, causando errores 502 si el contenedor se reinicia y obtiene una nueva IP.
 
 ### ¿Por qué no se necesitan puertos expuestos al host?
 
