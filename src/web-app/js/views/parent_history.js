@@ -186,12 +186,19 @@ Views.parentHistory = function() {
     Components.showToast('Filtros aplicados', 'success');
   };
 
-  // Re-render on resize for responsive
+  // R10-W1 fix: Store resize handler for cleanup
   let resizeTimeout;
-  window.addEventListener('resize', () => {
+  const resizeHandler = () => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(renderEventsTable, 250);
-  });
+  };
+  window.addEventListener('resize', resizeHandler);
+
+  // R10-W1 fix: Cleanup function to remove listener on navigation
+  Views.parentHistory.cleanup = function() {
+    window.removeEventListener('resize', resizeHandler);
+    clearTimeout(resizeTimeout);
+  };
 
   renderHistory();
 };

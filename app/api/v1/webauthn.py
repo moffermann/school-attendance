@@ -1,10 +1,11 @@
 """WebAuthn/Passkey authentication endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import deps
 from app.core.auth import AuthUser
+from app.core.rate_limiter import limiter
 from app.db.repositories.teachers import TeacherRepository
 from app.schemas.webauthn import (
     BiometricStatusResponse,
@@ -175,7 +176,8 @@ async def kiosk_verify_authentication(
     summary="Verificar si estudiante tiene biometría registrada",
 )
 async def kiosk_check_biometric_status(
-    student_id: int,
+    # R10-A6 fix: Validate student_id with ge=1
+    student_id: int = Path(..., ge=1),
     device_authenticated: bool = Depends(deps.verify_device_key),
     webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
 ):
@@ -284,8 +286,9 @@ async def admin_list_student_credentials(
     summary="Eliminar credencial de estudiante",
 )
 async def admin_delete_student_credential(
-    student_id: int,
-    credential_id: str,
+    student_id: int = Path(..., ge=1),
+    # R10-A5 fix: Validate credential_id format
+    credential_id: str = Path(..., min_length=1, max_length=512),
     current_user: AuthUser = Depends(deps.require_roles("DIRECTOR", "INSPECTOR")),
     webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
 ):
@@ -317,8 +320,11 @@ async def admin_delete_student_credential(
     "/teachers/{teacher_id}/can-enroll",
     summary="Verificar si profesor puede enrolar biometría",
 )
+# R10-A8 fix: Add rate limiting to prevent enumeration attacks
+@limiter.limit("30/minute")
 async def check_teacher_can_enroll(
-    teacher_id: int,
+    request,  # Required for rate limiter
+    teacher_id: int = Path(..., ge=1),
     session: AsyncSession = Depends(deps.get_db),
     device_authenticated: bool = Depends(deps.verify_device_key),
 ):

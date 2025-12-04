@@ -308,13 +308,14 @@ Views.directorBiometric = function() {
   Views.directorBiometric.viewCredentials = function() {
     if (!selectedStudent || studentCredentials.length === 0) return;
 
+    // R10-W2 fix: Use data-* attributes to prevent XSS via credential_id
     const credentialsHTML = studentCredentials.map(cred => `
       <tr>
         <td>${Components.escapeHtml(cred.device_name || 'Sin nombre')}</td>
         <td>${Components.formatDate(cred.created_at)}</td>
         <td>${cred.last_used_at ? Components.formatDate(cred.last_used_at) : 'Nunca'}</td>
         <td>
-          <button class="btn btn-error btn-sm" onclick="Views.directorBiometric.deleteCredential('${cred.credential_id}')">
+          <button class="btn btn-error btn-sm delete-credential-btn" data-credential-id="${Components.escapeHtml(cred.credential_id)}">
             🗑️
           </button>
         </td>
@@ -339,6 +340,16 @@ Views.directorBiometric = function() {
     `, [
       { label: 'Cerrar', action: 'close', className: 'btn-secondary' }
     ]);
+
+    // R10-W2 fix: Attach event listeners after modal is shown
+    setTimeout(() => {
+      document.querySelectorAll('.delete-credential-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const credId = this.dataset.credentialId;
+          Views.directorBiometric.deleteCredential(credId);
+        });
+      });
+    }, 0);
   };
 
   Views.directorBiometric.deleteCredential = async function(credentialId) {

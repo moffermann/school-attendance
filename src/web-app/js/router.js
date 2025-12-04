@@ -72,6 +72,12 @@ const Router = {
   render(handler) {
     const app = document.getElementById('app');
 
+    // R10-W10 fix: Validate app container exists before rendering
+    if (!app) {
+      console.error('Router: #app container not found in DOM');
+      return;
+    }
+
     // Show loading
     app.innerHTML = Components.createLoader();
 

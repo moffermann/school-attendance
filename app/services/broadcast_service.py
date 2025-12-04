@@ -3,6 +3,7 @@
 import secrets
 from typing import Set
 
+from loguru import logger
 from redis import Redis
 from rq import Queue
 
@@ -57,13 +58,26 @@ class BroadcastService:
         if not guardian_ids:
             raise ValueError("No hay destinatarios para el broadcast solicitado")
         job_id = secrets.token_hex(8)
-        self.queue.enqueue(
-            "app.workers.jobs.process_broadcast.process_broadcast_job",
-            {
-                "job_id": job_id,
-                "payload": payload.model_dump(),
-                "guardian_ids": guardian_ids,
-            },
-            job_id=job_id,
-        )
+
+        # R10-S8 fix: Log enqueue operations for debugging
+        try:
+            self.queue.enqueue(
+                "app.workers.jobs.process_broadcast.process_broadcast_job",
+                {
+                    "job_id": job_id,
+                    "payload": payload.model_dump(),
+                    "guardian_ids": guardian_ids,
+                },
+                job_id=job_id,
+            )
+            logger.info(
+                "Broadcast enqueued job_id=%s recipients=%d subject=%s",
+                job_id,
+                len(guardian_ids),
+                payload.subject[:50] if payload.subject else "N/A",
+            )
+        except Exception as e:
+            logger.error("Failed to enqueue broadcast job_id=%s error=%s", job_id, e)
+            raise
+
         return job_id

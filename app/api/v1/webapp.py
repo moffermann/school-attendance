@@ -1,6 +1,7 @@
 """Endpoints to support the standalone web SPA."""
 
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
@@ -13,6 +14,9 @@ from app.services.web_app_service import WebAppDataService
 
 
 router = APIRouter(prefix="", tags=["web-app"])
+
+# R10-A4 fix: Define valid event types
+EventTypeFilter = Literal["IN", "OUT"]
 
 
 @router.get("/bootstrap", response_model=WebAppBootstrap)
@@ -27,8 +31,10 @@ async def load_bootstrap(
 async def dashboard_snapshot(
     date_value: date | None = Query(default=None, alias="date"),
     course_id: int | None = Query(default=None),
-    event_type: str | None = Query(default=None, alias="type"),
-    search: str | None = Query(default=None),
+    # R10-A4 fix: Use Literal type for event_type validation
+    event_type: EventTypeFilter | None = Query(default=None, alias="type"),
+    # R10-A3 fix: Add max_length to prevent DoS
+    search: str | None = Query(default=None, max_length=200),
     dashboard_service: DashboardService = Depends(deps.get_dashboard_service),
     _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
 ) -> DashboardSnapshot:
@@ -45,8 +51,10 @@ async def dashboard_snapshot(
 async def export_dashboard_snapshot(
     date_value: date | None = Query(default=None, alias="date"),
     course_id: int | None = Query(default=None),
-    event_type: str | None = Query(default=None, alias="type"),
-    search: str | None = Query(default=None),
+    # R10-A4 fix: Use Literal type for event_type validation
+    event_type: EventTypeFilter | None = Query(default=None, alias="type"),
+    # R10-A3 fix: Add max_length to prevent DoS
+    search: str | None = Query(default=None, max_length=200),
     dashboard_service: DashboardService = Depends(deps.get_dashboard_service),
     _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
 ) -> StreamingResponse:

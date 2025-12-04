@@ -5,6 +5,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from webauthn import (
     generate_registration_options,
@@ -185,9 +186,11 @@ class WebAuthnService:
                 require_user_verification=True,
             )
         except Exception as e:
+            # R10-S5 fix: Log internal error details, return generic message
+            logger.error("WebAuthn student registration verification failed: %s", e)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Error verificando credencial: {str(e)}"
+                detail="Error verificando credencial"
             )
 
         # Extract transports if provided
@@ -315,9 +318,11 @@ class WebAuthnService:
                 require_user_verification=True,
             )
         except Exception as e:
+            # R10-S5 fix: Log internal error details, return generic message
+            logger.error("WebAuthn authentication verification failed: %s", e)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Error verificando autenticación: {str(e)}"
+                detail="Error verificando autenticación"
             )
 
         # Update sign count
@@ -436,9 +441,11 @@ class WebAuthnService:
                 require_user_verification=True,
             )
         except Exception as e:
+            # R10-S5 fix: Log internal error details, return generic message
+            logger.error("WebAuthn user registration verification failed: %s", e)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Error verificando credencial: {str(e)}"
+                detail="Error verificando credencial"
             )
 
         transports = None
