@@ -33,6 +33,8 @@ const Sync = {
     const batch = pending.slice(0, this.batchSize);
 
     for (const event of batch) {
+      // F4 fix: Store original status to revert on failure
+      const originalStatus = event.status;
       event.status = 'in_progress';
       await IDB.put('queue', event);
 
@@ -42,8 +44,15 @@ const Sync = {
         event.synced_at = new Date().toISOString();
       } catch (error) {
         console.error('Sync error for event:', event.id, error);
-        event.status = 'error';
-        event.retries = (event.retries || 0) + 1;
+        // F4 fix: Revert to pending (not error) if network failure to allow retry
+        if (error.name === 'TypeError' || error.message.includes('network') || error.message.includes('fetch')) {
+          // Network error - revert to pending for automatic retry
+          event.status = 'pending';
+        } else {
+          // API error - mark as error with retry count
+          event.status = 'error';
+          event.retries = (event.retries || 0) + 1;
+        }
         event.last_error = error.message;
       }
 
@@ -173,21 +182,27 @@ const Sync = {
 
   /**
    * Clean up old synced events (keep last 100)
+   * F17 fix: Added try/catch to prevent unhandled rejections
    */
   async cleanupQueue() {
-    const queue = await IDB.getAll('queue');
-    const synced = queue.filter(e => e.status === 'synced');
+    try {
+      const queue = await IDB.getAll('queue');
+      const synced = queue.filter(e => e.status === 'synced');
 
-    if (synced.length > 100) {
-      // Sort by synced_at and remove oldest
-      synced.sort((a, b) => new Date(a.synced_at) - new Date(b.synced_at));
-      const toRemove = synced.slice(0, synced.length - 100);
+      if (synced.length > 100) {
+        // Sort by synced_at and remove oldest
+        synced.sort((a, b) => new Date(a.synced_at) - new Date(b.synced_at));
+        const toRemove = synced.slice(0, synced.length - 100);
 
-      for (const event of toRemove) {
-        await IDB.delete('queue', event.id);
+        for (const event of toRemove) {
+          await IDB.delete('queue', event.id);
+        }
+
+        console.log(`Cleaned up ${toRemove.length} old synced events`);
       }
-
-      console.log(`Cleaned up ${toRemove.length} old synced events`);
+    } catch (error) {
+      console.error('Error cleaning up queue:', error);
+      // Don't rethrow - cleanup is non-critical
     }
   },
 

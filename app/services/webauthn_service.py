@@ -143,6 +143,9 @@ class WebAuthnService:
 
         credential_response should be the JSON from navigator.credentials.create()
         """
+        # Clean up expired challenges to prevent memory leak (B1 fix)
+        _cleanup_expired_challenges()
+
         # Retrieve and validate challenge
         challenge_data = _challenge_store.pop(challenge_id, None)
         if not challenge_data:
@@ -259,6 +262,9 @@ class WebAuthnService:
 
         Returns the authenticated student if successful.
         """
+        # Clean up expired challenges to prevent memory leak (B1 fix)
+        _cleanup_expired_challenges()
+
         # Retrieve and validate challenge
         challenge_data = _challenge_store.pop(challenge_id, None)
         if not challenge_data:
@@ -391,6 +397,9 @@ class WebAuthnService:
         credential_response: dict,
     ) -> WebAuthnCredential:
         """Verify and store a user's WebAuthn credential after registration."""
+        # Clean up expired challenges to prevent memory leak (B1 fix)
+        _cleanup_expired_challenges()
+
         challenge_data = _challenge_store.pop(challenge_id, None)
         if not challenge_data:
             raise HTTPException(

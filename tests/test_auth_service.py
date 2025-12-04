@@ -69,6 +69,7 @@ class TestAuthService:
             hashed_password="hashed",
             role="ADMIN",
             guardian_id=None,
+            teacher_id=None,  # C9 fix: include all model fields
             is_active=True,
         )
 
@@ -89,6 +90,7 @@ class TestAuthService:
             hashed_password="hashed",
             role="ADMIN",
             guardian_id=None,
+            teacher_id=None,  # C9 fix: include all model fields
             is_active=False,  # Inactive
         )
 
@@ -109,6 +111,7 @@ class TestAuthService:
             hashed_password="hashed",
             role="ADMIN",
             guardian_id=None,
+            teacher_id=None,  # C9 fix: include all model fields
             is_active=True,
         )
 
@@ -127,6 +130,7 @@ class TestAuthService:
             id=1,
             role="ADMIN",
             guardian_id=None,
+            teacher_id=None,  # C9 fix: include all model fields
             is_active=True,
         )
 
@@ -167,6 +171,7 @@ class TestAuthService:
             id=1,
             role="ADMIN",
             guardian_id=None,
+            teacher_id=None,  # C9 fix: include all model fields
             is_active=False,  # Inactive
         )
 

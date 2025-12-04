@@ -54,6 +54,20 @@ async def resolve_alert(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
+def _sanitize_csv_value(val: str | None) -> str:
+    """Sanitize value for CSV to prevent formula injection (B18 fix).
+
+    Excel and other spreadsheets interpret cells starting with =, +, -, @
+    as formulas, which can be exploited for code execution.
+    """
+    if not val:
+        return ""
+    val = str(val)
+    if val and val[0] in '=+-@':
+        return "'" + val  # Prefix with quote to prevent formula interpretation
+    return val
+
+
 @router.get("/no-entry/export")
 async def export_no_entry_alerts(
     start_date: date | None = Query(default=None),
@@ -81,12 +95,12 @@ async def export_no_entry_alerts(
     writer.writerow(["guardian", "student", "course", "date", "status", "notes"])
     for alert in alerts:
         writer.writerow([
-            alert.guardian_name or "",
-            alert.student_name or "",
-            alert.course_name or "",
+            _sanitize_csv_value(alert.guardian_name),
+            _sanitize_csv_value(alert.student_name),
+            _sanitize_csv_value(alert.course_name),
             alert.alert_date,
-            alert.status,
-            alert.notes or "",
+            _sanitize_csv_value(alert.status),
+            _sanitize_csv_value(alert.notes),
         ])
 
     return Response(

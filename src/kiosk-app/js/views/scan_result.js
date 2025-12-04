@@ -379,8 +379,11 @@ Views.scanResult = function() {
   }
 
   function stopCamera() {
+    // F2 fix: properly cleanup camera including race condition during init
+    cameraInitializing = false;  // Cancel any pending initialization
     if (video && video.srcObject) {
       video.srcObject.getTracks().forEach(track => track.stop());
+      video.srcObject = null;
     }
   }
 

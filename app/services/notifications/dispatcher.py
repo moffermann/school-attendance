@@ -19,6 +19,14 @@ class NotificationDispatcher:
         self._redis = Redis.from_url(settings.redis_url)
         self._queue = Queue("notifications", connection=self._redis)
 
+    def __del__(self):
+        """Close Redis connection on cleanup (B7 fix)."""
+        if hasattr(self, '_redis') and self._redis:
+            try:
+                self._redis.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
+
     async def enqueue_manual_notification(self, payload: NotificationDispatchRequest) -> NotificationRead:
         guardian = await self.guardian_repo.get(payload.guardian_id)
         if not guardian:

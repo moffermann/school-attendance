@@ -64,9 +64,11 @@ async def _detect_and_notify(target_dt: datetime | None = None) -> None:
                     channels = resolved_channels
 
             for channel in channels:
-                if channel == NotificationChannel.WHATSAPP and not guardian.contacts.get("whatsapp"):
+                # B11 fix: handle NULL contacts gracefully
+                contacts = guardian.contacts or {}
+                if channel == NotificationChannel.WHATSAPP and not contacts.get("whatsapp"):
                     continue
-                if channel == NotificationChannel.EMAIL and not guardian.contacts.get("email"):
+                if channel == NotificationChannel.EMAIL and not contacts.get("email"):
                     continue
                 payload = NotificationDispatchRequest(
                     guardian_id=guardian.id,

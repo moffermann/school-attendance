@@ -73,19 +73,33 @@ const Components = {
     const modal = container.querySelector('.modal');
     const closeBtn = container.querySelector('.modal-close');
 
+    // F12 fix: Store listener references for cleanup
+    const listeners = [];
+
     const close = () => {
+      // F12 fix: Remove all event listeners before clearing
+      listeners.forEach(({ element, type, handler }) => {
+        element.removeEventListener(type, handler);
+      });
+      listeners.length = 0;
       container.className = 'modal-container';
       container.innerHTML = '';
     };
 
-    closeBtn.addEventListener('click', close);
-    container.addEventListener('click', (e) => {
+    // F12 fix: Track listeners for cleanup
+    const closeBtnHandler = () => close();
+    closeBtn.addEventListener('click', closeBtnHandler);
+    listeners.push({ element: closeBtn, type: 'click', handler: closeBtnHandler });
+
+    const containerHandler = (e) => {
       if (e.target === container) close();
-    });
+    };
+    container.addEventListener('click', containerHandler);
+    listeners.push({ element: container, type: 'click', handler: containerHandler });
 
     // Handle button actions
     container.querySelectorAll('[data-action]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      const btnHandler = (e) => {
         const action = e.target.dataset.action;
         if (action === 'close') {
           close();
@@ -95,7 +109,9 @@ const Components = {
         if (btnConfig && btnConfig.onClick) {
           btnConfig.onClick();
         }
-      });
+      };
+      btn.addEventListener('click', btnHandler);
+      listeners.push({ element: btn, type: 'click', handler: btnHandler });
     });
 
     return { close };
