@@ -1,6 +1,6 @@
 """Tag repository with race condition protection."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -16,12 +16,13 @@ class TagRepository:
     async def create_pending(
         self, *, student_id: int, tag_hash: str, tag_preview: str
     ) -> Tag:
+        # R15-DT1 fix: Use datetime.now(timezone.utc) instead of deprecated utcnow()
         tag = Tag(
             student_id=student_id,
             tag_token_hash=tag_hash,
             tag_token_preview=tag_preview,
             status="PENDING",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
         self.session.add(tag)
         await self.session.flush()
@@ -87,7 +88,8 @@ class TagRepository:
         if tag is None:
             raise ValueError("Tag not found")
         tag.status = "REVOKED"
-        tag.revoked_at = datetime.utcnow()
+        # R15-DT1 fix: Use datetime.now(timezone.utc) instead of deprecated utcnow()
+        tag.revoked_at = datetime.now(timezone.utc)
         await self.session.flush()
         return tag
 
