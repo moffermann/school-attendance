@@ -61,8 +61,10 @@ class PhotoService:
         await asyncio.to_thread(self._client.delete_object, Bucket=self._bucket, Key=key)
         logger.info("Deleted photo bucket=%s key=%s", self._bucket, key)
 
-    def generate_presigned_url(self, key: str, expires: int = 3600) -> str | None:
+    async def generate_presigned_url(self, key: str, expires: int = 3600) -> str | None:
         """Generate a presigned URL for accessing a photo.
+
+        R12-P5 fix: Made async to avoid blocking event loop during S3 API call.
 
         Returns:
             The presigned URL string, or None if generation fails.
@@ -70,12 +72,15 @@ class PhotoService:
         if not key:
             return None
 
-        try:
+        def _generate():
             return self._client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": self._bucket, "Key": key},
                 ExpiresIn=expires,
             )
+
+        try:
+            return await asyncio.to_thread(_generate)
         except Exception as exc:  # pragma: no cover - best effort URL generation
             logger.error("Failed to generate presigned URL for %s: %s", key, exc)
             return None

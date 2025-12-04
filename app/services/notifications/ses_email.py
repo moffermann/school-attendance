@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import boto3
@@ -57,7 +58,9 @@ class SESEmailClient:
             return
 
         client = self._get_client()
-        try:
+
+        # R12-P3 fix: Use asyncio.to_thread to avoid blocking event loop
+        def _send():
             client.send_email(
                 Source=self._source,
                 Destination={"ToAddresses": [to]},
@@ -68,6 +71,9 @@ class SESEmailClient:
                     },
                 },
             )
+
+        try:
+            await asyncio.to_thread(_send)
         except (ClientError, BotoCoreError) as exc:  # pragma: no cover - network side effect
             logger.error("SES send failed: %s", exc)
             raise

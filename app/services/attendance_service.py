@@ -51,11 +51,12 @@ class AttendanceService:
         await self.session.commit()
 
         # Trigger notifications to guardians
-        await self._send_attendance_notifications(event)
+        # R12-P1 fix: Pass student to avoid duplicate fetch
+        await self._send_attendance_notifications(event, student)
 
         return AttendanceEventRead.model_validate(event, from_attributes=True)
 
-    async def _send_attendance_notifications(self, event) -> None:
+    async def _send_attendance_notifications(self, event, student=None) -> None:
         """Send notifications to guardians after attendance event is registered."""
         if not self._notification_service:
             logger.debug("Notification service not configured, skipping notifications")
@@ -65,14 +66,17 @@ class AttendanceService:
             # Generate photo URL if photo exists and student allows photos
             photo_url = None
             if event.photo_ref:
-                student = await self.student_repo.get(event.student_id)
+                # R12-P1 fix: Use passed student instead of re-fetching
+                if student is None:
+                    student = await self.student_repo.get(event.student_id)
                 # R4-L1 fix: Use effective_evidence_preference instead of legacy photo_pref_opt_in
                 if student:
                     evidence_pref = getattr(student, "effective_evidence_preference", "none")
                     if evidence_pref == "photo":
                         # R2-B10 fix: Reduce presigned URL expiry from 7 days to 24 hours
                         # WhatsApp has 24h to download media, 7 days was excessive security risk
-                        photo_url = self.photo_service.generate_presigned_url(
+                        # R12-P5 fix: Now async, use await
+                        photo_url = await self.photo_service.generate_presigned_url(
                             event.photo_ref,
                             expires=24 * 3600,  # 24 hours
                         )
@@ -342,5 +346,6 @@ class AttendanceService:
     async def list_recent_photo_events(self, limit: int = 20):
         return await self.attendance_repo.list_recent_with_photos(limit)
 
-    def get_photo_url(self, photo_ref: str, expires: int = 3600) -> str:
-        return self.photo_service.generate_presigned_url(photo_ref, expires)
+    async def get_photo_url(self, photo_ref: str, expires: int = 3600) -> str | None:
+        # R12-P5 fix: Now async
+        return await self.photo_service.generate_presigned_url(photo_ref, expires)
