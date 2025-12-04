@@ -445,7 +445,10 @@ async def test_dashboard_service_computes_stats(monkeypatch) -> None:
 
     service.schedule_repo = MagicMock()
     service.student_repo = MagicMock()
-    service.photo_service = SimpleNamespace(generate_presigned_url=lambda key, expires=3600: f"https://cdn/{key}")
+    # R12-P5 fix: generate_presigned_url is now async
+    async def async_presigned_url(key, expires=3600):
+        return f"https://cdn/{key}"
+    service.photo_service = SimpleNamespace(generate_presigned_url=async_presigned_url)
 
     target_date = date(2024, 1, 10)
     schedule = SimpleNamespace(course_id=1, in_time=time(8, 0))

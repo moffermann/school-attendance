@@ -41,9 +41,10 @@ Views.directorBiometric = function() {
               <div class="card-body">
                 <div class="filters" style="margin-bottom: 1rem;">
                   <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <!-- R12-P7 fix: Add debounce to prevent excessive re-renders -->
                     <input type="text" id="search-student" class="form-input"
                            placeholder="Buscar por nombre..." value="${searchTerm}"
-                           oninput="Views.directorBiometric.filterStudents()">
+                           oninput="Views.directorBiometric.debouncedFilterStudents()">
                   </div>
                   <div class="form-group" style="margin-bottom: 0;">
                     <select id="filter-course" class="form-select" onchange="Views.directorBiometric.filterStudents()">
@@ -170,6 +171,15 @@ Views.directorBiometric = function() {
       </div>
     `;
   }
+
+  // R12-P7 fix: Add debounce for search input
+  let filterTimeout = null;
+  Views.directorBiometric.debouncedFilterStudents = function() {
+    clearTimeout(filterTimeout);
+    filterTimeout = setTimeout(() => {
+      Views.directorBiometric.filterStudents();
+    }, 200);
+  };
 
   Views.directorBiometric.filterStudents = function() {
     searchTerm = document.getElementById('search-student').value.toLowerCase();
@@ -322,33 +332,40 @@ Views.directorBiometric = function() {
       </tr>
     `).join('');
 
-    Components.showModal('Credenciales Biométricas', `
+    const modal = Components.showModal('Credenciales Biométricas', `
       <p style="margin-bottom: 1rem;">Credenciales registradas para <strong>${Components.escapeHtml(selectedStudent.full_name)}</strong>:</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Dispositivo</th>
-            <th>Registrado</th>
-            <th>Último Uso</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${credentialsHTML}
-        </tbody>
-      </table>
+      <div id="credentials-table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Dispositivo</th>
+              <th>Registrado</th>
+              <th>Último Uso</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${credentialsHTML}
+          </tbody>
+        </table>
+      </div>
     `, [
       { label: 'Cerrar', action: 'close', className: 'btn-secondary' }
     ]);
 
-    // R10-W2 fix: Attach event listeners after modal is shown
+    // R12-P6 fix: Use event delegation instead of per-button listeners
+    // This prevents memory leaks when modal is reopened multiple times
     setTimeout(() => {
-      document.querySelectorAll('.delete-credential-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-          const credId = this.dataset.credentialId;
-          Views.directorBiometric.deleteCredential(credId);
+      const container = document.getElementById('credentials-table-container');
+      if (container) {
+        container.addEventListener('click', function(e) {
+          const btn = e.target.closest('.delete-credential-btn');
+          if (btn) {
+            const credId = btn.dataset.credentialId;
+            Views.directorBiometric.deleteCredential(credId);
+          }
         });
-      });
+      }
     }, 0);
   };
 

@@ -25,5 +25,6 @@ class Notification(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
     # R6-M1 fix: Use timezone-aware datetime
     ts_created: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utc_now, index=True)
-    ts_sent: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # R12-P9 fix: Add index for worker time-range queries
+    ts_sent: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     retries: Mapped[int] = mapped_column(Integer, default=0)

@@ -59,7 +59,8 @@ class DashboardService:
         students = await self.student_repo.list_by_course_ids(course_ids) if course_ids else []
 
         stats = self._compute_stats(target_date, events, schedules, students)
-        mapped_events = [self._map_event(event, student, course) for event, student, course in events]
+        # R12-P5 fix: Use async map for presigned URLs
+        mapped_events = await self._map_events_async(events)
 
         return DashboardSnapshot(date=target_date, stats=stats, events=mapped_events)
 
@@ -321,8 +322,30 @@ class DashboardService:
             with_photos=photo_count,
         )
 
+    async def _map_events_async(self, events: list) -> list[DashboardEvent]:
+        """R12-P5 fix: Map events asynchronously for presigned URL generation."""
+        import asyncio
+
+        async def _map_single(event, student, course):
+            photo_url = await self.photo_service.generate_presigned_url(event.photo_ref) if event.photo_ref else None
+            return DashboardEvent(
+                id=event.id,
+                student_id=student.id,
+                student_name=student.full_name,
+                course_id=course.id,
+                course_name=course.name,
+                type=event.type,
+                gate_id=event.gate_id,
+                ts=self._format_ts(event.occurred_at),
+                device_id=event.device_id,
+                photo_ref=event.photo_ref,
+                photo_url=photo_url,
+            )
+
+        return await asyncio.gather(*[_map_single(e, s, c) for e, s, c in events])
+
     def _map_event(self, event: AttendanceEvent, student: Student, course: Course) -> DashboardEvent:
-        photo_url = self.photo_service.generate_presigned_url(event.photo_ref) if event.photo_ref else None
+        """Sync version for backwards compatibility (no photo URL)."""
         return DashboardEvent(
             id=event.id,
             student_id=student.id,
@@ -334,7 +357,7 @@ class DashboardService:
             ts=self._format_ts(event.occurred_at),
             device_id=event.device_id,
             photo_ref=event.photo_ref,
-            photo_url=photo_url or None,
+            photo_url=None,
         )
 
     @staticmethod

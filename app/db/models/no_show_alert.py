@@ -23,8 +23,9 @@ class NoShowAlert(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False, index=True)
     guardian_id: Mapped[int] = mapped_column(ForeignKey("guardians.id"), nullable=False, index=True)
-    course_id: Mapped[int] = mapped_column(ForeignKey("courses.id"), nullable=False)
-    schedule_id: Mapped[int | None] = mapped_column(ForeignKey("schedules.id"))
+    # R12-P10 fix: Add index for GROUP BY course queries
+    course_id: Mapped[int] = mapped_column(ForeignKey("courses.id"), nullable=False, index=True)
+    schedule_id: Mapped[int | None] = mapped_column(ForeignKey("schedules.id"), index=True)
     alert_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     alerted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="PENDING")
