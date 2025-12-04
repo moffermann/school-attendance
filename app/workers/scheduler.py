@@ -16,15 +16,22 @@ from app.workers.jobs.cleanup_photos import _cleanup
 async def run_scheduler() -> None:
     scheduler = AsyncIOScheduler(timezone="UTC")
 
+    # R14-WRK1 fix: Add max_instances=1 to prevent overlapping job execution
+    # coalesce=True ensures if multiple triggers fire while job is running,
+    # only one execution happens after current one finishes
     scheduler.add_job(
         _detect_and_notify,
         CronTrigger(minute="*/5"),
         name="detect_no_ingreso",
+        max_instances=1,
+        coalesce=True,
     )
     scheduler.add_job(
         _cleanup,
         CronTrigger(hour="2", minute=0),
         name="cleanup_photos",
+        max_instances=1,
+        coalesce=True,
     )
 
     scheduler.start()
