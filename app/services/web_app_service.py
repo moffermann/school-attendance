@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import Select, select
@@ -273,7 +273,8 @@ class WebAppDataService:
             student_id=event.student_id,
             type=event.type,
             gate_id=event.gate_id,
-            ts=self._format_time(event.occurred_at) or datetime.utcnow().isoformat(),
+            # R5-B2 fix: Use timezone-aware datetime
+            ts=self._format_time(event.occurred_at) or datetime.now(timezone.utc).isoformat(),
             device_id=event.device_id,
             photo_ref=event.photo_ref,
         )

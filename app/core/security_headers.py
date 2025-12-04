@@ -4,6 +4,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.core.config import settings
+
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Add security headers to all responses."""
@@ -39,8 +41,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "frame-ancestors 'none'"
             )
 
-        # Strict Transport Security (HTTPS only)
-        # Only set in production to avoid issues with local development
-        # response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # R5-D2 fix: Strict Transport Security (HTTPS only) - enabled in production
+        if settings.app_env == "production":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
 
         return response

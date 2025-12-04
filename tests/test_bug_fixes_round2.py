@@ -213,16 +213,11 @@ class TestR2B7ProductionSecretsValidation:
         # Crear settings simulando producción con valores por defecto
         settings = Settings(app_env="production")
 
-        warnings = settings.validate_production_secrets()
+        # R5-D6 fix: Ahora lanza ValueError en producción con secrets inseguros
+        with pytest.raises(ValueError) as exc_info:
+            settings.validate_production_secrets()
 
-        # R2-B7 Bug: Solo retorna warnings, no lanza excepción
-        # En producción debería ser un error fatal, no un warning
-
-        assert len(warnings) > 0, "Debe detectar secrets inseguros"
-
-        # El bug es que validate_production_secrets() solo retorna warnings
-        # pero no hay nada que llame a esta función en startup y falle
-        # Debería haber un check en app startup que llame esto y falle
+        assert "SECRET_KEY" in str(exc_info.value) or "DEVICE_API_KEY" in str(exc_info.value)
 
 
 # =============================================================================

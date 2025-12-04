@@ -36,9 +36,9 @@ class GuardianRepository:
             .where(Student.id.in_(student_ids))
         )
         result = await self.session.execute(stmt)
-        guardians = result.scalars().all()
-        unique = {guardian.id: guardian for guardian in guardians}
-        return list(unique.values())
+        # R5-B4 fix: Use .unique() to properly handle duplicates from joined results
+        guardians = result.scalars().unique().all()
+        return list(guardians)
 
     async def list_all(self) -> list[Guardian]:
         result = await self.session.execute(select(Guardian).options(selectinload(Guardian.students)))

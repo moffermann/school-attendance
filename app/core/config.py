@@ -75,13 +75,23 @@ class Settings(BaseSettings):
     )
 
     def validate_production_secrets(self) -> list[str]:
-        """Check if secrets are using insecure defaults. Returns list of warnings."""
+        """Check if secrets are using insecure defaults.
+
+        R5-D6 fix: In production, raises ValueError instead of just warning.
+        Returns list of warnings for non-production environments.
+        """
         warnings = []
         if self.app_env == "production":
             if self.secret_key == "CHANGE-ME-IN-PRODUCTION":
-                warnings.append("SECRET_KEY is using default value in production!")
+                raise ValueError("SECRET_KEY must be changed from default in production!")
             if self.device_api_key == "CHANGE-ME-IN-PRODUCTION":
-                warnings.append("DEVICE_API_KEY is using default value in production!")
+                raise ValueError("DEVICE_API_KEY must be changed from default in production!")
+        else:
+            # Only warn in non-production
+            if self.secret_key == "CHANGE-ME-IN-PRODUCTION":
+                warnings.append("SECRET_KEY is using default value")
+            if self.device_api_key == "CHANGE-ME-IN-PRODUCTION":
+                warnings.append("DEVICE_API_KEY is using default value")
         return warnings
 
     class Config:

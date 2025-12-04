@@ -16,6 +16,20 @@ from app.services.absence_service import AbsenceService
 router = APIRouter()
 
 
+def _sanitize_csv_value(val: str | None) -> str:
+    """R5-A7 fix: Sanitize value for CSV to prevent formula injection.
+
+    Excel and other spreadsheets interpret cells starting with =, +, -, @
+    as formulas, which can be exploited for code execution.
+    """
+    if not val:
+        return ""
+    val = str(val)
+    if val and val[0] in '=+-@':
+        return "'" + val  # Prefix with quote to prevent formula interpretation
+    return val
+
+
 @router.get("", response_model=list[AbsenceRequestRead])
 async def list_absences(
     start_date: date | None = Query(default=None),
@@ -63,8 +77,8 @@ async def export_absences(
             record.start_date,
             record.end_date,
             record.status,
-            record.comment or "",
-            record.attachment_ref or "",
+            _sanitize_csv_value(record.comment),
+            _sanitize_csv_value(record.attachment_ref),
         ])
 
     return Response(

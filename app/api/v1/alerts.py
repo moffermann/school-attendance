@@ -2,6 +2,7 @@
 
 import csv
 from datetime import date
+from enum import Enum
 from io import StringIO
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -15,11 +16,19 @@ from app.services.alert_service import AlertService
 router = APIRouter()
 
 
+# R5-A1 fix: Enum for valid alert statuses
+class AlertStatusFilter(str, Enum):
+    """Valid status values for filtering alerts."""
+    PENDING = "PENDING"
+    RESOLVED = "RESOLVED"
+
+
 @router.get("/no-entry", response_model=list[NoShowAlertRead])
 async def list_no_entry_alerts(
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
-    status_filter: str | None = Query(default=None, alias="status"),
+    # R5-A1 fix: Use enum for validated status filter
+    status_filter: AlertStatusFilter | None = Query(default=None, alias="status"),
     course_id: int | None = Query(default=None),
     guardian_id: int | None = Query(default=None),
     student_id: int | None = Query(default=None),

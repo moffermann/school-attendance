@@ -22,6 +22,20 @@ from app.services.notifications.dispatcher import NotificationDispatcher
 router = APIRouter()
 
 
+def _sanitize_csv_value(val: str | None) -> str:
+    """R5-A9 fix: Sanitize value for CSV to prevent formula injection.
+
+    Excel and other spreadsheets interpret cells starting with =, +, -, @
+    as formulas, which can be exploited for code execution.
+    """
+    if not val:
+        return ""
+    val = str(val)
+    if val and val[0] in '=+-@':
+        return "'" + val  # Prefix with quote to prevent formula interpretation
+    return val
+
+
 @router.get("", response_model=list[NotificationLog])
 async def list_notifications(
     status_filter: str | None = Query(default=None, alias="status"),
@@ -91,7 +105,7 @@ async def export_notifications(
             item.retries or 0,
             item.guardian_id,
             item.student_id or "",
-            recipient,
+            _sanitize_csv_value(recipient),
         ])
 
     return Response(
