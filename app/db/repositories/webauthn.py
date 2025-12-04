@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.webauthn_credential import WebAuthnCredential
@@ -78,22 +78,30 @@ class WebAuthnRepository:
         return False
 
     async def delete_all_for_student(self, student_id: int) -> int:
-        """Delete all credentials for a student. Returns count of deleted credentials."""
-        credentials = await self.list_by_student(student_id)
-        count = len(credentials)
-        for cred in credentials:
-            await self.session.delete(cred)
+        """Delete all credentials for a student. Returns count of deleted credentials.
+
+        R7-B2 fix: Use bulk delete instead of N+1 pattern.
+        """
+        stmt = (
+            delete(WebAuthnCredential)
+            .where(WebAuthnCredential.student_id == student_id)
+        )
+        result = await self.session.execute(stmt)
         await self.session.flush()
-        return count
+        return result.rowcount
 
     async def delete_all_for_user(self, user_id: int) -> int:
-        """Delete all credentials for a user. Returns count of deleted credentials."""
-        credentials = await self.list_by_user(user_id)
-        count = len(credentials)
-        for cred in credentials:
-            await self.session.delete(cred)
+        """Delete all credentials for a user. Returns count of deleted credentials.
+
+        R7-B2 fix: Use bulk delete instead of N+1 pattern.
+        """
+        stmt = (
+            delete(WebAuthnCredential)
+            .where(WebAuthnCredential.user_id == user_id)
+        )
+        result = await self.session.execute(stmt)
         await self.session.flush()
-        return count
+        return result.rowcount
 
     async def exists_for_student(self, student_id: int) -> bool:
         """Check if a student has any registered credentials."""

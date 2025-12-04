@@ -142,7 +142,8 @@ class NoShowAlertRepository:
         course_id: int | None = None,
         guardian_id: int | None = None,
         student_id: int | None = None,
-        limit: int | None = None,
+        # R7-B5 fix: Add default limit to prevent unbounded queries
+        limit: int = 500,
         offset: int | None = None,
     ) -> list[dict]:
         stmt: Select = (
@@ -170,8 +171,8 @@ class NoShowAlertRepository:
             stmt = stmt.where(NoShowAlert.guardian_id == guardian_id)
         if student_id:
             stmt = stmt.where(NoShowAlert.student_id == student_id)
-        if limit:
-            stmt = stmt.limit(limit)
+        # R7-B5 fix: Always apply limit (has default now)
+        stmt = stmt.limit(limit)
         if offset:
             stmt = stmt.offset(offset)
 

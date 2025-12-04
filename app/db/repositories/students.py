@@ -41,9 +41,13 @@ class StudentRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_all(self) -> list[Student]:
-        """List all students for kiosk provisioning."""
-        stmt = select(Student).order_by(Student.full_name)
+    async def list_all(self, limit: int = 5000) -> list[Student]:
+        """List all students for kiosk provisioning.
+
+        R7-B7 fix: Add limit parameter to prevent OOM on large deployments.
+        Default is 5000 which should cover most schools.
+        """
+        stmt = select(Student).order_by(Student.full_name).limit(limit)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 

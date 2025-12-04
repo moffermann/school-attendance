@@ -1,6 +1,6 @@
 """Schedules endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from app.core import deps
 from app.core.auth import AuthUser
@@ -18,7 +18,8 @@ router = APIRouter()
 
 @router.get("/courses/{course_id}", response_model=list[ScheduleRead])
 async def list_course_schedule(
-    course_id: int,
+    # R7-A6 fix: Validate path parameter is positive
+    course_id: int = Path(..., ge=1, description="ID del curso"),
     service: ScheduleService = Depends(deps.get_schedule_service),
     _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
 ) -> list[ScheduleRead]:
@@ -27,8 +28,8 @@ async def list_course_schedule(
 
 @router.post("/courses/{course_id}", response_model=ScheduleRead, status_code=status.HTTP_201_CREATED)
 async def create_schedule_entry(
-    course_id: int,
     payload: ScheduleCreate,
+    course_id: int = Path(..., ge=1, description="ID del curso"),
     service: ScheduleService = Depends(deps.get_schedule_service),
     _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
 ) -> ScheduleRead:
@@ -46,8 +47,8 @@ async def create_exception(
 
 @router.put("/{schedule_id}", response_model=ScheduleRead)
 async def update_schedule_entry(
-    schedule_id: int,
     payload: ScheduleCreate,
+    schedule_id: int = Path(..., ge=1, description="ID del horario"),
     service: ScheduleService = Depends(deps.get_schedule_service),
     _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
 ) -> ScheduleRead:
@@ -60,7 +61,7 @@ async def update_schedule_entry(
 
 @router.delete("/exceptions/{exception_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_schedule_exception(
-    exception_id: int,
+    exception_id: int = Path(..., ge=1, description="ID de la excepcion"),
     service: ScheduleService = Depends(deps.get_schedule_service),
     _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
 ) -> None:

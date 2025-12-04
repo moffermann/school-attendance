@@ -40,6 +40,11 @@ class GuardianRepository:
         guardians = result.scalars().unique().all()
         return list(guardians)
 
-    async def list_all(self) -> list[Guardian]:
-        result = await self.session.execute(select(Guardian).options(selectinload(Guardian.students)))
+    async def list_all(self, limit: int = 5000) -> list[Guardian]:
+        """R7-B8 fix: Add limit parameter to prevent OOM on large deployments."""
+        result = await self.session.execute(
+            select(Guardian)
+            .options(selectinload(Guardian.students))
+            .limit(limit)
+        )
         return list(result.scalars().all())
