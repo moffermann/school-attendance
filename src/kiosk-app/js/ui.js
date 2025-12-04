@@ -84,5 +84,13 @@ const UI = {
   }
 };
 
-// Update header clock every second
-setInterval(() => UI.updateHeaderTime(), 1000);
+// R4-F1 fix: Store interval reference for potential cleanup
+UI._headerIntervalId = setInterval(() => UI.updateHeaderTime(), 1000);
+
+// Method to stop header updates if needed
+UI.stopHeaderUpdates = function() {
+  if (this._headerIntervalId) {
+    clearInterval(this._headerIntervalId);
+    this._headerIntervalId = null;
+  }
+};

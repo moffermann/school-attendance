@@ -132,7 +132,7 @@ class WebAuthnService:
             "entity_type": "student",
             "entity_id": student_id,
             "device_name": device_name,
-            "expires": datetime.utcnow() + timedelta(milliseconds=settings.webauthn_timeout_ms),
+            "expires": datetime.now(timezone.utc) + timedelta(milliseconds=settings.webauthn_timeout_ms),
         }
 
         _cleanup_expired_challenges()
@@ -163,7 +163,7 @@ class WebAuthnService:
                 detail="Challenge inválido o expirado"
             )
 
-        if challenge_data["expires"] < datetime.utcnow():
+        if challenge_data["expires"] < datetime.now(timezone.utc):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Challenge expirado"
@@ -206,7 +206,7 @@ class WebAuthnService:
             sign_count=verification.sign_count,
             transports=transports,
             device_name=challenge_data.get("device_name"),
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
         await self.credential_repo.create(credential)
@@ -250,7 +250,7 @@ class WebAuthnService:
         _challenge_store[challenge_id] = {
             "challenge": options.challenge,
             "entity_type": "student_auth",
-            "expires": datetime.utcnow() + timedelta(milliseconds=settings.webauthn_timeout_ms),
+            "expires": datetime.now(timezone.utc) + timedelta(milliseconds=settings.webauthn_timeout_ms),
         }
 
         _cleanup_expired_challenges()
@@ -281,7 +281,7 @@ class WebAuthnService:
                 detail="Challenge inválido o expirado"
             )
 
-        if challenge_data["expires"] < datetime.utcnow():
+        if challenge_data["expires"] < datetime.now(timezone.utc):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Challenge expirado"
@@ -389,7 +389,7 @@ class WebAuthnService:
             "entity_type": "user",
             "entity_id": user_id,
             "device_name": device_name,
-            "expires": datetime.utcnow() + timedelta(milliseconds=settings.webauthn_timeout_ms),
+            "expires": datetime.now(timezone.utc) + timedelta(milliseconds=settings.webauthn_timeout_ms),
         }
 
         _cleanup_expired_challenges()
@@ -415,7 +415,7 @@ class WebAuthnService:
                 detail="Challenge inválido o expirado"
             )
 
-        if challenge_data["expires"] < datetime.utcnow():
+        if challenge_data["expires"] < datetime.now(timezone.utc):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Challenge expirado"
@@ -454,7 +454,7 @@ class WebAuthnService:
             sign_count=verification.sign_count,
             transports=transports,
             device_name=challenge_data.get("device_name"),
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
         await self.credential_repo.create(credential)

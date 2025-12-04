@@ -51,15 +51,31 @@ const State = {
   },
 
   persist() {
-    localStorage.setItem('kioskData', JSON.stringify({
-      students: this.students,
-      teachers: this.teachers,
-      tags: this.tags,
-      queue: this.queue,
-      device: this.device,
-      config: this.config,
-      localSeq: this.localSeq
-    }));
+    // R4-F10 fix: Handle localStorage quota exceeded error
+    try {
+      localStorage.setItem('kioskData', JSON.stringify({
+        students: this.students,
+        teachers: this.teachers,
+        tags: this.tags,
+        queue: this.queue,
+        device: this.device,
+        config: this.config,
+        localSeq: this.localSeq
+      }));
+    } catch (e) {
+      if (e.name === 'QuotaExceededError' || e.code === 22) {
+        console.error('localStorage quota exceeded, attempting to sync pending events');
+        // Notify UI and try to sync to free space
+        if (typeof UI !== 'undefined' && UI.showToast) {
+          UI.showToast('Almacenamiento lleno. Sincronizando...', 'warning');
+        }
+        if (typeof Sync !== 'undefined' && Sync.syncNow) {
+          Sync.syncNow();
+        }
+      } else {
+        console.error('Error persisting state:', e);
+      }
+    }
   },
 
   resolveByToken(token) {
@@ -155,6 +171,12 @@ const State = {
 
   // Update students from server data (includes photo_pref_opt_in)
   updateStudents(serverStudents) {
+    // R4-F5 fix: Validate server response before processing
+    if (!serverStudents || serverStudents.length === 0) {
+      console.warn('Received empty student list from server, skipping update to prevent data loss');
+      return;
+    }
+
     // Merge server data with local data, preserving local-only fields
     const studentMap = new Map(this.students.map(s => [s.id, s]));
 

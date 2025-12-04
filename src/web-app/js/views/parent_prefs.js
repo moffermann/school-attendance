@@ -287,8 +287,9 @@ Views.parentPrefs = async function() {
       Components.showToast('Preferencias guardadas exitosamente', 'success');
     } catch (error) {
       console.error('Error saving preferences:', error);
-      localStorage.setItem(`prefs_${State.currentGuardianId}`, JSON.stringify(newPrefs));
-      Components.showToast('Preferencias guardadas localmente', 'warning');
+      // R4-F8 fix: Don't save to localStorage if API fails to prevent inconsistency
+      // User must retry when online
+      Components.showToast('Error al guardar. Verifique su conexión e intente de nuevo.', 'error');
     } finally {
       btn.innerHTML = originalHTML;
       btn.disabled = false;

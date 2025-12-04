@@ -66,13 +66,16 @@ class AttendanceService:
             photo_url = None
             if event.photo_ref:
                 student = await self.student_repo.get(event.student_id)
-                if student and getattr(student, "photo_pref_opt_in", False):
-                    # R2-B10 fix: Reduce presigned URL expiry from 7 days to 24 hours
-                    # WhatsApp has 24h to download media, 7 days was excessive security risk
-                    photo_url = self.photo_service.generate_presigned_url(
-                        event.photo_ref,
-                        expires=24 * 3600,  # 24 hours
-                    )
+                # R4-L1 fix: Use effective_evidence_preference instead of legacy photo_pref_opt_in
+                if student:
+                    evidence_pref = getattr(student, "effective_evidence_preference", "none")
+                    if evidence_pref == "photo":
+                        # R2-B10 fix: Reduce presigned URL expiry from 7 days to 24 hours
+                        # WhatsApp has 24h to download media, 7 days was excessive security risk
+                        photo_url = self.photo_service.generate_presigned_url(
+                            event.photo_ref,
+                            expires=24 * 3600,  # 24 hours
+                        )
 
             notification_ids = await self._notification_service.notify_attendance_event(
                 event=event,

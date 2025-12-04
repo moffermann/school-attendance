@@ -43,6 +43,15 @@ class ScheduleExceptionCreate(BaseModel):
     out_time: time | None = None
     reason: str
 
+    @model_validator(mode="after")
+    def validate_scope_course_id(self) -> "ScheduleExceptionCreate":
+        """R4-L2 fix: Validate scope and course_id consistency."""
+        if self.scope == ScheduleExceptionScope.COURSE and self.course_id is None:
+            raise ValueError("course_id es requerido cuando scope es COURSE")
+        if self.scope == ScheduleExceptionScope.GLOBAL and self.course_id is not None:
+            raise ValueError("course_id debe ser null cuando scope es GLOBAL")
+        return self
+
 
 class ScheduleExceptionRead(ScheduleExceptionCreate):
     id: int

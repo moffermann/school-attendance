@@ -178,6 +178,11 @@ Views.biometricAuth = function() {
 
       oscillator.start();
       oscillator.stop(audioContext.currentTime + 0.15);
+
+      // R4-F7 fix: Close AudioContext after sound completes to prevent memory leak
+      setTimeout(() => {
+        audioContext.close().catch(() => {});
+      }, 200);
     } catch (e) {
       console.log('Audio not available:', e);
     }

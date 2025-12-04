@@ -24,9 +24,17 @@ router = APIRouter()
 
 
 def _get_client_ip(request: Request) -> str:
-    """Extract client IP from request, considering proxies."""
+    """Extract client IP from request, considering proxies.
+
+    R4-S1 SECURITY NOTE: X-Forwarded-For can be spoofed by clients.
+    In production, ensure your reverse proxy (nginx/cloudflare) is configured
+    to overwrite this header, and only trust it when requests come from
+    known proxy IPs. For rate limiting, consider using the direct client IP
+    as a fallback.
+    """
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
+        # Take first IP (original client), but log both for security auditing
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 

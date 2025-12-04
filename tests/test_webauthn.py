@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -277,7 +277,7 @@ class TestWebAuthnService:
         _challenge_store[challenge_id] = {
             "challenge": b"test_challenge_bytes",
             "entity_type": "student_auth",
-            "expires": datetime.utcnow().replace(year=2099),
+            "expires": datetime.now(timezone.utc).replace(year=2099),
         }
 
         webauthn_service.credential_repo.get_by_credential_id = AsyncMock(return_value=None)

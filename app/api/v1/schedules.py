@@ -53,8 +53,9 @@ async def update_schedule_entry(
 ) -> ScheduleRead:
     try:
         return await service.update_schedule_entry(schedule_id, payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError:
+        # R4-S3 fix: Use generic message to avoid information disclosure
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Horario no encontrado")
 
 
 @router.delete("/exceptions/{exception_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -65,5 +66,6 @@ async def delete_schedule_exception(
 ) -> None:
     try:
         await service.delete_exception(exception_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError:
+        # R4-S3 fix: Use generic message to avoid information disclosure
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Excepción no encontrada")

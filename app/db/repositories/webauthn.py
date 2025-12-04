@@ -1,6 +1,6 @@
 """WebAuthn credential repository."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,7 +64,7 @@ class WebAuthnRepository:
         stmt = (
             update(WebAuthnCredential)
             .where(WebAuthnCredential.credential_id == credential_id)
-            .values(sign_count=new_sign_count, last_used_at=datetime.utcnow())
+            .values(sign_count=new_sign_count, last_used_at=datetime.now(timezone.utc))
         )
         await self.session.execute(stmt)
 

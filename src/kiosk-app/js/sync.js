@@ -343,3 +343,7 @@ Sync.stopIntervals = function() {
     this._studentsIntervalId = null;
   }
 };
+
+// R4-F2 fix: Cleanup intervals on page unload to prevent memory leaks
+window.addEventListener('beforeunload', () => Sync.stopIntervals());
+window.addEventListener('pagehide', () => Sync.stopIntervals());
