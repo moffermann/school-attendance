@@ -11,7 +11,8 @@ class Course(Base):
     __tablename__ = "courses"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    # R6-M5 fix: Add index for name searches
+    name: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     grade: Mapped[str] = mapped_column(String(32), nullable=False)
 
     students = relationship("Student", back_populates="course")
