@@ -1,9 +1,10 @@
 """Broadcast endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.core import deps
 from app.core.auth import AuthUser
+from app.core.rate_limiter import limiter
 from app.schemas.notifications import BroadcastCreate, BroadcastPreview
 from app.services.broadcast_service import BroadcastService
 
@@ -11,8 +12,11 @@ from app.services.broadcast_service import BroadcastService
 router = APIRouter()
 
 
+# R7-A5 fix: Add rate limiting to prevent broadcast spam
 @router.post("/preview", response_model=BroadcastPreview)
+@limiter.limit("10/minute")
 async def preview_broadcast(
+    request: Request,
     payload: BroadcastCreate,
     service: BroadcastService = Depends(deps.get_broadcast_service),
     _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
@@ -20,8 +24,11 @@ async def preview_broadcast(
     return await service.preview_broadcast(payload)
 
 
+# R7-A5 fix: Strict rate limiting for actual sends
 @router.post("/send", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("5/minute")
 async def send_broadcast(
+    request: Request,
     payload: BroadcastCreate,
     service: BroadcastService = Depends(deps.get_broadcast_service),
     _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),

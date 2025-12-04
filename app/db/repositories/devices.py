@@ -1,7 +1,7 @@
 """Device repository with race condition protection."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -55,7 +55,8 @@ class DeviceRepository:
             device.battery_pct = battery_pct
             device.pending_events = pending_events
             device.online = online
-            device.last_sync = datetime.utcnow()
+            # R7-B1 fix: Use timezone-aware datetime
+            device.last_sync = datetime.now(timezone.utc)
             await self.session.flush()
             return device
 
@@ -67,7 +68,7 @@ class DeviceRepository:
             battery_pct=battery_pct,
             pending_events=pending_events,
             online=online,
-            last_sync=datetime.utcnow(),
+            last_sync=datetime.now(timezone.utc),  # R7-B1 fix
         )
         self.session.add(device)
 
@@ -86,14 +87,16 @@ class DeviceRepository:
                 device.battery_pct = battery_pct
                 device.pending_events = pending_events
                 device.online = online
-                device.last_sync = datetime.utcnow()
+                # R7-B1 fix: Use timezone-aware datetime
+                device.last_sync = datetime.now(timezone.utc)
                 await self.session.flush()
                 return device
             # This shouldn't happen, but re-raise if it does
             raise
 
     async def touch_ping(self, device: Device) -> Device:
-        device.last_sync = datetime.utcnow()
+        # R7-B1 fix: Use timezone-aware datetime
+        device.last_sync = datetime.now(timezone.utc)
         device.online = True
         await self.session.flush()
         return device

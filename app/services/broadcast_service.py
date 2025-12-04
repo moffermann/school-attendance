@@ -20,19 +20,25 @@ class BroadcastService:
         self.redis = Redis.from_url(settings.redis_url)
         self.queue = Queue("broadcasts", connection=self.redis)
 
+    def close(self) -> None:
+        """R7-S5 fix: Close Redis connection to prevent leaks."""
+        if self.redis:
+            self.redis.close()
+
     async def _resolve_guardian_ids(self, payload: BroadcastCreate) -> Set[int]:
         audience = payload.audience
         guardian_ids: Set[int] = set()
 
+        # R7-S6 fix: Use elif to prevent multiple scopes being processed
         if audience.scope.lower() == "global":
             guardians = await self.guardian_repo.list_all()
             guardian_ids.update(g.id for g in guardians)
-        if audience.scope.lower() == "course" and audience.course_ids:
+        elif audience.scope.lower() == "course" and audience.course_ids:
             for course_id in audience.course_ids:
                 students = await self.student_repo.list_by_course(course_id)
                 g_list = await self.guardian_repo.list_by_student_ids([s.id for s in students])
                 guardian_ids.update(g.id for g in g_list)
-        if audience.scope.lower() == "custom" and audience.guardian_ids:
+        elif audience.scope.lower() == "custom" and audience.guardian_ids:
             guardian_ids.update(audience.guardian_ids)
 
         return guardian_ids
