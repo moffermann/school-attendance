@@ -372,7 +372,8 @@ async def test_detect_no_show_alerts(monkeypatch) -> None:
 
     service.schedule_repo.list_by_weekday = AsyncMock(return_value=[schedule])
     service.student_repo.list_by_course = AsyncMock(return_value=[student])
-    service.attendance_repo.has_in_event_on_date = AsyncMock(return_value=False)
+    # R2-B3 fix: Mock the new batch query method instead of the individual method
+    service.attendance_repo.get_student_ids_with_in_event_on_date = AsyncMock(return_value=set())
     fake_alert = SimpleNamespace(
         id=5,
         status="PENDING",

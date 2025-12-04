@@ -106,5 +106,10 @@ async def _detect_and_notify(target_dt: datetime | None = None) -> None:
 
 
 def detect_no_ingreso_job(target_iso: str | None = None) -> None:
+    """R2-B8 fix: Wrap asyncio.run with error handling."""
     target_dt = datetime.fromisoformat(target_iso) if target_iso else None
-    asyncio.run(_detect_and_notify(target_dt))
+    try:
+        asyncio.run(_detect_and_notify(target_dt))
+    except Exception as exc:
+        logger.error("[NoIngreso] Job failed with error: %s", exc)
+        raise  # Re-raise to let RQ handle the failure

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 from typing import BinaryIO
 
@@ -26,18 +27,24 @@ class PhotoService:
         self._bucket = settings.s3_bucket
 
     async def store_photo(self, key: str, data: bytes, content_type: str) -> str:
+        # R2-B20 fix: Use asyncio.to_thread to prevent blocking event loop
         buffer: BinaryIO = io.BytesIO(data)
-        self._client.upload_fileobj(
-            buffer,
-            Bucket=self._bucket,
-            Key=key,
-            ExtraArgs={"ContentType": content_type, "ACL": "private"},
-        )
+
+        def _upload():
+            self._client.upload_fileobj(
+                buffer,
+                Bucket=self._bucket,
+                Key=key,
+                ExtraArgs={"ContentType": content_type, "ACL": "private"},
+            )
+
+        await asyncio.to_thread(_upload)
         logger.info("Stored photo in bucket=%s key=%s", self._bucket, key)
         return key
 
     async def delete_photo(self, key: str) -> None:
-        self._client.delete_object(Bucket=self._bucket, Key=key)
+        # R2-B20 fix: Use asyncio.to_thread to prevent blocking event loop
+        await asyncio.to_thread(self._client.delete_object, Bucket=self._bucket, Key=key)
         logger.info("Deleted photo bucket=%s key=%s", self._bucket, key)
 
     def generate_presigned_url(self, key: str, expires: int = 3600) -> str | None:

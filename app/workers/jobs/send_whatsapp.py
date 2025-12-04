@@ -4,10 +4,16 @@ from __future__ import annotations
 
 import asyncio
 from loguru import logger
+from requests.exceptions import ConnectionError, Timeout
 
 from app.db.repositories.notifications import NotificationRepository
 from app.db.session import async_session
 from app.services.notifications.whatsapp import WhatsAppClient, mask_phone
+
+
+# R2-B4 fix: Constants for retry logic
+MAX_RETRIES = 3
+TRANSIENT_ERRORS = (ConnectionError, Timeout, TimeoutError, OSError)
 
 
 # Message templates for attendance notifications
@@ -27,16 +33,39 @@ def _sanitize_format_value(value: str) -> str:
     return value.replace("{", "{{").replace("}", "}}")
 
 
+def _escape_whatsapp_formatting(value: str) -> str:
+    """R2-B11 fix: Escape WhatsApp formatting characters.
+
+    WhatsApp interprets these as formatting:
+    - *text* = bold
+    - _text_ = italic
+    - ~text~ = strikethrough
+    - ```text``` = monospace
+
+    We escape them with backslash to prevent unintended formatting.
+    """
+    if not isinstance(value, str):
+        value = str(value) if value is not None else ""
+    # Escape formatting characters
+    for char in ['*', '_', '~', '`']:
+        value = value.replace(char, '\\' + char)
+    return value
+
+
 def _build_caption(template: str, variables: dict) -> str:
     """Build message caption from template and variables.
 
     Sanitizes all variable values to prevent format string injection.
+    R2-B11 fix: Also escapes WhatsApp formatting characters.
     """
-    # Sanitize all string variables to prevent injection
-    safe_vars = {
-        k: _sanitize_format_value(v) if isinstance(v, str) else v
-        for k, v in variables.items()
-    }
+    # Sanitize and escape all string variables
+    safe_vars = {}
+    for k, v in variables.items():
+        if isinstance(v, str):
+            # First escape WhatsApp formatting, then sanitize for format string
+            v = _escape_whatsapp_formatting(v)
+            v = _sanitize_format_value(v)
+        safe_vars[k] = v
 
     message_template = ATTENDANCE_MESSAGES.get(template)
     if message_template:
@@ -101,7 +130,28 @@ async def _send(notification_id: int, to: str, template: str, variables: dict) -
                 mask_phone(to),
                 has_photo and photo_url is not None,
             )
-        except Exception as exc:  # pragma: no cover - network failure
+        except TRANSIENT_ERRORS as exc:
+            # R2-B4 fix: Transient errors should allow retry
+            current_retries = notification.retries or 0
+            if current_retries < MAX_RETRIES:
+                # Don't mark as failed, just increment retry count for next attempt
+                notification.retries = current_retries + 1
+                await session.commit()
+                logger.warning(
+                    "WhatsApp transient error notification_id=%s retry=%d/%d error=%s",
+                    notification_id, current_retries + 1, MAX_RETRIES, exc
+                )
+                raise  # Let RQ retry the job
+            else:
+                await repo.mark_failed(notification)
+                await session.commit()
+                logger.error(
+                    "WhatsApp send failed after %d retries notification_id=%s error=%s",
+                    MAX_RETRIES, notification_id, exc
+                )
+                raise
+        except Exception as exc:  # pragma: no cover - permanent failure
+            # Non-transient errors (e.g., 400 Bad Request) - mark as failed immediately
             await repo.mark_failed(notification)
             await session.commit()
             logger.error("WhatsApp send failed notification_id=%s error=%s", notification_id, exc)
