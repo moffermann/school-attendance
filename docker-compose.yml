@@ -50,9 +50,9 @@ services:
     image: ${REGISTRY_USER:-moffermann}/school-attendance:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: ${APP_ENV:-development}
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-school_attendance}:${DB_PASSWORD:-school_attendance}@postgres:5432/${DB_NAME:-school_attendance}
-      REDIS_URL: redis://redis:6379/0
-      S3_ENDPOINT: http://minio:9000
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-school_attendance}:${DB_PASSWORD:-school_attendance}@${APP_NAME:-school-attendance}-postgres-${APP_ENV:-dev}:5432/${DB_NAME:-school_attendance}
+      REDIS_URL: redis://${APP_NAME:-school-attendance}-redis-${APP_ENV:-dev}:6379/0
+      S3_ENDPOINT: http://${APP_NAME:-school-attendance}-minio-${APP_ENV:-dev}:9000
       S3_BUCKET: ${S3_BUCKET:-attendance-photos}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-dev-access}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-dev-secret}
@@ -92,10 +92,10 @@ services:
     command: python -m app.workers.rq_worker
     environment:
       APP_ENV: ${APP_ENV:-development}
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-school_attendance}:${DB_PASSWORD:-school_attendance}@postgres:5432/${DB_NAME:-school_attendance}
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-school_attendance}:${DB_PASSWORD:-school_attendance}@${APP_NAME:-school-attendance}-postgres-${APP_ENV:-dev}:5432/${DB_NAME:-school_attendance}
+      REDIS_URL: redis://${APP_NAME:-school-attendance}-redis-${APP_ENV:-dev}:6379/0
       SECRET_KEY: ${SECRET_KEY:-CHANGE-ME-IN-PRODUCTION}
-      S3_ENDPOINT: http://minio:9000
+      S3_ENDPOINT: http://${APP_NAME:-school-attendance}-minio-${APP_ENV:-dev}:9000
       S3_BUCKET: ${S3_BUCKET:-attendance-photos}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-dev-access}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-dev-secret}
@@ -116,10 +116,10 @@ services:
     command: python -m app.workers.scheduler
     environment:
       APP_ENV: ${APP_ENV:-development}
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-school_attendance}:${DB_PASSWORD:-school_attendance}@postgres:5432/${DB_NAME:-school_attendance}
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-school_attendance}:${DB_PASSWORD:-school_attendance}@${APP_NAME:-school-attendance}-postgres-${APP_ENV:-dev}:5432/${DB_NAME:-school_attendance}
+      REDIS_URL: redis://${APP_NAME:-school-attendance}-redis-${APP_ENV:-dev}:6379/0
       SECRET_KEY: ${SECRET_KEY:-CHANGE-ME-IN-PRODUCTION}
-      S3_ENDPOINT: http://minio:9000
+      S3_ENDPOINT: http://${APP_NAME:-school-attendance}-minio-${APP_ENV:-dev}:9000
       S3_BUCKET: ${S3_BUCKET:-attendance-photos}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-dev-access}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-dev-secret}
@@ -138,7 +138,7 @@ services:
     container_name: ${APP_NAME:-school-attendance}-rq-dashboard-${APP_ENV:-dev}
     image: eoranged/rq-dashboard
     environment:
-      RQ_DASHBOARD_REDIS_URL: redis://redis:6379/0
+      RQ_DASHBOARD_REDIS_URL: redis://${APP_NAME:-school-attendance}-redis-${APP_ENV:-dev}:6379/0
     depends_on:
       redis:
         condition: service_healthy
