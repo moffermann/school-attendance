@@ -221,7 +221,8 @@ const API = Object.assign(createApiClient('webAppConfig'), {
    * Send broadcast message
    */
   async sendBroadcast(data) {
-    const response = await this.request('/broadcast', {
+    // R11-1 fix: Use correct route /broadcasts/send (not /broadcast)
+    const response = await this.request('/broadcasts/send', {
       method: 'POST',
       body: JSON.stringify(data),
     });
