@@ -182,9 +182,15 @@ const Sync = {
   },
 
   // Helper: Convert data URL to Blob
+  // F8 fix: Added try/catch for invalid data URLs
   async dataURLToBlob(dataURL) {
-    const response = await fetch(dataURL);
-    return await response.blob();
+    try {
+      const response = await fetch(dataURL);
+      return await response.blob();
+    } catch (err) {
+      console.error('Error converting data URL to blob:', err);
+      throw new Error('Invalid photo data');
+    }
   },
 
   // Simulation mode for development without backend

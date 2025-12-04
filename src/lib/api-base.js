@@ -3,6 +3,9 @@
  * Handles authentication, token management, and common request logic
  */
 function createApiClient(configKey) {
+  // F3 fix: mutex to prevent concurrent token refresh
+  let _refreshPromise = null;
+
   return {
     // Config key for localStorage (e.g., 'webAppConfig', 'pwaConfig')
     _configKey: configKey,
@@ -87,8 +90,28 @@ function createApiClient(configKey) {
 
     /**
      * Try to refresh the access token
+     * F3 fix: uses mutex to prevent concurrent refresh requests
      */
     async tryRefreshToken() {
+      // If a refresh is already in progress, wait for it
+      if (_refreshPromise) {
+        return _refreshPromise;
+      }
+
+      // Start new refresh and store the promise
+      _refreshPromise = this._doRefreshToken();
+
+      try {
+        return await _refreshPromise;
+      } finally {
+        _refreshPromise = null;
+      }
+    },
+
+    /**
+     * Internal method that performs the actual token refresh
+     */
+    async _doRefreshToken() {
       try {
         const response = await fetch(`${this.baseUrl}/auth/refresh`, {
           method: 'POST',

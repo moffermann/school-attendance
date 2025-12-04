@@ -31,6 +31,14 @@ class AttendanceNotificationService:
         self._redis: Redis | None = None
         self._queue: Queue | None = None
 
+    def __del__(self):
+        """Close Redis connection on cleanup (B8 fix)."""
+        if hasattr(self, '_redis') and self._redis:
+            try:
+                self._redis.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
+
     @property
     def queue(self) -> Queue | None:
         """Lazy-load Redis queue with graceful fallback if unavailable."""

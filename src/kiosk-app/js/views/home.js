@@ -246,8 +246,14 @@ Views.home = function() {
   }
 
   function stopNFC() {
-    // NDEFReader doesn't have a stop method, but setting to null helps with cleanup
-    nfcReader = null;
+    // F1 fix: NDEFReader doesn't have a stop method, but we can use AbortController
+    // for the reading event, or at minimum nullify the reader to prevent callbacks
+    if (nfcReader) {
+      // Remove references to prevent callbacks from firing
+      nfcReader.onreading = null;
+      nfcReader.onreadingerror = null;
+      nfcReader = null;
+    }
   }
 
   function scanQRCode() {
@@ -351,11 +357,14 @@ Views.home = function() {
 
   function stopCamera() {
     scanning = false;
+    // F13 fix: cancel any pending animation frame
     if (animationFrame) {
       cancelAnimationFrame(animationFrame);
+      animationFrame = null;
     }
     if (video && video.srcObject) {
       video.srcObject.getTracks().forEach(track => track.stop());
+      video.srcObject = null;
     }
   }
 
