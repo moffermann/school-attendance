@@ -95,6 +95,12 @@ Views.adminPanel = function() {
     if (timeoutElement && textElement) {
       timeoutElement.classList.add('timeout-warning');
 
+      // R9-K6 fix: Clear existing interval before creating new one
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+
       // Start countdown
       let remaining = WARNING_THRESHOLD_MS / 1000;
       textElement.textContent = `Sesión expira en ${remaining}s`;

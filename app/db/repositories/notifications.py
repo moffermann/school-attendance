@@ -46,8 +46,13 @@ class NotificationRepository:
         return notification
 
     async def mark_failed(self, notification: Notification) -> Notification:
+        """Mark notification as failed.
+
+        R9-W10 fix: Do NOT increment retries here - caller handles retry counting.
+        This prevents double increment when both caller and this method increment.
+        """
         notification.status = "failed"
-        notification.retries = (notification.retries or 0) + 1
+        # Note: retries is incremented by the caller (send_whatsapp.py, send_email.py)
         await self.session.flush()
         return notification
 

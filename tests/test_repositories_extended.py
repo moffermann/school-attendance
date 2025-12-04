@@ -227,7 +227,11 @@ class TestNotificationRepository:
 
     @pytest.mark.asyncio
     async def test_mark_failed(self, notif_repo, sample_guardian_for_notif):
-        """Should mark notification as failed and increment retries."""
+        """Should mark notification as failed.
+
+        R9-W10 fix: mark_failed no longer increments retries - caller handles that.
+        This prevents double increment when both caller and repo increment.
+        """
         notif = await notif_repo.create(
             guardian_id=sample_guardian_for_notif.id,
             channel="email",
@@ -237,11 +241,13 @@ class TestNotificationRepository:
 
         updated = await notif_repo.mark_failed(notif)
         assert updated.status == "failed"
-        assert updated.retries == 1
+        # R9-W10: retries is NOT incremented by mark_failed anymore
+        assert updated.retries == 0  # Caller handles increment
 
-        # Fail again
+        # If caller increments and then marks failed again
+        updated.retries = 1
         updated = await notif_repo.mark_failed(updated)
-        assert updated.retries == 2
+        assert updated.retries == 1  # Still 1, no double increment
 
     @pytest.mark.asyncio
     async def test_list_notifications_basic(self, notif_repo, sample_guardian_for_notif):

@@ -279,6 +279,7 @@ Views.home = function() {
   }
 
   // Audio feedback - beep sound on successful scan
+  // R9-K1 fix: Close AudioContext after use to prevent memory leak
   function playSuccessBeep() {
     try {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -294,6 +295,11 @@ Views.home = function() {
 
       oscillator.start();
       oscillator.stop(audioContext.currentTime + 0.15); // 150ms beep
+
+      // R9-K1 fix: Close AudioContext after sound finishes
+      oscillator.onended = () => {
+        audioContext.close();
+      };
     } catch (e) {
       console.log('Audio feedback not available:', e);
     }

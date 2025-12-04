@@ -59,7 +59,8 @@ class WebAuthnCredential(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utc_now
     )
-    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # R9-M7 fix: Use timezone=True for consistency with created_at
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     student: Mapped["Student"] = relationship(  # noqa: F821

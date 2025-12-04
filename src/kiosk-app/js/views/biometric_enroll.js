@@ -283,6 +283,7 @@ Views.biometricEnroll = function() {
     }
   }
 
+  // R9-K3 fix: Close AudioContext after use to prevent memory leak
   function playSuccessFeedback() {
     try {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -300,6 +301,11 @@ Views.biometricEnroll = function() {
       oscillator.start();
       oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.15); // E5
       oscillator.stop(audioContext.currentTime + 0.3);
+
+      // R9-K3 fix: Close AudioContext after sound finishes
+      oscillator.onended = () => {
+        audioContext.close();
+      };
     } catch (e) {
       console.log('Audio not available:', e);
     }

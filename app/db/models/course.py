@@ -18,3 +18,5 @@ class Course(Base):
     students = relationship("Student", back_populates="course")
     schedules = relationship("Schedule", back_populates="course")
     teachers = relationship("Teacher", secondary=teacher_course_table, back_populates="courses")
+    # R9-M3 fix: Add enrollments relationship for bidirectional access
+    enrollments = relationship("Enrollment", back_populates="course")

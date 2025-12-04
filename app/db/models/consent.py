@@ -12,8 +12,9 @@ class Consent(Base):
     __tablename__ = "consents"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False)
-    guardian_id: Mapped[int] = mapped_column(ForeignKey("guardians.id"), nullable=False)
+    # R9-M6 fix: Add index=True for query performance
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False, index=True)
+    guardian_id: Mapped[int] = mapped_column(ForeignKey("guardians.id"), nullable=False, index=True)
     scopes: Mapped[dict] = mapped_column(JSON, default=dict)
     ts_signed: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ts_expires: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
