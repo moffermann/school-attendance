@@ -53,6 +53,7 @@ function createApiClient(configKey) {
 
     /**
      * Make an authenticated request
+     * R8-F5 fix: Added timeout support via AbortController
      */
     async request(endpoint, options = {}) {
       const url = `${this.baseUrl}${endpoint}`;
@@ -65,10 +66,16 @@ function createApiClient(configKey) {
         headers['Authorization'] = `Bearer ${this.accessToken}`;
       }
 
+      // R8-F5 fix: Add timeout support (default 30 seconds)
+      const timeout = options.timeout || 30000;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
       try {
         const response = await fetch(url, {
           ...options,
           headers,
+          signal: controller.signal,
         });
 
         // Handle 401 - try to refresh token
@@ -85,6 +92,9 @@ function createApiClient(configKey) {
       } catch (error) {
         console.error('API request failed:', error);
         throw error;
+      } finally {
+        // R8-F5 fix: Always clear the timeout to prevent memory leaks
+        clearTimeout(timeoutId);
       }
     },
 

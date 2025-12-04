@@ -1,6 +1,8 @@
 """Schemas for the web-app integration payloads."""
 
 from datetime import date
+from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -14,8 +16,16 @@ class StudentSummary(BaseModel):
     photo_pref_opt_in: bool = False
 
 
+# R8-V4 fix: Define valid contact types
+class ContactType(str, Enum):
+    WHATSAPP = "whatsapp"
+    EMAIL = "email"
+    PHONE = "phone"
+
+
 class GuardianContact(BaseModel):
-    type: str
+    # R8-V4 fix: Use enum for contact type
+    type: ContactType
     value: str
     verified: bool = True
 
@@ -54,7 +64,8 @@ class ScheduleExceptionSummary(BaseModel):
 class AttendanceEventSummary(BaseModel):
     id: int
     student_id: int
-    type: str
+    # R8-V6 fix: Use Literal for attendance type
+    type: Literal["IN", "OUT"]
     gate_id: str
     ts: str
     device_id: str
@@ -67,8 +78,9 @@ class DeviceSummary(BaseModel):
     device_id: str
     version: str
     last_sync: str | None = None
-    pending_count: int
-    battery_pct: int
+    pending_count: int = Field(..., ge=0)
+    # R8-V7 fix: Validate battery percentage range
+    battery_pct: int = Field(..., ge=0, le=100)
     status: str
 
 

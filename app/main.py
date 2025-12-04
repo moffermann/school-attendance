@@ -92,13 +92,22 @@ app = create_app()
 
 @app.get("/health", tags=["health"])
 async def healthcheck() -> dict[str, str]:
-    """Simple health endpoint."""
+    """Health endpoint with database check.
 
-    return {"status": "ok"}
+    R8-C5 fix: Verify database connectivity for proper health status.
+    """
+    from app.db.session import async_session
+    from sqlalchemy import text
+
+    try:
+        async with async_session() as session:
+            await session.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "connected"}
+    except Exception:
+        return {"status": "degraded", "database": "disconnected"}
 
 
 @app.get("/healthz", tags=["health"])
 async def healthcheck_z() -> dict[str, str]:
-    """Alias for container health probes."""
-
+    """Alias for container health probes (lightweight)."""
     return {"status": "ok"}

@@ -1,6 +1,17 @@
 """Authentication schemas."""
 
-from pydantic import BaseModel
+from enum import Enum
+
+from pydantic import BaseModel, EmailStr, Field
+
+
+# R8-V2 fix: Define valid user roles
+class UserRole(str, Enum):
+    ADMIN = "ADMIN"
+    DIRECTOR = "DIRECTOR"
+    INSPECTOR = "INSPECTOR"
+    TEACHER = "TEACHER"
+    PARENT = "PARENT"
 
 
 class TokenPair(BaseModel):
@@ -10,8 +21,9 @@ class TokenPair(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    # R8-V1 fix: Use EmailStr for email validation
+    email: EmailStr
+    password: str = Field(..., min_length=1)
 
 
 class RefreshRequest(BaseModel):
@@ -25,7 +37,8 @@ class LogoutRequest(BaseModel):
 class SessionUser(BaseModel):
     id: int
     full_name: str
-    role: str
+    # R8-V2 fix: Use UserRole enum for role validation
+    role: UserRole
     guardian_id: int | None = None
 
 

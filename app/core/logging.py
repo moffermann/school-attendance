@@ -8,6 +8,8 @@ from typing import Any
 
 from loguru import logger
 
+from app.core.config import settings
+
 
 class InterceptHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:  # pragma: no cover - thin adapter
@@ -23,4 +25,6 @@ def setup_logging() -> None:
     logging.getLogger("uvicorn.access").handlers = [InterceptHandler()]
 
     logger.remove()
-    logger.add(sys.stderr, level="INFO", enqueue=True, backtrace=True, diagnose=False)
+    # R8-C7 fix: Disable backtrace in production to avoid exposing sensitive info
+    enable_backtrace = settings.app_env != "production"
+    logger.add(sys.stderr, level="INFO", enqueue=True, backtrace=enable_backtrace, diagnose=False)

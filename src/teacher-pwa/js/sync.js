@@ -221,12 +221,43 @@ const Sync = {
   },
 };
 
-// Auto-sync every 30 seconds when online and authenticated
-setInterval(() => {
-  if (State.isOnline() && API.isAuthenticated()) {
-    Sync.processQueue();
-  }
-}, 30000);
+// R8-F3 fix: Store interval IDs for proper cleanup
+Sync._syncIntervalId = null;
+Sync._cleanupIntervalId = null;
 
-// Cleanup old events every 5 minutes
-setInterval(() => Sync.cleanupQueue(), 300000);
+/**
+ * Start automatic sync intervals
+ * R8-F3 fix: Allows proper cleanup of intervals
+ */
+Sync.startAutoSync = function() {
+  // Clear existing intervals if any
+  this.stopAutoSync();
+
+  // Auto-sync every 30 seconds when online and authenticated
+  this._syncIntervalId = setInterval(() => {
+    if (State.isOnline() && API.isAuthenticated()) {
+      Sync.processQueue();
+    }
+  }, 30000);
+
+  // Cleanup old events every 5 minutes
+  this._cleanupIntervalId = setInterval(() => Sync.cleanupQueue(), 300000);
+};
+
+/**
+ * Stop automatic sync intervals
+ * R8-F3 fix: Prevents memory leaks when PWA is unloaded
+ */
+Sync.stopAutoSync = function() {
+  if (this._syncIntervalId) {
+    clearInterval(this._syncIntervalId);
+    this._syncIntervalId = null;
+  }
+  if (this._cleanupIntervalId) {
+    clearInterval(this._cleanupIntervalId);
+    this._cleanupIntervalId = null;
+  }
+};
+
+// Start auto-sync by default
+Sync.startAutoSync();

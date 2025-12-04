@@ -19,7 +19,8 @@ class NoShowAlertRead(BaseModel):
     schedule_id: int | None
     alert_date: date
     alerted_at: datetime
-    status: str
+    # R8-V10 fix: Use NoShowAlertStatus enum
+    status: NoShowAlertStatus
     resolved_at: datetime | None
     notes: str | None = None
     notification_attempts: int
