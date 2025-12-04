@@ -96,6 +96,7 @@ const Router = {
   },
 
   updateActiveNavLink(currentPath) {
+    // Update sidebar nav (director/inspector)
     document.querySelectorAll('.sidebar-nav a').forEach(link => {
       const href = link.getAttribute('href');
       if (href === `#${currentPath}`) {
@@ -104,5 +105,20 @@ const Router = {
         link.classList.remove('active');
       }
     });
+
+    // Update mobile bottom nav (parent portal)
+    document.querySelectorAll('.mobile-bottom-nav-list a').forEach(link => {
+      const href = link.getAttribute('href');
+      if (href === `#${currentPath}`) {
+        link.classList.add('active');
+      } else {
+        link.classList.remove('active');
+      }
+    });
+
+    // Initialize mobile menu events after layout render
+    if (typeof Components !== 'undefined' && Components.initMobileMenu) {
+      Components.initMobileMenu();
+    }
   }
 };

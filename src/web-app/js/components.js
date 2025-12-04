@@ -119,6 +119,8 @@ const Components = {
 
   // SVG Icons
   icons: {
+    menu: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>',
+    close: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
     dashboard: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>',
     reports: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>',
     metrics: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>',
@@ -138,6 +140,42 @@ const Components = {
     biometric: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10V21"></path><path d="M18.5 8a6.5 6.5 0 1 0-13 0c0 4.5 6.5 11 6.5 11s6.5-6.5 6.5-11Z"></path><circle cx="12" cy="8" r="2"></circle></svg>'
   },
 
+  // Mobile menu toggle functions
+  toggleMobileMenu() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    if (sidebar && overlay) {
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('active');
+      document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+    }
+  },
+
+  closeMobileMenu() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    if (sidebar && overlay) {
+      sidebar.classList.remove('open');
+      overlay.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+  },
+
+  // Initialize mobile menu events
+  initMobileMenu() {
+    // Close menu when clicking a nav link
+    document.querySelectorAll('.sidebar-nav a').forEach(link => {
+      link.addEventListener('click', () => this.closeMobileMenu());
+    });
+
+    // Close menu on escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.closeMobileMenu();
+      }
+    });
+  },
+
   // Layout
   createLayout(role) {
     // Skip link for keyboard/screen reader users
@@ -146,26 +184,62 @@ const Components = {
     if (role === 'parent') {
       return `
         ${skipLink}
-        <div class="app-layout">
+        <div class="app-layout parent-portal">
           <div class="main-content no-sidebar">
             <header class="header">
               <h1 class="header-title">Portal de Apoderados</h1>
               <div class="header-actions">
                 <button class="btn btn-secondary btn-sm" onclick="State.logout(); Router.navigate('/auth')" aria-label="Cerrar sesión">
                   ${this.icons.logout}
-                  Cerrar sesión
+                  <span>Salir</span>
                 </button>
               </div>
             </header>
             <main class="content" id="view-content" tabindex="-1"></main>
           </div>
+          <!-- Mobile bottom navigation for parents -->
+          <nav class="mobile-bottom-nav" aria-label="Navegación móvil">
+            <ul class="mobile-bottom-nav-list">
+              <li>
+                <a href="#/parent/home" role="menuitem">
+                  ${this.icons.home}
+                  <span>Inicio</span>
+                </a>
+              </li>
+              <li>
+                <a href="#/parent/history" role="menuitem">
+                  ${this.icons.history}
+                  <span>Historial</span>
+                </a>
+              </li>
+              <li>
+                <a href="#/parent/absences" role="menuitem">
+                  ${this.icons.calendar}
+                  <span>Ausencias</span>
+                </a>
+              </li>
+              <li>
+                <a href="#/parent/prefs" role="menuitem">
+                  ${this.icons.settings}
+                  <span>Ajustes</span>
+                </a>
+              </li>
+            </ul>
+          </nav>
         </div>
       `;
     } else {
       return `
         ${skipLink}
         <div class="app-layout">
+          <!-- Mobile overlay -->
+          <div class="sidebar-overlay" onclick="Components.closeMobileMenu()"></div>
+
           <aside class="sidebar" role="navigation" aria-label="Navegación principal">
+            <!-- Mobile close button -->
+            <button class="sidebar-close-btn" onclick="Components.closeMobileMenu()" aria-label="Cerrar menú">
+              ${this.icons.close}
+            </button>
             <div class="sidebar-logo">
               <img src="assets/logo.svg" alt="Logo">
               <h1>Control Escolar</h1>
@@ -189,12 +263,16 @@ const Components = {
           </aside>
           <div class="main-content">
             <header class="header">
+              <!-- Mobile hamburger menu button -->
+              <button class="mobile-menu-btn" onclick="Components.toggleMobileMenu()" aria-label="Abrir menú de navegación" aria-expanded="false">
+                ${this.icons.menu}
+              </button>
               <h1 class="header-title" id="page-title">Tablero</h1>
               <div class="header-actions">
                 <span class="role-selector">${role === 'director' ? 'Director' : 'Inspector'}</span>
                 <button class="btn btn-secondary btn-sm" onclick="State.logout(); Router.navigate('/auth')" aria-label="Cerrar sesión">
                   ${this.icons.logout}
-                  Cerrar sesión
+                  <span>Salir</span>
                 </button>
               </div>
             </header>
