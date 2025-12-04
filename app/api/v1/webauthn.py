@@ -1,6 +1,7 @@
 """WebAuthn/Passkey authentication endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import deps
@@ -297,9 +298,19 @@ async def admin_delete_student_credential(
 
     Solo directores e inspectores pueden eliminar credenciales.
     """
+    # R17-AUDIT2 fix: Log admin credential deletion for security audit
+    logger.info(
+        f"Admin credential deletion: user_id={current_user.id} "
+        f"student_id={student_id} credential_id={credential_id[:8]}..."
+    )
+
     deleted = await webauthn_service.delete_credential(credential_id)
 
     if not deleted:
+        logger.warning(
+            f"Admin credential deletion failed: not found - user_id={current_user.id} "
+            f"student_id={student_id}"
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Credencial no encontrada"

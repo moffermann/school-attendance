@@ -100,7 +100,10 @@ async def get_current_user_optional(
 
 
 async def verify_device_key(x_device_key: str | None = Header(default=None)) -> bool:
-    if x_device_key and x_device_key == settings.device_api_key:
+    # R17-AUTH1 fix: Use timing-safe comparison to prevent timing attacks
+    # Direct == comparison leaks information about the key via response time
+    import secrets
+    if x_device_key and secrets.compare_digest(x_device_key, settings.device_api_key):
         return True
     return False
 
