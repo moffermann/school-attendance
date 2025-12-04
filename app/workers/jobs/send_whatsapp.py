@@ -159,4 +159,15 @@ async def _send(notification_id: int, to: str, template: str, variables: dict) -
 
 
 def send_whatsapp_message(notification_id: int, to: str, template: str, variables: dict) -> None:
-    asyncio.run(_send(notification_id, to, template, variables))
+    # TDD-BUG3 fix: Handle case when event loop is already running (e.g., async RQ workers)
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop - use asyncio.run() normally
+        asyncio.run(_send(notification_id, to, template, variables))
+    else:
+        # Loop is already running - create task and wait for it
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(asyncio.run, _send(notification_id, to, template, variables))
+            future.result()  # Wait for completion

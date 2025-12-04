@@ -148,7 +148,7 @@ Views.parentHistory = function() {
                     ${Components.formatDate(event.ts)} a las ${Components.formatTime(event.ts)}
                   </div>
                   <div style="font-size: 0.8rem; color: var(--color-gray-400);">
-                    Puerta: ${event.gate_id} ${event.photo_ref ? '• 📷 Con foto' : ''}
+                    Puerta: ${event.gate_id} ${(event.photo_url || event.photo_ref) ? '• 📷 Con foto' : ''}
                   </div>
                 </div>
               </div>
@@ -162,7 +162,8 @@ Views.parentHistory = function() {
         const typeChip = event.type === 'IN'
           ? Components.createChip('Ingreso', 'success')
           : Components.createChip('Salida', 'info');
-        const photoIcon = event.photo_ref ? '📷' : '-';
+        // TDD-BUG5 fix: Check photo_url (presigned URL) with photo_ref fallback
+        const photoIcon = (event.photo_url || event.photo_ref) ? '📷' : '-';
 
         return [
           Components.formatDate(event.ts),

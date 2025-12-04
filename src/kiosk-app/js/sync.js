@@ -319,8 +319,9 @@ const Sync = {
 
 // R3-R3 fix: Store interval references for potential cleanup
 // Auto-sync every 30 seconds
+// TDD-BUG4 fix: Check isSyncing to prevent concurrent queue processing
 Sync._queueIntervalId = setInterval(() => {
-  if (State.device.online) {
+  if (State.device.online && !Sync.isSyncing) {
     Sync.processQueue();
   }
 }, 30000);

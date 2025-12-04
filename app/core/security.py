@@ -34,7 +34,12 @@ def create_refresh_token(subject: str, expires_days: int | None = None) -> str:
     expire = datetime.now(timezone.utc) + timedelta(
         days=expires_days or settings.jwt_refresh_expires_days
     )
-    to_encode: Dict[str, Any] = {"sub": subject, "exp": expire}
+    # TDD-BUG1 fix: Include issuer claim to prevent cross-application token confusion
+    to_encode: Dict[str, Any] = {
+        "sub": subject,
+        "exp": expire,
+        "iss": "school-attendance",  # Must match access token issuer
+    }
     return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
 
 

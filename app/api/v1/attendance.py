@@ -29,9 +29,12 @@ async def register_event(
     try:
         return await service.register_event(payload)
     except ValueError as exc:
-        # R15-ERR1 fix: Log error details but only return safe message to client
+        # TDD-BUG2 fix: Log error details but only return safe message to client
         logger.warning(f"Validation error in register_event: {exc}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Datos de asistencia inválidos"
+        ) from exc
 
 
 @router.get("/students/{student_id}", response_model=list[AttendanceEventRead])

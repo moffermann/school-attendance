@@ -140,7 +140,8 @@ Views.directorDashboard = function() {
       const typeChip = event.type === 'IN'
         ? Components.createChip('Ingreso', 'success')
         : Components.createChip('Salida', 'info');
-      const photoIcon = event.photo_ref ? '📷' : '-';
+      // TDD-BUG5 fix: Check photo_url (presigned URL) with photo_ref fallback
+      const photoIcon = (event.photo_url || event.photo_ref) ? '📷' : '-';
 
       return [
         student ? Components.escapeHtml(student.full_name) : '-',
@@ -198,7 +199,8 @@ Views.directorDashboard = function() {
   };
 
   Views.directorDashboard.showPhotos = function() {
-    const eventsWithPhotos = filteredEvents.filter(e => e.photo_ref);
+    // TDD-BUG5 fix: Check photo_url (presigned URL) with photo_ref fallback
+    const eventsWithPhotos = filteredEvents.filter(e => e.photo_url || e.photo_ref);
     const photosHTML = eventsWithPhotos.slice(0, 6).map(e => {
       const student = State.getStudent(e.student_id);
       return `
