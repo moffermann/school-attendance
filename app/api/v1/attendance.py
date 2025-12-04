@@ -1,6 +1,6 @@
 """Attendance endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, UploadFile, File, status
 from loguru import logger
 
 from app.core import deps
@@ -39,7 +39,8 @@ async def register_event(
 
 @router.get("/students/{student_id}", response_model=list[AttendanceEventRead])
 async def list_events_by_student(
-    student_id: int,
+    # TDD-R2-BUG4 fix: Validate path parameter with ge=1
+    student_id: int = Path(..., ge=1, description="ID del estudiante"),
     service: AttendanceService = Depends(deps.get_attendance_service),
     _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
 ) -> list[AttendanceEventRead]:
@@ -52,7 +53,7 @@ async def list_events_by_student(
 @limiter.limit("30/minute")
 async def upload_event_photo(
     request: Request,
-    event_id: int,
+    event_id: int = Path(..., ge=1, description="ID del evento"),
     file: UploadFile = File(...),
     service: AttendanceService = Depends(deps.get_attendance_service),
     user: AuthUser | None = Depends(deps.get_current_user_optional),
@@ -71,7 +72,7 @@ async def upload_event_photo(
 @limiter.limit("30/minute")
 async def upload_event_audio(
     request: Request,
-    event_id: int,
+    event_id: int = Path(..., ge=1, description="ID del evento"),
     file: UploadFile = File(...),
     service: AttendanceService = Depends(deps.get_attendance_service),
     user: AuthUser | None = Depends(deps.get_current_user_optional),

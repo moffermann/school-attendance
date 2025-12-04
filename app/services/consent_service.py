@@ -28,7 +28,10 @@ class ConsentService:
         if not guardian:
             raise ValueError("Guardian not found")
 
-        guardian.notification_prefs = payload.preferences or {}
+        # TDD-R2-BUG2 fix: Merge preferences instead of overwriting entire dict
+        if payload.preferences:
+            existing_prefs = guardian.notification_prefs or {}
+            guardian.notification_prefs = {**existing_prefs, **payload.preferences}
 
         if payload.photo_consents:
             student_map = {student.id: student for student in guardian.students}

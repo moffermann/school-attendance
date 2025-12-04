@@ -21,11 +21,14 @@ def _sanitize_csv_value(val: str | None) -> str:
 
     Excel and other spreadsheets interpret cells starting with =, +, -, @
     as formulas, which can be exploited for code execution.
+
+    TDD-R2-BUG3 fix: Also handle whitespace-prefixed formulas.
     """
     if not val:
         return ""
     val = str(val)
-    if val and val[0] in '=+-@':
+    stripped = val.lstrip()
+    if stripped and stripped[0] in '=+-@':
         return "'" + val  # Prefix with quote to prevent formula interpretation
     return val
 

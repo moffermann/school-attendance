@@ -211,7 +211,12 @@ const State = {
   },
 
   // Update tags from server data
+  // TDD-R2-BUG5 fix: Validate server response before processing
   updateTags(serverTags) {
+    if (!serverTags || serverTags.length === 0) {
+      console.warn('Received empty tag list from server, skipping update to prevent data loss');
+      return;
+    }
     this.tags = serverTags.map(t => ({
       token: t.token,
       student_id: t.student_id,
@@ -222,7 +227,12 @@ const State = {
   },
 
   // Update teachers from server data
+  // TDD-R2-BUG5 fix: Validate server response before processing
   updateTeachers(serverTeachers) {
+    if (!serverTeachers || serverTeachers.length === 0) {
+      console.warn('Received empty teacher list from server, skipping update to prevent data loss');
+      return;
+    }
     this.teachers = serverTeachers.map(t => ({
       id: t.id,
       full_name: t.full_name

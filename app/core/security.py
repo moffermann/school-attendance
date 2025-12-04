@@ -45,7 +45,14 @@ def create_refresh_token(subject: str, expires_days: int | None = None) -> str:
 
 def decode_token(token: str) -> Dict[str, Any]:
     try:
-        return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+        # TDD-R2-BUG1 fix: Validate issuer claim to prevent cross-application token confusion
+        return jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=["HS256"],
+            issuer="school-attendance",
+            options={"require": ["iss", "sub", "exp"]}
+        )
     except jwt.PyJWTError as exc:  # pragma: no cover - pass-through error mapping
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
 
