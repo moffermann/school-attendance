@@ -9,6 +9,7 @@ import time
 from typing import Optional
 
 import redis
+from loguru import logger
 
 from app.core.config import settings
 
@@ -61,8 +62,9 @@ class TokenBlacklist:
             try:
                 self._redis.setex(f"blacklist:{token_hash}", ttl, "1")
                 return
-            except Exception:
-                pass  # Fall back to memory
+            except Exception as exc:
+                # R13-ERR1 fix: Log Redis failures for debugging
+                logger.warning("Redis blacklist write failed, using memory fallback: %s", exc)
 
         # In-memory fallback
         self._memory_store[token_hash] = int(time.time()) + ttl
@@ -82,8 +84,9 @@ class TokenBlacklist:
         if self._redis_available and self._redis:
             try:
                 return self._redis.exists(f"blacklist:{token_hash}") > 0
-            except Exception:
-                pass  # Fall back to memory
+            except Exception as exc:
+                # R13-ERR1 fix: Log Redis failures for debugging
+                logger.warning("Redis blacklist read failed, using memory fallback: %s", exc)
 
         # Periodic cleanup during reads (low overhead due to time check)
         self._cleanup_memory()

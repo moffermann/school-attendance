@@ -6,9 +6,10 @@ from pydantic import BaseModel, Field
 
 
 class DeviceHeartbeatRequest(BaseModel):
-    device_id: str
-    gate_id: str
-    firmware_version: str
+    # R13-VAL2 fix: Add max_length to match DB constraint (64 chars)
+    device_id: str = Field(..., max_length=64)
+    gate_id: str = Field(..., max_length=64)
+    firmware_version: str = Field(..., max_length=32)
     # R3-V11 fix: Validate battery percentage range 0-100
     battery_pct: int = Field(..., ge=0, le=100)
     # R3-V12 fix: Validate pending_events is non-negative

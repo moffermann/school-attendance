@@ -1,6 +1,9 @@
 // Hash router for kiosk
 const Router = {
   routes: {},
+  // R13-FE5 fix: Track current route for cleanup
+  currentRoute: null,
+  cleanupFunctions: {},
 
   init() {
     this.addRoute('/home', Views.home);
@@ -23,9 +26,23 @@ const Router = {
     this.routes[path] = handler;
   },
 
+  // R13-FE5 fix: Register cleanup function for a route
+  registerCleanup(path, cleanupFn) {
+    this.cleanupFunctions[path] = cleanupFn;
+  },
+
   handleRoute() {
     const hash = window.location.hash.slice(1) || '/home';
     const [path, query] = hash.split('?');
+
+    // R13-FE5 fix: Call cleanup for previous route
+    if (this.currentRoute && this.cleanupFunctions[this.currentRoute]) {
+      try {
+        this.cleanupFunctions[this.currentRoute]();
+      } catch (e) {
+        console.error('Cleanup error for', this.currentRoute, e);
+      }
+    }
 
     // Guard: if no gate_id configured, go to settings
     if (!State.device.gate_id && path !== '/settings') {
@@ -35,6 +52,7 @@ const Router = {
 
     const route = this.routes[path];
     if (route) {
+      this.currentRoute = path;
       route();
     } else {
       this.navigate('/home');

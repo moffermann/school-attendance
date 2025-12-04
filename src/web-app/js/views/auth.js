@@ -71,24 +71,25 @@ Views.auth = function() {
 
   let selectedRole = null;
 
-  // Staff button
-  document.getElementById('btn-staff').addEventListener('click', () => {
-    selectedRole = 'staff';
-    showLoginForm('Dirección / Inspectoría');
+  // R13-FE1 fix: Use event delegation to prevent listener duplication on re-render
+  app.addEventListener('click', (e) => {
+    // Staff button
+    if (e.target.closest('#btn-staff')) {
+      selectedRole = 'staff';
+      showLoginForm('Dirección / Inspectoría');
+    }
+    // Parent button
+    if (e.target.closest('#btn-parent')) {
+      selectedRole = 'parent';
+      showLoginForm('Apoderado');
+    }
+    // Back button
+    if (e.target.closest('#btn-back')) {
+      showModeSelect();
+    }
   });
 
-  // Parent button
-  document.getElementById('btn-parent').addEventListener('click', () => {
-    selectedRole = 'parent';
-    showLoginForm('Apoderado');
-  });
-
-  // Back button
-  document.getElementById('btn-back').addEventListener('click', () => {
-    showModeSelect();
-  });
-
-  // Login form submission
+  // Login form submission - use delegation via form container
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('login-email').value.trim();

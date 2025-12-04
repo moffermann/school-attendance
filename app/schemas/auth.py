@@ -23,7 +23,8 @@ class TokenPair(BaseModel):
 class LoginRequest(BaseModel):
     # R8-V1 fix: Use EmailStr for email validation
     email: EmailStr
-    password: str = Field(..., min_length=1)
+    # R13-SEC1 fix: Require min 8 chars for password security
+    password: str = Field(..., min_length=8)
 
 
 class RefreshRequest(BaseModel):
