@@ -37,7 +37,8 @@ class GuardianPreferencesRead(BaseModel):
 
 class GuardianPreferencesUpdate(BaseModel):
     """Request schema for updating guardian preferences."""
-    preferences: dict[str, Any] | None = Field(default=None)
+    # R3-V1 fix: Use proper type for preferences with ChannelPreference
+    preferences: dict[str, ChannelPreference] | None = Field(default=None)
     photo_consents: dict[str, bool] | None = Field(default=None)
 
     class Config:

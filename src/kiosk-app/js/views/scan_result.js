@@ -29,6 +29,7 @@ Views.scanResult = function() {
   let mediaRecorder = null;
   let audioChunks = [];
   let audioBlob = null;
+  let audioObjectUrl = null;  // R3-R1 fix: Track Object URL for cleanup
   let isRecording = false;
   let recordingStartTime = null;
   const MAX_AUDIO_DURATION = 10000; // 10 seconds max
@@ -237,10 +238,14 @@ Views.scanResult = function() {
 
       mediaRecorder.onstop = () => {
         audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-        const audioUrl = URL.createObjectURL(audioBlob);
+        // R3-R1 fix: Revoke previous Object URL before creating new one
+        if (audioObjectUrl) {
+          URL.revokeObjectURL(audioObjectUrl);
+        }
+        audioObjectUrl = URL.createObjectURL(audioBlob);
         const audioPreview = document.getElementById('audio-preview');
         if (audioPreview) {
-          audioPreview.src = audioUrl;
+          audioPreview.src = audioObjectUrl;
           audioPreview.classList.remove('hidden');
         }
         updateAudioStatus('recorded');
@@ -350,6 +355,11 @@ Views.scanResult = function() {
     stopAudioTimer();
     if (mediaRecorder && mediaRecorder.stream) {
       mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    }
+    // R3-R1 fix: Revoke Object URL on cleanup
+    if (audioObjectUrl) {
+      URL.revokeObjectURL(audioObjectUrl);
+      audioObjectUrl = null;
     }
   }
 

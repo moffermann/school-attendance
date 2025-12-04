@@ -1,6 +1,8 @@
 """Teacher schemas."""
 
-from pydantic import BaseModel, ConfigDict
+from enum import Enum
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TeacherRead(BaseModel):
@@ -41,11 +43,18 @@ class TeacherMeResponse(BaseModel):
     courses: list[TeacherCourseRead]
 
 
+class AttendanceType(str, Enum):
+    """R3-V10 fix: Valid attendance event types."""
+    IN = "IN"
+    OUT = "OUT"
+
+
 class BulkAttendanceItem(BaseModel):
     """Single attendance item in bulk submission."""
 
     student_id: int
-    type: str  # "IN" or "OUT"
+    # R3-V10 fix: Use enum for type validation
+    type: AttendanceType
     occurred_at: str | None = None  # ISO format, optional
 
 
@@ -55,7 +64,8 @@ class BulkAttendanceRequest(BaseModel):
     course_id: int
     gate_id: str
     device_id: str
-    events: list[BulkAttendanceItem]
+    # R3-V9 fix: Limit max items in bulk request
+    events: list[BulkAttendanceItem] = Field(..., max_length=500)
 
 
 class BulkAttendanceResponse(BaseModel):

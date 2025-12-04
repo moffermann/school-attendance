@@ -24,16 +24,39 @@ def mask_email(email: str) -> str:
 
 
 class SESEmailClient:
+    """SES email client with connection reuse."""
+
     def __init__(self) -> None:
         self._region = settings.ses_region
         self._source = settings.ses_source_email
+        # R3-R10 fix: Create client once in __init__ and reuse
+        self._client = None
+
+    def _get_client(self):
+        """Lazy initialize and reuse boto3 SES client."""
+        if self._client is None:
+            self._client = boto3.client("ses", region_name=self._region)
+        return self._client
+
+    def close(self) -> None:
+        """R3-R10 fix: Close boto3 client connection."""
+        if self._client:
+            self._client.close()
+            self._client = None
+
+    def __del__(self) -> None:
+        """R3-R10 fix: Cleanup on garbage collection."""
+        try:
+            self.close()
+        except Exception:
+            pass
 
     async def send_email(self, to: str, subject: str, body_html: str) -> None:
         if not settings.enable_real_notifications:
             logger.info("[SES] Dry-run email to=%s subject=%s", mask_email(to), subject)
             return
 
-        client = boto3.client("ses", region_name=self._region)
+        client = self._get_client()
         try:
             client.send_email(
                 Source=self._source,

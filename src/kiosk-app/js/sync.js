@@ -317,16 +317,29 @@ const Sync = {
   }
 };
 
+// R3-R3 fix: Store interval references for potential cleanup
 // Auto-sync every 30 seconds
-setInterval(() => {
+Sync._queueIntervalId = setInterval(() => {
   if (State.device.online) {
     Sync.processQueue();
   }
 }, 30000);
 
 // Sync student preferences every 5 minutes
-setInterval(() => {
+Sync._studentsIntervalId = setInterval(() => {
   if (State.device.online && Sync.isRealApiMode()) {
     Sync.syncStudents();
   }
 }, 5 * 60 * 1000);
+
+// R3-R3 fix: Method to stop sync intervals (useful for testing/cleanup)
+Sync.stopIntervals = function() {
+  if (this._queueIntervalId) {
+    clearInterval(this._queueIntervalId);
+    this._queueIntervalId = null;
+  }
+  if (this._studentsIntervalId) {
+    clearInterval(this._studentsIntervalId);
+    this._studentsIntervalId = null;
+  }
+};

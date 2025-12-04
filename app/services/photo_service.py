@@ -14,6 +14,8 @@ from app.core.config import settings
 
 
 class PhotoService:
+    """Photo storage service with proper resource cleanup."""
+
     def __init__(self) -> None:
         self._client = boto3.client(
             "s3",
@@ -25,6 +27,18 @@ class PhotoService:
             use_ssl=settings.s3_secure,
         )
         self._bucket = settings.s3_bucket
+
+    def close(self) -> None:
+        """R3-R6 fix: Close boto3 client connection."""
+        if self._client:
+            self._client.close()
+
+    def __del__(self) -> None:
+        """R3-R6 fix: Cleanup on garbage collection."""
+        try:
+            self.close()
+        except Exception:
+            pass  # Ignore errors during cleanup
 
     async def store_photo(self, key: str, data: bytes, content_type: str) -> str:
         # R2-B20 fix: Use asyncio.to_thread to prevent blocking event loop

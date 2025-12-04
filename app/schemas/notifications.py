@@ -38,15 +38,24 @@ class NotificationRead(BaseModel):
     retries: int | None = None
 
 
+class BroadcastScope(str, Enum):
+    """R3-V3 fix: Valid broadcast scope values."""
+    GLOBAL = "global"
+    COURSE = "course"
+    CUSTOM = "custom"
+
+
 class BroadcastAudience(BaseModel):
-    scope: str = Field(..., description="global|course|custom")
+    # R3-V3 fix: Use enum for scope validation
+    scope: BroadcastScope = Field(..., description="global|course|custom")
     course_ids: list[int] | None = None
     guardian_ids: list[int] | None = None
 
 
 class BroadcastCreate(BaseModel):
-    subject: str
-    message: str
+    # R3-V4 fix: Add max_length to text fields
+    subject: str = Field(..., max_length=500)
+    message: str = Field(..., max_length=5000)
     template: NotificationType
     audience: BroadcastAudience
     scheduled_at: datetime | None = None
