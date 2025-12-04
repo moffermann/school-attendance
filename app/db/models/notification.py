@@ -21,7 +21,8 @@ class Notification(Base):
     guardian_id: Mapped[int] = mapped_column(ForeignKey("guardians.id"), nullable=False, index=True)
     channel: Mapped[str] = mapped_column(String(32), nullable=False)
     template: Mapped[str] = mapped_column(String(64), nullable=False)
-    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    # R15-MDL1 fix: Use lambda factory instead of mutable default dict
+    payload: Mapped[dict] = mapped_column(JSON, default=lambda: {})
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
     # R6-M1 fix: Use timezone-aware datetime
     ts_created: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utc_now, index=True)

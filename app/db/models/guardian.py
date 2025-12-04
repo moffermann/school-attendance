@@ -12,7 +12,9 @@ class Guardian(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    contacts: Mapped[dict] = mapped_column(JSON, default=dict)
-    notification_prefs: Mapped[dict] = mapped_column(JSON, default=dict)
+    # R15-MDL1 fix: Use lambda factory instead of mutable default dict
+    # Mutable defaults are shared across all instances, causing data leaks
+    contacts: Mapped[dict] = mapped_column(JSON, default=lambda: {})
+    notification_prefs: Mapped[dict] = mapped_column(JSON, default=lambda: {})
 
     students = relationship("Student", secondary=student_guardian_table, back_populates="guardians")

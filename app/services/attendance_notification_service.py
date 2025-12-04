@@ -85,8 +85,10 @@ class AttendanceNotificationService:
             else NotificationType.SALIDA_OK
         )
 
-        # Check if student allows photo
-        photo_allowed = bool(getattr(student, "photo_pref_opt_in", False))
+        # R15-STATE3 fix: Use effective_evidence_preference instead of legacy photo_pref_opt_in
+        # This ensures consistency with the new evidence preference system
+        evidence_pref = getattr(student, "effective_evidence_preference", "none")
+        photo_allowed = evidence_pref == "photo"
 
         notification_ids = []
 

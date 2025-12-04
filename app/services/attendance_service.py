@@ -100,21 +100,25 @@ class AttendanceService:
         return [AttendanceEventRead.model_validate(event, from_attributes=True) for event in events]
 
     async def detect_no_show_alerts(self, current_dt: datetime) -> list[dict]:
+        # R15-DT2 fix: Work with timezone-aware datetimes consistently
+        # Ensure current_dt is UTC-aware for consistent comparisons
         if current_dt.tzinfo:
-            current_dt_naive = current_dt.astimezone(timezone.utc).replace(tzinfo=None)
+            current_dt_utc = current_dt.astimezone(timezone.utc)
         else:
-            current_dt_naive = current_dt
+            # Assume naive datetime is UTC
+            current_dt_utc = current_dt.replace(tzinfo=timezone.utc)
 
-        weekday = current_dt_naive.weekday()
+        weekday = current_dt_utc.weekday()
         schedules = await self.schedule_repo.list_by_weekday(weekday)
         grace = timedelta(minutes=settings.no_show_grace_minutes)
-        target_date = current_dt_naive.date()
+        target_date = current_dt_utc.date()
         alerts: list[dict] = []
 
         for schedule in schedules:
             # Course is eager-loaded via selectinload in list_by_weekday
-            threshold = datetime.combine(target_date, schedule.in_time) + grace
-            if current_dt_naive < threshold:
+            # R15-DT2 fix: datetime.combine with explicit UTC timezone to avoid naive datetime
+            threshold = datetime.combine(target_date, schedule.in_time, tzinfo=timezone.utc) + grace
+            if current_dt_utc < threshold:
                 continue
 
             students = await self.student_repo.list_by_course(schedule.course_id)
@@ -134,13 +138,14 @@ class AttendanceService:
             for student in missing_students:
                 for guardian in getattr(student, "guardians", []):
                     # Use get_or_create to handle race conditions atomically
+                    # R15-DT2 fix: Pass naive datetime to repository (DB stores without TZ)
                     alert, _created = await self.no_show_repo.get_or_create(
                         student_id=student.id,
                         guardian_id=guardian.id,
                         course_id=schedule.course_id,
                         schedule_id=schedule.id,
                         alert_date=target_date,
-                        alerted_at=current_dt_naive,
+                        alerted_at=current_dt_utc.replace(tzinfo=None),
                     )
                     alerts.append(
                         {

@@ -1,6 +1,7 @@
 """Attendance endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, status
+from loguru import logger
 
 from app.core import deps
 from app.core.auth import AuthUser
@@ -28,6 +29,8 @@ async def register_event(
     try:
         return await service.register_event(payload)
     except ValueError as exc:
+        # R15-ERR1 fix: Log error details but only return safe message to client
+        logger.warning(f"Validation error in register_event: {exc}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
