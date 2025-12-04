@@ -67,10 +67,11 @@ class AttendanceService:
             if event.photo_ref:
                 student = await self.student_repo.get(event.student_id)
                 if student and getattr(student, "photo_pref_opt_in", False):
-                    # Generate presigned URL valid for 7 days (for WhatsApp delivery)
+                    # R2-B10 fix: Reduce presigned URL expiry from 7 days to 24 hours
+                    # WhatsApp has 24h to download media, 7 days was excessive security risk
                     photo_url = self.photo_service.generate_presigned_url(
                         event.photo_ref,
-                        expires=7 * 24 * 3600,
+                        expires=24 * 3600,  # 24 hours
                     )
 
             notification_ids = await self._notification_service.notify_attendance_event(
@@ -113,11 +114,12 @@ class AttendanceService:
             if not students:
                 continue
 
-            missing_students = []
-            for student in students:
-                has_in = await self.attendance_repo.has_in_event_on_date(student.id, target_date)
-                if not has_in:
-                    missing_students.append(student)
+            # R2-B3 fix: Use batch query instead of N+1 individual queries
+            student_ids = [s.id for s in students]
+            students_with_in = await self.attendance_repo.get_student_ids_with_in_event_on_date(
+                student_ids, target_date
+            )
+            missing_students = [s for s in students if s.id not in students_with_in]
 
             if not missing_students:
                 continue

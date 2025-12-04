@@ -2,6 +2,7 @@
 
 import asyncio
 
+from loguru import logger
 from redis import Redis
 from rq import Queue
 
@@ -24,8 +25,9 @@ class NotificationDispatcher:
         if hasattr(self, '_redis') and self._redis:
             try:
                 self._redis.close()
-            except Exception:
-                pass  # Ignore errors during cleanup
+            except Exception as exc:
+                # R2-B13 fix: Log errors instead of silently ignoring
+                logger.debug("Error closing Redis connection in destructor: %s", exc)
 
     async def enqueue_manual_notification(self, payload: NotificationDispatchRequest) -> NotificationRead:
         guardian = await self.guardian_repo.get(payload.guardian_id)

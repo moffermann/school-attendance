@@ -2,7 +2,7 @@
 
 import os
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,8 +39,17 @@ _challenge_store: dict[str, dict] = {}
 
 def _cleanup_expired_challenges():
     """Remove expired challenges from the store."""
-    now = datetime.utcnow()
-    expired = [k for k, v in _challenge_store.items() if v["expires"] < now]
+    # R2-B1 fix: Use timezone-aware datetime for consistent comparison
+    now = datetime.now(timezone.utc)
+    expired = []
+    for k, v in _challenge_store.items():
+        expires = v["expires"]
+        # Handle both naive and aware datetimes for backwards compatibility
+        if expires.tzinfo is None:
+            # Treat naive datetime as UTC
+            expires = expires.replace(tzinfo=timezone.utc)
+        if expires < now:
+            expired.append(k)
     for k in expired:
         del _challenge_store[k]
 
@@ -182,10 +191,9 @@ class WebAuthnService:
             )
 
         # Extract transports if provided
+        # R2-B2 fix: credential_response is a dict, use 'in' operator not hasattr
         transports = None
-        if hasattr(credential_response, "response") and hasattr(
-            credential_response["response"], "transports"
-        ):
+        if "response" in credential_response and "transports" in credential_response.get("response", {}):
             transports = ",".join(credential_response["response"].get("transports", []))
 
         # Create credential record

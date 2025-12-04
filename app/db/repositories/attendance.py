@@ -97,3 +97,26 @@ class AttendanceRepository:
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_student_ids_with_in_event_on_date(
+        self, student_ids: list[int], target_date: date
+    ) -> set[int]:
+        """R2-B3 fix: Batch query to get students who have IN events on a date.
+
+        Returns set of student_ids that have at least one IN event on target_date.
+        This avoids N+1 queries when checking multiple students.
+        """
+        if not student_ids:
+            return set()
+
+        stmt = (
+            select(AttendanceEvent.student_id)
+            .where(
+                AttendanceEvent.student_id.in_(student_ids),
+                AttendanceEvent.type == "IN",
+                func.date(AttendanceEvent.occurred_at) == target_date,
+            )
+            .distinct()
+        )
+        result = await self.session.execute(stmt)
+        return set(result.scalars().all())
