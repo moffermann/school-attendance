@@ -31,12 +31,18 @@ class AuthService:
 
     async def refresh(self, refresh_token: str) -> TokenPair:
         from app.core.security import decode_token
+        from app.core.token_blacklist import token_blacklist
 
         payload = decode_token(refresh_token)
         user_id = payload.get("sub")
         user = await self.user_repo.get(int(user_id)) if user_id else None
         if not user or not user.is_active:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+        # R17-AUTH2 fix: Invalidate old refresh token on rotation to prevent reuse
+        # This prevents an attacker from using a stolen refresh token after rotation
+        exp = payload.get("exp")
+        token_blacklist.add(refresh_token, exp)
 
         access_token = create_access_token(str(user.id), role=user.role, guardian_id=user.guardian_id)
         new_refresh = create_refresh_token(str(user.id))

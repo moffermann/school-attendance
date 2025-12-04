@@ -35,6 +35,13 @@ class TagProvisionService:
         if not tag:
             raise ValueError("Pending tag not found")
 
+        # R17-CRYPTO1 fix: Verify checksum/signature if provided to prevent tag forgery
+        # The checksum was generated during provision and should match
+        if hasattr(payload, 'checksum') and payload.checksum:
+            expected_checksum = tag.tag_hash[:12] if tag.tag_hash else None
+            if expected_checksum and payload.checksum != expected_checksum:
+                raise ValueError("Invalid tag checksum - possible forgery attempt")
+
         tag = await self.repository.confirm(tag=tag, tag_uid=payload.tag_uid)
         await self.session.commit()
         return TagRead(

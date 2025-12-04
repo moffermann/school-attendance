@@ -20,7 +20,13 @@ def create_access_token(subject: str, expires_minutes: int | None = None, **extr
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=expires_minutes or settings.jwt_access_expires_min
     )
-    to_encode: Dict[str, Any] = {"sub": subject, "exp": expire, **extra}
+    # R17-SESS1 fix: Include issuer claim to prevent cross-application token confusion
+    to_encode: Dict[str, Any] = {
+        "sub": subject,
+        "exp": expire,
+        "iss": "school-attendance",  # Issuer claim for token validation
+        **extra
+    }
     return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
 
 
