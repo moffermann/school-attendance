@@ -1,11 +1,16 @@
 """WebAuthn Credential model for biometric authentication."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+
+def _utc_now() -> datetime:
+    """R6-M3 fix: Return timezone-aware UTC datetime."""
+    return datetime.now(timezone.utc)
 
 
 class WebAuthnCredential(Base):
@@ -50,8 +55,9 @@ class WebAuthnCredential(Base):
     device_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Timestamps
+    # R6-M3 fix: Use timezone-aware datetime
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
+        DateTime(timezone=True), nullable=False, default=_utc_now
     )
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
