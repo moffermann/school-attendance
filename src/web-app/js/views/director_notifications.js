@@ -231,11 +231,15 @@ Views.directorNotifications = function() {
     ].join('\n');
 
     // Download
+    // TDD-R7-BUG1 fix: Store blob URL and revoke after download to prevent memory leak
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
+    const blobUrl = URL.createObjectURL(blob);
+    link.href = blobUrl;
     link.download = `notificaciones_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
+    // Revoke blob URL after download to free memory
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
 
     Components.showToast(`${notifications.length} notificaciones exportadas`, 'success');
   };

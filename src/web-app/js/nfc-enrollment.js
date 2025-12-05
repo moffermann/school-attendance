@@ -228,12 +228,24 @@ const NFCEnrollment = {
       let timeoutId;
       let resolved = false;
 
+      // TDD-R7-BUG5 fix: Store event handler references for cleanup
+      let readingHandler = null;
+      let errorHandler = null;
+      let ndef = null;
+
       const cleanup = () => {
         if (timeoutId) clearTimeout(timeoutId);
+        // Remove event listeners to prevent memory leak
+        if (ndef && readingHandler) {
+          ndef.removeEventListener('reading', readingHandler);
+        }
+        if (ndef && errorHandler) {
+          ndef.removeEventListener('readingerror', errorHandler);
+        }
       };
 
       try {
-        const ndef = new NDEFReader();
+        ndef = new NDEFReader();
         await ndef.scan();
 
         timeoutId = setTimeout(() => {
@@ -244,7 +256,7 @@ const NFCEnrollment = {
           }
         }, timeoutMs);
 
-        ndef.addEventListener('reading', ({ message, serialNumber }) => {
+        readingHandler = ({ message, serialNumber }) => {
           if (resolved) return;
           resolved = true;
           cleanup();
@@ -284,14 +296,17 @@ const NFCEnrollment = {
           }
 
           resolve(result);
-        });
+        };
 
-        ndef.addEventListener('readingerror', () => {
+        errorHandler = () => {
           if (resolved) return;
           resolved = true;
           cleanup();
           resolve({ success: false, error: 'Error al leer el tag NFC' });
-        });
+        };
+
+        ndef.addEventListener('reading', readingHandler);
+        ndef.addEventListener('readingerror', errorHandler);
 
       } catch (error) {
         if (resolved) return;
