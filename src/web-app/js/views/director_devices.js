@@ -154,7 +154,8 @@ Views.directorDevices = function() {
       Components.showToast('Dispositivo creado correctamente', 'success');
     }
 
-    document.querySelector('.modal-container').click();
+    // TDD-R8-BUG1 fix: Use optional chaining in case modal was already closed
+    document.querySelector('.modal-container')?.click();
     devices = State.getDevices();
     renderDevices();
   };
@@ -213,7 +214,8 @@ Views.directorDevices = function() {
       { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
       { label: 'Eliminar', action: 'delete', className: 'btn-error', onClick: () => {
         State.deleteDevice(deviceId);
-        document.querySelector('.modal-container').click();
+        // TDD-R8-BUG1 fix: Use optional chaining in case modal was already closed
+    document.querySelector('.modal-container')?.click();
         Components.showToast('Dispositivo eliminado', 'success');
         devices = State.getDevices();
         renderDevices();

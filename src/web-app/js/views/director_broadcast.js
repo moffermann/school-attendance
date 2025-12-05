@@ -114,12 +114,22 @@ Dirección</textarea>
     ]);
   };
 
+  // TDD-R8-BUG3 fix: Flag to prevent double-click during send
+  let isSending = false;
+
   Views.directorBroadcast.sendBroadcast = function() {
+    // Prevent double-click during send
+    if (isSending) return;
+
     const form = document.getElementById('broadcast-form');
     if (!Components.validateForm(form)) {
       Components.showToast('Complete los campos requeridos', 'error');
       return;
     }
+
+    isSending = true;
+    const sendBtn = document.querySelector('[onclick*="sendBroadcast"]');
+    if (sendBtn) sendBtn.disabled = true;
 
     const courseId = document.getElementById('broadcast-course').value;
     const whatsapp = document.getElementById('channel-whatsapp').checked;
@@ -190,6 +200,10 @@ Dirección</textarea>
       `;
 
       Components.showToast(`Envío completado: ${delivered} entregados`, 'success');
+
+      // Reset sending state
+      isSending = false;
+      if (sendBtn) sendBtn.disabled = false;
     }, 2000);
   };
 };
