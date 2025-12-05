@@ -240,9 +240,11 @@ const State = {
    * Get students for a course (demo mode)
    */
   getStudentsByCourse(courseId) {
-    if (!this.data.rosters || !this.data.students) return [];
+    // TDD-R7-BUG4 fix: Validate all data structures before accessing
+    if (!this.data?.rosters || !this.data?.students) return [];
     const roster = this.data.rosters.find(r => r.course_id === courseId && r.teacher_id === this.currentTeacherId);
-    if (!roster) return [];
+    // Validate roster.student_ids exists and is array before using includes()
+    if (!roster?.student_ids || !Array.isArray(roster.student_ids)) return [];
     return this.data.students.filter(s => roster.student_ids.includes(s.id));
   },
 

@@ -66,16 +66,17 @@ Views.directorAbsences = function() {
         </thead>
         <tbody>
           ${filtered.map(absence => {
+            // TDD-R7-BUG2 fix: Validate student exists before accessing properties
             const student = State.getStudent(absence.student_id);
-            const course = State.getCourse(student.course_id);
+            const course = student ? State.getCourse(student.course_id) : null;
             const typeChip = absence.type === 'SICK'
               ? Components.createChip('Enfermedad', 'warning')
               : Components.createChip('Personal', 'info');
 
             return `
               <tr>
-                <td>${student.full_name}</td>
-                <td>${course.name}</td>
+                <td>${student?.full_name || '-'}</td>
+                <td>${course?.name || '-'}</td>
                 <td>${typeChip}</td>
                 <td>${Components.formatDate(absence.start)} - ${Components.formatDate(absence.end)}</td>
                 <td>${absence.comment || '-'}</td>
