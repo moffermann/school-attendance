@@ -52,8 +52,45 @@
   <script src="js/qr-enrollment.js"></script>
 
   <script>
+    // Extract tokens from URL hash (from server login redirect)
+    function extractTokensFromHash() {
+      const hash = window.location.hash;
+      if (!hash || !hash.includes('token=')) return null;
+
+      const params = new URLSearchParams(hash.slice(1));
+      const token = params.get('token');
+      const refresh = params.get('refresh');
+
+      if (token && refresh) {
+        // Save tokens to sessionStorage
+        sessionStorage.setItem('accessToken', token);
+        sessionStorage.setItem('refreshToken', refresh);
+
+        // Clean the URL by removing tokens from hash
+        // Keep any route path that was before the token params
+        window.history.replaceState(null, '', window.location.pathname);
+
+        return { token, refresh };
+      }
+      return null;
+    }
+
     window.addEventListener('DOMContentLoaded', async () => {
+      // Check for tokens from server redirect before initializing
+      const tokens = extractTokensFromHash();
+
       await State.init();
+
+      // If we got tokens from server and State.init() loaded bootstrap successfully,
+      // redirect to the appropriate dashboard
+      if (tokens && State.isSessionValid()) {
+        const user = State.getCurrentUser();
+        if (user) {
+          const redirectPath = user.role === 'PARENT' ? '/parent/home' : '/director/dashboard';
+          window.location.hash = redirectPath;
+        }
+      }
+
       Router.init();
     });
   </script>

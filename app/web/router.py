@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import deps
 from app.core.auth import AuthUser
-from app.core.security import create_access_token, decode_session, encode_session
+from app.core.security import create_access_token, create_refresh_token, decode_session, encode_session
 from app.db.models.attendance_event import AttendanceEvent
 from app.db.models.course import Course
 from app.db.models.guardian import Guardian
@@ -53,7 +53,7 @@ async def _require_staff_user(
 
 @web_router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request) -> HTMLResponse:
-    next_url = request.query_params.get("next", "/")
+    next_url = request.query_params.get("next", "/app")
     return templates.TemplateResponse(
         "login.html",
         {
@@ -74,7 +74,7 @@ async def login_submit(
     form = await request.form()
     email = form.get("email", "").strip().lower()
     password = form.get("password", "")
-    next_url = form.get("next") or "/"
+    next_url = form.get("next") or "/app"
 
     try:
         user = await auth_service.authenticate_user(email, password)
@@ -93,7 +93,19 @@ async def login_submit(
         )
 
     session_token = encode_session({"user_id": user.id})
-    response = RedirectResponse(next_url, status_code=303)
+
+    # Generate JWT tokens for SPA
+    access_token = create_access_token(str(user.id), role=user.role, guardian_id=user.guardian_id)
+    refresh_token = create_refresh_token(str(user.id))
+
+    # If redirecting to SPA, append tokens as hash fragment
+    # Hash fragments are not sent to server, only available client-side
+    if next_url.startswith("/app"):
+        redirect_url = f"{next_url}#token={access_token}&refresh={refresh_token}"
+    else:
+        redirect_url = next_url
+
+    response = RedirectResponse(redirect_url, status_code=303)
     response.set_cookie(
         "session_token",
         session_token,

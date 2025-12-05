@@ -90,6 +90,69 @@ class TestLoginSubmit:
         finally:
             app.dependency_overrides.clear()
 
+    def test_login_redirects_to_spa_with_tokens(self, client):
+        """Should redirect to /app with JWT tokens in hash fragment."""
+        app = main.app
+
+        fake_user = SimpleNamespace(
+            id=1,
+            email="director@school.com",
+            role="DIRECTOR",
+            guardian_id=None,
+            is_active=True,
+        )
+
+        class FakeAuthService:
+            async def authenticate_user(self, email, password):
+                return fake_user
+
+        app.dependency_overrides[deps.get_auth_service] = lambda: FakeAuthService()
+
+        try:
+            resp = client.post(
+                "/login",
+                data={"email": "director@school.com", "password": "secret123"},
+                follow_redirects=False,
+            )
+            assert resp.status_code == 303
+            location = resp.headers.get("location", "")
+            # Should redirect to /app with tokens in hash fragment
+            assert location.startswith("/app#token=")
+            assert "&refresh=" in location
+            assert "session_token" in resp.cookies
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_login_default_redirect_is_spa(self, client):
+        """Should default to /app when no next param."""
+        app = main.app
+
+        fake_user = SimpleNamespace(
+            id=1,
+            email="admin@school.com",
+            role="ADMIN",
+            guardian_id=None,
+            is_active=True,
+        )
+
+        class FakeAuthService:
+            async def authenticate_user(self, email, password):
+                return fake_user
+
+        app.dependency_overrides[deps.get_auth_service] = lambda: FakeAuthService()
+
+        try:
+            resp = client.post(
+                "/login",
+                data={"email": "admin@school.com", "password": "secret123"},
+                follow_redirects=False,
+            )
+            assert resp.status_code == 303
+            location = resp.headers.get("location", "")
+            assert location.startswith("/app")
+        finally:
+            app.dependency_overrides.clear()
+
     def test_login_failure(self, client):
         """Should show error on invalid credentials."""
         app = main.app
