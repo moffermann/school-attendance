@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from app.core import deps
 from app.core.auth import AuthUser
@@ -66,7 +66,8 @@ async def get_current_teacher(
 
 @router.get("/courses/{course_id}/students", response_model=list[TeacherStudentRead])
 async def list_course_students(
-    course_id: int,
+    # TDD-R6-BUG4 fix: Validate course_id path parameter
+    course_id: int = Path(..., ge=1),
     user: AuthUser = Depends(deps.get_current_user),
     repo: TeacherRepository = Depends(get_teacher_repo),
 ) -> list[TeacherStudentRead]:
