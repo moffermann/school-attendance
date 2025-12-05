@@ -101,9 +101,10 @@ Views.directorMetrics = function() {
       lateByStudent[e.student_id] = (lateByStudent[e.student_id] || 0) + 1;
     });
 
+    // TDD-R5-BUG1 fix: Use parseInt with radix 10
     const lateStudentsRanking = Object.entries(lateByStudent)
       .map(([studentId, count]) => ({
-        student: students.find(s => s.id === parseInt(studentId)),
+        student: students.find(s => s.id === parseInt(studentId, 10)),
         count
       }))
       .filter(x => x.student)
@@ -285,9 +286,13 @@ Views.directorMetrics = function() {
 
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
+    // TDD-R5-BUG3 fix: Store URL to revoke after download to prevent memory leak
+    const blobUrl = URL.createObjectURL(blob);
+    link.href = blobUrl;
     link.download = `alumnos_riesgo_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
+    // Revoke blob URL after download to free memory
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
 
     Components.showToast(`${metrics.riskStudents.length} alumnos exportados`, 'success');
   };

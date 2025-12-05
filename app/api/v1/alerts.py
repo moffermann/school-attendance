@@ -85,7 +85,8 @@ def _sanitize_csv_value(val: str | None) -> str:
 async def export_no_entry_alerts(
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
-    status_filter: str | None = Query(default=None, alias="status"),
+    # TDD-R5-BUG2 fix: Use AlertStatusFilter enum for validation consistency
+    status_filter: AlertStatusFilter | None = Query(default=None, alias="status"),
     course_id: int | None = Query(default=None),
     guardian_id: int | None = Query(default=None),
     student_id: int | None = Query(default=None),

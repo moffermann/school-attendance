@@ -2,9 +2,10 @@
 Views.studentProfile = async function() {
   const app = document.getElementById('app');
   const params = Router.getParams();
-  const studentId = parseInt(params.id);
+  // TDD-R5-BUG4 fix: Use parseInt with radix 10
+  const studentId = parseInt(params.id, 10);
 
-  if (!studentId) {
+  if (!studentId || isNaN(studentId)) {
     Router.navigate('/roster');
     return;
   }
