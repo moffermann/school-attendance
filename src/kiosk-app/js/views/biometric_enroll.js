@@ -3,7 +3,16 @@
 Views.biometricEnroll = function() {
   const app = document.getElementById('app');
   const params = Router.getQueryParams();
-  const teacherId = parseInt(params.teacher_id);
+  // TDD-R6-BUG2/3 fix: Use parseInt with radix 10 and validate NaN
+  const teacherId = parseInt(params.teacher_id, 10);
+
+  // Validate teacherId before proceeding
+  if (isNaN(teacherId)) {
+    console.error('Invalid teacher_id parameter:', params.teacher_id);
+    Router.navigate('/home');
+    return;
+  }
+
   let selectedStudent = null;
   let enrollInProgress = false;
 
