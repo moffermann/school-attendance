@@ -300,9 +300,12 @@ Views.directorBiometric = function() {
       updateEnrollState('error', err.message);
       Components.showToast(err.message, 'error');
 
+      // TDD-R8-BUG2 fix: Re-query DOM elements inside setTimeout to avoid stale references
       setTimeout(() => {
-        if (btn) btn.style.display = 'block';
-        if (guide) guide.style.display = 'none';
+        const freshBtn = document.getElementById('start-enroll-btn');
+        const freshGuide = document.getElementById('enrollment-guide');
+        if (freshBtn) freshBtn.style.display = 'block';
+        if (freshGuide) freshGuide.style.display = 'none';
       }, 2000);
     }
   };
