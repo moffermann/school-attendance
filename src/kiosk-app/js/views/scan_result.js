@@ -2,8 +2,16 @@
 Views.scanResult = function() {
   const app = document.getElementById('app');
   const params = Router.getQueryParams();
-  const studentId = parseInt(params.student_id);
+  // TDD-R4-BUG3/5 fix: Use parseInt with radix 10 and validate NaN
+  const studentId = parseInt(params.student_id, 10);
   const source = params.source || 'QR';
+
+  // Validate studentId is a valid number
+  if (isNaN(studentId)) {
+    console.error('Invalid student_id parameter:', params.student_id);
+    Router.navigate('/home');
+    return;
+  }
 
   const student = State.students.find(s => s.id === studentId);
   if (!student) {

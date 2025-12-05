@@ -34,9 +34,10 @@ class NotificationDispatcher:
         if not guardian:
             raise ValueError("Guardian not found")
 
+        # TDD-R4-BUG2 fix: Handle guardian.contacts being None
         contact_map = {
-            NotificationChannel.WHATSAPP: guardian.contacts.get("whatsapp"),
-            NotificationChannel.EMAIL: guardian.contacts.get("email"),
+            NotificationChannel.WHATSAPP: (guardian.contacts or {}).get("whatsapp"),
+            NotificationChannel.EMAIL: (guardian.contacts or {}).get("email"),
         }
         recipient = contact_map[payload.channel]
         if not recipient:
