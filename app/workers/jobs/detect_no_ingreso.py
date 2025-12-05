@@ -50,9 +50,11 @@ async def _detect_and_notify(target_dt: datetime | None = None) -> None:
             channels = {NotificationChannel.WHATSAPP, NotificationChannel.EMAIL}
             prefs = guardian.notification_prefs or {}
             template_key = NotificationType.NO_INGRESO_UMBRAL.value
-            if template_key in prefs:
+            # TDD-R4-BUG1 fix: Validate prefs[template_key] is a list before iterating
+            pref_value = prefs.get(template_key)
+            if isinstance(pref_value, list):
                 resolved_channels: set[NotificationChannel] = set()
-                for item in prefs[template_key]:
+                for item in pref_value:
                     if isinstance(item, dict) and not item.get("enabled", True):
                         continue
                     value = item.get("channel") if isinstance(item, dict) else item

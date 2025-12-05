@@ -12,14 +12,21 @@ const State = {
     // Load from localStorage or JSON
     const stored = localStorage.getItem('kioskData');
     if (stored) {
-      const data = JSON.parse(stored);
-      this.students = data.students || [];
-      this.teachers = data.teachers || [];
-      this.tags = data.tags || [];
-      this.queue = data.queue || [];
-      this.device = data.device || {};
-      this.config = data.config || {};
-      this.localSeq = data.localSeq || 0;
+      // TDD-R4-BUG4 fix: Handle corrupted localStorage JSON with try/catch
+      try {
+        const data = JSON.parse(stored);
+        this.students = data.students || [];
+        this.teachers = data.teachers || [];
+        this.tags = data.tags || [];
+        this.queue = data.queue || [];
+        this.device = data.device || {};
+        this.config = data.config || {};
+        this.localSeq = data.localSeq || 0;
+      } catch (e) {
+        console.error('Error parsing localStorage data, resetting to defaults:', e);
+        // Clear corrupted data and use defaults
+        localStorage.removeItem('kioskData');
+      }
     }
 
     if (!this.students.length) {
