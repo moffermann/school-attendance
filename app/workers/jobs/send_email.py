@@ -73,4 +73,17 @@ async def _send(notification_id: int, to: str, template: str, variables: dict) -
 
 
 def send_email_message(notification_id: int, to: str, template: str, variables: dict) -> None:
-    asyncio.run(_send(notification_id, to, template, variables))
+    # TDD-R3-BUG2 fix: Handle case when event loop is already running (same as WhatsApp)
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop - use asyncio.run() normally
+        asyncio.run(_send(notification_id, to, template, variables))
+    else:
+        # Loop is already running - run in separate thread with new event loop
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(
+                lambda: asyncio.run(_send(notification_id, to, template, variables))
+            )
+            future.result()  # Wait for completion

@@ -42,6 +42,7 @@ class PhotoService:
 
     async def store_photo(self, key: str, data: bytes, content_type: str) -> str:
         # R2-B20 fix: Use asyncio.to_thread to prevent blocking event loop
+        # TDD-R3-BUG5 fix: Properly close BytesIO buffer in all paths
         buffer: BinaryIO = io.BytesIO(data)
 
         def _upload():
@@ -52,9 +53,12 @@ class PhotoService:
                 ExtraArgs={"ContentType": content_type, "ACL": "private"},
             )
 
-        await asyncio.to_thread(_upload)
-        logger.info("Stored photo in bucket=%s key=%s", self._bucket, key)
-        return key
+        try:
+            await asyncio.to_thread(_upload)
+            logger.info("Stored photo in bucket=%s key=%s", self._bucket, key)
+            return key
+        finally:
+            buffer.close()
 
     async def delete_photo(self, key: str) -> None:
         # R2-B20 fix: Use asyncio.to_thread to prevent blocking event loop

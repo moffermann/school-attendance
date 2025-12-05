@@ -25,6 +25,7 @@ class AlertService:
         limit: int | None = None,
         offset: int | None = None,
     ) -> list[NoShowAlertRead]:
+        # TDD-R3-BUG4 fix: Provide default limit to prevent unbounded queries
         rows = await self.repository.list_alerts(
             start_date=start_date,
             end_date=end_date,
@@ -32,7 +33,7 @@ class AlertService:
             course_id=course_id,
             guardian_id=guardian_id,
             student_id=student_id,
-            limit=limit,
+            limit=limit or 500,  # Default limit if None passed
             offset=offset,
         )
         return [NoShowAlertRead.model_validate(row) for row in rows]
