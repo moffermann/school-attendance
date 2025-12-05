@@ -163,11 +163,12 @@ const State = {
       'INSPECTOR': 'inspector',
       'PARENT': 'parent'
     };
-    const role = roleMap[bootstrap.user.role] || 'director';
+    // Fix: Use this._user instead of bootstrap.user (API may return current_user)
+    const role = roleMap[this._user?.role] || 'director';
 
     // Set role and guardian ID
     this.currentRole = role;
-    this.currentGuardianId = bootstrap.user.guardian_id || null;
+    this.currentGuardianId = this._user?.guardian_id || null;
     this._sessionToken = this._generateSessionToken();
 
     // Store in localStorage
