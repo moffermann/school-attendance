@@ -57,7 +57,9 @@ async def super_admin_login(
     This endpoint is separate from tenant user authentication.
     """
     repo = SuperAdminRepository(session)
-    admin = await repo.get_by_email(payload.email)
+    # TDD-BUG4.3 fix: Normalize email to lowercase for case-insensitive lookup
+    normalized_email = payload.email.lower()
+    admin = await repo.get_by_email(normalized_email)
 
     if not admin:
         raise HTTPException(

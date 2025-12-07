@@ -34,6 +34,30 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+def validate_schema_name(schema_name: str) -> bool:
+    """
+    Validate that schema name is safe for use in SQL.
+
+    TDD-BUG4.1 fix: Prevent SQL injection by validating schema names.
+
+    Args:
+        schema_name: The schema name to validate
+
+    Returns:
+        True if valid, raises ValueError if not
+    """
+    # Must be alphanumeric with underscores only
+    if not schema_name.replace("_", "").isalnum():
+        raise ValueError(f"Invalid schema name: {schema_name}")
+    # Must start with a letter or underscore
+    if not (schema_name[0].isalpha() or schema_name[0] == "_"):
+        raise ValueError(f"Schema name must start with letter or underscore: {schema_name}")
+    # Reasonable length limit
+    if len(schema_name) > 63:  # PostgreSQL identifier limit
+        raise ValueError(f"Schema name too long: {schema_name}")
+    return True
+
+
 async def get_tenant_session(schema_name: str) -> AsyncGenerator[AsyncSession, None]:
     """
     Get a database session with search_path set to tenant schema.
@@ -49,7 +73,13 @@ async def get_tenant_session(schema_name: str) -> AsyncGenerator[AsyncSession, N
 
     Yields:
         AsyncSession with search_path configured for the tenant
+
+    Raises:
+        ValueError: If schema_name contains invalid characters
     """
+    # TDD-BUG4.1 fix: Validate schema name before using in SQL
+    validate_schema_name(schema_name)
+
     async with async_session() as session:
         # Set schema search path for this connection
         await session.execute(text(f"SET search_path TO {schema_name}, public"))

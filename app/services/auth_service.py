@@ -15,12 +15,15 @@ class AuthService:
         self.user_repo = UserRepository(session)
 
     async def _verify_user(self, email: str, password: str):
-        user = await self.user_repo.get_by_email(email)
+        # TDD-BUG4.3 fix: Normalize email to lowercase for case-insensitive lookup
+        normalized_email = email.lower()
+        user = await self.user_repo.get_by_email(normalized_email)
         if not user or not verify_password(password, user.hashed_password) or not user.is_active:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
         return user
 
     async def authenticate(self, email: str, password: str) -> TokenPair:
+        # TDD-BUG4.3 fix: Email normalization is done in _verify_user
         user = await self._verify_user(email, password)
         access_token = create_access_token(str(user.id), role=user.role, guardian_id=user.guardian_id)
         refresh_token = create_refresh_token(str(user.id))

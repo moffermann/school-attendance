@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -115,7 +115,7 @@ async def list_tenants(
 
 @router.get("/{tenant_id}", response_model=TenantDetail)
 async def get_tenant(
-    tenant_id: int,
+    tenant_id: int = Path(..., ge=1, description="Tenant ID (must be >= 1)"),
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
 ) -> TenantDetail:
@@ -470,8 +470,8 @@ class ImpersonateRequest(BaseModel):
 
 @router.post("/{tenant_id}/impersonate", response_model=ImpersonateResponse)
 async def impersonate_tenant(
-    tenant_id: int,
     request: Request,
+    tenant_id: int = Path(..., ge=1, description="Tenant ID (must be >= 1)"),
     payload: ImpersonateRequest | None = None,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
