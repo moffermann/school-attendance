@@ -455,9 +455,24 @@ class ImpersonateResponse(BaseModel):
     tenant_name: str
 
 
+# TDD-BUG3.2 fix: Short expiration for impersonation tokens (5 minutes)
+IMPERSONATION_TOKEN_EXPIRES_MINUTES = 5
+
+# TDD-BUG3.3 fix: Use INSPECTOR role by default (read-only access)
+DEFAULT_IMPERSONATION_ROLE = "INSPECTOR"
+
+
+class ImpersonateRequest(BaseModel):
+    """Optional request body for impersonation with role override."""
+
+    role: str | None = None  # If None, uses DEFAULT_IMPERSONATION_ROLE
+
+
 @router.post("/{tenant_id}/impersonate", response_model=ImpersonateResponse)
 async def impersonate_tenant(
     tenant_id: int,
+    request: Request,
+    payload: ImpersonateRequest | None = None,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
 ) -> ImpersonateResponse:
@@ -466,6 +481,11 @@ async def impersonate_tenant(
 
     This allows super admins to support tenants by viewing their data.
     The token includes a special flag to indicate it's an impersonation session.
+
+    TDD-BUG3 fixes:
+    - Uses short expiration (5 min) for security
+    - Defaults to INSPECTOR role (read-only) instead of DIRECTOR
+    - Logs IP address in audit trail
     """
     from app.core.security import create_tenant_access_token
     from app.db.repositories.tenant_audit_logs import TenantAuditLogRepository
@@ -482,23 +502,40 @@ async def impersonate_tenant(
             detail="No se puede impersonar un tenant inactivo",
         )
 
-    # Log impersonation for audit
+    # TDD-BUG3.3 fix: Use configurable role with safer default
+    impersonation_role = DEFAULT_IMPERSONATION_ROLE
+    if payload and payload.role:
+        # Allow role override but validate
+        valid_roles = {"DIRECTOR", "INSPECTOR", "ADMIN", "TEACHER"}
+        if payload.role not in valid_roles:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Rol inválido. Opciones: {valid_roles}",
+            )
+        impersonation_role = payload.role
+
+    # TDD-BUG3.5 fix: Extract client IP for audit logging
+    client_ip = request.client.host if request.client else None
+
+    # Log impersonation for audit with IP address
     audit_repo = TenantAuditLogRepository(session)
     await audit_repo.log(
         tenant_id=tenant_id,
         action="IMPERSONATE",
         admin_id=admin.id,
-        details={"admin_email": admin.email},
+        details={"admin_email": admin.email, "role": impersonation_role},
+        ip_address=client_ip,
     )
     await session.commit()
 
-    # Create token with impersonation flag
+    # TDD-BUG3.1 & 3.2 fix: Create token with impersonation flag and short expiration
     access_token = create_tenant_access_token(
         user_id=admin.id,
         tenant_id=tenant.id,
         tenant_slug=tenant.slug,
-        role="DIRECTOR",  # Full access for support
+        role=impersonation_role,
         is_impersonation=True,
+        expires_minutes=IMPERSONATION_TOKEN_EXPIRES_MINUTES,
     )
 
     return ImpersonateResponse(
