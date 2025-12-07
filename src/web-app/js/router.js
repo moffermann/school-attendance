@@ -23,6 +23,14 @@ const Router = {
     this.addRoute('/parent/prefs', Views.parentPrefs, ['parent']);
     this.addRoute('/parent/absences', Views.parentAbsences, ['parent']);
 
+    // Super Admin routes (handled separately with SuperAdminAPI auth)
+    this.addRoute('/super-admin/auth', Views.superAdminAuth, null, true);
+    this.addRoute('/super-admin/dashboard', Views.superAdminDashboard, null, true);
+    this.addRoute('/super-admin/tenants', Views.superAdminTenants, null, true);
+
+    // Tenant setup route (public - no auth required)
+    this.addRoute('/setup', Views.tenantAdminSetup, null, false);
+
     // Listen for hash changes
     window.addEventListener('hashchange', () => this.handleRoute());
 
@@ -30,17 +38,51 @@ const Router = {
     this.handleRoute();
   },
 
-  addRoute(path, handler, allowedRoles = null) {
-    this.routes[path] = { handler, allowedRoles };
+  addRoute(path, handler, allowedRoles = null, isSuperAdmin = false) {
+    this.routes[path] = { handler, allowedRoles, isSuperAdmin };
   },
 
   handleRoute() {
-    const hash = window.location.hash.slice(1) || '/auth';
+    let hash = window.location.hash.slice(1) || '/auth';
+    const hashBase = hash.split('?')[0]; // Remove query params for matching
     this.currentRoute = hash;
 
-    const route = this.routes[hash];
+    // Check for dynamic routes (e.g., /super-admin/tenant/123)
+    let route = this.routes[hashBase];
+    let params = {};
+
+    // Handle dynamic tenant detail route
+    if (!route && hashBase.startsWith('/super-admin/tenant/')) {
+      const tenantId = hashBase.replace('/super-admin/tenant/', '');
+      if (tenantId && !isNaN(parseInt(tenantId))) {
+        params.tenantId = parseInt(tenantId);
+        route = {
+          handler: () => Views.superAdminTenantDetail(params.tenantId),
+          isSuperAdmin: true
+        };
+      }
+    }
+
     if (!route) {
       this.navigate('/auth');
+      return;
+    }
+
+    // Super Admin routes - check SuperAdminAPI auth
+    if (route.isSuperAdmin) {
+      if (hashBase !== '/super-admin/auth' && !SuperAdminAPI.isAuthenticated()) {
+        this.navigate('/super-admin/auth');
+        return;
+      }
+      // Render super admin view
+      this.render(route.handler);
+      return;
+    }
+
+    // Public routes (like /setup) - no auth required
+    if (route.allowedRoles === null && !route.isSuperAdmin) {
+      this.render(route.handler);
+      this.updateActiveNavLink(hashBase);
       return;
     }
 
@@ -66,7 +108,7 @@ const Router = {
     this.render(route.handler);
 
     // Update active nav link
-    this.updateActiveNavLink(hash);
+    this.updateActiveNavLink(hashBase);
   },
 
   render(handler) {

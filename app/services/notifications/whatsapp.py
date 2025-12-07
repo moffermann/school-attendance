@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from loguru import logger
 
 from app.core.config import settings
+
+if TYPE_CHECKING:
+    from app.db.repositories.tenant_configs import DecryptedTenantConfig
 
 
 def mask_phone(phone: str) -> str:
@@ -18,6 +21,8 @@ def mask_phone(phone: str) -> str:
 
 
 class WhatsAppClient:
+    """WhatsApp client using global settings (legacy/fallback)."""
+
     def __init__(self) -> None:
         self._access_token = settings.whatsapp_access_token
         self._phone_number_id = settings.whatsapp_phone_number_id
@@ -58,14 +63,7 @@ class WhatsAppClient:
         image_url: str,
         caption: str,
     ) -> None:
-        """
-        Send an image message with caption via WhatsApp.
-
-        Args:
-            to: Recipient phone number in international format
-            image_url: Public URL of the image (must be accessible by WhatsApp)
-            caption: Text caption to include with the image
-        """
+        """Send an image message with caption via WhatsApp."""
         if not settings.enable_real_notifications:
             logger.info(
                 "[WhatsApp] Dry-run image send to=%s image_url=%s caption=%s",
@@ -94,3 +92,89 @@ class WhatsAppClient:
             response = await client.post(self._base_url, headers=headers, json=payload)
             response.raise_for_status()
             logger.info("[WhatsApp] Image message sent to=%s", mask_phone(to))
+
+
+class TenantWhatsAppClient:
+    """WhatsApp client using tenant-specific credentials."""
+
+    def __init__(self, config: "DecryptedTenantConfig") -> None:
+        """
+        Initialize with decrypted tenant configuration.
+
+        Args:
+            config: Decrypted tenant config containing WhatsApp credentials
+        """
+        self._access_token = config.whatsapp_access_token
+        self._phone_number_id = config.whatsapp_phone_number_id
+        self._tenant_id = config.tenant_id
+
+        if not self._access_token or not self._phone_number_id:
+            raise ValueError(f"WhatsApp not configured for tenant {config.tenant_id}")
+
+        self._base_url = f"https://graph.facebook.com/v17.0/{self._phone_number_id}/messages"
+
+    async def send_template(self, to: str, template: str, components: list[dict[str, Any]]) -> None:
+        """Send a WhatsApp template message."""
+        if not settings.enable_real_notifications:
+            logger.info(
+                "[WhatsApp:tenant=%s] Dry-run send to=%s template=%s",
+                self._tenant_id,
+                mask_phone(to),
+                template,
+            )
+            return
+
+        headers = {
+            "Authorization": f"Bearer {self._access_token}",
+            "Content-Type": "application/json",
+        }
+        payload: dict[str, Any] = {
+            "messaging_product": "whatsapp",
+            "to": to,
+            "type": "template",
+            "template": {
+                "name": template,
+                "language": {"code": "es"},
+                "components": components,
+            },
+        }
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(self._base_url, headers=headers, json=payload)
+            response.raise_for_status()
+            logger.info("[WhatsApp:tenant=%s] Template sent to=%s", self._tenant_id, mask_phone(to))
+
+    async def send_image_message(
+        self,
+        to: str,
+        image_url: str,
+        caption: str,
+    ) -> None:
+        """Send an image message with caption via WhatsApp."""
+        if not settings.enable_real_notifications:
+            logger.info(
+                "[WhatsApp:tenant=%s] Dry-run image send to=%s",
+                self._tenant_id,
+                mask_phone(to),
+            )
+            return
+
+        headers = {
+            "Authorization": f"Bearer {self._access_token}",
+            "Content-Type": "application/json",
+        }
+        payload: dict[str, Any] = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": to,
+            "type": "image",
+            "image": {
+                "link": image_url,
+                "caption": caption,
+            },
+        }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(self._base_url, headers=headers, json=payload)
+            response.raise_for_status()
+            logger.info("[WhatsApp:tenant=%s] Image sent to=%s", self._tenant_id, mask_phone(to))

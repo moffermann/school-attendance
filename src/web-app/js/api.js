@@ -233,4 +233,111 @@ const API = Object.assign(createApiClient('webAppConfig'), {
     }
     return response.json();
   },
+
+  // ==================== Super Admin API ====================
+
+  /**
+   * List all tenants (super admin only)
+   */
+  async listTenants(includeInactive = false) {
+    const params = includeInactive ? '?include_inactive=true' : '';
+    const response = await this.request(`/super-admin/tenants${params}`);
+    if (!response.ok) {
+      throw new Error('No se pudo obtener tenants');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get tenant details (super admin only)
+   */
+  async getTenant(tenantId) {
+    const response = await this.request(`/super-admin/tenants/${tenantId}`);
+    if (!response.ok) {
+      throw new Error('No se pudo obtener tenant');
+    }
+    return response.json();
+  },
+
+  /**
+   * Impersonate a tenant (super admin only)
+   * Returns a token to access the tenant as if you were a DIRECTOR
+   */
+  async impersonateTenant(tenantId) {
+    const response = await this.request(`/super-admin/tenants/${tenantId}/impersonate`, {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al impersonar tenant' }));
+      throw new Error(error.detail || 'Error al impersonar tenant');
+    }
+    return response.json();
+  },
+
+  /**
+   * Start impersonation session - switches to tenant context
+   */
+  async startImpersonation(tenantId) {
+    // Store current tokens for later restoration
+    const originalAccessToken = this.accessToken;
+    const originalRefreshToken = this.refreshToken;
+
+    // Store in sessionStorage for restoration
+    sessionStorage.setItem('impersonation_original_access', originalAccessToken);
+    sessionStorage.setItem('impersonation_original_refresh', originalRefreshToken);
+
+    // Get impersonation token
+    const impersonation = await this.impersonateTenant(tenantId);
+
+    // Switch to impersonation token
+    this.accessToken = impersonation.access_token;
+    this.refreshToken = null; // No refresh token for impersonation
+
+    // Store impersonation info
+    sessionStorage.setItem('impersonation_tenant_id', impersonation.tenant_id);
+    sessionStorage.setItem('impersonation_tenant_name', impersonation.tenant_name);
+
+    return impersonation;
+  },
+
+  /**
+   * End impersonation session - returns to super admin context
+   */
+  endImpersonation() {
+    // Restore original tokens
+    const originalAccessToken = sessionStorage.getItem('impersonation_original_access');
+    const originalRefreshToken = sessionStorage.getItem('impersonation_original_refresh');
+
+    if (originalAccessToken) {
+      this.accessToken = originalAccessToken;
+      this.refreshToken = originalRefreshToken;
+    }
+
+    // Clear impersonation data
+    sessionStorage.removeItem('impersonation_original_access');
+    sessionStorage.removeItem('impersonation_original_refresh');
+    sessionStorage.removeItem('impersonation_tenant_id');
+    sessionStorage.removeItem('impersonation_tenant_name');
+  },
+
+  /**
+   * Check if currently in impersonation mode
+   */
+  isImpersonating() {
+    return !!sessionStorage.getItem('impersonation_tenant_id');
+  },
+
+  /**
+   * Get current impersonation info
+   */
+  getImpersonationInfo() {
+    const tenantId = sessionStorage.getItem('impersonation_tenant_id');
+    if (!tenantId) return null;
+
+    return {
+      tenantId: parseInt(tenantId),
+      tenantName: sessionStorage.getItem('impersonation_tenant_name'),
+    };
+  },
 });

@@ -74,6 +74,18 @@ class Settings(BaseSettings):
         description="Timeout for WebAuthn operations in milliseconds"
     )
 
+    # Multi-tenant configuration
+    default_tenant_slug: str | None = Field(
+        default=None,
+        env="DEFAULT_TENANT_SLUG",
+        description="Default tenant slug for development (e.g., 'demo'). Only used if APP_ENV=development"
+    )
+    encryption_key: str = Field(
+        default="CHANGE-ME-IN-PRODUCTION-32BYTES!",
+        env="ENCRYPTION_KEY",
+        description="Fernet encryption key for tenant credentials. Must be 32 url-safe base64 chars."
+    )
+
     def validate_production_secrets(self) -> list[str]:
         """Check if secrets are using insecure defaults.
 
@@ -86,12 +98,16 @@ class Settings(BaseSettings):
                 raise ValueError("SECRET_KEY must be changed from default in production!")
             if self.device_api_key == "CHANGE-ME-IN-PRODUCTION":
                 raise ValueError("DEVICE_API_KEY must be changed from default in production!")
+            if self.encryption_key == "CHANGE-ME-IN-PRODUCTION-32BYTES!":
+                raise ValueError("ENCRYPTION_KEY must be changed from default in production!")
         else:
             # Only warn in non-production
             if self.secret_key == "CHANGE-ME-IN-PRODUCTION":
                 warnings.append("SECRET_KEY is using default value")
             if self.device_api_key == "CHANGE-ME-IN-PRODUCTION":
                 warnings.append("DEVICE_API_KEY is using default value")
+            if self.encryption_key == "CHANGE-ME-IN-PRODUCTION-32BYTES!":
+                warnings.append("ENCRYPTION_KEY is using default value")
         return warnings
 
     class Config:

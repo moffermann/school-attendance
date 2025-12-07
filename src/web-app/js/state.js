@@ -19,6 +19,10 @@ const State = {
   currentGuardianId: null,
   // Security: session token for integrity validation
   _sessionToken: null,
+  // Multi-tenant: enabled features for current tenant
+  _tenantFeatures: [],
+  // Multi-tenant: tenant info
+  _tenant: null,
 
   async init() {
     // Try to load from localStorage first
@@ -156,6 +160,9 @@ const State = {
     this.currentGuardianId = null;
     this._sessionToken = null;
     this._user = null;
+    // Multi-tenant: clear tenant data
+    this._tenant = null;
+    this._tenantFeatures = [];
     localStorage.removeItem('currentRole');
     localStorage.removeItem('currentGuardianId');
     localStorage.removeItem('sessionToken');
@@ -172,6 +179,18 @@ const State = {
   setFromBootstrap(bootstrap) {
     // Store user info (API returns current_user)
     this._user = bootstrap.current_user || bootstrap.user;
+
+    // Store tenant info and features (multi-tenant support)
+    if (bootstrap.tenant) {
+      this._tenant = bootstrap.tenant;
+    }
+    if (bootstrap.features) {
+      // features is an array of enabled feature names
+      this._tenantFeatures = Array.isArray(bootstrap.features) ? bootstrap.features : [];
+    } else {
+      // Default: all features enabled if not specified
+      this._tenantFeatures = [];
+    }
 
     // Map API role to local role
     const roleMap = {
@@ -242,6 +261,55 @@ const State = {
    */
   isApiAuthenticated() {
     return typeof API !== 'undefined' && API.isAuthenticated();
+  },
+
+  /**
+   * Check if a feature/module is enabled for the current tenant.
+   * Used to conditionally show/hide UI elements based on tenant features.
+   *
+   * @param {string} featureName - Feature name (e.g., 'webauthn', 'broadcasts', 'whatsapp')
+   * @returns {boolean} - True if feature is enabled, false otherwise
+   */
+  isModuleEnabled(featureName) {
+    // In demo mode (no API auth), all features are enabled
+    if (!this.isApiAuthenticated()) {
+      return true;
+    }
+    // Check if feature is in the enabled features list
+    return this._tenantFeatures.includes(featureName);
+  },
+
+  /**
+   * Get all enabled features for the current tenant.
+   * @returns {string[]} - Array of enabled feature names
+   */
+  getEnabledFeatures() {
+    return [...this._tenantFeatures];
+  },
+
+  /**
+   * Get current tenant info.
+   * @returns {object|null} - Tenant object or null
+   */
+  getTenant() {
+    return this._tenant;
+  },
+
+  /**
+   * Check if currently in impersonation mode.
+   * @returns {boolean} - True if impersonating a tenant
+   */
+  isImpersonating() {
+    return typeof API !== 'undefined' && API.isImpersonating();
+  },
+
+  /**
+   * Get impersonation info if in impersonation mode.
+   * @returns {object|null} - {tenantId, tenantName} or null
+   */
+  getImpersonationInfo() {
+    if (typeof API === 'undefined') return null;
+    return API.getImpersonationInfo();
   },
 
   // Getters
