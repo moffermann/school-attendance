@@ -19,10 +19,19 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "users",
-        sa.Column("teacher_id", sa.Integer(), sa.ForeignKey("teachers.id"), nullable=True),
+    # Check if column already exists before adding
+    conn = op.get_bind()
+    result = conn.execute(
+        sa.text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'users' AND column_name = 'teacher_id'"
+        )
     )
+    if not result.fetchone():
+        op.add_column(
+            "users",
+            sa.Column("teacher_id", sa.Integer(), sa.ForeignKey("teachers.id"), nullable=True),
+        )
 
 
 def downgrade() -> None:
