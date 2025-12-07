@@ -432,17 +432,21 @@ def require_feature(feature_name: str):
     Returns:
         A dependency function that checks the feature
     """
-    from app.services.feature_flag_service import FeatureFlagService
+    from app.services.feature_flag_service import FeatureFlagService, _feature_cache
 
     async def check_feature(
         request: Request,
         session: AsyncSession = Depends(get_public_db),
     ) -> None:
         tenant = get_tenant(request)
+        # TDD-BUG2.3 fix: Reject if no tenant context instead of allowing
         if tenant is None:
-            # No tenant context - allow (backwards compatibility)
-            return
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Se requiere contexto de tenant para esta funcionalidad",
+            )
 
+        # TDD-BUG2.2 fix: Use global shared cache via service
         service = FeatureFlagService(session)
         await service.require_feature(tenant.id, feature_name)
 

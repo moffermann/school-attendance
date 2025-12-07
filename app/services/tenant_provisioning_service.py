@@ -202,6 +202,15 @@ class TenantProvisioningService:
         """Initialize all features for a new tenant with defaults."""
         features = []
 
+        # TDD-BUG2.4 fix: Validate feature names against ALL_FEATURES
+        if enabled_features:
+            invalid_features = set(enabled_features) - set(TenantFeature.ALL_FEATURES)
+            if invalid_features:
+                raise ValueError(
+                    f"Invalid feature names: {invalid_features}. "
+                    f"Valid options: {TenantFeature.ALL_FEATURES}"
+                )
+
         # Use provided features or defaults
         features_to_enable = set(enabled_features or TenantFeature.DEFAULT_ENABLED_FEATURES)
 

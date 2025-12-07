@@ -17,6 +17,29 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# TDD-BUG2.2 fix: Global shared cache for feature flags
+# This cache is shared across all FeatureFlagService instances
+_feature_cache: dict[tuple[int, str], bool] = {}
+
+
+def clear_global_feature_cache(tenant_id: int | None = None) -> None:
+    """
+    Clear the global feature flag cache.
+
+    TDD-BUG2.1 fix: Called after toggling features to invalidate cache.
+
+    Args:
+        tenant_id: If provided, only clear cache for this tenant.
+                  If None, clears entire cache.
+    """
+    global _feature_cache
+    if tenant_id is None:
+        _feature_cache.clear()
+    else:
+        keys_to_remove = [k for k in _feature_cache if k[0] == tenant_id]
+        for key in keys_to_remove:
+            del _feature_cache[key]
+
 
 class FeatureFlagService:
     """
@@ -32,7 +55,9 @@ class FeatureFlagService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.repo = TenantFeatureRepository(session)
-        self._cache: dict[tuple[int, str], bool] = {}
+        # TDD-BUG2.2 fix: Use global cache instead of instance cache
+        # Instance cache is kept for backwards compatibility but uses global
+        self._cache = _feature_cache
 
     async def is_enabled(self, tenant_id: int, feature_name: str) -> bool:
         """
@@ -45,16 +70,16 @@ class FeatureFlagService:
         Returns:
             True if feature is enabled, False otherwise
         """
-        # Check cache first
+        # TDD-BUG2.2 fix: Use global cache
         cache_key = (tenant_id, feature_name)
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+        if cache_key in _feature_cache:
+            return _feature_cache[cache_key]
 
         # Query database
         is_enabled = await self.repo.is_enabled(tenant_id, feature_name)
 
-        # Cache result
-        self._cache[cache_key] = is_enabled
+        # Cache result in global cache
+        _feature_cache[cache_key] = is_enabled
 
         return is_enabled
 
@@ -104,16 +129,14 @@ class FeatureFlagService:
         """
         Clear the feature cache.
 
+        TDD-BUG2.1 fix: Now calls global cache clear function.
+
         Args:
             tenant_id: If provided, only clear cache for this tenant.
                       If None, clears entire cache.
         """
-        if tenant_id is None:
-            self._cache.clear()
-        else:
-            keys_to_remove = [k for k in self._cache if k[0] == tenant_id]
-            for key in keys_to_remove:
-                del self._cache[key]
+        # Use the global function to clear cache
+        clear_global_feature_cache(tenant_id)
 
 
 # ==================== Feature Names Constants ====================
