@@ -7,8 +7,9 @@ from loguru import logger
 from requests.exceptions import ConnectionError, Timeout
 
 from app.db.repositories.notifications import NotificationRepository
+from app.db.repositories.tenant_configs import TenantConfigRepository
 from app.db.session import async_session
-from app.services.notifications.whatsapp import WhatsAppClient, mask_phone
+from app.services.notifications.whatsapp import WhatsAppClient, TenantWhatsAppClient, mask_phone
 
 
 # R2-B4 fix: Constants for retry logic
@@ -81,7 +82,13 @@ def _build_caption(template: str, variables: dict) -> str:
     return f"{student_name} {event_type} del colegio el {date} a las {time}."
 
 
-async def _send(notification_id: int, to: str, template: str, variables: dict) -> None:
+async def _send(
+    notification_id: int,
+    to: str,
+    template: str,
+    variables: dict,
+    tenant_id: int | None = None,
+) -> None:
     async with async_session() as session:
         repo = NotificationRepository(session)
         notification = await repo.get(notification_id)
@@ -89,7 +96,24 @@ async def _send(notification_id: int, to: str, template: str, variables: dict) -
             logger.error("Notification %s not found", notification_id)
             return
 
-        client = WhatsAppClient()
+        # Use tenant-specific client if tenant_id is provided
+        client = None
+        if tenant_id:
+            try:
+                config_repo = TenantConfigRepository(session)
+                config = await config_repo.get_decrypted(tenant_id)
+                if config and config.whatsapp_access_token:
+                    client = TenantWhatsAppClient(config)
+                    logger.debug("Using tenant WhatsApp client for tenant_id=%s", tenant_id)
+            except Exception as e:
+                logger.warning(
+                    "Failed to load tenant WhatsApp config for tenant_id=%s, falling back to default: %s",
+                    tenant_id, e
+                )
+
+        # Fall back to global client if no tenant config
+        if client is None:
+            client = WhatsAppClient()
         try:
             photo_url = variables.get("photo_url")
             has_photo = variables.get("has_photo", False)
@@ -158,19 +182,36 @@ async def _send(notification_id: int, to: str, template: str, variables: dict) -
             raise
 
 
-def send_whatsapp_message(notification_id: int, to: str, template: str, variables: dict) -> None:
+def send_whatsapp_message(
+    notification_id: int,
+    to: str,
+    template: str,
+    variables: dict,
+    tenant_id: int | None = None,
+) -> None:
+    """
+    Send a WhatsApp message.
+
+    Args:
+        notification_id: The notification record ID
+        to: Recipient phone number
+        template: WhatsApp template name
+        variables: Template variables
+        tenant_id: Optional tenant ID for multi-tenant deployments.
+                   If provided, uses tenant-specific WhatsApp credentials.
+    """
     # TDD-BUG3 fix: Handle case when event loop is already running (e.g., async RQ workers)
     # TDD-R3-BUG1 fix: Use lambda to avoid coroutine evaluation before executor.submit
     try:
         asyncio.get_running_loop()
     except RuntimeError:
         # No running loop - use asyncio.run() normally
-        asyncio.run(_send(notification_id, to, template, variables))
+        asyncio.run(_send(notification_id, to, template, variables, tenant_id))
     else:
         # Loop is already running - run in separate thread with new event loop
         import concurrent.futures
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(
-                lambda: asyncio.run(_send(notification_id, to, template, variables))
+                lambda: asyncio.run(_send(notification_id, to, template, variables, tenant_id))
             )
             future.result()  # Wait for completion

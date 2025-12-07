@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 from loguru import logger
 
 from app.core.config import settings
+
+if TYPE_CHECKING:
+    from app.db.repositories.tenant_configs import DecryptedTenantConfig
 
 
 def mask_email(email: str) -> str:
@@ -76,4 +79,87 @@ class SESEmailClient:
             await asyncio.to_thread(_send)
         except (ClientError, BotoCoreError) as exc:  # pragma: no cover - network side effect
             logger.error("SES send failed: %s", exc)
+            raise
+
+
+class TenantSESEmailClient:
+    """SES email client using tenant-specific credentials."""
+
+    def __init__(self, config: "DecryptedTenantConfig") -> None:
+        """
+        Initialize with decrypted tenant configuration.
+
+        Args:
+            config: Decrypted tenant config containing SES credentials
+        """
+        self._tenant_id = config.tenant_id
+        self._region = config.ses_region or "us-east-1"
+        self._source = config.ses_source_email
+        self._access_key = config.ses_access_key
+        self._secret_key = config.ses_secret_key
+
+        if not self._source:
+            raise ValueError(f"SES source email not configured for tenant {config.tenant_id}")
+
+        self._client = None
+
+    def _get_client(self):
+        """Lazy initialize boto3 SES client with tenant credentials."""
+        if self._client is None:
+            # Use tenant-specific credentials if available, otherwise use default AWS credentials
+            if self._access_key and self._secret_key:
+                self._client = boto3.client(
+                    "ses",
+                    region_name=self._region,
+                    aws_access_key_id=self._access_key,
+                    aws_secret_access_key=self._secret_key,
+                )
+            else:
+                # Fall back to default credentials (IAM role or environment)
+                self._client = boto3.client("ses", region_name=self._region)
+        return self._client
+
+    def close(self) -> None:
+        """Close boto3 client connection."""
+        if self._client:
+            self._client.close()
+            self._client = None
+
+    def __del__(self) -> None:
+        """Cleanup on garbage collection."""
+        try:
+            self.close()
+        except Exception:
+            pass
+
+    async def send_email(self, to: str, subject: str, body_html: str) -> None:
+        """Send an email using tenant's SES configuration."""
+        if not settings.enable_real_notifications:
+            logger.info(
+                "[SES:tenant=%s] Dry-run email to=%s subject=%s",
+                self._tenant_id,
+                mask_email(to),
+                subject,
+            )
+            return
+
+        client = self._get_client()
+
+        def _send():
+            client.send_email(
+                Source=self._source,
+                Destination={"ToAddresses": [to]},
+                Message={
+                    "Subject": {"Data": subject, "Charset": "UTF-8"},
+                    "Body": {
+                        "Html": {"Data": body_html, "Charset": "UTF-8"},
+                    },
+                },
+            )
+
+        try:
+            await asyncio.to_thread(_send)
+            logger.info("[SES:tenant=%s] Email sent to=%s", self._tenant_id, mask_email(to))
+        except (ClientError, BotoCoreError) as exc:
+            logger.error("[SES:tenant=%s] Send failed: %s", self._tenant_id, exc)
             raise

@@ -435,3 +435,70 @@ async def reset_admin_password(
     await session.commit()
 
     return {"message": f"Link de reset enviado a {payload.email}"}
+
+
+# ==================== Impersonation ====================
+
+
+class ImpersonateResponse(BaseModel):
+    """Response with impersonation token."""
+
+    access_token: str
+    token_type: str = "bearer"
+    tenant_id: int
+    tenant_slug: str
+    tenant_name: str
+
+
+@router.post("/{tenant_id}/impersonate", response_model=ImpersonateResponse)
+async def impersonate_tenant(
+    tenant_id: int,
+    admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
+    session: AsyncSession = Depends(deps.get_public_db),
+) -> ImpersonateResponse:
+    """
+    Generate an impersonation token to access a tenant as super admin.
+
+    This allows super admins to support tenants by viewing their data.
+    The token includes a special flag to indicate it's an impersonation session.
+    """
+    from app.core.security import create_tenant_access_token
+    from app.db.repositories.tenant_audit_logs import TenantAuditLogRepository
+
+    tenant_repo = TenantRepository(session)
+
+    tenant = await tenant_repo.get(tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant no encontrado")
+
+    if not tenant.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede impersonar un tenant inactivo",
+        )
+
+    # Log impersonation for audit
+    audit_repo = TenantAuditLogRepository(session)
+    await audit_repo.log(
+        tenant_id=tenant_id,
+        action="IMPERSONATE",
+        admin_id=admin.id,
+        details={"admin_email": admin.email},
+    )
+    await session.commit()
+
+    # Create token with impersonation flag
+    access_token = create_tenant_access_token(
+        user_id=admin.id,
+        tenant_id=tenant.id,
+        tenant_slug=tenant.slug,
+        role="DIRECTOR",  # Full access for support
+        is_impersonation=True,
+    )
+
+    return ImpersonateResponse(
+        access_token=access_token,
+        tenant_id=tenant.id,
+        tenant_slug=tenant.slug,
+        tenant_name=tenant.name,
+    )

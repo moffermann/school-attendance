@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import deps
 from app.core.auth import AuthUser
 from app.core.rate_limiter import limiter
+from app.services.feature_flag_service import FEATURE_WEBAUTHN
 from app.db.repositories.teachers import TeacherRepository
 from app.schemas.webauthn import (
     BiometricStatusResponse,
@@ -37,6 +38,7 @@ router = APIRouter()
     "/kiosk/students/register/start",
     response_model=StartRegistrationResponse,
     summary="Iniciar registro biométrico de estudiante desde kiosk",
+    dependencies=[Depends(deps.require_feature(FEATURE_WEBAUTHN))],
 )
 async def kiosk_start_student_registration(
     request: KioskStudentRegistrationRequest,
@@ -73,6 +75,7 @@ async def kiosk_start_student_registration(
     "/kiosk/students/register/complete",
     response_model=CredentialResponse,
     summary="Completar registro biométrico de estudiante",
+    dependencies=[Depends(deps.require_feature(FEATURE_WEBAUTHN))],
 )
 async def kiosk_complete_student_registration(
     request: CompleteRegistrationRequest,
@@ -106,6 +109,7 @@ async def kiosk_complete_student_registration(
     "/kiosk/authenticate/start",
     response_model=StartAuthenticationResponse,
     summary="Iniciar autenticación biométrica en kiosk",
+    dependencies=[Depends(deps.require_feature(FEATURE_WEBAUTHN))],
 )
 async def kiosk_start_authentication(
     device_authenticated: bool = Depends(deps.verify_device_key),
@@ -137,6 +141,7 @@ async def kiosk_start_authentication(
     "/kiosk/authenticate/verify",
     response_model=KioskAuthenticationResult,
     summary="Verificar autenticación biométrica",
+    dependencies=[Depends(deps.require_feature(FEATURE_WEBAUTHN))],
 )
 async def kiosk_verify_authentication(
     request: VerifyAuthenticationRequest,
@@ -175,6 +180,7 @@ async def kiosk_verify_authentication(
     "/kiosk/students/{student_id}/biometric-status",
     response_model=BiometricStatusResponse,
     summary="Verificar si estudiante tiene biometría registrada",
+    dependencies=[Depends(deps.require_feature(FEATURE_WEBAUTHN))],
 )
 async def kiosk_check_biometric_status(
     # R10-A6 fix: Validate student_id with ge=1
@@ -211,6 +217,7 @@ async def kiosk_check_biometric_status(
     "/admin/students/{student_id}/register/start",
     response_model=StartRegistrationResponse,
     summary="Iniciar registro biométrico desde panel de administración",
+    dependencies=[Depends(deps.require_feature(FEATURE_WEBAUTHN))],
 )
 async def admin_start_student_registration(
     # TDD-R6-BUG1 fix: Validate student_id path parameter
@@ -239,6 +246,7 @@ async def admin_start_student_registration(
     "/admin/students/{student_id}/register/complete",
     response_model=CredentialResponse,
     summary="Completar registro biométrico desde panel de administración",
+    dependencies=[Depends(deps.require_feature(FEATURE_WEBAUTHN))],
 )
 async def admin_complete_student_registration(
     # TDD-R6-BUG1 fix: Validate student_id path parameter
@@ -266,6 +274,7 @@ async def admin_complete_student_registration(
     "/admin/students/{student_id}/credentials",
     response_model=CredentialListResponse,
     summary="Listar credenciales de un estudiante",
+    dependencies=[Depends(deps.require_feature(FEATURE_WEBAUTHN))],
 )
 async def admin_list_student_credentials(
     # TDD-R6-BUG1 fix: Validate student_id path parameter
@@ -288,6 +297,7 @@ async def admin_list_student_credentials(
     "/admin/students/{student_id}/credentials/{credential_id}",
     response_model=DeleteCredentialResponse,
     summary="Eliminar credencial de estudiante",
+    dependencies=[Depends(deps.require_feature(FEATURE_WEBAUTHN))],
 )
 async def admin_delete_student_credential(
     student_id: int = Path(..., ge=1),
