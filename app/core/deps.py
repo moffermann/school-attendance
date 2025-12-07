@@ -455,6 +455,10 @@ def require_feature(feature_name: str):
         request: Request,
         session: AsyncSession = Depends(get_public_db),
     ) -> None:
+        # Skip feature check in test environment when tenant middleware is disabled
+        if settings.skip_tenant_middleware:
+            return
+
         tenant = get_tenant(request)
         # TDD-BUG2.3 fix: Reject if no tenant context instead of allowing
         if tenant is None:

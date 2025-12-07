@@ -123,30 +123,35 @@ class TestBug2_3_FallbackAllowWithoutTenant:
     async def test_require_feature_without_tenant_should_reject(self):
         """require_feature without tenant context should reject, not allow.
 
-        Currently FAILS because deps.py:442-444:
-        ```
-        if tenant is None:
-            return  # ← ALLOWS
-        ```
+        This test verifies the production behavior where skip_tenant_middleware=false.
+        In test environments, this check is bypassed for convenience.
         """
         from app.core.deps import require_feature
+        from app.core.config import settings
 
-        check_feature = require_feature("webauthn")
+        # Temporarily disable the test bypass to verify production behavior
+        original_skip = settings.skip_tenant_middleware
+        settings.skip_tenant_middleware = False
 
-        # Create request without tenant
-        request = MagicMock(spec=Request)
-        request.state = MagicMock()
-        request.state.tenant = None  # No tenant!
+        try:
+            check_feature = require_feature("webauthn")
 
-        mock_session = AsyncMock()
+            # Create request without tenant
+            request = MagicMock(spec=Request)
+            request.state = MagicMock()
+            request.state.tenant = None  # No tenant!
 
-        # This should REJECT because there's no tenant context
-        # Currently it silently ALLOWS
-        with pytest.raises(HTTPException) as exc_info:
-            await check_feature(request, mock_session)
+            mock_session = AsyncMock()
 
-        assert exc_info.value.status_code == 400
-        assert "tenant" in exc_info.value.detail.lower()
+            # This should REJECT because there's no tenant context
+            with pytest.raises(HTTPException) as exc_info:
+                await check_feature(request, mock_session)
+
+            assert exc_info.value.status_code == 400
+            assert "tenant" in exc_info.value.detail.lower()
+        finally:
+            # Restore original setting
+            settings.skip_tenant_middleware = original_skip
 
     @pytest.mark.asyncio
     async def test_require_feature_with_tenant_checks_feature(self):

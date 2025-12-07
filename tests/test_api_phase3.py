@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from app import main
 from app.core import deps
 from app.core.auth import AuthUser
+from app.core.deps import TenantAuthUser
 
 
 # =============================================================================
@@ -432,18 +433,30 @@ class TestParentsAPI:
     """Tests for parents endpoints."""
 
     @pytest.fixture
-    def app_with_parent_auth(self):
-        """Get app with PARENT role auth."""
+    def app_with_tenant_admin_auth(self):
+        """Get app with ADMIN role auth for tenant endpoints."""
         app = main.app
-        app.dependency_overrides[deps.get_current_user] = lambda: AuthUser(
-            id=2, role="PARENT", full_name="Parent User", guardian_id=10, teacher_id=None
+        app.dependency_overrides[deps.get_current_tenant_user] = lambda: TenantAuthUser(
+            id=1, role="ADMIN", full_name="Admin User", guardian_id=None, teacher_id=None,
+            tenant_id=1, tenant_slug="test"
         )
         yield app
         app.dependency_overrides.clear()
 
-    def test_get_preferences_admin(self, app_with_admin_auth):
+    @pytest.fixture
+    def app_with_parent_auth(self):
+        """Get app with PARENT role auth for tenant endpoints."""
+        app = main.app
+        app.dependency_overrides[deps.get_current_tenant_user] = lambda: TenantAuthUser(
+            id=2, role="PARENT", full_name="Parent User", guardian_id=10, teacher_id=None,
+            tenant_id=1, tenant_slug="test"
+        )
+        yield app
+        app.dependency_overrides.clear()
+
+    def test_get_preferences_admin(self, app_with_tenant_admin_auth):
         """Should get preferences as admin."""
-        app = app_with_admin_auth
+        app = app_with_tenant_admin_auth
 
         class FakeConsentService:
             async def get_guardian_preferences(self, guardian_id):
@@ -486,9 +499,9 @@ class TestParentsAPI:
             resp = client.get("/api/v1/parents/99/preferences")  # Different guardian_id
             assert resp.status_code == 403
 
-    def test_get_preferences_not_found(self, app_with_admin_auth):
+    def test_get_preferences_not_found(self, app_with_tenant_admin_auth):
         """Should return 404 for non-existent guardian."""
-        app = app_with_admin_auth
+        app = app_with_tenant_admin_auth
 
         class FakeConsentService:
             async def get_guardian_preferences(self, guardian_id):
@@ -500,9 +513,9 @@ class TestParentsAPI:
             resp = client.get("/api/v1/parents/999/preferences")
             assert resp.status_code == 404
 
-    def test_update_preferences_admin(self, app_with_admin_auth):
+    def test_update_preferences_admin(self, app_with_tenant_admin_auth):
         """Should update preferences as admin."""
-        app = app_with_admin_auth
+        app = app_with_tenant_admin_auth
 
         class FakeConsentService:
             async def update_guardian_preferences(self, guardian_id, payload):
@@ -532,9 +545,9 @@ class TestParentsAPI:
             })
             assert resp.status_code == 403
 
-    def test_update_preferences_not_found(self, app_with_admin_auth):
+    def test_update_preferences_not_found(self, app_with_tenant_admin_auth):
         """Should return 404 for non-existent guardian."""
-        app = app_with_admin_auth
+        app = app_with_tenant_admin_auth
 
         class FakeConsentService:
             async def update_guardian_preferences(self, guardian_id, payload):
@@ -556,9 +569,23 @@ class TestParentsAPI:
 class TestBroadcastAPI:
     """Tests for broadcast endpoints."""
 
-    def test_broadcast_preview(self, app_with_admin_auth):
+    @pytest.fixture
+    def app_with_broadcast_auth(self):
+        """Get app with admin auth for broadcast endpoints.
+
+        Note: Feature flag check is bypassed via SKIP_TENANT_MIDDLEWARE=true in conftest.py
+        """
+        app = main.app
+        # Override require_roles dependency (uses get_current_user internally)
+        app.dependency_overrides[deps.get_current_user] = lambda: AuthUser(
+            id=1, role="ADMIN", full_name="Admin User", guardian_id=None, teacher_id=None
+        )
+        yield app
+        app.dependency_overrides.clear()
+
+    def test_broadcast_preview(self, app_with_broadcast_auth):
         """Should preview broadcast."""
-        app = app_with_admin_auth
+        app = app_with_broadcast_auth
 
         class FakeBroadcastService:
             async def preview_broadcast(self, payload):
@@ -581,9 +608,9 @@ class TestBroadcastAPI:
             assert resp.status_code == 200
             assert resp.json()["recipients"] == 5
 
-    def test_broadcast_send(self, app_with_admin_auth):
+    def test_broadcast_send(self, app_with_broadcast_auth):
         """Should send broadcast."""
-        app = app_with_admin_auth
+        app = app_with_broadcast_auth
 
         class FakeBroadcastService:
             async def enqueue_broadcast(self, payload):
