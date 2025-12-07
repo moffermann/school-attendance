@@ -81,7 +81,9 @@ async def get_tenant_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
     Get a database session for the current tenant.
 
     Uses the tenant from request.state (set by TenantMiddleware).
-    Falls back to public schema if no tenant is set.
+    Falls back to public schema if no tenant is set (backwards compatibility).
+
+    For strict tenant isolation, use require_tenant_db instead.
     """
     tenant_schema = getattr(request.state, "tenant_schema", None)
 
@@ -92,6 +94,28 @@ async def get_tenant_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
         # Fallback to public schema (backwards compatibility)
         async for session in get_session():
             yield session
+
+
+async def require_tenant_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
+    """
+    Get a database session for the current tenant - STRICT mode.
+
+    TDD-BUG1.2 fix: Unlike get_tenant_db, this does NOT fall back to public schema.
+    Use this for endpoints that MUST have tenant isolation.
+
+    Raises:
+        HTTPException: If no tenant context is present
+    """
+    tenant_schema = getattr(request.state, "tenant_schema", None)
+
+    if not tenant_schema:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Se requiere contexto de tenant",
+        )
+
+    async for session in get_tenant_session(tenant_schema):
+        yield session
 
 
 async def get_auth_service(session: AsyncSession = Depends(get_db)) -> AuthService:
@@ -196,8 +220,13 @@ async def get_broadcast_service(
 
 
 async def get_consent_service(
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> ConsentService:
+    """
+    TDD-BUG1.4 fix: Use get_tenant_db instead of get_db for tenant isolation.
+    Consent service must operate within the tenant's schema.
+    """
     return ConsentService(session)
 
 
@@ -336,13 +365,22 @@ async def get_current_tenant_user(
     token_tenant_id = payload.get("tenant_id")
     token_tenant_slug = payload.get("tenant_slug")
 
-    # Validate tenant matches request (if tenant context is present)
+    # TDD-BUG1.1 fix: Validate tenant matches request
+    # This validation is now MANDATORY, not conditional
     request_tenant = getattr(request.state, "tenant", None)
-    if request_tenant and token_tenant_id and request_tenant.id != token_tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Token no válido para este tenant",
-        )
+
+    # If token has tenant_id, request MUST have matching tenant context
+    if token_tenant_id:
+        if request_tenant is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token requiere contexto de tenant",
+            )
+        if request_tenant.id != token_tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token no válido para este tenant",
+            )
 
     repo = UserRepository(session)
     user = await repo.get(int(user_id))

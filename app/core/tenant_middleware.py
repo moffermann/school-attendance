@@ -175,16 +175,23 @@ class TenantMiddleware(BaseHTTPMiddleware):
     async def _resolve_tenant(self, request: Request) -> "Tenant | None":
         """Resolve tenant from request."""
         # 1. Check X-Tenant-ID header (super admin impersonation)
+        # TDD-BUG1.3 fix: Only accept X-Tenant-ID if token is super_admin
         tenant_id_header = request.headers.get("X-Tenant-ID")
         if tenant_id_header:
-            try:
-                tenant_id = int(tenant_id_header)
-                tenant = await self._get_tenant_by_id(tenant_id)
-                if tenant:
-                    logger.debug(f"Tenant resolved from X-Tenant-ID header: {tenant.slug}")
-                    return tenant
-            except ValueError:
-                pass  # Invalid header, continue to other methods
+            # Validate that the request has a super_admin token before accepting X-Tenant-ID
+            if self._has_super_admin_token(request):
+                try:
+                    tenant_id = int(tenant_id_header)
+                    tenant = await self._get_tenant_by_id(tenant_id)
+                    if tenant:
+                        logger.debug(f"Tenant resolved from X-Tenant-ID header: {tenant.slug}")
+                        return tenant
+                except ValueError:
+                    pass  # Invalid header, continue to other methods
+            else:
+                # X-Tenant-ID header provided but token is not super_admin
+                logger.warning("X-Tenant-ID header rejected: requires super_admin token")
+                # Continue to other resolution methods instead of accepting header
 
         # Get host header
         host = request.headers.get("host", "").lower()
@@ -250,6 +257,26 @@ class TenantMiddleware(BaseHTTPMiddleware):
                 select(Tenant).where(Tenant.slug == slug, Tenant.is_active == True)
             )
             return result.scalar_one_or_none()
+
+    def _has_super_admin_token(self, request: Request) -> bool:
+        """
+        Check if the request has a valid super_admin token.
+
+        TDD-BUG1.3 fix: This validates that the Authorization header contains
+        a JWT token with typ='super_admin' before accepting X-Tenant-ID header.
+        """
+        from app.core.security import decode_token
+
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return False
+
+        token = auth_header[7:]  # Remove "Bearer " prefix
+        try:
+            payload = decode_token(token)
+            return payload.get("typ") == "super_admin"
+        except Exception:
+            return False
 
 
 def get_current_tenant(request: Request) -> "Tenant | None":
