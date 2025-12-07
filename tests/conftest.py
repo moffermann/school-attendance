@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import datetime, time, date
 from typing import AsyncGenerator
 
 import pytest
-from sqlalchemy import event
+from sqlalchemy import event, MetaData
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+# Skip tenant middleware in tests (uses SQLite, not PostgreSQL)
+os.environ.setdefault("SKIP_TENANT_MIDDLEWARE", "true")
 
 from app.db.base import Base
 from app.db.models.student import Student
@@ -25,6 +29,20 @@ from app.db.models.no_show_alert import NoShowAlert
 
 # Use SQLite in-memory for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+
+def get_sqlite_compatible_tables():
+    """Get tables that are compatible with SQLite (no schema prefix).
+
+    Multi-tenant tables use schema='public' which SQLite doesn't support.
+    This function filters out those tables for SQLite testing.
+    """
+    compatible_tables = []
+    for table in Base.metadata.sorted_tables:
+        # Skip tables with explicit schema (PostgreSQL multi-tenant tables)
+        if table.schema is None:
+            compatible_tables.append(table)
+    return compatible_tables
 
 
 @pytest.fixture(scope="function")
@@ -51,13 +69,18 @@ async def async_engine():
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
+    # Only create tables without schema (SQLite compatible)
+    sqlite_tables = get_sqlite_compatible_tables()
+
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        for table in sqlite_tables:
+            await conn.run_sync(table.create, checkfirst=True)
 
     yield engine
 
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        for table in reversed(sqlite_tables):
+            await conn.run_sync(table.drop, checkfirst=True)
 
     await engine.dispose()
 

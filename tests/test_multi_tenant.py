@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import os
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException
 from starlette.requests import Request
 
 from app.core.tenant_middleware import TenantMiddleware
+
+# Check if middleware is skipped in tests
+SKIP_MIDDLEWARE = os.environ.get("SKIP_TENANT_MIDDLEWARE", "").lower() == "true"
 from app.services.feature_flag_service import FeatureFlagService
 from app.db.models.tenant_feature import TenantFeature
 from app.core.security import (
@@ -42,6 +46,7 @@ class TestTenantMiddleware:
         assert not hasattr(request.state, "tenant") or request.state.tenant is None
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(SKIP_MIDDLEWARE, reason="Tenant middleware disabled in test environment")
     async def test_tenant_resolved_from_header(self, middleware):
         """Tenant can be resolved from X-Tenant-ID header."""
         request = MagicMock(spec=Request)

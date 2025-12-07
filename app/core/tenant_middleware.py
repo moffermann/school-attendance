@@ -34,6 +34,18 @@ PUBLIC_ENDPOINTS = [
     "/api/v1/tenant-setup/",  # For tenant admin activation
 ]
 
+# Web routes that don't require tenant context (session cookie auth)
+# These are exact matches, not prefixes
+WEB_PUBLIC_ROUTES = [
+    "/login",
+    "/logout",
+    "/schedules",
+    "/broadcast",
+    "/alerts",
+    "/photos",
+    "/parents/preferences",
+]
+
 # Static asset paths that don't require tenant context
 STATIC_PREFIXES = [
     "/static/",
@@ -46,9 +58,17 @@ STATIC_PREFIXES = [
 
 def is_public_endpoint(path: str) -> bool:
     """Check if the path is a public endpoint that doesn't require tenant context."""
+    # Check prefix matches (API endpoints)
     for endpoint in PUBLIC_ENDPOINTS:
         if path.startswith(endpoint):
             return True
+    # Check exact matches or startswith for web routes
+    for route in WEB_PUBLIC_ROUTES:
+        if path == route or path.startswith(route + "/") or path == route + "/":
+            return True
+    # Root path is also public
+    if path == "/":
+        return True
     return False
 
 
@@ -124,6 +144,12 @@ class TenantMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
+
+        # Skip tenant resolution entirely if configured (for testing)
+        if settings.skip_tenant_middleware:
+            request.state.tenant = None
+            request.state.tenant_schema = None
+            return await call_next(request)
 
         # Skip tenant resolution for public endpoints and static assets
         if is_public_endpoint(path) or is_static_asset(path):

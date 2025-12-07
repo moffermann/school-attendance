@@ -80,6 +80,11 @@ class Settings(BaseSettings):
         env="DEFAULT_TENANT_SLUG",
         description="Default tenant slug for development (e.g., 'demo'). Only used if APP_ENV=development"
     )
+    skip_tenant_middleware: bool = Field(
+        default=False,
+        env="SKIP_TENANT_MIDDLEWARE",
+        description="Skip tenant resolution (for testing without PostgreSQL)"
+    )
     encryption_key: str = Field(
         default="CHANGE-ME-IN-PRODUCTION-32BYTES!",
         env="ENCRYPTION_KEY",
