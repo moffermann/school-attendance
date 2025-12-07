@@ -344,6 +344,8 @@ async def toggle_feature(
     session: AsyncSession = Depends(deps.get_public_db),
 ) -> TenantFeatureResponse:
     """Enable or disable a feature for a tenant."""
+    from app.services.feature_flag_service import clear_global_feature_cache
+
     tenant_repo = TenantRepository(session)
     feature_repo = TenantFeatureRepository(session)
 
@@ -370,6 +372,9 @@ async def toggle_feature(
         feature = await feature_repo.set_enabled(tenant_id, feature_name, payload.enabled)
 
     await session.commit()
+
+    # TDD-BUG2.1 fix: Invalidate cache after toggling feature
+    clear_global_feature_cache(tenant_id)
 
     return TenantFeatureResponse.model_validate(feature)
 

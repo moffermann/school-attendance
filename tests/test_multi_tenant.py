@@ -104,29 +104,37 @@ class TestFeatureFlagService:
 
     def test_clear_cache_clears_all(self, service):
         """clear_cache() without tenant_id clears entire cache."""
-        service._cache = {
-            (1, "webauthn"): True,
-            (1, "reports"): False,
-            (2, "webauthn"): True,
-        }
+        # Use the global cache directly since service._cache is now a reference
+        from app.services.feature_flag_service import _feature_cache, clear_global_feature_cache
+
+        # Clear first to ensure clean state
+        clear_global_feature_cache()
+
+        _feature_cache[(1, "webauthn")] = True
+        _feature_cache[(1, "reports")] = False
+        _feature_cache[(2, "webauthn")] = True
 
         service.clear_cache()
 
-        assert len(service._cache) == 0
+        assert len(_feature_cache) == 0
 
     def test_clear_cache_clears_tenant_only(self, service):
         """clear_cache(tenant_id) clears only that tenant's cache."""
-        service._cache = {
-            (1, "webauthn"): True,
-            (1, "reports"): False,
-            (2, "webauthn"): True,
-        }
+        # Use the global cache directly since service._cache is now a reference
+        from app.services.feature_flag_service import _feature_cache, clear_global_feature_cache
+
+        # Clear first to ensure clean state
+        clear_global_feature_cache()
+
+        _feature_cache[(1, "webauthn")] = True
+        _feature_cache[(1, "reports")] = False
+        _feature_cache[(2, "webauthn")] = True
 
         service.clear_cache(tenant_id=1)
 
-        assert (1, "webauthn") not in service._cache
-        assert (1, "reports") not in service._cache
-        assert (2, "webauthn") in service._cache
+        assert (1, "webauthn") not in _feature_cache
+        assert (1, "reports") not in _feature_cache
+        assert (2, "webauthn") in _feature_cache
 
 
 class TestTenantFeatureModel:
