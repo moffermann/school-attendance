@@ -29,6 +29,7 @@ class TenantAuditLog(Base):
     ACTION_ADMIN_INVITED = "admin_invited"
     ACTION_ADMIN_PASSWORD_RESET = "admin_password_reset"
     ACTION_IMPERSONATION_STARTED = "impersonation_started"
+    ACTION_IMPERSONATION_ENDED = "impersonation_ended"
     ACTION_LOGIN = "login"
     ACTION_LOGOUT = "logout"
 
