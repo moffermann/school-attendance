@@ -130,3 +130,31 @@ class TokenBlacklist:
 
 # Singleton instance
 token_blacklist = TokenBlacklist()
+
+
+# TDD-BUG3.4 fix: Convenience functions for easier access
+def add_to_blacklist(token: str, exp: int | None = None) -> None:
+    """Add a token to the blacklist.
+
+    Args:
+        token: The JWT token to blacklist
+        exp: Token expiration timestamp
+    """
+    token_blacklist.add(token, exp)
+
+
+def is_blacklisted(token: str) -> bool:
+    """Check if a token is blacklisted.
+
+    Args:
+        token: The JWT token to check
+
+    Returns:
+        True if token is blacklisted
+    """
+    return token_blacklist.is_blacklisted(token)
+
+
+def clear_blacklist() -> None:
+    """Clear all entries from the blacklist (for testing)."""
+    token_blacklist._memory_store.clear()

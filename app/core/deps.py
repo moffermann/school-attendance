@@ -365,6 +365,9 @@ async def get_current_tenant_user(
     token_tenant_id = payload.get("tenant_id")
     token_tenant_slug = payload.get("tenant_slug")
 
+    # TDD-BUG3.1 fix: Check and record is_impersonation flag
+    is_impersonation = payload.get("is_impersonation", False)
+
     # TDD-BUG1.1 fix: Validate tenant matches request
     # This validation is now MANDATORY, not conditional
     request_tenant = getattr(request.state, "tenant", None)
@@ -381,6 +384,20 @@ async def get_current_tenant_user(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Token no válido para este tenant",
             )
+
+    # TDD-BUG3.1 fix: For impersonation tokens, use token role directly
+    # (user may not exist in tenant schema since it's super admin)
+    if is_impersonation:
+        token_role = payload.get("role", "INSPECTOR")
+        return TenantAuthUser(
+            id=int(user_id),
+            role=token_role,
+            full_name=f"Super Admin (impersonating)",
+            guardian_id=None,
+            teacher_id=None,
+            tenant_id=token_tenant_id,
+            tenant_slug=token_tenant_slug,
+        )
 
     repo = UserRepository(session)
     user = await repo.get(int(user_id))

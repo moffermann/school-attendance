@@ -125,6 +125,12 @@ def create_super_admin_refresh_token(
 
 
 def decode_token(token: str) -> Dict[str, Any]:
+    # TDD-BUG3.4 fix: Check blacklist before decoding
+    from app.core.token_blacklist import is_blacklisted
+
+    if is_blacklisted(token):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked")
+
     try:
         # TDD-R2-BUG1 fix: Validate issuer claim to prevent cross-application token confusion
         return jwt.decode(
