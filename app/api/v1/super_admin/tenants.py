@@ -10,6 +10,7 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import deps
+from app.db.models.tenant_audit_log import TenantAuditLog
 from app.db.models.tenant_feature import TenantFeature
 from app.db.repositories.tenants import TenantRepository
 from app.db.repositories.tenant_features import TenantFeatureRepository
@@ -517,11 +518,12 @@ async def impersonate_tenant(
     # TDD-BUG3.5 fix: Extract client IP for audit logging
     client_ip = request.client.host if request.client else None
 
+    # TDD-BUG5.3 fix: Use constant instead of string literal
     # Log impersonation for audit with IP address
     audit_repo = TenantAuditLogRepository(session)
     await audit_repo.log(
         tenant_id=tenant_id,
-        action="IMPERSONATE",
+        action=TenantAuditLog.ACTION_IMPERSONATION_STARTED,
         admin_id=admin.id,
         details={"admin_email": admin.email, "role": impersonation_role},
         ip_address=client_ip,
@@ -543,4 +545,96 @@ async def impersonate_tenant(
         tenant_id=tenant.id,
         tenant_slug=tenant.slug,
         tenant_name=tenant.name,
+    )
+
+
+class EndImpersonationRequest(BaseModel):
+    """Request schema for ending impersonation."""
+
+    token: str = Field(..., description="The impersonation token to invalidate")
+
+
+class EndImpersonationResponse(BaseModel):
+    """Response schema for ending impersonation."""
+
+    message: str
+    duration_seconds: int | None = None
+
+
+@router.post("/{tenant_id}/end-impersonation", response_model=EndImpersonationResponse)
+async def end_impersonation(
+    request: Request,
+    payload: EndImpersonationRequest,
+    tenant_id: int = Path(..., ge=1, description="Tenant ID (must be >= 1)"),
+    admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
+    session: AsyncSession = Depends(deps.get_public_db),
+) -> EndImpersonationResponse:
+    """
+    End an impersonation session and log the action.
+
+    TDD-BUG5.2 fix: Log the end of impersonation session with duration.
+    Also invalidates the impersonation token.
+    """
+    from app.core.security import decode_token
+    from app.core.token_blacklist import add_to_blacklist
+    from app.db.repositories.tenant_audit_logs import TenantAuditLogRepository
+
+    tenant_repo = TenantRepository(session)
+
+    tenant = await tenant_repo.get(tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant no encontrado")
+
+    # Decode token to get expiration and validate it's an impersonation token
+    try:
+        token_payload = decode_token(payload.token)
+    except HTTPException:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token inválido o ya expirado",
+        )
+
+    # Verify it's an impersonation token
+    if not token_payload.get("is_impersonation"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El token no es de impersonation",
+        )
+
+    # Verify token is for this tenant
+    if token_payload.get("tenant_id") != tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El token no corresponde a este tenant",
+        )
+
+    # Calculate session duration
+    import time
+    iat = token_payload.get("iat")
+    duration_seconds = int(time.time() - iat) if iat else None
+
+    # Invalidate the token
+    exp = token_payload.get("exp")
+    add_to_blacklist(payload.token, exp)
+
+    # Extract client IP for audit logging
+    client_ip = request.client.host if request.client else None
+
+    # Log end of impersonation
+    audit_repo = TenantAuditLogRepository(session)
+    await audit_repo.log(
+        tenant_id=tenant_id,
+        action=TenantAuditLog.ACTION_IMPERSONATION_ENDED,
+        admin_id=admin.id,
+        details={
+            "admin_email": admin.email,
+            "duration_seconds": duration_seconds,
+        },
+        ip_address=client_ip,
+    )
+    await session.commit()
+
+    return EndImpersonationResponse(
+        message="Sesión de impersonation finalizada",
+        duration_seconds=duration_seconds,
     )
