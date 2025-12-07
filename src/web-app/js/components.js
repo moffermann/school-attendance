@@ -528,6 +528,98 @@ const Components = {
     this.showToast('PDF descargado correctamente', 'success');
   },
 
+// Super Admin Layout
+  createSuperAdminLayout(activePage = 'dashboard') {
+    const skipLink = '<a href="#view-content" class="skip-link">Saltar al contenido principal</a>';
+
+    const navItems = [
+      { id: 'dashboard', label: 'Panel', icon: this.icons.dashboard, href: '#/super-admin/dashboard' },
+      { id: 'tenants', label: 'Tenants', icon: this.icons.students, href: '#/super-admin/tenants' },
+    ];
+
+    return `
+      ${skipLink}
+      <div class="app-layout super-admin">
+        <!-- Mobile overlay -->
+        <div class="sidebar-overlay" onclick="Components.closeMobileMenu()"></div>
+
+        <aside class="sidebar" role="navigation" aria-label="Navegación super admin">
+          <!-- Mobile close button -->
+          <button class="sidebar-close-btn" onclick="Components.closeMobileMenu()" aria-label="Cerrar menú">
+            ${this.icons.close}
+          </button>
+          <div class="sidebar-logo">
+            <img src="assets/logo.svg" alt="Logo">
+            <h1>Super Admin</h1>
+          </div>
+          <nav>
+            <ul class="sidebar-nav" role="menu">
+              ${navItems.map(item => `
+                <li>
+                  <a href="${item.href}" role="menuitem" class="${activePage === item.id ? 'active' : ''}">
+                    ${item.icon}<span>${item.label}</span>
+                  </a>
+                </li>
+              `).join('')}
+            </ul>
+          </nav>
+          <div class="sidebar-footer">
+            <button class="btn btn-secondary btn-sm btn-block" onclick="SuperAdminAPI.clearToken(); Router.navigate('/super-admin/auth')">
+              ${this.icons.logout}
+              <span>Cerrar Sesión</span>
+            </button>
+          </div>
+        </aside>
+        <div class="main-content">
+          <header class="header">
+            <!-- Mobile hamburger menu button -->
+            <button class="mobile-menu-btn" onclick="Components.toggleMobileMenu()" aria-label="Abrir menú de navegación" aria-expanded="false">
+              ${this.icons.menu}
+            </button>
+            <h1 class="header-title" id="page-title">Super Admin</h1>
+            <div class="header-actions">
+              <span class="role-badge">Plataforma</span>
+            </div>
+          </header>
+          <main class="content" id="view-content" tabindex="-1"></main>
+        </div>
+      </div>
+      <style>
+        .super-admin .sidebar {
+          background: linear-gradient(180deg, #1e1b4b 0%, #312e81 100%);
+        }
+        .super-admin .sidebar-logo h1 {
+          color: white;
+        }
+        .super-admin .sidebar-nav a {
+          color: rgba(255,255,255,0.8);
+        }
+        .super-admin .sidebar-nav a:hover,
+        .super-admin .sidebar-nav a.active {
+          background: rgba(255,255,255,0.1);
+          color: white;
+        }
+        .super-admin .sidebar-footer {
+          padding: 1rem;
+          margin-top: auto;
+          border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .super-admin .sidebar-footer .btn {
+          justify-content: center;
+          gap: 0.5rem;
+        }
+        .role-badge {
+          background: linear-gradient(135deg, #4f46e5, #7c3aed);
+          color: white;
+          padding: 0.25rem 0.75rem;
+          border-radius: 9999px;
+          font-size: 0.75rem;
+          font-weight: 600;
+        }
+      </style>
+    `;
+  },
+
   drawLineChart(canvas, data, labels) {
     const ctx = canvas.getContext('2d');
     const width = canvas.width;

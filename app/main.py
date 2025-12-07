@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.rate_limiter import limiter
 from app.core.security_headers import SecurityHeadersMiddleware
+from app.core.tenant_middleware import TenantMiddleware
 from app.web.router import web_router
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,9 @@ def create_app() -> FastAPI:
 
     # Security headers middleware
     app.add_middleware(SecurityHeadersMiddleware)
+
+    # Multi-tenant middleware (extracts tenant from request)
+    app.add_middleware(TenantMiddleware)
 
     # CORS: Restrictive configuration for production
     allowed_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]

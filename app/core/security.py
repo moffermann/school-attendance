@@ -17,6 +17,7 @@ pwd_context = CryptContext(schemes=["bcrypt", "pbkdf2_sha256"], deprecated="auto
 
 
 def create_access_token(subject: str, expires_minutes: int | None = None, **extra: Any) -> str:
+    """Create a JWT access token (legacy, for backwards compatibility)."""
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=expires_minutes or settings.jwt_access_expires_min
     )
@@ -30,7 +31,51 @@ def create_access_token(subject: str, expires_minutes: int | None = None, **extr
     return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
 
 
+def create_tenant_access_token(
+    user_id: int,
+    tenant_id: int,
+    tenant_slug: str,
+    role: str,
+    expires_minutes: int | None = None,
+    **extra: Any,
+) -> str:
+    """Create a JWT access token for a tenant user."""
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=expires_minutes or settings.jwt_access_expires_min
+    )
+    to_encode: Dict[str, Any] = {
+        "sub": str(user_id),
+        "exp": expire,
+        "iss": "school-attendance",
+        "typ": "tenant",
+        "tenant_id": tenant_id,
+        "tenant_slug": tenant_slug,
+        "role": role,
+        **extra,
+    }
+    return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
+
+
+def create_super_admin_token(
+    admin_id: int,
+    expires_minutes: int | None = None,
+) -> str:
+    """Create a JWT access token for a super admin."""
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=expires_minutes or settings.jwt_access_expires_min
+    )
+    to_encode: Dict[str, Any] = {
+        "sub": str(admin_id),
+        "exp": expire,
+        "iss": "school-attendance",
+        "typ": "super_admin",
+        "role": "SUPER_ADMIN",
+    }
+    return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
+
+
 def create_refresh_token(subject: str, expires_days: int | None = None) -> str:
+    """Create a JWT refresh token."""
     expire = datetime.now(timezone.utc) + timedelta(
         days=expires_days or settings.jwt_refresh_expires_days
     )
@@ -39,6 +84,42 @@ def create_refresh_token(subject: str, expires_days: int | None = None) -> str:
         "sub": subject,
         "exp": expire,
         "iss": "school-attendance",  # Must match access token issuer
+    }
+    return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
+
+
+def create_tenant_refresh_token(
+    user_id: int,
+    tenant_id: int,
+    expires_days: int | None = None,
+) -> str:
+    """Create a JWT refresh token for a tenant user."""
+    expire = datetime.now(timezone.utc) + timedelta(
+        days=expires_days or settings.jwt_refresh_expires_days
+    )
+    to_encode: Dict[str, Any] = {
+        "sub": str(user_id),
+        "exp": expire,
+        "iss": "school-attendance",
+        "typ": "tenant_refresh",
+        "tenant_id": tenant_id,
+    }
+    return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
+
+
+def create_super_admin_refresh_token(
+    admin_id: int,
+    expires_days: int | None = None,
+) -> str:
+    """Create a JWT refresh token for a super admin."""
+    expire = datetime.now(timezone.utc) + timedelta(
+        days=expires_days or settings.jwt_refresh_expires_days
+    )
+    to_encode: Dict[str, Any] = {
+        "sub": str(admin_id),
+        "exp": expire,
+        "iss": "school-attendance",
+        "typ": "super_admin_refresh",
     }
     return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
 

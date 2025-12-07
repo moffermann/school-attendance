@@ -1,5 +1,15 @@
 """Import models for Alembic autogeneration."""
 
+# Tenant models (public schema)
+from app.db.models.tenant import Tenant
+from app.db.models.super_admin import SuperAdmin
+from app.db.models.tenant_feature import TenantFeature
+from app.db.models.tenant_config import TenantConfig
+from app.db.models.tenant_admin_invitation import TenantAdminInvitation
+from app.db.models.usage_stat import UsageStat
+from app.db.models.tenant_audit_log import TenantAuditLog
+
+# Existing models (tenant schema)
 from app.db.models.student import Student
 from app.db.models.guardian import Guardian
 from app.db.models.course import Course
@@ -20,6 +30,15 @@ from app.db.models.no_show_alert import NoShowAlert
 from app.db.models.webauthn_credential import WebAuthnCredential
 
 __all__ = [
+    # Multi-tenant models
+    "Tenant",
+    "SuperAdmin",
+    "TenantFeature",
+    "TenantConfig",
+    "TenantAdminInvitation",
+    "UsageStat",
+    "TenantAuditLog",
+    # Existing models
     "Student",
     "Guardian",
     "Course",

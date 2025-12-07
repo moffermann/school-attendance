@@ -16,14 +16,25 @@ from app.api.v1 import (
     schedules,
     tags,
     teachers,
+    tenant_setup,
     webapp,
     webauthn,
 )
+from app.api.v1.super_admin import super_admin_router
 
 
 api_router = APIRouter()
 
+# Health check
 api_router.include_router(health.router, prefix="/health", tags=["health"])
+
+# Multi-tenant: Super Admin routes (no tenant context required)
+api_router.include_router(super_admin_router)
+
+# Tenant setup routes (for admin activation via email link)
+api_router.include_router(tenant_setup.router, prefix="/tenant-setup", tags=["tenant-setup"])
+
+# Tenant-scoped routes
 api_router.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(schedules.router, prefix="/schedules", tags=["schedules"])
