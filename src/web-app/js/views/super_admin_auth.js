@@ -7,23 +7,23 @@ Views.superAdminAuth = async function() {
   const app = document.getElementById('app');
 
   app.innerHTML = `
-    <div class="auth-page">
-      <div class="auth-container">
-        <div class="auth-header">
-          <img src="assets/logo.svg" alt="Logo" class="auth-logo">
-          <h1>Super Admin</h1>
-          <p>Panel de Administración de Plataforma</p>
+    <div class="auth-container">
+      <div class="auth-card">
+        <div class="auth-logo">
+          <img src="assets/logo.svg" alt="Logo">
         </div>
+        <h1 class="auth-title">Super Admin</h1>
+        <p style="color: var(--color-gray-500); margin-bottom: 2rem; font-size: 0.95rem;">Panel de Administración de Plataforma</p>
 
-        <form id="superAdminLoginForm" class="auth-form">
+        <form id="superAdminLoginForm">
           <div class="form-group">
-            <label for="email">Correo electrónico</label>
-            <input type="email" id="email" name="email" required autocomplete="email" placeholder="admin@ejemplo.com">
+            <label class="form-label" for="email">Correo electrónico</label>
+            <input type="email" id="email" name="email" class="form-input" required autocomplete="email" placeholder="admin@ejemplo.com">
           </div>
 
           <div class="form-group">
-            <label for="password">Contraseña</label>
-            <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+            <label class="form-label" for="password">Contraseña</label>
+            <input type="password" id="password" name="password" class="form-input" required autocomplete="current-password" placeholder="••••••••">
           </div>
 
           <button type="submit" class="btn btn-primary btn-block" id="loginBtn">
@@ -31,8 +31,8 @@ Views.superAdminAuth = async function() {
           </button>
         </form>
 
-        <div class="auth-footer">
-          <a href="#/auth" class="auth-link">Volver al login de usuarios</a>
+        <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--color-gray-200);">
+          <a href="#/auth" style="color: var(--color-primary); text-decoration: none; font-size: 0.9rem;">← Volver al login de usuarios</a>
         </div>
       </div>
     </div>
