@@ -63,7 +63,6 @@ Views.superAdminTenants = async function() {
           <thead>
             <tr>
               <th>Nombre</th>
-              <th>Slug</th>
               <th>Dominio</th>
               <th>Plan</th>
               <th>Alumnos</th>
@@ -80,7 +79,6 @@ Views.superAdminTenants = async function() {
                     ${Components.escapeHtml(tenant.name)}
                   </a>
                 </td>
-                <td><code>${Components.escapeHtml(tenant.slug)}</code></td>
                 <td>${Components.escapeHtml(tenant.domain || tenant.subdomain || '-')}</td>
                 <td>${Components.createChip(tenant.plan || 'basic', tenant.plan === 'enterprise' ? 'blue' : tenant.plan === 'pro' ? 'green' : 'gray')}</td>
                 <td><strong>${tenant.student_count || 0}</strong> / ${tenant.max_students || '-'}</td>
@@ -104,7 +102,7 @@ Views.superAdminTenants = async function() {
               </tr>
             `).join('') : `
               <tr>
-                <td colspan="8" class="empty-state">No se encontraron tenants</td>
+                <td colspan="7" class="empty-state">No se encontraron tenants</td>
               </tr>
             `}
           </tbody>
