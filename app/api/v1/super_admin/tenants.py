@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
 from app.core import deps
 from app.db.models.tenant_audit_log import TenantAuditLog
@@ -56,6 +57,7 @@ class TenantSummary(BaseModel):
     is_active: bool
     plan: str
     max_students: int
+    student_count: int = 0
     created_at: datetime
 
     class Config:
@@ -103,13 +105,40 @@ async def list_tenants(
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
 ) -> TenantListResponse:
-    """List all tenants."""
+    """List all tenants with student counts."""
     repo = TenantRepository(session)
     tenants = await repo.list_all(include_inactive=include_inactive)
     total = await repo.count(include_inactive=include_inactive)
 
+    # Get student counts for each tenant
+    tenant_summaries = []
+    for tenant in tenants:
+        student_count = 0
+        try:
+            schema_name = f"tenant_{tenant.slug}"
+            result = await session.execute(
+                text(f"SELECT COUNT(*) FROM {schema_name}.students")
+            )
+            student_count = result.scalar() or 0
+        except Exception:
+            pass  # Schema may not exist yet
+
+        summary = TenantSummary(
+            id=tenant.id,
+            slug=tenant.slug,
+            name=tenant.name,
+            subdomain=tenant.subdomain,
+            domain=tenant.domain,
+            is_active=tenant.is_active,
+            plan=tenant.plan,
+            max_students=tenant.max_students,
+            student_count=student_count,
+            created_at=tenant.created_at,
+        )
+        tenant_summaries.append(summary)
+
     return TenantListResponse(
-        items=[TenantSummary.model_validate(t) for t in tenants],
+        items=tenant_summaries,
         total=total,
     )
 
