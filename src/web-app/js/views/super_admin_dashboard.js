@@ -17,7 +17,7 @@ Views.superAdminDashboard = async function() {
       SuperAdminAPI.listTenants(),
     ]);
 
-    const tenants = tenantsData.tenants || tenantsData || [];
+    const tenants = tenantsData.items || tenantsData.tenants || tenantsData || [];
     const activeTenants = tenants.filter(t => t.is_active).length;
     const totalStudents = stats?.total_students || tenants.reduce((sum, t) => sum + (t.student_count || 0), 0);
     const totalEvents = stats?.total_events_today || 0;

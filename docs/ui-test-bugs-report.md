@@ -14,9 +14,9 @@ Durante las pruebas de UI se identificaron y corrigieron varios bugs relacionado
 3. Declaraciones de variables JavaScript
 4. Esquema de base de datos para tenants
 
-**Total bugs encontrados:** 13
-**Bugs corregidos:** 13
-**Bugs pendientes:** 0 (requiere ejecutar migración 0012)
+**Total bugs encontrados:** 15
+**Bugs corregidos:** 15
+**Bugs pendientes:** 0
 
 ---
 
@@ -444,11 +444,53 @@ DEMO_PASSWORD_HASH = "$pbkdf2-sha256$29000$R0hJac05x7jXWmsN4ZxT6g$90ng37I7g3E6np
 
 ---
 
+### BUG-014: Mixed Content error en Super Admin API
+
+**Severidad:** Media
+**Estado:** CORREGIDO
+**Archivo afectado:** `src/web-app/js/super-admin-api.js`
+
+**Descripción:**
+Después de login exitoso, el dashboard mostraba "Failed to fetch" en la consola con error de Mixed Content.
+
+**Causa raíz:**
+FastAPI redirige `/api/v1/super-admin/tenants` a `/api/v1/super-admin/tenants/` usando HTTP en lugar de HTTPS cuando está detrás de un proxy.
+
+**Solución:**
+Agregar trailing slash al endpoint para evitar el redirect:
+```javascript
+const response = await this.request(`/tenants/${queryString ? '?' + queryString : ''}`);
+```
+
+---
+
+### BUG-015: API response format mismatch en Super Admin views
+
+**Severidad:** Media
+**Estado:** CORREGIDO
+**Archivos afectados:**
+- `src/web-app/js/views/super_admin_dashboard.js`
+- `src/web-app/js/views/super_admin_tenants.js`
+
+**Descripción:**
+El dashboard mostraba error "tenants.filter is not a function" después de cargar la API.
+
+**Causa raíz:**
+La API retorna `{ items: [...], total: N }` pero el código JavaScript buscaba `data.tenants` o asumía un array directo.
+
+**Solución:**
+Actualizar el parsing de respuesta para soportar el formato paginado:
+```javascript
+const tenants = tenantsData.items || tenantsData.tenants || tenantsData || [];
+```
+
+---
+
 ## Próximos Pasos
 
 1. ~~Completar pruebas de Fase 3 (Apoderado)~~ ✅
 2. ~~Completar pruebas de Fase 4 (Teacher PWA)~~ ✅
-3. ~~Completar pruebas de Fase 5 (Super Admin)~~ ⚠️ Bloqueado - requiere migración
-4. **CRÍTICO:** Ejecutar migración 0012 en servidor de desarrollo
-5. Re-ejecutar pruebas de Super Admin
+3. ~~Completar pruebas de Fase 5 (Super Admin)~~ ✅
+4. ~~Ejecutar migración 0012 en servidor de desarrollo~~ ✅
+5. ~~Re-ejecutar pruebas de Super Admin~~ ✅
 6. Ejecutar suite de tests automatizados

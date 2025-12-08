@@ -25,7 +25,7 @@ Views.superAdminTenants = async function() {
       }
 
       const data = await SuperAdminAPI.listTenants(filters);
-      tenants = data.tenants || data || [];
+      tenants = data.items || data.tenants || data || [];
       renderTenants();
     } catch (error) {
       content.innerHTML = `

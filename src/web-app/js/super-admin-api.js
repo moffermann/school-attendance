@@ -140,7 +140,8 @@ const SuperAdminAPI = {
     if (filters.search) params.append('search', filters.search);
 
     const queryString = params.toString();
-    const response = await this.request(`/tenants${queryString ? '?' + queryString : ''}`);
+    // Use trailing slash to avoid HTTP redirect from FastAPI
+    const response = await this.request(`/tenants/${queryString ? '?' + queryString : ''}`);
     if (!response.ok) {
       throw new Error('No se pudo obtener lista de tenants');
     }
