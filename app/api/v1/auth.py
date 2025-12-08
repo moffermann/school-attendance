@@ -138,7 +138,7 @@ async def logout(
 @router.get("/session", response_model=SessionResponse)
 async def session_info(
     request: Request,
-    session: AsyncSession = Depends(deps.get_db),
+    session: AsyncSession = Depends(deps.get_tenant_db),
 ) -> SessionResponse:
     session_token = request.cookies.get("session_token")
     if not session_token:

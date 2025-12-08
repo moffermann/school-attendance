@@ -22,11 +22,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 router = APIRouter()
 
 
-def get_teacher_repo(session: AsyncSession = Depends(deps.get_db)) -> TeacherRepository:
+def get_teacher_repo(session: AsyncSession = Depends(deps.get_tenant_db)) -> TeacherRepository:
     return TeacherRepository(session)
 
 
-def get_attendance_repo(session: AsyncSession = Depends(deps.get_db)) -> AttendanceRepository:
+def get_attendance_repo(session: AsyncSession = Depends(deps.get_tenant_db)) -> AttendanceRepository:
     return AttendanceRepository(session)
 
 
@@ -108,7 +108,7 @@ async def submit_bulk_attendance(
     user: AuthUser = Depends(deps.get_current_user),
     teacher_repo: TeacherRepository = Depends(get_teacher_repo),
     attendance_repo: AttendanceRepository = Depends(get_attendance_repo),
-    session: AsyncSession = Depends(deps.get_db),
+    session: AsyncSession = Depends(deps.get_tenant_db),
 ) -> BulkAttendanceResponse:
     """Submit multiple attendance events at once.
 

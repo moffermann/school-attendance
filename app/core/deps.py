@@ -227,19 +227,22 @@ async def get_attendance_service(
 
 
 async def get_notification_dispatcher(
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> NotificationDispatcher:
     return NotificationDispatcher(session)
 
 
 async def get_schedule_service(
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> ScheduleService:
     return ScheduleService(session)
 
 
 async def get_broadcast_service(
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> BroadcastService:
     return BroadcastService(session)
 
@@ -256,49 +259,57 @@ async def get_consent_service(
 
 
 async def get_tag_provision_service(
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> TagProvisionService:
     return TagProvisionService(session)
 
 
 async def get_device_service(
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> DeviceService:
     return DeviceService(session)
 
 
 async def get_alert_service(
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> AlertService:
     return AlertService(session)
 
 
 async def get_web_app_data_service(
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> WebAppDataService:
     return WebAppDataService(session)
 
 
 async def get_absence_service(
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> AbsenceService:
     return AbsenceService(session)
 
 
 async def get_dashboard_service(
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> DashboardService:
     return DashboardService(session)
 
 
 async def get_notification_service(
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> NotificationService:
     return NotificationService(session)
 
 
 async def get_webauthn_service(
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> WebAuthnService:
     return WebAuthnService(session)
 

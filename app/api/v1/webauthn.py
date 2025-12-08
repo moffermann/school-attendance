@@ -42,7 +42,7 @@ router = APIRouter()
 )
 async def kiosk_start_student_registration(
     request: KioskStudentRegistrationRequest,
-    session: AsyncSession = Depends(deps.get_db),
+    session: AsyncSession = Depends(deps.get_tenant_db),
     device_authenticated: bool = Depends(deps.verify_device_key),
     webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
 ):
@@ -349,7 +349,7 @@ async def admin_delete_student_credential(
 async def check_teacher_can_enroll(
     request,  # Required for rate limiter
     teacher_id: int = Path(..., ge=1),
-    session: AsyncSession = Depends(deps.get_db),
+    session: AsyncSession = Depends(deps.get_tenant_db),
     device_authenticated: bool = Depends(deps.verify_device_key),
 ):
     """
