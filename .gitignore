@@ -31,3 +31,4 @@ claude.md
 secrets/*/.env
 secrets/*/credentials*
 !secrets/*/.env.example
+.claude/settings.local.json
