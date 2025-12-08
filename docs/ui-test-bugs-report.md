@@ -14,9 +14,9 @@ Durante las pruebas de UI se identificaron y corrigieron varios bugs relacionado
 3. Declaraciones de variables JavaScript
 4. Esquema de base de datos para tenants
 
-**Total bugs encontrados:** 12
-**Bugs corregidos:** 12
-**Bugs pendientes:** 0
+**Total bugs encontrados:** 13
+**Bugs corregidos:** 13
+**Bugs pendientes:** 0 (requiere ejecutar migración 0012)
 
 ---
 
@@ -417,11 +417,38 @@ async get(store,key){
 
 ---
 
+### BUG-013: Hash de contraseña mal formado en migración
+
+**Severidad:** Alta
+**Estado:** CORREGIDO
+**Archivos afectados:**
+- `app/db/migrations/versions/0011_seed_default_tenant.py`
+- `app/db/migrations/versions/0012_fix_password_hashes.py` (nueva)
+
+**Descripción:**
+El login de Super Admin fallaba con "Credenciales inválidas" aunque las credenciales fueran correctas (`admin@gocode.cl` / `Demo123!`).
+
+**Causa raíz:**
+El hash de contraseña `$pbkdf2-sha256$29000$5JyTci7FmHPOea.VUooRgg$mXnjm.P3z3/4UMAMOxJlKPPAJezukWIp679TgYB2.gg` en la migración 0011 no era un hash válido de pbkdf2_sha256. El error `not a valid pbkdf2_sha256 hash` confirmó que el formato estaba corrupto.
+
+**Solución:**
+1. Se actualizó `DEMO_PASSWORD_HASH` en 0011 con un hash válido generado por passlib
+2. Se creó nueva migración 0012 que actualiza los hashes existentes en la base de datos:
+   - `public.super_admins` para el super admin
+   - `tenant_demo.users` para todos los usuarios demo
+
+**Hash correcto:**
+```python
+DEMO_PASSWORD_HASH = "$pbkdf2-sha256$29000$R0hJac05x7jXWmsN4ZxT6g$90ng37I7g3E6npxCMQ3pORoP007eKXzPekyka38XM/w"
+```
+
+---
+
 ## Próximos Pasos
 
 1. ~~Completar pruebas de Fase 3 (Apoderado)~~ ✅
 2. ~~Completar pruebas de Fase 4 (Teacher PWA)~~ ✅
-3. ~~Completar pruebas de Fase 5 (Super Admin)~~ ⚠️ Bloqueado - requiere rebuild
-4. **CRÍTICO:** Reconstruir imagen Docker con todos los fixes
-5. Re-ejecutar pruebas de Super Admin y Teacher PWA Alertas
+3. ~~Completar pruebas de Fase 5 (Super Admin)~~ ⚠️ Bloqueado - requiere migración
+4. **CRÍTICO:** Ejecutar migración 0012 en servidor de desarrollo
+5. Re-ejecutar pruebas de Super Admin
 6. Ejecutar suite de tests automatizados

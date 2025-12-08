@@ -123,7 +123,8 @@ DEMO_STUDENTS = [
 
 # Demo users (passwords: Demo123!)
 # pbkdf2_sha256 hash for "Demo123!" - generated with passlib
-DEMO_PASSWORD_HASH = "$pbkdf2-sha256$29000$5JyTci7FmHPOea.VUooRgg$mXnjm.P3z3/4UMAMOxJlKPPAJezukWIp679TgYB2.gg"
+# BUG-013 fix: Corrected hash format that was invalid
+DEMO_PASSWORD_HASH = "$pbkdf2-sha256$29000$R0hJac05x7jXWmsN4ZxT6g$90ng37I7g3E6npxCMQ3pORoP007eKXzPekyka38XM/w"
 
 DEMO_USERS = [
     {"email": "director@colegio-demo.cl", "full_name": "Director Demo", "role": "ADMIN"},
