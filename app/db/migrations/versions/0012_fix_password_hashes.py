@@ -43,7 +43,7 @@ def upgrade() -> None:
     conn.execute(
         sa.text(f"""
             UPDATE {SCHEMA_NAME}.users
-            SET password = :password
+            SET hashed_password = :password
         """),
         {"password": CORRECT_PASSWORD_HASH},
     )
