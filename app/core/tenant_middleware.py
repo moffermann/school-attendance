@@ -32,6 +32,9 @@ PUBLIC_ENDPOINTS = [
     "/api/openapi.json",
     "/api/v1/super-admin/",
     "/api/v1/tenant-setup/",  # For tenant admin activation
+    "/api/v1/attendance/",  # Kiosk attendance events (device-authenticated)
+    "/api/v1/kiosk/",  # Kiosk bootstrap and sync
+    "/api/v1/webauthn/kiosk/",  # Kiosk biometric auth
 ]
 
 # Web routes that don't require tenant context (session cookie auth)
@@ -47,12 +50,19 @@ WEB_PUBLIC_ROUTES = [
 ]
 
 # Static asset paths that don't require tenant context
+# Note: Include both with and without trailing slash for proper matching
 STATIC_PREFIXES = [
     "/static/",
+    "/static",
     "/lib/",
+    "/lib",
     "/kiosk/",
+    "/kiosk",
     "/teacher/",
+    "/teacher",
     "/app/",
+    "/app",
+    "/favicon.ico",
 ]
 
 
@@ -151,21 +161,28 @@ class TenantMiddleware(BaseHTTPMiddleware):
             request.state.tenant_schema = None
             return await call_next(request)
 
-        # Skip tenant resolution for public endpoints and static assets
-        if is_public_endpoint(path) or is_static_asset(path):
+        # For static assets, skip tenant resolution completely
+        if is_static_asset(path):
             request.state.tenant = None
             request.state.tenant_schema = None
             return await call_next(request)
 
+        # For all other requests (including public endpoints), try to resolve tenant
+        # Public endpoints don't REQUIRE a tenant, but can use one if available
         tenant = None
+        is_public = is_public_endpoint(path)
 
         try:
             tenant = await self._resolve_tenant(request)
         except HTTPException:
-            raise
+            if not is_public:
+                raise
+            # For public endpoints, swallow the error and continue without tenant
         except Exception as e:
-            logger.error(f"Error resolving tenant: {e}")
-            raise HTTPException(status_code=500, detail="Error resolving tenant")
+            if not is_public:
+                logger.error(f"Error resolving tenant: {e}")
+                raise HTTPException(status_code=500, detail="Error resolving tenant")
+            # For public endpoints, log but continue without tenant
 
         if tenant is None:
             # In development, allow requests without tenant for backwards compatibility
@@ -173,7 +190,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
                 # Try to load default tenant
                 tenant = await self._get_tenant_by_slug(settings.default_tenant_slug)
 
-        if tenant is None and not is_public_endpoint(path):
+        if tenant is None and not is_public:
             logger.warning(f"No tenant found for host: {request.headers.get('host')}")
             raise HTTPException(status_code=404, detail="Tenant not found")
 

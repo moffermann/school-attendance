@@ -1,7 +1,7 @@
 /**
  * Super Admin Tenants List View
  */
-const Views = Views || {};
+window.Views = window.Views || {};
 
 Views.superAdminTenants = async function() {
   const app = document.getElementById('app');

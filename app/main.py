@@ -115,3 +115,13 @@ async def healthcheck() -> dict[str, str]:
 async def healthcheck_z() -> dict[str, str]:
     """Alias for container health probes (lightweight)."""
     return {"status": "ok"}
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    """Serve favicon from web-app assets."""
+    favicon_path = FRONTEND_BASE / "web-app" / "assets" / "logo.svg"
+    if favicon_path.exists():
+        return FileResponse(favicon_path, media_type="image/svg+xml")
+    # Return empty response if no favicon exists
+    return FileResponse(status_code=204)

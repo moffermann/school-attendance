@@ -16,16 +16,18 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - app_net
+      app_net:
+        aliases:
+          - school-attendance-postgres
 
   school-attendance:
     container_name: ${APP_NAME:-school-attendance}-${APP_ENV:-dev}
     image: moffermann/school-attendance:latest
     environment:
       APP_ENV: development
-      DATABASE_URL: postgresql+asyncpg://school_attendance:school_attendance@postgres:5432/school_attendance
-      REDIS_URL: redis://redis:6379/0
-      S3_ENDPOINT: http://minio:9000
+      DATABASE_URL: postgresql+asyncpg://school_attendance:school_attendance@school-attendance-postgres:5432/school_attendance
+      REDIS_URL: redis://school-attendance-redis:6379/0
+      S3_ENDPOINT: http://school-attendance-minio:9000
       S3_BUCKET: attendance-photos
       S3_ACCESS_KEY: dev-access
       S3_SECRET_KEY: dev-secret
@@ -53,7 +55,9 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - app_net
+      app_net:
+        aliases:
+          - school-attendance-redis
 
   minio:
     container_name: ${APP_NAME:-school-attendance}-minio-${APP_ENV:-dev}
@@ -68,7 +72,9 @@ services:
     volumes:
       - minio_data:/data
     networks:
-      - app_net
+      app_net:
+        aliases:
+          - school-attendance-minio
 
 volumes:
   postgres_data:

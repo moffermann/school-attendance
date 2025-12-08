@@ -2,7 +2,7 @@
  * Tenant Admin Setup View
  * Used when tenant admin clicks the invitation email link to set up their password
  */
-const Views = Views || {};
+window.Views = window.Views || {};
 
 Views.tenantAdminSetup = async function() {
   const app = document.getElementById('app');

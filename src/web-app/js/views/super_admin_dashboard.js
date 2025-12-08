@@ -1,7 +1,7 @@
 /**
  * Super Admin Dashboard View
  */
-const Views = Views || {};
+window.Views = window.Views || {};
 
 Views.superAdminDashboard = async function() {
   const app = document.getElementById('app');

@@ -118,13 +118,30 @@ async def require_tenant_db(request: Request) -> AsyncGenerator[AsyncSession, No
         yield session
 
 
-async def get_auth_service(session: AsyncSession = Depends(get_db)) -> AuthService:
+async def get_auth_service(
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
+) -> AuthService:
+    """
+    Get auth service with tenant context.
+
+    BUG-009 fix: Changed from get_db to get_tenant_db so that
+    user authentication queries the correct tenant schema.
+    """
     return AuthService(session)
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme), session: AsyncSession = Depends(get_db)
+    request: Request,
+    token: str = Depends(oauth2_scheme),
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> AuthUser:
+    """
+    Get current user from JWT token.
+
+    BUG-009 fix: Changed from get_db to get_tenant_db so that
+    user lookups query the correct tenant schema.
+    """
     payload = decode_token(token)
     user_id = payload.get("sub")
     if not user_id:
@@ -154,9 +171,15 @@ def require_roles(*roles: str) -> Callable[[AuthUser], AuthUser]:
 
 
 async def get_current_user_optional(
+    request: Request,
     token: str | None = Depends(oauth2_scheme_optional),
-    session: AsyncSession = Depends(get_db),
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> AuthUser | None:
+    """
+    Get current user from JWT token (optional).
+
+    BUG-009 fix: Changed from get_db to get_tenant_db.
+    """
     if not token:
         return None
     try:
@@ -189,13 +212,15 @@ async def verify_device_key(x_device_key: str | None = Header(default=None)) -> 
 
 
 async def get_attendance_notification_service(
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
 ) -> AttendanceNotificationService:
     return AttendanceNotificationService(session)
 
 
 async def get_attendance_service(
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
     notification_service: AttendanceNotificationService = Depends(get_attendance_notification_service),
 ) -> AttendanceService:
     return AttendanceService(session, notification_service=notification_service)

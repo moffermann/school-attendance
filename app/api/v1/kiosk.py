@@ -56,7 +56,7 @@ class KioskBootstrapResponse(BaseModel):
 @limiter.limit("10/minute")
 async def get_kiosk_bootstrap(
     request: Request,
-    session: AsyncSession = Depends(deps.get_db),
+    session: AsyncSession = Depends(deps.get_tenant_db),
     device_authenticated: bool = Depends(deps.verify_device_key),
 ) -> KioskBootstrapResponse:
     """
@@ -130,7 +130,7 @@ async def get_kiosk_bootstrap(
 @limiter.limit("20/minute")
 async def get_kiosk_students(
     request: Request,
-    session: AsyncSession = Depends(deps.get_db),
+    session: AsyncSession = Depends(deps.get_tenant_db),
     device_authenticated: bool = Depends(deps.verify_device_key),
 ) -> list[KioskStudentRead]:
     """Get all students for kiosk."""
@@ -160,7 +160,7 @@ async def get_kiosk_students(
 @limiter.limit("20/minute")
 async def get_kiosk_tags(
     request: Request,
-    session: AsyncSession = Depends(deps.get_db),
+    session: AsyncSession = Depends(deps.get_tenant_db),
     device_authenticated: bool = Depends(deps.verify_device_key),
 ) -> list[KioskTagRead]:
     """Get all tags for kiosk."""
@@ -188,7 +188,7 @@ async def get_kiosk_tags(
 @limiter.limit("20/minute")
 async def get_kiosk_teachers(
     request: Request,
-    session: AsyncSession = Depends(deps.get_db),
+    session: AsyncSession = Depends(deps.get_tenant_db),
     device_authenticated: bool = Depends(deps.verify_device_key),
 ) -> list[KioskTeacherRead]:
     """Get all teachers for kiosk admin access."""

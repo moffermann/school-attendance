@@ -1,7 +1,7 @@
 /**
  * Super Admin Authentication View
  */
-const Views = Views || {};
+window.Views = window.Views || {};
 
 Views.superAdminAuth = async function() {
   const app = document.getElementById('app');
