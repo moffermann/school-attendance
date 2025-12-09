@@ -33,9 +33,50 @@ This happens even though:
 
 ## Solution
 
-### Wrapper Entrypoint Script
+### Inline Entrypoint Script (Recommended for appctl deployments)
 
-We use a wrapper script that intercepts the PostgreSQL startup and synchronizes the password before the main entrypoint runs.
+For projects deployed with `appctl` (which only copies `docker-compose.yml`), use an inline bash script in the entrypoint. This doesn't require any external files.
+
+```yaml
+services:
+  postgres:
+    image: postgres:15
+    # Password sync: PostgreSQL ignores POSTGRES_PASSWORD on existing volumes.
+    # This entrypoint syncs the password before starting postgres.
+    entrypoint:
+      - bash
+      - -c
+      - |
+        set -e
+        PGDATA="$${PGDATA:-/var/lib/postgresql/data}"
+        if [ -f "$$PGDATA/PG_VERSION" ]; then
+          echo "==> [password-sync] Detected existing data directory"
+          echo "==> [password-sync] Synchronizing password with POSTGRES_PASSWORD..."
+          pg_ctl -D "$$PGDATA" -o "-c listen_addresses=''" -w start
+          psql -U "$$POSTGRES_USER" -d "$${POSTGRES_DB:-$$POSTGRES_USER}" -c \
+            "ALTER USER \"$$POSTGRES_USER\" WITH PASSWORD '$$POSTGRES_PASSWORD';" \
+            > /dev/null 2>&1
+          pg_ctl -D "$$PGDATA" -m fast -w stop
+          echo "==> [password-sync] Password synchronized successfully"
+        else
+          echo "==> [password-sync] Fresh volume detected, skipping password sync"
+        fi
+        exec docker-entrypoint.sh "$$@"
+      - --
+    command: ["postgres"]
+    environment:
+      POSTGRES_USER: ${DB_USER:-myuser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-mypassword}
+      POSTGRES_DB: ${DB_NAME:-mydb}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+```
+
+**Note:** The `$$` syntax is required in docker-compose.yml to escape environment variables so they're evaluated inside the container, not by docker-compose.
+
+### External Script Alternative
+
+If you have full control over the deployment directory (not using appctl), you can use an external wrapper script.
 
 **File: `scripts/postgres-entrypoint-wrapper.sh`**
 
@@ -74,7 +115,7 @@ fi
 exec docker-entrypoint.sh "$@"
 ```
 
-### Docker Compose Configuration
+**Docker Compose with external script:**
 
 ```yaml
 services:
@@ -108,6 +149,7 @@ services:
 - **Safe**: Password sync happens before any network connections
 - **Idempotent**: Safe to run on every container start
 - **Backwards compatible**: Works with fresh volumes too
+- **Self-contained**: Inline version requires no external files
 
 ## Alternative Solutions
 
@@ -144,7 +186,14 @@ postgres:
 
 ## Applying to Other Projects
 
-To use this solution in other projects:
+### For appctl-managed projects (recommended)
+
+1. Copy the inline entrypoint from the "Inline Entrypoint Script" section above
+2. Paste into your `docker-compose.yml` postgres service
+3. Adjust environment variable names as needed
+4. Deploy normally with `appctl pull`
+
+### For projects with full file access
 
 1. Copy `scripts/postgres-entrypoint-wrapper.sh` to your project
 2. Make it executable: `chmod +x scripts/postgres-entrypoint-wrapper.sh`
@@ -155,7 +204,7 @@ To use this solution in other projects:
 
 ## Troubleshooting
 
-### Script Not Executable
+### Script Not Executable (external script only)
 
 ```
 exec: postgres-entrypoint-wrapper.sh: Permission denied
@@ -180,6 +229,13 @@ Should show:
 ### pg_ctl Not Found
 
 Ensure you're using the official PostgreSQL image. Alpine variants may have different paths.
+
+### Inline Script Not Running
+
+If using the inline approach and the script doesn't run:
+1. Verify the YAML syntax is correct (especially the `|` multiline indicator)
+2. Check that `$$` is used for variable escaping (not single `$`)
+3. Ensure the `--` separator is present after the script
 
 ## References
 

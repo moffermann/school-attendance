@@ -2,7 +2,29 @@ services:
   postgres:
     container_name: ${APP_NAME:-school-attendance}-postgres-${APP_ENV:-dev}
     image: postgres:15
-    entrypoint: ["/usr/local/bin/postgres-entrypoint-wrapper.sh"]
+    # Password sync: PostgreSQL ignores POSTGRES_PASSWORD on existing volumes.
+    # This entrypoint syncs the password before starting postgres.
+    # See docs/postgres-password-sync.md for details.
+    entrypoint:
+      - bash
+      - -c
+      - |
+        set -e
+        PGDATA="$${PGDATA:-/var/lib/postgresql/data}"
+        if [ -f "$$PGDATA/PG_VERSION" ]; then
+          echo "==> [password-sync] Detected existing data directory"
+          echo "==> [password-sync] Synchronizing password with POSTGRES_PASSWORD..."
+          pg_ctl -D "$$PGDATA" -o "-c listen_addresses=''" -w start
+          psql -U "$$POSTGRES_USER" -d "$${POSTGRES_DB:-$$POSTGRES_USER}" -c \
+            "ALTER USER \"$$POSTGRES_USER\" WITH PASSWORD '$$POSTGRES_PASSWORD';" \
+            > /dev/null 2>&1
+          pg_ctl -D "$$PGDATA" -m fast -w stop
+          echo "==> [password-sync] Password synchronized successfully"
+        else
+          echo "==> [password-sync] Fresh volume detected, skipping password sync"
+        fi
+        exec docker-entrypoint.sh "$$@"
+      - --
     command: ["postgres"]
     environment:
       POSTGRES_USER: ${DB_USER:-school_attendance}
@@ -15,7 +37,6 @@ services:
       retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/postgres-entrypoint-wrapper.sh:/usr/local/bin/postgres-entrypoint-wrapper.sh:ro
     networks:
       - app_net
 
