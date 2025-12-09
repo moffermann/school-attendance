@@ -395,11 +395,15 @@ Views.superAdminTenantDetail = async function(tenantId) {
   window.impersonateTenant = async () => {
     try {
       const result = await SuperAdminAPI.impersonate(tenantId);
-      // Store impersonation token and redirect
+      // BUG-UI-002 fix: Store impersonation token as regular auth token for the new tab
+      // and open the correct URL with /app prefix
       localStorage.setItem('impersonationToken', result.access_token);
       localStorage.setItem('impersonatingTenantId', tenantId);
-      // Open in new tab
-      window.open(`/#/director/dashboard?impersonate=true`, '_blank');
+      // Also store as regular auth token so the web-app recognizes it
+      localStorage.setItem('authToken', result.access_token);
+      // Open in new tab with correct path
+      window.open(`/app/#/director/dashboard`, '_blank');
+      Components.showToast('Accediendo como administrador del tenant...', 'info');
     } catch (error) {
       Components.showToast(error.message, 'error');
     }

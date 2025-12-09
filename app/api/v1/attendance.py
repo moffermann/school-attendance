@@ -24,7 +24,8 @@ async def register_event(
 ) -> AttendanceEventRead:
     """Registrar un evento IN/OUT reportado por kiosco u otro canal."""
     if not device_authenticated:
-        if not user or user.role not in {"ADMIN", "DIRECTOR", "INSPECTOR"}:
+        # BUG-UI-001 fix: Add TEACHER role to allow teachers to register attendance via PWA
+        if not user or user.role not in {"ADMIN", "DIRECTOR", "INSPECTOR", "TEACHER"}:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
     try:
         return await service.register_event(payload)
@@ -60,7 +61,8 @@ async def upload_event_photo(
     device_authenticated: bool = Depends(deps.verify_device_key),
 ) -> AttendanceEventRead:
     if not device_authenticated:
-        if not user or user.role not in {"ADMIN", "DIRECTOR", "INSPECTOR"}:
+        # BUG-UI-001 fix: Add TEACHER role
+        if not user or user.role not in {"ADMIN", "DIRECTOR", "INSPECTOR", "TEACHER"}:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
     try:
         return await service.attach_photo(event_id, file)
@@ -80,7 +82,8 @@ async def upload_event_audio(
 ) -> AttendanceEventRead:
     """Upload audio evidence for an attendance event."""
     if not device_authenticated:
-        if not user or user.role not in {"ADMIN", "DIRECTOR", "INSPECTOR"}:
+        # BUG-UI-001 fix: Add TEACHER role
+        if not user or user.role not in {"ADMIN", "DIRECTOR", "INSPECTOR", "TEACHER"}:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
     try:
         return await service.attach_audio(event_id, file)
