@@ -8,7 +8,7 @@ const API = createApiClient('loginAppConfig');
 
 // App access permissions by role
 const APP_ACCESS = {
-  SUPER_ADMIN: ['/app', '/teacher', '/kiosk'],
+  SUPER_ADMIN: ['/app', '/teacher', '/kiosk'],  // Super admin has access to all
   ADMIN: ['/app', '/teacher', '/kiosk'],
   DIRECTOR: ['/app', '/teacher', '/kiosk'],
   INSPECTOR: ['/app', '/kiosk'],
@@ -86,35 +86,30 @@ function redirectToApp(path, accessToken, refreshToken) {
 }
 
 /**
- * Check if email belongs to super admin
- * Super admins use a separate endpoint
+ * Try login with super admin endpoint first, then regular endpoint
+ * The role is determined by the backend based on the user's role in the database
  */
-function isSuperAdminEmail(email) {
-  // Check for super admin domain patterns
-  const superAdminPatterns = [
-    /@superadmin\./i,
-    /@admin\.gocode\./i,
-    /^superadmin@/i
-  ];
-  return superAdminPatterns.some(pattern => pattern.test(email));
-}
+async function tryLogin(email, password) {
+  // First try super admin login
+  try {
+    const response = await fetch('/api/v1/super-admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
 
-/**
- * Login as super admin
- */
-async function loginSuperAdmin(email, password) {
-  const response = await fetch('/api/v1/super-admin/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Error de autenticacion' }));
-    throw new Error(error.detail || 'Error de autenticacion');
+    if (response.ok) {
+      const data = await response.json();
+      // Super admin token has typ: "super_admin"
+      return { data, isSuperAdmin: true };
+    }
+  } catch (e) {
+    // Super admin login failed, try regular login
   }
 
-  return await response.json();
+  // Try regular tenant login
+  const data = await API.login(email, password);
+  return { data, isSuperAdmin: false };
 }
 
 /**
@@ -174,28 +169,25 @@ async function handleLogin(e) {
   btn.textContent = 'Iniciando sesion...';
 
   try {
-    let data;
+    // Try login (will try super admin first, then regular)
+    const { data, isSuperAdmin } = await tryLogin(email, password);
 
-    // Check if super admin
-    if (isSuperAdminEmail(email)) {
-      data = await loginSuperAdmin(email, password);
-      // Super admin tokens have typ: "super_admin"
-      const payload = decodeJWT(data.access_token);
-      currentUser = {
-        full_name: payload.full_name || email.split('@')[0],
-        role: 'SUPER_ADMIN',
-        email: email
-      };
+    // Decode token to get role
+    const payload = decodeJWT(data.access_token);
+
+    // Determine role from token
+    let role;
+    if (isSuperAdmin || payload.typ === 'super_admin') {
+      role = 'SUPER_ADMIN';
     } else {
-      // Regular login
-      data = await API.login(email, password);
-      const payload = decodeJWT(data.access_token);
-      currentUser = {
-        full_name: payload.full_name || email.split('@')[0],
-        role: payload.role || 'PARENT',
-        email: email
-      };
+      role = payload.role || 'PARENT';
     }
+
+    currentUser = {
+      full_name: payload.full_name || email.split('@')[0],
+      role: role,
+      email: email
+    };
 
     tokens = {
       access_token: data.access_token,
@@ -332,10 +324,17 @@ function init() {
     const payload = decodeJWT(token);
 
     if (payload && payload.exp * 1000 > Date.now()) {
-      // Token still valid - could show app selector
+      // Token still valid - determine role from token
+      let role;
+      if (payload.typ === 'super_admin') {
+        role = 'SUPER_ADMIN';
+      } else {
+        role = payload.role || 'PARENT';
+      }
+
       currentUser = {
         full_name: payload.full_name || 'Usuario',
-        role: payload.role || payload.typ === 'super_admin' ? 'SUPER_ADMIN' : 'PARENT',
+        role: role,
         email: ''
       };
       tokens = {
