@@ -132,7 +132,7 @@ class WebAppDataService:
         return [guardian]
 
     async def _load_courses(self, course_ids: set[int], is_staff: bool) -> list[Course]:
-        stmt = select(Course).order_by(Course.name)
+        stmt = select(Course).options(selectinload(Course.teachers)).order_by(Course.name)
         if not is_staff and course_ids:
             stmt = stmt.where(Course.id.in_(course_ids))
         result = await self.session.execute(stmt)
@@ -243,7 +243,12 @@ class WebAppDataService:
 
     @staticmethod
     def _map_course(course: Course) -> CourseSummary:
-        return CourseSummary(id=course.id, name=course.name, grade=course.grade)
+        return CourseSummary(
+            id=course.id,
+            name=course.name,
+            grade=course.grade,
+            teacher_ids=[teacher.id for teacher in course.teachers] if course.teachers else [],
+        )
 
     @staticmethod
     def _map_schedule(schedule: Schedule) -> ScheduleSummary:

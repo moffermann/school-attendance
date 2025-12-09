@@ -41,6 +41,7 @@ class CourseSummary(BaseModel):
     id: int
     name: str
     grade: str
+    teacher_ids: list[int] = Field(default_factory=list)
 
 
 class ScheduleSummary(BaseModel):
