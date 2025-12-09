@@ -127,8 +127,16 @@ async def get_auth_service(
 
     BUG-009 fix: Changed from get_db to get_tenant_db so that
     user authentication queries the correct tenant schema.
+
+    BUG-MT-001 fix: Pass tenant context to AuthService so it can
+    generate tenant-aware JWT tokens.
     """
-    return AuthService(session)
+    # Extract tenant info from request state (set by TenantMiddleware)
+    tenant = getattr(request.state, "tenant", None)
+    tenant_id = tenant.id if tenant else None
+    tenant_slug = tenant.slug if tenant else None
+
+    return AuthService(session, tenant_id=tenant_id, tenant_slug=tenant_slug)
 
 
 async def get_current_user(

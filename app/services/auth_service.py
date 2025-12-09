@@ -1,18 +1,28 @@
 """Authentication service."""
 
 from datetime import datetime
+from typing import Optional
 
 from fastapi import HTTPException, status
 
-from app.core.security import create_access_token, create_refresh_token, verify_password
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    create_tenant_access_token,
+    create_tenant_refresh_token,
+    verify_password,
+)
 from app.db.repositories.users import UserRepository
 from app.schemas.auth import TokenPair
 
 
 class AuthService:
-    def __init__(self, session):
+    def __init__(self, session, tenant_id: Optional[int] = None, tenant_slug: Optional[str] = None):
         self.session = session
         self.user_repo = UserRepository(session)
+        # BUG-MT-001 fix: Store tenant context for token generation
+        self.tenant_id = tenant_id
+        self.tenant_slug = tenant_slug
 
     async def _verify_user(self, email: str, password: str):
         # TDD-BUG4.3 fix: Normalize email to lowercase for case-insensitive lookup
@@ -25,8 +35,25 @@ class AuthService:
     async def authenticate(self, email: str, password: str) -> TokenPair:
         # TDD-BUG4.3 fix: Email normalization is done in _verify_user
         user = await self._verify_user(email, password)
-        access_token = create_access_token(str(user.id), role=user.role, guardian_id=user.guardian_id)
-        refresh_token = create_refresh_token(str(user.id))
+
+        # BUG-MT-001 fix: Generate tenant-aware tokens when tenant context is available
+        if self.tenant_id and self.tenant_slug:
+            access_token = create_tenant_access_token(
+                user_id=user.id,
+                tenant_id=self.tenant_id,
+                tenant_slug=self.tenant_slug,
+                role=user.role,
+                guardian_id=user.guardian_id,
+            )
+            refresh_token = create_tenant_refresh_token(
+                user_id=user.id,
+                tenant_id=self.tenant_id,
+            )
+        else:
+            # Fallback for backwards compatibility (non-tenant contexts)
+            access_token = create_access_token(str(user.id), role=user.role, guardian_id=user.guardian_id)
+            refresh_token = create_refresh_token(str(user.id))
+
         return TokenPair(access_token=access_token, refresh_token=refresh_token)
 
     async def authenticate_user(self, email: str, password: str):
@@ -47,6 +74,25 @@ class AuthService:
         exp = payload.get("exp")
         token_blacklist.add(refresh_token, exp)
 
-        access_token = create_access_token(str(user.id), role=user.role, guardian_id=user.guardian_id)
-        new_refresh = create_refresh_token(str(user.id))
+        # BUG-MT-001 fix: Extract tenant_id from refresh token if present,
+        # otherwise use the tenant context from the service
+        token_tenant_id = payload.get("tenant_id") or self.tenant_id
+        tenant_slug = self.tenant_slug
+
+        if token_tenant_id and tenant_slug:
+            access_token = create_tenant_access_token(
+                user_id=user.id,
+                tenant_id=token_tenant_id,
+                tenant_slug=tenant_slug,
+                role=user.role,
+                guardian_id=user.guardian_id,
+            )
+            new_refresh = create_tenant_refresh_token(
+                user_id=user.id,
+                tenant_id=token_tenant_id,
+            )
+        else:
+            access_token = create_access_token(str(user.id), role=user.role, guardian_id=user.guardian_id)
+            new_refresh = create_refresh_token(str(user.id))
+
         return TokenPair(access_token=access_token, refresh_token=new_refresh)
