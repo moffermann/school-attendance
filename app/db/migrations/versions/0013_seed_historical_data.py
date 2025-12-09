@@ -282,9 +282,12 @@ def upgrade() -> None:
     all_students = [{"id": row[0], "name": row[1]} for row in result.fetchall()]
 
     # Create 20-30 absence requests spread across the date range
+    absence_types = ["SICK", "HOLIDAY", "FAMILY", "MEDICAL", "OTHER"]
+
     for _ in range(random.randint(20, 30)):
         student = random.choice(all_students)
         request_date = random.choice(school_days)
+        end_date = request_date + timedelta(days=random.randint(0, 2))
 
         reasons = [
             "Cita médica", "Enfermedad", "Viaje familiar",
@@ -293,22 +296,25 @@ def upgrade() -> None:
         statuses = ["APPROVED", "APPROVED", "APPROVED", "REJECTED", "PENDING"]
 
         status = random.choice(statuses)
+        submit_time = datetime.combine(
+            request_date - timedelta(days=random.randint(0, 3)),
+            time(random.randint(8, 18), random.randint(0, 59))
+        )
 
         conn.execute(
             sa.text(f"""
                 INSERT INTO {SCHEMA_NAME}.absence_requests
-                (student_id, date, reason, status, created_at)
-                VALUES (:student_id, :date, :reason, :status, :created_at)
+                (student_id, type, start_date, end_date, comment, status, ts_submitted)
+                VALUES (:student_id, :type, :start_date, :end_date, :comment, :status, :ts_submitted)
             """),
             {
                 "student_id": student["id"],
-                "date": request_date,
-                "reason": random.choice(reasons),
+                "type": random.choice(absence_types),
+                "start_date": request_date,
+                "end_date": end_date,
+                "comment": random.choice(reasons),
                 "status": status,
-                "created_at": datetime.combine(
-                    request_date - timedelta(days=random.randint(0, 3)),
-                    time(random.randint(8, 18), random.randint(0, 59))
-                ),
+                "ts_submitted": submit_time,
             }
         )
         absence_count += 1
