@@ -455,28 +455,37 @@ class TenantSeeder:
             f"""CREATE TABLE IF NOT EXISTS {schema}.absence_requests (
                 id SERIAL PRIMARY KEY,
                 student_id INTEGER NOT NULL REFERENCES {schema}.students(id),
-                type VARCHAR(32) NOT NULL DEFAULT 'OTHER',
-                date DATE NOT NULL,
-                start_date DATE,
-                end_date DATE,
-                comment VARCHAR(512),
+                type VARCHAR(32) NOT NULL,
+                start_date DATE NOT NULL,
+                end_date DATE NOT NULL,
+                comment TEXT,
+                attachment_ref VARCHAR(512),
                 status VARCHAR(32) DEFAULT 'PENDING',
-                ts_submitted TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                approver_id INTEGER REFERENCES {schema}.guardians(id),
+                ts_submitted TIMESTAMP WITH TIME ZONE NOT NULL,
+                ts_resolved TIMESTAMP WITH TIME ZONE
             )""",
+            f"CREATE INDEX IF NOT EXISTS idx_absence_student ON {schema}.absence_requests(student_id)",
+            f"CREATE INDEX IF NOT EXISTS idx_absence_start ON {schema}.absence_requests(start_date)",
+            f"CREATE INDEX IF NOT EXISTS idx_absence_end ON {schema}.absence_requests(end_date)",
+            f"CREATE INDEX IF NOT EXISTS idx_absence_status ON {schema}.absence_requests(status)",
             f"""CREATE TABLE IF NOT EXISTS {schema}.notifications (
                 id SERIAL PRIMARY KEY,
-                guardian_id INTEGER REFERENCES {schema}.guardians(id),
-                type VARCHAR(32) NOT NULL,
-                channel VARCHAR(16) NOT NULL,
-                template VARCHAR(64),
-                status VARCHAR(32) DEFAULT 'PENDING',
+                event_id INTEGER REFERENCES {schema}.attendance_events(id),
+                guardian_id INTEGER NOT NULL REFERENCES {schema}.guardians(id),
+                channel VARCHAR(32) NOT NULL,
+                template VARCHAR(64) NOT NULL,
                 payload JSONB DEFAULT '{{}}',
+                status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                ts_created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                 ts_sent TIMESTAMP WITH TIME ZONE,
-                ts_created TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                sent_at TIMESTAMP WITH TIME ZONE,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                retries INTEGER DEFAULT 0
             )""",
+            f"CREATE INDEX IF NOT EXISTS idx_notif_event ON {schema}.notifications(event_id)",
+            f"CREATE INDEX IF NOT EXISTS idx_notif_guardian ON {schema}.notifications(guardian_id)",
+            f"CREATE INDEX IF NOT EXISTS idx_notif_status ON {schema}.notifications(status)",
+            f"CREATE INDEX IF NOT EXISTS idx_notif_created ON {schema}.notifications(ts_created)",
+            f"CREATE INDEX IF NOT EXISTS idx_notif_sent ON {schema}.notifications(ts_sent)",
             f"""CREATE TABLE IF NOT EXISTS {schema}.schedules (
                 id SERIAL PRIMARY KEY,
                 course_id INTEGER NOT NULL REFERENCES {schema}.courses(id),
@@ -827,8 +836,8 @@ class TenantSeeder:
                     await self.conn.execute(
                         text(f"""
                             INSERT INTO {self.schema}.notifications
-                            (guardian_id, type, channel, template, status, payload, ts_sent, ts_created)
-                            VALUES (:guardian_id, 'INGRESO_OK', 'whatsapp', 'ingreso_ok', 'delivered',
+                            (guardian_id, channel, template, status, payload, ts_sent, ts_created)
+                            VALUES (:guardian_id, 'whatsapp', 'ingreso_ok', 'delivered',
                                     :payload, :ts_sent, :ts_created)
                         """),
                         {
@@ -867,8 +876,8 @@ class TenantSeeder:
                         await self.conn.execute(
                             text(f"""
                                 INSERT INTO {self.schema}.notifications
-                                (guardian_id, type, channel, template, status, payload, ts_sent, ts_created)
-                                VALUES (:guardian_id, 'SALIDA_OK', 'whatsapp', 'salida_ok', 'delivered',
+                                (guardian_id, channel, template, status, payload, ts_sent, ts_created)
+                                VALUES (:guardian_id, 'whatsapp', 'salida_ok', 'delivered',
                                         :payload, :ts_sent, :ts_created)
                             """),
                             {
