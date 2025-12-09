@@ -57,8 +57,9 @@ Views.auth = function() {
           </form>
         </div>
 
-        <div id="auth-demo-mode" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--color-gray-200);">
-          <p style="font-size: 0.8rem; color: var(--color-gray-400); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Modo demostración</p>
+        <!-- Demo mode: hidden by default, triple-click on logo to show -->
+        <div id="auth-demo-mode" style="display: none; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--color-gray-200);">
+          <p style="font-size: 0.8rem; color: var(--color-gray-400); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Modo demostración (emergencia)</p>
           <div class="flex gap-2 flex-wrap" style="justify-content: center;">
             <button class="btn btn-secondary btn-sm" onclick="Views.auth.demoLogin('director')" style="min-width: 100px;">Director</button>
             <button class="btn btn-secondary btn-sm" onclick="Views.auth.demoLogin('inspector')" style="min-width: 100px;">Inspector</button>
@@ -70,6 +71,26 @@ Views.auth = function() {
   `;
 
   let selectedRole = null;
+
+  // Triple-click on logo to reveal demo mode (emergency access)
+  let clickCount = 0;
+  let clickTimer = null;
+  const logo = document.querySelector('.auth-logo');
+  if (logo) {
+    logo.style.cursor = 'pointer';
+    logo.addEventListener('click', () => {
+      clickCount++;
+      if (clickTimer) clearTimeout(clickTimer);
+      clickTimer = setTimeout(() => { clickCount = 0; }, 500);
+      if (clickCount >= 3) {
+        const demoSection = document.getElementById('auth-demo-mode');
+        if (demoSection) {
+          demoSection.style.display = demoSection.style.display === 'none' ? 'block' : 'none';
+        }
+        clickCount = 0;
+      }
+    });
+  }
 
   // R13-FE1 fix: Use event delegation to prevent listener duplication on re-render
   app.addEventListener('click', (e) => {
