@@ -187,7 +187,37 @@ appctl pull --env prod --app school-attendance --tag 2025.01.15.1430
 
 ## Excepciones al Proceso Estándar
 
-### 1. Migraciones Personalizadas
+### 1. Seed de Datos de Prueba (Post-Deploy Hook)
+
+El proyecto separa las migraciones de esquema (DDL) del seed de datos de prueba (DML).
+
+**Flujo automático:**
+```
+appctl pull → migraciones → appctl-postdeploy.sh → seed_tenant.py --env <env>
+```
+
+El hook `scripts/appctl-postdeploy.sh` se ejecuta automáticamente después del deploy y:
+- En **dev/qa**: Ejecuta `seed_tenant.py` para crear el tenant demo con datos de prueba
+- En **prod**: No ejecuta seed (datos reales)
+
+**Configuración por ambiente:**
+
+| Ambiente | Tenant Slug | Dominio | Schema | Emails |
+|----------|-------------|---------|--------|--------|
+| dev | `demo` | school-attendance.dev.gocode.cl | `tenant_demo` | `*@colegio-demo.cl` |
+| qa | `demo-qa` | school-attendance.qa.gocode.cl | `tenant_demo_qa` | `*@colegio-demo-qa.cl` |
+
+**Seed manual:**
+```bash
+# Dentro del contenedor
+docker exec -it school-attendance-<env> python scripts/seed_tenant.py --env <env>
+
+# Opciones:
+#   --skip-historical  No generar 30 días de eventos históricos
+#   --force            Re-seedear aunque el tenant ya exista
+```
+
+### 2. Migraciones Personalizadas
 
 El proyecto usa un shim de npm para ejecutar migraciones:
 
@@ -200,7 +230,7 @@ Si las migraciones fallan:
 docker exec -it school-attendance-<env> alembic upgrade head
 ```
 
-### 2. Worker y Scheduler Separados
+### 3. Worker y Scheduler Separados
 
 A diferencia de aplicaciones simples, school-attendance tiene contenedores separados para jobs:
 
@@ -212,7 +242,7 @@ Verificar que ambos estén corriendo:
 docker ps | grep school-attendance
 ```
 
-### 3. RQ Dashboard (Solo dev/qa)
+### 4. RQ Dashboard (Solo dev/qa)
 
 El servicio `rq-dashboard` solo se levanta con profiles:
 ```bash
