@@ -304,12 +304,13 @@ def upgrade() -> None:
         conn.execute(
             sa.text(f"""
                 INSERT INTO {SCHEMA_NAME}.absence_requests
-                (student_id, type, start_date, end_date, comment, status, ts_submitted)
-                VALUES (:student_id, :type, :start_date, :end_date, :comment, :status, :ts_submitted)
+                (student_id, type, date, start_date, end_date, comment, status, ts_submitted)
+                VALUES (:student_id, :type, :date, :start_date, :end_date, :comment, :status, :ts_submitted)
             """),
             {
                 "student_id": student["id"],
                 "type": random.choice(absence_types),
+                "date": request_date,
                 "start_date": request_date,
                 "end_date": end_date,
                 "comment": random.choice(reasons),
