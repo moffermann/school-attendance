@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -85,6 +85,10 @@ def create_app() -> FastAPI:
     if (FRONTEND_BASE / "web-app").exists():
         app.mount("/app", StaticFiles(directory=str(FRONTEND_BASE / "web-app"), html=True), name="webapp")
 
+    # Mount login-app assets (served under /login-assets)
+    if (FRONTEND_BASE / "login-app").exists():
+        app.mount("/login-assets", StaticFiles(directory=str(FRONTEND_BASE / "login-app")), name="login-assets")
+
     app.include_router(api_router, prefix="/api/v1")
     app.include_router(web_router)
 
@@ -125,3 +129,13 @@ async def favicon():
         return FileResponse(favicon_path, media_type="image/svg+xml")
     # Return empty response if no favicon exists
     return FileResponse(status_code=204)
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def serve_login_root():
+    """Serve unified login page at root."""
+    login_index = FRONTEND_BASE / "login-app" / "index.html"
+    if login_index.exists():
+        return HTMLResponse(content=login_index.read_text(encoding="utf-8"))
+    # Fallback to web-app if login-app doesn't exist
+    return RedirectResponse("/app", status_code=303)

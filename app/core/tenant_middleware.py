@@ -56,6 +56,8 @@ STATIC_PREFIXES = [
     "/static",
     "/lib/",
     "/lib",
+    "/login-assets/",
+    "/login-assets",
     "/kiosk/",
     "/kiosk",
     "/teacher/",
