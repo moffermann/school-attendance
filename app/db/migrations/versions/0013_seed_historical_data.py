@@ -161,15 +161,15 @@ def upgrade() -> None:
                 conn.execute(
                     sa.text(f"""
                         INSERT INTO {SCHEMA_NAME}.notifications
-                        (guardian_id, type, channel, status, payload, sent_at, created_at)
-                        VALUES (:guardian_id, 'INGRESO_OK', 'whatsapp', 'SENT',
-                                :payload, :sent_at, :created_at)
+                        (guardian_id, channel, template, status, payload, ts_sent, ts_created)
+                        VALUES (:guardian_id, 'whatsapp', 'ingreso_ok', 'sent',
+                                :payload, :ts_sent, :ts_created)
                     """),
                     {
                         "guardian_id": guardian_id,
                         "payload": f'{{"student_id": {student_id}, "time": "{entry_time.strftime("%H:%M")}"}}',
-                        "sent_at": entry_datetime + timedelta(seconds=random.randint(5, 60)),
-                        "created_at": entry_datetime,
+                        "ts_sent": entry_datetime + timedelta(seconds=random.randint(5, 60)),
+                        "ts_created": entry_datetime,
                     }
                 )
                 total_notifications += 1
@@ -203,15 +203,15 @@ def upgrade() -> None:
                     conn.execute(
                         sa.text(f"""
                             INSERT INTO {SCHEMA_NAME}.notifications
-                            (guardian_id, type, channel, status, payload, sent_at, created_at)
-                            VALUES (:guardian_id, 'SALIDA_OK', 'whatsapp', 'SENT',
-                                    :payload, :sent_at, :created_at)
+                            (guardian_id, channel, template, status, payload, ts_sent, ts_created)
+                            VALUES (:guardian_id, 'whatsapp', 'salida_ok', 'sent',
+                                    :payload, :ts_sent, :ts_created)
                         """),
                         {
                             "guardian_id": guardian_id,
                             "payload": f'{{"student_id": {student_id}, "time": "{exit_time.strftime("%H:%M")}"}}',
-                            "sent_at": exit_datetime + timedelta(seconds=random.randint(5, 60)),
-                            "created_at": exit_datetime,
+                            "ts_sent": exit_datetime + timedelta(seconds=random.randint(5, 60)),
+                            "ts_created": exit_datetime,
                         }
                     )
                     total_notifications += 1
@@ -246,15 +246,15 @@ def upgrade() -> None:
                     conn.execute(
                         sa.text(f"""
                             INSERT INTO {SCHEMA_NAME}.notifications
-                            (guardian_id, type, channel, status, payload, sent_at, created_at)
-                            VALUES (:guardian_id, 'NO_INGRESO', 'whatsapp', 'SENT',
-                                    :payload, :sent_at, :created_at)
+                            (guardian_id, channel, template, status, payload, ts_sent, ts_created)
+                            VALUES (:guardian_id, 'whatsapp', 'no_ingreso_umbral', 'sent',
+                                    :payload, :ts_sent, :ts_created)
                         """),
                         {
                             "guardian_id": guardian_id,
                             "payload": f'{{"student_id": {student_id}, "date": "{school_day.isoformat()}"}}',
-                            "sent_at": alert_time + timedelta(seconds=random.randint(5, 120)),
-                            "created_at": alert_time,
+                            "ts_sent": alert_time + timedelta(seconds=random.randint(5, 120)),
+                            "ts_created": alert_time,
                         }
                     )
                     total_notifications += 1
