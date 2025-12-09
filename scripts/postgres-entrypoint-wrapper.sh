@@ -35,15 +35,16 @@ sync_password() {
     echo "==> [password-sync] Synchronizing password with POSTGRES_PASSWORD..."
 
     # Start PostgreSQL temporarily with local-only connections
-    pg_ctl -D "$PGDATA" -o "-c listen_addresses=''" -w start
+    # Use gosu because pg_ctl cannot run as root
+    gosu postgres pg_ctl -D "$PGDATA" -o "-c listen_addresses=''" -w start
 
     # Update the password
-    psql -U "$POSTGRES_USER" -d "${POSTGRES_DB:-$POSTGRES_USER}" -c \
+    gosu postgres psql -U "$POSTGRES_USER" -d "${POSTGRES_DB:-$POSTGRES_USER}" -c \
         "ALTER USER \"$POSTGRES_USER\" WITH PASSWORD '$POSTGRES_PASSWORD';" \
         > /dev/null 2>&1
 
     # Stop PostgreSQL gracefully
-    pg_ctl -D "$PGDATA" -m fast -w stop
+    gosu postgres pg_ctl -D "$PGDATA" -m fast -w stop
 
     echo "==> [password-sync] Password synchronized successfully"
 }

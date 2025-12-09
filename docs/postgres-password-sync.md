@@ -52,11 +52,11 @@ services:
         if [ -f "$$PGDATA/PG_VERSION" ]; then
           echo "==> [password-sync] Detected existing data directory"
           echo "==> [password-sync] Synchronizing password with POSTGRES_PASSWORD..."
-          pg_ctl -D "$$PGDATA" -o "-c listen_addresses=''" -w start
-          psql -U "$$POSTGRES_USER" -d "$${POSTGRES_DB:-$$POSTGRES_USER}" -c \
+          gosu postgres pg_ctl -D "$$PGDATA" -o "-c listen_addresses=''" -w start
+          gosu postgres psql -U "$$POSTGRES_USER" -d "$${POSTGRES_DB:-$$POSTGRES_USER}" -c \
             "ALTER USER \"$$POSTGRES_USER\" WITH PASSWORD '$$POSTGRES_PASSWORD';" \
             > /dev/null 2>&1
-          pg_ctl -D "$$PGDATA" -m fast -w stop
+          gosu postgres pg_ctl -D "$$PGDATA" -m fast -w stop
           echo "==> [password-sync] Password synchronized successfully"
         else
           echo "==> [password-sync] Fresh volume detected, skipping password sync"
@@ -72,7 +72,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
 ```
 
-**Note:** The `$$` syntax is required in docker-compose.yml to escape environment variables so they're evaluated inside the container, not by docker-compose.
+**Notes:**
+- The `$$` syntax is required in docker-compose.yml to escape environment variables so they're evaluated inside the container, not by docker-compose.
+- `gosu postgres` is required because `pg_ctl` cannot run as root. The official PostgreSQL image includes `gosu`.
 
 ### External Script Alternative
 
@@ -91,15 +93,16 @@ sync_password() {
     echo "==> [password-sync] Synchronizing password with POSTGRES_PASSWORD..."
 
     # Start PostgreSQL temporarily with local-only connections
-    pg_ctl -D "$PGDATA" -o "-c listen_addresses=''" -w start
+    # Use gosu because pg_ctl cannot run as root
+    gosu postgres pg_ctl -D "$PGDATA" -o "-c listen_addresses=''" -w start
 
     # Update the password
-    psql -U "$POSTGRES_USER" -d "${POSTGRES_DB:-$POSTGRES_USER}" -c \
+    gosu postgres psql -U "$POSTGRES_USER" -d "${POSTGRES_DB:-$POSTGRES_USER}" -c \
         "ALTER USER \"$POSTGRES_USER\" WITH PASSWORD '$POSTGRES_PASSWORD';" \
         > /dev/null 2>&1
 
     # Stop PostgreSQL gracefully
-    pg_ctl -D "$PGDATA" -m fast -w stop
+    gosu postgres pg_ctl -D "$PGDATA" -m fast -w stop
 
     echo "==> [password-sync] Password synchronized successfully"
 }
