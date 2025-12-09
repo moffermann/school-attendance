@@ -161,8 +161,8 @@ def upgrade() -> None:
                 conn.execute(
                     sa.text(f"""
                         INSERT INTO {SCHEMA_NAME}.notifications
-                        (guardian_id, channel, template, status, payload, ts_sent, ts_created)
-                        VALUES (:guardian_id, 'whatsapp', 'ingreso_ok', 'sent',
+                        (guardian_id, type, channel, template, status, payload, ts_sent, ts_created)
+                        VALUES (:guardian_id, 'INGRESO_OK', 'whatsapp', 'ingreso_ok', 'sent',
                                 :payload, :ts_sent, :ts_created)
                     """),
                     {
@@ -203,8 +203,8 @@ def upgrade() -> None:
                     conn.execute(
                         sa.text(f"""
                             INSERT INTO {SCHEMA_NAME}.notifications
-                            (guardian_id, channel, template, status, payload, ts_sent, ts_created)
-                            VALUES (:guardian_id, 'whatsapp', 'salida_ok', 'sent',
+                            (guardian_id, type, channel, template, status, payload, ts_sent, ts_created)
+                            VALUES (:guardian_id, 'SALIDA_OK', 'whatsapp', 'salida_ok', 'sent',
                                     :payload, :ts_sent, :ts_created)
                         """),
                         {
@@ -246,8 +246,8 @@ def upgrade() -> None:
                     conn.execute(
                         sa.text(f"""
                             INSERT INTO {SCHEMA_NAME}.notifications
-                            (guardian_id, channel, template, status, payload, ts_sent, ts_created)
-                            VALUES (:guardian_id, 'whatsapp', 'no_ingreso_umbral', 'sent',
+                            (guardian_id, type, channel, template, status, payload, ts_sent, ts_created)
+                            VALUES (:guardian_id, 'NO_INGRESO', 'whatsapp', 'no_ingreso_umbral', 'sent',
                                     :payload, :ts_sent, :ts_created)
                         """),
                         {
