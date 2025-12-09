@@ -497,12 +497,17 @@ class TenantSeeder:
             f"""CREATE TABLE IF NOT EXISTS {schema}.no_show_alerts (
                 id SERIAL PRIMARY KEY,
                 student_id INTEGER NOT NULL REFERENCES {schema}.students(id),
+                guardian_id INTEGER NOT NULL REFERENCES {schema}.guardians(id),
+                course_id INTEGER NOT NULL REFERENCES {schema}.courses(id),
+                schedule_id INTEGER REFERENCES {schema}.schedules(id),
                 alert_date DATE NOT NULL,
-                expected_time TIME NOT NULL,
-                status VARCHAR(32) DEFAULT 'PENDING',
-                comment TEXT,
+                alerted_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                status VARCHAR(16) NOT NULL DEFAULT 'PENDING',
                 resolved_at TIMESTAMP WITH TIME ZONE,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                notes VARCHAR(512),
+                notification_attempts INTEGER DEFAULT 0,
+                last_notification_at TIMESTAMP WITH TIME ZONE,
+                UNIQUE(student_id, guardian_id, alert_date)
             )""",
             f"""CREATE TABLE IF NOT EXISTS {schema}.consents (
                 id SERIAL PRIMARY KEY,
