@@ -480,20 +480,19 @@ class TenantSeeder:
             f"""CREATE TABLE IF NOT EXISTS {schema}.schedules (
                 id SERIAL PRIMARY KEY,
                 course_id INTEGER NOT NULL REFERENCES {schema}.courses(id),
-                day_of_week INTEGER NOT NULL,
-                entry_time TIME NOT NULL,
-                exit_time TIME NOT NULL,
-                tolerance_minutes INTEGER DEFAULT 15
+                weekday SMALLINT NOT NULL,
+                in_time TIME NOT NULL,
+                out_time TIME NOT NULL
             )""",
             f"""CREATE TABLE IF NOT EXISTS {schema}.schedule_exceptions (
                 id SERIAL PRIMARY KEY,
-                schedule_id INTEGER NOT NULL REFERENCES {schema}.schedules(id),
+                scope VARCHAR(16) NOT NULL,
+                course_id INTEGER REFERENCES {schema}.courses(id),
                 date DATE NOT NULL,
-                scope VARCHAR(32) DEFAULT 'course',
-                is_holiday BOOLEAN DEFAULT false,
                 in_time TIME,
                 out_time TIME,
-                reason VARCHAR(255)
+                reason VARCHAR(255) NOT NULL,
+                created_by INTEGER
             )""",
             f"""CREATE TABLE IF NOT EXISTS {schema}.no_show_alerts (
                 id SERIAL PRIMARY KEY,
@@ -711,8 +710,8 @@ class TenantSeeder:
             for day in range(1, 6):
                 await self.conn.execute(
                     text(f"""
-                        INSERT INTO {self.schema}.schedules (course_id, day_of_week, entry_time, exit_time, tolerance_minutes)
-                        VALUES (:course_id, :day, '08:00', '16:00', 15)
+                        INSERT INTO {self.schema}.schedules (course_id, weekday, in_time, out_time)
+                        VALUES (:course_id, :day, '08:00', '16:00')
                         ON CONFLICT DO NOTHING
                     """),
                     {"course_id": course_id, "day": day}
