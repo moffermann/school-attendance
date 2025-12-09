@@ -334,9 +334,9 @@ def upgrade() -> None:
     special_dates = [
         {"date": school_days[5], "reason": "Día del Profesor", "is_holiday": True},
         {"date": school_days[12], "reason": "Reunión de Apoderados", "is_holiday": False,
-         "modified_exit": time(12, 30)},
+         "out_time": time(12, 30)},
         {"date": school_days[20], "reason": "Acto Cívico", "is_holiday": False,
-         "modified_entry": time(9, 0)},
+         "in_time": time(9, 0)},
     ]
 
     for special in special_dates:
@@ -345,17 +345,16 @@ def upgrade() -> None:
                 conn.execute(
                     sa.text(f"""
                         INSERT INTO {SCHEMA_NAME}.schedule_exceptions
-                        (schedule_id, exception_date, is_holiday, modified_entry_time,
-                         modified_exit_time, reason)
-                        VALUES (:schedule_id, :exception_date, :is_holiday,
-                                :modified_entry, :modified_exit, :reason)
+                        (schedule_id, date, scope, is_holiday, in_time, out_time, reason)
+                        VALUES (:schedule_id, :date, 'course', :is_holiday,
+                                :in_time, :out_time, :reason)
                     """),
                     {
                         "schedule_id": schedule["id"],
-                        "exception_date": special["date"],
+                        "date": special["date"],
                         "is_holiday": special.get("is_holiday", False),
-                        "modified_entry": special.get("modified_entry"),
-                        "modified_exit": special.get("modified_exit"),
+                        "in_time": special.get("in_time"),
+                        "out_time": special.get("out_time"),
                         "reason": special["reason"],
                     }
                 )
