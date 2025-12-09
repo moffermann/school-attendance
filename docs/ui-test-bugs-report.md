@@ -14,8 +14,8 @@ Durante las pruebas de UI se identificaron y corrigieron varios bugs relacionado
 3. Declaraciones de variables JavaScript
 4. Esquema de base de datos para tenants
 
-**Total bugs encontrados:** 15
-**Bugs corregidos:** 15
+**Total bugs encontrados:** 16
+**Bugs corregidos:** 16
 **Bugs pendientes:** 0
 
 ---
@@ -486,6 +486,44 @@ const tenants = tenantsData.items || tenantsData.tenants || tenantsData || [];
 
 ---
 
+### BUG-016: Web Routes server-rendered usan schema público en lugar de tenant schema
+
+**Severidad:** Alta
+**Estado:** CORREGIDO
+**Archivo afectado:** `app/web/router.py`
+
+**Descripción:**
+Las páginas server-rendered (dashboard, horarios, broadcast, preferencias, alertas, fotos) consultaban datos del schema público en lugar del schema del tenant, exponiendo potencialmente datos cross-tenant.
+
+**Rutas Afectadas:**
+| Ruta | Función | Línea |
+|------|---------|-------|
+| `GET /` | `home()` | 128 |
+| `GET /schedules` | `schedules_page()` | 186 |
+| `GET /broadcast` | `broadcast_page()` | 218 |
+| `GET /parents/preferences` | `parents_prefs_page()` | 237 |
+| `GET /alerts` | `alerts_page()` | 256 |
+| `GET /photos` | `photos_page()` | 347 |
+
+**Causa raíz:**
+Todas las rutas usaban `Depends(deps.get_db)` que siempre retorna una sesión conectada al schema público, ignorando el contexto de tenant establecido por el middleware.
+
+**Solución:**
+Cambiar `Depends(deps.get_db)` a `Depends(deps.get_tenant_db)` en las 6 rutas afectadas:
+```python
+# Antes:
+async def home(request: Request, session: AsyncSession = Depends(deps.get_db))
+
+# Después:
+async def home(request: Request, session: AsyncSession = Depends(deps.get_tenant_db))
+```
+
+**Impacto de Seguridad:**
+- **Antes:** Un usuario autenticado en Tenant A podría ver datos de todos los tenants
+- **Después:** Cada usuario solo ve datos de su tenant asignado
+
+---
+
 ## Próximos Pasos
 
 1. ~~Completar pruebas de Fase 3 (Apoderado)~~ ✅
@@ -493,4 +531,5 @@ const tenants = tenantsData.items || tenantsData.tenants || tenantsData || [];
 3. ~~Completar pruebas de Fase 5 (Super Admin)~~ ✅
 4. ~~Ejecutar migración 0012 en servidor de desarrollo~~ ✅
 5. ~~Re-ejecutar pruebas de Super Admin~~ ✅
-6. Ejecutar suite de tests automatizados
+6. ~~Corregir BUG-016: Web Routes tenant isolation~~ ✅
+7. Ejecutar suite de tests automatizados

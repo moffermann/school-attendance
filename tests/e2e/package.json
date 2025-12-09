@@ -1,0 +1,27 @@
+{
+  "name": "school-attendance-e2e",
+  "version": "1.0.0",
+  "description": "End-to-end tests for School Attendance System",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:director": "playwright test specs/director.spec.ts",
+    "test:teacher": "playwright test specs/teacher.spec.ts",
+    "test:parent": "playwright test specs/parent.spec.ts",
+    "test:kiosk": "playwright test specs/kiosk.spec.ts",
+    "test:super-admin": "playwright test specs/super-admin.spec.ts",
+    "test:multi-tenant": "playwright test specs/multi-tenant.spec.ts",
+    "report": "playwright show-report",
+    "codegen": "playwright codegen"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -125,7 +125,7 @@ async def logout() -> RedirectResponse:
 
 @web_router.get("/", response_class=HTMLResponse)
 async def home(
-    request: Request, session: AsyncSession = Depends(deps.get_db)
+    request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
 ) -> HTMLResponse:
     auth = await _require_staff_user(request, session)
     if isinstance(auth, RedirectResponse):
@@ -183,7 +183,7 @@ async def home(
 
 @web_router.get("/schedules", response_class=HTMLResponse)
 async def schedules_page(
-    request: Request, session: AsyncSession = Depends(deps.get_db)
+    request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
 ) -> HTMLResponse:
     auth = await _require_staff_user(request, session)
     if isinstance(auth, RedirectResponse):
@@ -215,7 +215,7 @@ async def schedules_page(
 
 @web_router.get("/broadcast", response_class=HTMLResponse)
 async def broadcast_page(
-    request: Request, session: AsyncSession = Depends(deps.get_db)
+    request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
 ) -> HTMLResponse:
     auth = await _require_staff_user(request, session)
     if isinstance(auth, RedirectResponse):
@@ -234,7 +234,7 @@ async def broadcast_page(
 
 @web_router.get("/parents/preferences", response_class=HTMLResponse)
 async def parents_prefs_page(
-    request: Request, session: AsyncSession = Depends(deps.get_db)
+    request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
 ) -> HTMLResponse:
     auth = await _require_staff_user(request, session)
     if isinstance(auth, RedirectResponse):
@@ -253,7 +253,7 @@ async def parents_prefs_page(
 
 @web_router.get("/alerts", response_class=HTMLResponse)
 async def alerts_page(
-    request: Request, session: AsyncSession = Depends(deps.get_db)
+    request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
 ) -> HTMLResponse:
     auth = await _require_staff_user(request, session)
     if isinstance(auth, RedirectResponse):
@@ -344,7 +344,7 @@ async def alerts_page(
 
 @web_router.get("/photos", response_class=HTMLResponse)
 async def photos_page(
-    request: Request, session: AsyncSession = Depends(deps.get_db)
+    request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
 ) -> HTMLResponse:
     auth = await _require_staff_user(request, session)
     if isinstance(auth, RedirectResponse):
