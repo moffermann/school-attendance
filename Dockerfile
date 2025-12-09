@@ -60,6 +60,9 @@ COPY --from=builder /app/src/kiosk-app /app/src/kiosk-app
 COPY --from=builder /app/src/teacher-pwa /app/src/teacher-pwa
 COPY --from=builder /app/src/web-app /app/src/web-app
 
+# Copy scripts (seed, postdeploy hooks, etc.)
+COPY --from=builder /app/scripts /app/scripts
+
 # Set ownership for non-root user
 RUN chown -R app:app /app
 
