@@ -162,7 +162,7 @@ def upgrade() -> None:
                     sa.text(f"""
                         INSERT INTO {SCHEMA_NAME}.notifications
                         (guardian_id, type, channel, template, status, payload, ts_sent, ts_created)
-                        VALUES (:guardian_id, 'INGRESO_OK', 'whatsapp', 'ingreso_ok', 'sent',
+                        VALUES (:guardian_id, 'INGRESO_OK', 'whatsapp', 'ingreso_ok', 'delivered',
                                 :payload, :ts_sent, :ts_created)
                     """),
                     {
@@ -204,7 +204,7 @@ def upgrade() -> None:
                         sa.text(f"""
                             INSERT INTO {SCHEMA_NAME}.notifications
                             (guardian_id, type, channel, template, status, payload, ts_sent, ts_created)
-                            VALUES (:guardian_id, 'SALIDA_OK', 'whatsapp', 'salida_ok', 'sent',
+                            VALUES (:guardian_id, 'SALIDA_OK', 'whatsapp', 'salida_ok', 'delivered',
                                     :payload, :ts_sent, :ts_created)
                         """),
                         {
@@ -247,7 +247,7 @@ def upgrade() -> None:
                         sa.text(f"""
                             INSERT INTO {SCHEMA_NAME}.notifications
                             (guardian_id, type, channel, template, status, payload, ts_sent, ts_created)
-                            VALUES (:guardian_id, 'NO_INGRESO', 'whatsapp', 'no_ingreso_umbral', 'sent',
+                            VALUES (:guardian_id, 'NO_INGRESO', 'whatsapp', 'no_ingreso_umbral', 'delivered',
                                     :payload, :ts_sent, :ts_created)
                         """),
                         {
