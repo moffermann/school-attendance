@@ -13,7 +13,7 @@ Views.auth = async function() {
   app.innerHTML = `
     <div class="auth-container">
       <div class="auth-card">
-        <div class="auth-logo">👨‍🏫</div>
+        <div class="auth-logo" id="auth-logo">👨‍🏫</div>
         <h1 class="auth-title">Portal Profesores</h1>
         <p class="auth-subtitle">Sistema de control de asistencia</p>
 
@@ -32,7 +32,7 @@ Views.auth = async function() {
           </button>
         </form>
 
-        <div class="demo-section">
+        <div class="demo-section" id="demo-section" style="display: none;">
           <p class="demo-label">Modo Demostración</p>
           <div class="flex flex-col gap-1">
             <button type="button" class="btn btn-secondary btn-block" onclick="Views.auth.demoLogin(1)">
@@ -49,6 +49,23 @@ Views.auth = async function() {
       </div>
     </div>
   `;
+
+  // Triple click on logo to reveal demo section (emergency access)
+  let clickCount = 0;
+  let clickTimer = null;
+  const logo = document.getElementById('auth-logo');
+  logo.addEventListener('click', () => {
+    clickCount++;
+    if (clickCount === 3) {
+      const demoSection = document.getElementById('demo-section');
+      demoSection.style.display = demoSection.style.display === 'none' ? 'block' : 'none';
+      clickCount = 0;
+      clearTimeout(clickTimer);
+    } else {
+      clearTimeout(clickTimer);
+      clickTimer = setTimeout(() => { clickCount = 0; }, 500);
+    }
+  });
 
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
