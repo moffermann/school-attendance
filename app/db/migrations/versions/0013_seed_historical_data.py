@@ -304,18 +304,15 @@ def upgrade() -> None:
         conn.execute(
             sa.text(f"""
                 INSERT INTO {SCHEMA_NAME}.absence_requests
-                (student_id, type, date, start_date, end_date, comment, status, ts_submitted)
-                VALUES (:student_id, :type, :date, :start_date, :end_date, :comment, :status, :ts_submitted)
+                (student_id, date, reason, status, created_at)
+                VALUES (:student_id, :date, :reason, :status, :created_at)
             """),
             {
                 "student_id": student["id"],
-                "type": random.choice(absence_types),
                 "date": request_date,
-                "start_date": request_date,
-                "end_date": end_date,
-                "comment": random.choice(reasons),
+                "reason": random.choice(reasons),
                 "status": status,
-                "ts_submitted": submit_time,
+                "created_at": submit_time,
             }
         )
         absence_count += 1
@@ -345,16 +342,16 @@ def upgrade() -> None:
                 conn.execute(
                     sa.text(f"""
                         INSERT INTO {SCHEMA_NAME}.schedule_exceptions
-                        (schedule_id, date, scope, is_holiday, in_time, out_time, reason)
-                        VALUES (:schedule_id, :date, 'course', :is_holiday,
-                                :in_time, :out_time, :reason)
+                        (schedule_id, exception_date, is_holiday, modified_entry_time, modified_exit_time, reason)
+                        VALUES (:schedule_id, :exception_date, :is_holiday,
+                                :modified_entry_time, :modified_exit_time, :reason)
                     """),
                     {
                         "schedule_id": schedule["id"],
-                        "date": special["date"],
+                        "exception_date": special["date"],
                         "is_holiday": special.get("is_holiday", False),
-                        "in_time": special.get("in_time"),
-                        "out_time": special.get("out_time"),
+                        "modified_entry_time": special.get("in_time"),
+                        "modified_exit_time": special.get("out_time"),
                         "reason": special["reason"],
                     }
                 )
