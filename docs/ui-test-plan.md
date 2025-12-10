@@ -1,8 +1,10 @@
 # Plan de Pruebas de UI - Sistema de Asistencia Escolar
 
 **URLs de Prueba:**
-- Landing/Kiosk: https://school-attendance.dev.gocode.cl
-- Web App (Login/Demo): https://school-attendance.dev.gocode.cl/app
+- Login Unificado: https://school-attendance.dev.gocode.cl/
+- Web App (Admin/Apoderado): https://school-attendance.dev.gocode.cl/app
+- Teacher PWA: https://school-attendance.dev.gocode.cl/teacher
+- Kiosk App: https://school-attendance.dev.gocode.cl/kiosk
 
 ---
 
@@ -10,18 +12,157 @@
 
 | Fase | Rol | Aplicacion | Casos |
 |------|-----|------------|-------|
+| 0 | Todos | login-app | 11 casos |
 | 1 | Kiosk (Dispositivo) | kiosk-app | 15 casos |
-| 2 | Director/Inspector | web-app | 25 casos |
+| 2 | Director/Inspector | web-app | 28 casos |
 | 3 | Apoderado (Parent) | web-app | 12 casos |
-| 4 | Profesor | teacher-pwa | 18 casos |
-| 5 | Super Admin | web-app | 8 casos |
+| 4 | Profesor | teacher-pwa | 20 casos |
+| 5 | Super Admin | web-app + login-app | 12 casos |
+
+---
+
+# FASE 0: LOGIN UNIFICADO Y SELECTOR DE APPS
+
+**URL:** https://school-attendance.dev.gocode.cl/
+**Descripcion:** Sistema de login centralizado con selector de aplicaciones basado en rol
+
+## 0.1 Login y Autenticacion
+
+### TC-L01: Login exitoso como Director
+**Pasos:**
+1. Abrir URL raiz: https://school-attendance.dev.gocode.cl/
+2. Ingresar email: director@demo.school.test
+3. Ingresar contrasena: Demo123!
+4. Clic en "Iniciar Sesion"
+**Resultado Esperado:**
+- Formulario de login desaparece
+- Selector de aplicaciones muestra 3 opciones:
+  - Panel Administrativo (icono 🏫)
+  - Portal Profesores (icono 👨‍🏫)
+  - Modo Kiosco (icono 📱)
+- Nombre del usuario visible en header
+
+### TC-L02: Login exitoso como Inspector
+**Pasos:**
+1. Abrir URL raiz
+2. Ingresar email: inspector@demo.school.test
+3. Ingresar contrasena: Demo123!
+4. Clic en "Iniciar Sesion"
+**Resultado Esperado:**
+- Selector muestra solo 2 opciones:
+  - Panel Administrativo
+  - Modo Kiosco
+- NO aparece Portal Profesores (Inspector no tiene acceso)
+
+### TC-L03: Login exitoso como Profesor
+**Pasos:**
+1. Abrir URL raiz
+2. Ingresar email: teacher@demo.school.test
+3. Ingresar contrasena: Demo123!
+4. Clic en "Iniciar Sesion"
+**Resultado Esperado:**
+- Selector muestra 2 opciones:
+  - Portal Profesores
+  - Modo Kiosco
+- NO aparece Panel Administrativo (Teacher no tiene acceso)
+
+### TC-L04: Login exitoso como Apoderado
+**Pasos:**
+1. Abrir URL raiz
+2. Ingresar email: parent@demo.school.test
+3. Ingresar contrasena: Demo123!
+4. Clic en "Iniciar Sesion"
+**Resultado Esperado:**
+- NO muestra selector (Parent solo tiene acceso a /app)
+- Redireccion automatica a /app
+- Tokens pasados en hash fragment y limpiados inmediatamente
+
+### TC-L05: Login exitoso como Super Admin
+**Pasos:**
+1. Abrir URL raiz
+2. Ingresar email: superadmin@sistema.test
+3. Ingresar contrasena: SuperDemo123!
+4. Clic en "Iniciar Sesion"
+**Resultado Esperado:**
+- Selector muestra 4 opciones:
+  - Panel Super Admin (destacado con borde especial, icono 🔧)
+  - Panel Administrativo
+  - Portal Profesores
+  - Modo Kiosco
+
+---
+
+## 0.2 Selector de Aplicaciones
+
+### TC-L06: Seleccionar app desde selector
+**Precondiciones:** Login exitoso como Director (TC-L01)
+**Pasos:**
+1. En selector, clic en "Panel Administrativo"
+**Resultado Esperado:**
+- Redireccion a /app con tokens en hash fragment
+- URL se limpia automaticamente (tokens removidos del hash)
+- Web-app carga correctamente con sesion activa
+
+### TC-L07: Boton "Cambiar Aplicacion" en web-app
+**Precondiciones:** Sesion activa en web-app
+**Pasos:**
+1. En web-app, clic en boton "🔄 Cambiar Aplicacion" en header
+**Resultado Esperado:**
+- Redireccion a / con tokens en hash
+- Selector de aplicaciones visible
+- Sesion preservada (no requiere login de nuevo)
+
+### TC-L08: Boton "Cambiar Aplicacion" en teacher-pwa
+**Precondiciones:** Sesion activa en teacher-pwa
+**Pasos:**
+1. En teacher-pwa vista de cursos, clic en boton "🔄 Cambiar Aplicacion"
+**Resultado Esperado:**
+- Redireccion a / con tokens en hash
+- Selector de aplicaciones visible
+- Sesion preservada
+
+### TC-L09: Menu "Cambiar Aplicacion" en kiosk admin panel
+**Precondiciones:** Profesor autenticado en kiosk admin panel
+**Pasos:**
+1. En admin panel del kiosk, clic en tarjeta "🔄 Cambiar Aplicacion"
+**Resultado Esperado:**
+- Redireccion a / con tokens en hash
+- Selector de aplicaciones visible
+- Sesion preservada
+
+---
+
+## 0.3 Validaciones y Errores
+
+### TC-L10: Login con credenciales invalidas
+**Pasos:**
+1. Abrir URL raiz
+2. Ingresar email: usuario@invalido.test
+3. Ingresar contrasena: contrasena_incorrecta
+4. Clic en "Iniciar Sesion"
+**Resultado Esperado:**
+- Mensaje de error visible: "Credenciales invalidas"
+- Formulario mantiene email ingresado
+- No hay redireccion
+
+### TC-L11: Validacion de campos vacios
+**Pasos:**
+1. Abrir URL raiz
+2. Dejar email vacio
+3. Dejar contrasena vacia
+4. Clic en "Iniciar Sesion"
+**Resultado Esperado:**
+- Validacion HTML5 impide envio
+- Campos marcados como requeridos
+- No se realiza peticion al servidor
 
 ---
 
 # FASE 1: KIOSK (Dispositivo de Registro)
 
-**URL:** https://school-attendance.dev.gocode.cl
+**URL:** https://school-attendance.dev.gocode.cl/kiosk
 **Acceso:** Sin autenticacion (dispositivo publico)
+**Nota:** El kiosk ya no es la landing page. La raiz (/) ahora es el login unificado.
 
 ## 1.1 Configuracion Inicial
 
@@ -225,36 +366,34 @@
 # FASE 2: DIRECTOR/INSPECTOR
 
 **URL:** https://school-attendance.dev.gocode.cl/app
-**Acceso:** Login con credenciales o modo demo
+**Acceso:** Via Login Unificado (ver FASE 0)
 
-## 2.1 Autenticacion
+## 2.1 Autenticacion (via Login Unificado)
 
-### TC-D01: Login como Director
+### TC-D01: Acceso como Director via Login Unificado
+**Precondiciones:** Login exitoso como Director en login unificado (TC-L01)
 **Pasos:**
-1. Abrir URL de la app
-2. Clic en "Direccion / Inspectoria"
-3. Ingresar email y contrasena validos
-4. Clic en "Iniciar Sesion"
+1. En selector de apps, clic en "Panel Administrativo"
 **Resultado Esperado:**
-- Redireccion a dashboard
+- Redireccion a /app con tokens en hash
+- Tokens extraidos y limpiados automaticamente
+- Dashboard carga con sesion activa
 - Sidebar muestra menu de director
 - Nombre del usuario en header
 
-### TC-D02: Acceso en modo demo
+### TC-D02: Verificar menu de Director
+**Precondiciones:** Director autenticado en web-app
 **Pasos:**
-1. En pantalla de login, clic en boton "Demo Director"
+1. Verificar opciones de sidebar
 **Resultado Esperado:**
-- Acceso inmediato al dashboard
-- Badge "Modo Demo" visible
-- Datos de prueba cargados
+- Dashboard, Alumnos, Cursos, Profesores (solo director), Dispositivos
+- Reportes, Notificaciones, Horarios, Biometria
+- Boton "Cambiar Aplicacion" visible en header
 
-### TC-D03: Login fallido
-**Pasos:**
-1. Ingresar credenciales invalidas
+### TC-D03: Login fallido (ahora en login unificado)
+**Nota:** Este caso se prueba en TC-L10. Incluido aqui como referencia.
 **Resultado Esperado:**
-- Mensaje de error visible
-- Formulario mantiene email ingresado
-- No hay redireccion
+- Ver TC-L10 en FASE 0
 
 ---
 
@@ -521,28 +660,66 @@
 
 ---
 
+## 2.11 Acceso Cross-App (Director)
+
+### TC-D31: Director accede a Teacher PWA desde selector
+**Precondiciones:** Director autenticado en web-app
+**Pasos:**
+1. Clic en boton "Cambiar Aplicacion" en header
+2. En selector, clic en "Portal Profesores"
+**Resultado Esperado:**
+- Redireccion a /teacher con tokens
+- Teacher PWA carga con sesion activa
+- Director puede ver cursos asignados (si tiene asignaciones)
+- Funcionalidad completa de teacher-pwa disponible
+
+### TC-D32: Director accede a Kiosk App desde selector
+**Precondiciones:** Director autenticado en web-app
+**Pasos:**
+1. Clic en boton "Cambiar Aplicacion" en header
+2. En selector, clic en "Modo Kiosco"
+**Resultado Esperado:**
+- Redireccion a /kiosk con tokens
+- Kiosk carga con admin panel accesible
+- Director puede acceder a configuracion de kiosk
+
+### TC-D33: Inspector solo ve 2 apps en selector
+**Precondiciones:** Login exitoso como Inspector en login unificado (TC-L02)
+**Pasos:**
+1. En selector, verificar opciones disponibles
+**Resultado Esperado:**
+- Solo 2 opciones visibles: Panel Administrativo, Modo Kiosco
+- NO aparece Portal Profesores (Inspector no tiene acceso a teacher-pwa)
+
+---
+
 # FASE 3: APODERADO (Parent)
 
 **URL:** https://school-attendance.dev.gocode.cl/app
-**Acceso:** Login como apoderado o modo demo
+**Acceso:** Via Login Unificado (redireccion automatica, sin selector)
 
-## 3.1 Autenticacion
+## 3.1 Autenticacion (via Login Unificado)
 
-### TC-P01: Login como apoderado
+### TC-P01: Login como apoderado (redireccion automatica)
+**Precondiciones:** Login exitoso como Parent en login unificado (TC-L04)
 **Pasos:**
-1. Clic en "Apoderado"
-2. Ingresar credenciales
-3. Iniciar sesion
+1. En login unificado, ingresar credenciales de apoderado
+2. Clic en "Iniciar Sesion"
 **Resultado Esperado:**
-- Redireccion a home de apoderado
-- Solo ve hijos vinculados
+- NO muestra selector de aplicaciones (Parent solo tiene acceso a /app)
+- Redireccion automatica a /app con tokens
+- Tokens extraidos y limpiados automaticamente
+- Home de apoderado carga con hijos vinculados
 
-### TC-P02: Acceso demo apoderado
+### TC-P02: Verificar layout de apoderado
+**Precondiciones:** Apoderado autenticado en web-app
 **Pasos:**
-1. Clic en boton demo de apoderado
+1. Verificar elementos de UI
 **Resultado Esperado:**
-- Acceso con datos de prueba
-- Hijos de prueba visibles
+- Header con nombre del apoderado
+- Tarjetas de hijos visibles
+- NO hay sidebar de director/inspector
+- Boton "Cambiar Aplicacion" visible (vuelve al login)
 
 ---
 
@@ -652,23 +829,30 @@
 # FASE 4: PROFESOR (Teacher PWA)
 
 **URL:** https://school-attendance.dev.gocode.cl/teacher (o PWA instalada)
-**Acceso:** Login o modo demo
+**Acceso:** Via Login Unificado
 
-## 4.1 Autenticacion
+## 4.1 Autenticacion (via Login Unificado)
 
-### TC-T01: Login como profesor
+### TC-T01: Login como profesor via selector
+**Precondiciones:** Login exitoso como Teacher en login unificado (TC-L03)
 **Pasos:**
-1. Ingresar email y contrasena
-2. Iniciar sesion
+1. En selector, verificar 2 opciones: Portal Profesores, Modo Kiosco
+2. Clic en "Portal Profesores"
 **Resultado Esperado:**
-- Redireccion a lista de cursos
+- Redireccion a /teacher con tokens en hash
+- Tokens extraidos y limpiados automaticamente
+- Vista de cursos carga con sesion activa
 - Saludo personalizado segun hora del dia
 
-### TC-T02: Acceso demo profesor
+### TC-T02: Verificar elementos de UI del profesor
+**Precondiciones:** Profesor autenticado en teacher-pwa
 **Pasos:**
-1. Clic en boton de profesor demo
+1. Verificar elementos de UI en vista de cursos
 **Resultado Esperado:**
-- Acceso con cursos de prueba asignados
+- Header con nombre del profesor
+- Tarjetas de cursos asignados
+- Boton "Cambiar Aplicacion" visible
+- Nav inferior con iconos de navegacion
 
 ---
 
@@ -828,20 +1012,52 @@
 
 ---
 
+## 4.8 Navegacion Cross-App (Profesor)
+
+### TC-T19: Profesor accede a Kiosk desde selector
+**Precondiciones:** Profesor autenticado en teacher-pwa
+**Pasos:**
+1. Clic en boton "Cambiar Aplicacion" en vista de cursos
+2. En selector, clic en "Modo Kiosco"
+**Resultado Esperado:**
+- Redireccion a /kiosk con tokens
+- Kiosk carga con admin panel accesible
+- Profesor puede registrar estudiantes via kiosk
+
+### TC-T20: Boton "Cambiar Aplicacion" preserva sesion
+**Precondiciones:** Profesor autenticado en teacher-pwa
+**Pasos:**
+1. Clic en boton "Cambiar Aplicacion"
+2. Verificar selector
+3. Clic en "Portal Profesores" de nuevo
+**Resultado Esperado:**
+- Tokens preservados en redirecciones
+- No requiere login de nuevo
+- Sesion sigue activa
+
+---
+
 # FASE 5: SUPER ADMIN (Multi-Tenant)
 
-**URL:** https://school-attendance.dev.gocode.cl/app#/super-admin/auth
-**Acceso:** Credenciales de Super Admin
+**URL:** https://school-attendance.dev.gocode.cl/
+**Acceso:** Via Login Unificado (selector con 4 opciones)
 
-## 5.1 Autenticacion Super Admin
+## 5.1 Autenticacion Super Admin (via Login Unificado)
 
-### TC-SA01: Login como Super Admin
+### TC-SA01: Login como Super Admin via selector
+**Precondiciones:** Login exitoso como Super Admin en login unificado (TC-L05)
 **Pasos:**
-1. Navegar a ruta de super admin
-2. Ingresar credenciales de super admin
-3. Iniciar sesion
+1. En login unificado, ingresar credenciales de super admin
+2. Clic en "Iniciar Sesion"
+3. En selector, verificar 4 opciones:
+   - Panel Super Admin (destacado con borde amarillo, icono 🔧)
+   - Panel Administrativo (icono 🏫)
+   - Portal Profesores (icono 👨‍🏫)
+   - Modo Kiosco (icono 📱)
+4. Clic en "Panel Super Admin"
 **Resultado Esperado:**
-- Acceso a dashboard multi-tenant
+- Redireccion a /app#/super-admin con tokens
+- Dashboard multi-tenant carga
 - Vista de instituciones
 
 ---
@@ -909,6 +1125,46 @@
 
 ---
 
+## 5.4 Acceso Cross-App (Super Admin)
+
+### TC-SA09: Super Admin accede a Panel Administrativo
+**Precondiciones:** Super Admin autenticado
+**Pasos:**
+1. En selector (o via "Cambiar Aplicacion"), clic en "Panel Administrativo"
+**Resultado Esperado:**
+- Redireccion a /app con tokens
+- Dashboard de director/admin carga
+- Super Admin tiene permisos de director
+
+### TC-SA10: Super Admin accede a Portal Profesores
+**Precondiciones:** Super Admin autenticado
+**Pasos:**
+1. En selector, clic en "Portal Profesores"
+**Resultado Esperado:**
+- Redireccion a /teacher con tokens
+- Teacher PWA carga con sesion activa
+- Super Admin puede ver cursos (si tiene asignaciones)
+
+### TC-SA11: Super Admin accede a Modo Kiosco
+**Precondiciones:** Super Admin autenticado
+**Pasos:**
+1. En selector, clic en "Modo Kiosco"
+**Resultado Esperado:**
+- Redireccion a /kiosk con tokens
+- Kiosk carga con admin panel accesible
+- Super Admin tiene acceso a configuracion
+
+### TC-SA12: Boton "Cambiar Aplicacion" desde cualquier app
+**Precondiciones:** Super Admin autenticado en cualquier app
+**Pasos:**
+1. Clic en "Cambiar Aplicacion" desde web-app, teacher-pwa o kiosk
+**Resultado Esperado:**
+- Redireccion a / con tokens preservados
+- Selector muestra las 4 opciones
+- Puede navegar a cualquier app sin re-login
+
+---
+
 # Anexo: Datos de Prueba
 
 ## Tokens QR/NFC Validos
@@ -916,11 +1172,19 @@
 - Profesores: `nfc_teacher_001`, `nfc_teacher_002`
 - Revocados: `nfc_revoked_001`
 
-## Credenciales Demo
-- Director: Boton "Demo Director"
-- Inspector: Boton "Demo Inspector"
-- Apoderado: Boton "Demo Apoderado" + seleccion de apoderado
-- Profesor: Botones de profesores demo
+## Credenciales de Prueba
+
+| Rol | Email | Contrasena |
+|-----|-------|------------|
+| Super Admin | superadmin@sistema.test | SuperDemo123! |
+| Director | director@demo.school.test | Demo123! |
+| Inspector | inspector@demo.school.test | Demo123! |
+| Profesor | teacher@demo.school.test | Demo123! |
+| Apoderado | parent@demo.school.test | Demo123! |
+
+**Nota:** Todas las cuentas de prueba estan en el tenant "demo.school.test"
+
+**Importante:** Ya no existen botones "Demo". Todo el acceso es via login unificado en la raiz (/).
 
 ## Configuracion de Kiosk de Prueba
 - Gate ID: `GATE-TEST-01`
@@ -935,12 +1199,15 @@
 3. **Accesibilidad:** Navegacion por teclado, contraste adecuado
 4. **Offline:** Kiosk y Teacher PWA deben funcionar sin conexion
 5. **Seguridad:** XSS prevenido, validacion de roles, datos aislados por tenant
+6. **Login Unificado:** El selector muestra solo las apps permitidas segun el rol del usuario
+7. **Tokens en URL:** Los tokens se pasan via hash fragment (#token=...) y se limpian automaticamente
+8. **Cambiar App:** Todas las apps tienen opcion de volver al selector preservando la sesion activa
 
 ---
 
 # Prioridad de Ejecucion
 
-1. **Criticos:** TC-K03, TC-K04, TC-D01, TC-P03, TC-T06
-2. **Altos:** TC-K11, TC-D11, TC-P08, TC-T11, TC-SA02
-3. **Medios:** TC-K08, TC-D22, TC-P11, TC-T13
-4. **Bajos:** TC-K16, TC-D28, TC-T18
+1. **Criticos:** TC-L01, TC-L04, TC-L06, TC-K03, TC-K04, TC-D01, TC-P01, TC-T01
+2. **Altos:** TC-L07, TC-L08, TC-L09, TC-K11, TC-D11, TC-P08, TC-T11, TC-SA01
+3. **Medios:** TC-L02, TC-L03, TC-L05, TC-K08, TC-D22, TC-P11, TC-T13, TC-D31
+4. **Bajos:** TC-L10, TC-L11, TC-K16, TC-D28, TC-T18, TC-T19, TC-SA09
