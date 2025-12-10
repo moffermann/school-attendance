@@ -1,7 +1,7 @@
 // State management with localStorage persistence
 const State = {
   // Security: Valid roles for the application
-  VALID_ROLES: ['director', 'inspector', 'parent'],
+  VALID_ROLES: ['director', 'inspector', 'parent', 'super_admin'],
 
   data: {
     students: [],
@@ -47,6 +47,23 @@ const State = {
 
     // Security: If we have a JWT token, validate it with the backend
     if (typeof API !== 'undefined' && API.accessToken) {
+      // Check if this is a super admin token (no tenant bootstrap)
+      const payload = this._decodeJWT(API.accessToken);
+      if (payload && payload.typ === 'super_admin') {
+        // Super admin - set session directly from token (no bootstrap endpoint)
+        this._user = {
+          id: payload.sub,
+          email: payload.email || '',
+          full_name: payload.full_name || 'Super Admin',
+          role: 'SUPER_ADMIN'
+        };
+        this.currentRole = 'super_admin';
+        this._sessionToken = this._generateSessionToken();
+        localStorage.setItem('currentRole', 'super_admin');
+        localStorage.setItem('sessionToken', this._sessionToken);
+        return; // Super admin session ready
+      }
+
       try {
         // Verify token by fetching bootstrap - this validates the JWT server-side
         const bootstrap = await API.getBootstrap();
@@ -155,6 +172,20 @@ const State = {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
   },
 
+  _decodeJWT(token) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    } catch (e) {
+      console.error('Failed to decode JWT:', e);
+      return null;
+    }
+  },
+
   logout() {
     this.currentRole = null;
     this.currentGuardianId = null;
@@ -197,7 +228,8 @@ const State = {
       'ADMIN': 'director',
       'DIRECTOR': 'director',
       'INSPECTOR': 'inspector',
-      'PARENT': 'parent'
+      'PARENT': 'parent',
+      'SUPER_ADMIN': 'super_admin'
     };
     // Fix: Use this._user instead of bootstrap.user (API may return current_user)
     const role = roleMap[this._user?.role] || 'director';
