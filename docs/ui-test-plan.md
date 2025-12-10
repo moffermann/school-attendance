@@ -1176,13 +1176,13 @@
 
 | Rol | Email | Contrasena |
 |-----|-------|------------|
-| Super Admin | superadmin@sistema.test | SuperDemo123! |
-| Director | director@demo.school.test | Demo123! |
-| Inspector | inspector@demo.school.test | Demo123! |
-| Profesor | teacher@demo.school.test | Demo123! |
-| Apoderado | parent@demo.school.test | Demo123! |
+| Super Admin | super@gocode.cl | SuperDemo123! |
+| Director/Admin | director@colegio-demo.cl | Demo123! |
+| Inspector | inspector@colegio-demo.cl | Demo123! |
+| Profesor | maria.gonzalez@colegio-demo.cl | Demo123! |
+| Apoderado | apoderado1@colegio-demo.cl | Demo123! |
 
-**Nota:** Todas las cuentas de prueba estan en el tenant "demo.school.test"
+**Nota:** Todas las cuentas de prueba estan en el tenant de demo (subdominio por defecto).
 
 **Importante:** Ya no existen botones "Demo". Todo el acceso es via login unificado en la raiz (/).
 

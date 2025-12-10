@@ -218,7 +218,21 @@ async function handleLogin(e) {
 
   } catch (error) {
     console.error('Login error:', error);
-    errorDiv.textContent = error.message || 'Error al iniciar sesion';
+    // Handle different error formats
+    let errorMessage = 'Error al iniciar sesion';
+    if (typeof error === 'string') {
+      errorMessage = error;
+    } else if (error && error.message) {
+      errorMessage = error.message;
+    } else if (error && error.detail) {
+      // Handle FastAPI validation errors
+      if (Array.isArray(error.detail)) {
+        errorMessage = error.detail.map(d => d.msg).join(', ');
+      } else {
+        errorMessage = error.detail;
+      }
+    }
+    errorDiv.textContent = errorMessage;
     errorDiv.classList.add('show');
     btn.disabled = false;
     btn.textContent = 'Iniciar Sesion';
