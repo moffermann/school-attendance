@@ -123,62 +123,8 @@ async def logout() -> RedirectResponse:
     return response
 
 
-@web_router.get("/", response_class=HTMLResponse)
-async def home(
-    request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
-) -> HTMLResponse:
-    auth = await _require_staff_user(request, session)
-    if isinstance(auth, RedirectResponse):
-        return auth
-    user, api_token = auth
-
-    today = date.today()
-
-    total_students = await session.scalar(select(func.count(Student.id))) or 0
-    total_events_today = await session.scalar(
-        select(func.count(AttendanceEvent.id)).where(
-            func.date(AttendanceEvent.occurred_at) == today
-        )
-    ) or 0
-
-    recent_events_stmt = (
-        select(
-            AttendanceEvent.id,
-            AttendanceEvent.type,
-            AttendanceEvent.gate_id,
-            AttendanceEvent.device_id,
-            AttendanceEvent.occurred_at,
-            Student.full_name.label("student_name"),
-        )
-        .join(Student, Student.id == AttendanceEvent.student_id)
-        .order_by(AttendanceEvent.occurred_at.desc())
-        .limit(10)
-    )
-    recent_events = (await session.execute(recent_events_stmt)).all()
-
-    alert_service = AlertService(session)
-    alerts_today = await alert_service.list_alerts(start_date=today, end_date=today, status="PENDING")
-    alerts_view = [
-        {
-            "guardian": alert.guardian_name,
-            "students": [alert.student_name],
-            "course": alert.course_name or "Curso",
-        }
-        for alert in alerts_today
-    ]
-
-    context = {
-        "request": request,
-        "stats": {
-            "students": total_students,
-            "events_today": total_events_today,
-        },
-        "recent_events": recent_events,
-        "current_user": user,
-        "api_token": api_token,
-        "no_show_alerts": alerts_view,
-    }
-    return templates.TemplateResponse("dashboard.html", context)
+# NOTE: The "/" route has been moved to main.py to serve the unified login page.
+# The legacy dashboard is now accessible at /app (web-app SPA).
 
 
 @web_router.get("/schedules", response_class=HTMLResponse)
