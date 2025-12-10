@@ -8,7 +8,28 @@ const SuperAdminAPI = {
 
   // Initialize with stored token
   init() {
+    // First check localStorage (direct super admin login)
     this._token = localStorage.getItem('superAdminToken');
+
+    // If no token in localStorage, check sessionStorage for unified login token
+    if (!this._token) {
+      const unifiedToken = sessionStorage.getItem('accessToken');
+      if (unifiedToken) {
+        // Verify it's a super admin token
+        try {
+          const base64Url = unifiedToken.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join('')));
+          if (payload.typ === 'super_admin') {
+            this._token = unifiedToken;
+          }
+        } catch (e) {
+          // Not a valid JWT, ignore
+        }
+      }
+    }
   },
 
   // Set auth token

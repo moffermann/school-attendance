@@ -90,6 +90,12 @@
 
       await State.init();
 
+      // Re-initialize SuperAdminAPI after tokens are saved to sessionStorage
+      // This allows it to pick up super admin tokens from unified login
+      if (typeof SuperAdminAPI !== 'undefined') {
+        SuperAdminAPI.init();
+      }
+
       // If we got tokens from server and State.init() loaded bootstrap successfully,
       // redirect to the appropriate dashboard
       if (tokens && State.isSessionValid()) {
