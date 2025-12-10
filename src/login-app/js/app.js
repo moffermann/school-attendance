@@ -92,7 +92,7 @@ function redirectToApp(path, accessToken, refreshToken) {
 async function tryLogin(email, password) {
   // First try super admin login
   try {
-    const response = await fetch('/api/v1/super-admin/login', {
+    const response = await fetch('/api/v1/super-admin/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
