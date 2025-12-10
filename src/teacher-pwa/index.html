@@ -71,7 +71,8 @@
 
       // If we got tokens from unified login and have a valid session,
       // skip auth and go directly to classes
-      if (tokens && API.isAuthenticated() && State.currentTeacherId) {
+      // Note: currentTeacherId can be 0 for admin users, so check !== null
+      if (tokens && API.isAuthenticated() && State.currentTeacherId !== null) {
         window.location.hash = '/classes';
       }
 
