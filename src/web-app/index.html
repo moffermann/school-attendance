@@ -68,6 +68,7 @@
       const params = new URLSearchParams(hash.slice(1));
       const token = params.get('token');
       const refresh = params.get('refresh');
+      const redirect = params.get('redirect'); // Custom redirect path from login-app
 
       if (token && refresh) {
         // Save tokens to sessionStorage
@@ -78,7 +79,7 @@
         // Keep any route path that was before the token params
         window.history.replaceState(null, '', window.location.pathname);
 
-        return { token, refresh };
+        return { token, refresh, redirect };
       }
       return null;
     }
@@ -94,7 +95,13 @@
       if (tokens && State.isSessionValid()) {
         const user = State.getCurrentUser();
         if (user) {
-          const redirectPath = user.role === 'PARENT' ? '/parent/home' : '/director/dashboard';
+          // Use custom redirect if provided (e.g., /super-admin/dashboard), otherwise default by role
+          let redirectPath;
+          if (tokens.redirect) {
+            redirectPath = tokens.redirect;
+          } else {
+            redirectPath = user.role === 'PARENT' ? '/parent/home' : '/director/dashboard';
+          }
           window.location.hash = redirectPath;
         }
       }

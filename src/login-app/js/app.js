@@ -227,10 +227,15 @@ async function handleLogin(e) {
     } else if (error && error.detail) {
       // Handle FastAPI validation errors
       if (Array.isArray(error.detail)) {
-        errorMessage = error.detail.map(d => d.msg).join(', ');
-      } else {
+        errorMessage = error.detail.map(d => d.msg || d.message || String(d)).join(', ');
+      } else if (typeof error.detail === 'string') {
         errorMessage = error.detail;
+      } else {
+        errorMessage = 'Credenciales invalidas';
       }
+    } else if (error && typeof error === 'object') {
+      // Fallback for other object errors - don't display [object Object]
+      errorMessage = 'Credenciales invalidas o error de conexion';
     }
     errorDiv.textContent = errorMessage;
     errorDiv.classList.add('show');
