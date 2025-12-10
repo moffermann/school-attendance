@@ -59,6 +59,7 @@ COPY --from=builder /app/src/lib /app/src/lib
 COPY --from=builder /app/src/kiosk-app /app/src/kiosk-app
 COPY --from=builder /app/src/teacher-pwa /app/src/teacher-pwa
 COPY --from=builder /app/src/web-app /app/src/web-app
+COPY --from=builder /app/src/login-app /app/src/login-app
 
 # Copy scripts (seed, postdeploy hooks, etc.)
 COPY --from=builder /app/scripts /app/scripts
