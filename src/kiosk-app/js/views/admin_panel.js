@@ -57,6 +57,12 @@ Views.adminPanel = function() {
               <div class="admin-menu-title">Registro Biométrico</div>
               <div class="admin-menu-desc">Registrar huellas de estudiantes</div>
             </div>
+
+            <div class="admin-menu-item" onclick="Views.adminPanel.switchApp()">
+              <div class="admin-menu-icon">🔄</div>
+              <div class="admin-menu-title">Cambiar Aplicación</div>
+              <div class="admin-menu-desc">Volver al selector de apps</div>
+            </div>
           </div>
 
           <div class="mt-3">
@@ -170,6 +176,18 @@ Views.adminPanel = function() {
     // For now, use teacher_id=1 as placeholder
     // In real implementation, this would come from the login session
     Router.navigate('/biometric-enroll?teacher_id=1');
+  };
+
+  // Switch to app selector
+  Views.adminPanel.switchApp = function() {
+    clearTimers();
+    const token = sessionStorage.getItem('accessToken');
+    const refresh = sessionStorage.getItem('refreshToken');
+    if (token && refresh) {
+      window.location.href = `/#token=${token}&refresh=${refresh}`;
+    } else {
+      window.location.href = '/';
+    }
   };
 
   // Expose handleTimeout for testing

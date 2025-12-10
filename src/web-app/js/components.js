@@ -161,6 +161,17 @@ const Components = {
     }
   },
 
+  // Navigate back to app selector
+  switchApp() {
+    const token = sessionStorage.getItem('accessToken');
+    const refresh = sessionStorage.getItem('refreshToken');
+    if (token && refresh) {
+      window.location.href = `/#token=${token}&refresh=${refresh}`;
+    } else {
+      window.location.href = '/';
+    }
+  },
+
   // Initialize mobile menu events
   initMobileMenu() {
     // Close menu when clicking a nav link
@@ -189,6 +200,9 @@ const Components = {
             <header class="header">
               <h1 class="header-title">Portal de Apoderados</h1>
               <div class="header-actions">
+                <button class="btn btn-secondary btn-sm" onclick="Components.switchApp()" aria-label="Cambiar aplicación" title="Cambiar aplicación">
+                  🔄
+                </button>
                 <button class="btn btn-secondary btn-sm" onclick="State.logout(); Router.navigate('/auth')" aria-label="Cerrar sesión">
                   ${this.icons.logout}
                   <span>Salir</span>
@@ -270,6 +284,9 @@ const Components = {
               <h1 class="header-title" id="page-title">Tablero</h1>
               <div class="header-actions">
                 <span class="role-selector">${role === 'director' ? 'Director' : 'Inspector'}</span>
+                <button class="btn btn-secondary btn-sm" onclick="Components.switchApp()" aria-label="Cambiar aplicación" title="Cambiar aplicación">
+                  🔄
+                </button>
                 <button class="btn btn-secondary btn-sm" onclick="State.logout(); Router.navigate('/auth')" aria-label="Cerrar sesión">
                   ${this.icons.logout}
                   <span>Salir</span>

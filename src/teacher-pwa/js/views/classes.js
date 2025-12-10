@@ -67,13 +67,18 @@ Views.classes = async function() {
         </div>
       `}
 
-      <div style="margin-top: 2rem; display: flex; gap: 0.75rem;">
-        <button class="btn btn-secondary" style="flex: 1;" onclick="Router.navigate('/settings')">
-          ⚙️ Configuración
+      <div style="margin-top: 2rem; display: flex; flex-direction: column; gap: 0.75rem;">
+        <button class="btn btn-secondary" onclick="Views.classes.switchApp()">
+          🔄 Cambiar Aplicación
         </button>
-        <button class="btn btn-secondary" style="flex: 1;" onclick="Views.classes.logout()">
-          🚪 Cerrar Sesión
-        </button>
+        <div style="display: flex; gap: 0.75rem;">
+          <button class="btn btn-secondary" style="flex: 1;" onclick="Router.navigate('/settings')">
+            ⚙️ Configuración
+          </button>
+          <button class="btn btn-secondary" style="flex: 1;" onclick="Views.classes.logout()">
+            🚪 Cerrar Sesión
+          </button>
+        </div>
       </div>
     </div>
     ${UI.createBottomNav('/classes')}
@@ -123,5 +128,16 @@ Views.classes = async function() {
     State.logout();
     UI.showToast('Sesión cerrada', 'info');
     Router.navigate('/auth');
+  };
+
+  Views.classes.switchApp = function() {
+    // Redirect to login app selector, preserving tokens
+    const token = sessionStorage.getItem('accessToken');
+    const refresh = sessionStorage.getItem('refreshToken');
+    if (token && refresh) {
+      window.location.href = `/#token=${token}&refresh=${refresh}`;
+    } else {
+      window.location.href = '/';
+    }
   };
 };
