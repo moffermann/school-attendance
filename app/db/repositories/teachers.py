@@ -92,3 +92,20 @@ class TeacherRepository:
         stmt = select(Teacher).order_by(Teacher.full_name)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_all_courses(self) -> list[Course]:
+        """List all courses (for admin access)."""
+        stmt = select(Course).order_by(Course.grade, Course.name)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_all_course_students(self, course_id: int) -> list[Student]:
+        """List students in any course (for admin access)."""
+        stmt = (
+            select(Student)
+            .where(Student.course_id == course_id, Student.status == "ACTIVE")
+            .options(selectinload(Student.guardians))
+            .order_by(Student.full_name)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())

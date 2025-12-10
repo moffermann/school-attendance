@@ -21,6 +21,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
+# Roles that can access teacher endpoints
+# Directors, inspectors, admins often teach classes in small schools
+TEACHER_PORTAL_ROLES = ("TEACHER", "DIRECTOR", "INSPECTOR", "ADMIN", "SUPER_ADMIN")
+
 
 def get_teacher_repo(session: AsyncSession = Depends(deps.get_tenant_db)) -> TeacherRepository:
     return TeacherRepository(session)
@@ -37,30 +41,47 @@ async def get_current_teacher(
 ) -> TeacherMeResponse:
     """Get current teacher's information and assigned courses.
 
-    Requires TEACHER role with a valid teacher_id.
+    Requires a role with teacher portal access. Directors/Admins without
+    a teacher profile get access to all courses.
     """
-    if user.role != "TEACHER":
+    if user.role not in TEACHER_PORTAL_ROLES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo profesores pueden acceder a este recurso",
+            detail="No tienes permisos para acceder al portal de profesores",
         )
 
-    if not user.teacher_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Usuario no tiene perfil de profesor asociado",
+    # If user has teacher_id, return their teacher profile
+    if user.teacher_id:
+        teacher = await repo.get_with_courses(user.teacher_id)
+        if not teacher:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Profesor no encontrado",
+            )
+        return TeacherMeResponse(
+            teacher=TeacherRead.model_validate(teacher),
+            courses=[TeacherCourseRead.model_validate(c) for c in teacher.courses],
         )
 
-    teacher = await repo.get_with_courses(user.teacher_id)
-    if not teacher:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profesor no encontrado",
+    # Admin roles without teacher_id get a virtual profile with all courses
+    if user.role in ("DIRECTOR", "INSPECTOR", "ADMIN", "SUPER_ADMIN"):
+        all_courses = await repo.list_all_courses()
+        # Create a virtual teacher profile for the admin
+        virtual_teacher = TeacherRead(
+            id=0,  # Virtual ID for admin
+            full_name=user.full_name or "Administrador",
+            email=None,
+            status="ACTIVE",
+        )
+        return TeacherMeResponse(
+            teacher=virtual_teacher,
+            courses=[TeacherCourseRead.model_validate(c) for c in all_courses],
         )
 
-    return TeacherMeResponse(
-        teacher=TeacherRead.model_validate(teacher),
-        courses=[TeacherCourseRead.model_validate(c) for c in teacher.courses],
+    # Regular TEACHER role without teacher_id
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Usuario no tiene perfil de profesor asociado",
     )
 
 
@@ -71,16 +92,23 @@ async def list_course_students(
     user: AuthUser = Depends(deps.get_current_user),
     repo: TeacherRepository = Depends(get_teacher_repo),
 ) -> list[TeacherStudentRead]:
-    """List students in a course assigned to the current teacher.
+    """List students in a course.
 
-    Returns 403 if teacher is not assigned to the course.
+    Teachers can only see students in courses assigned to them.
+    Directors/Admins can see students in any course.
     """
-    if user.role != "TEACHER":
+    if user.role not in TEACHER_PORTAL_ROLES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo profesores pueden acceder a este recurso",
+            detail="No tienes permisos para acceder al portal de profesores",
         )
 
+    # Admin roles can access any course
+    if user.role in ("DIRECTOR", "INSPECTOR", "ADMIN", "SUPER_ADMIN") and not user.teacher_id:
+        students = await repo.list_all_course_students(course_id)
+        return [TeacherStudentRead.model_validate(s) for s in students]
+
+    # Regular teacher or admin with teacher profile
     if not user.teacher_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -113,33 +141,41 @@ async def submit_bulk_attendance(
     """Submit multiple attendance events at once.
 
     Used by teacher PWA to sync offline attendance records.
+    Directors/Admins can submit attendance for any course.
     """
-    if user.role != "TEACHER":
+    if user.role not in TEACHER_PORTAL_ROLES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo profesores pueden acceder a este recurso",
+            detail="No tienes permisos para acceder al portal de profesores",
         )
 
-    if not user.teacher_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Usuario no tiene perfil de profesor asociado",
-        )
+    # Admin roles without teacher_id can submit for any course
+    is_admin_without_profile = (
+        user.role in ("DIRECTOR", "INSPECTOR", "ADMIN", "SUPER_ADMIN")
+        and not user.teacher_id
+    )
 
-    # Verify teacher has access to this course
-    teacher = await teacher_repo.get_with_courses(user.teacher_id)
-    if not teacher:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profesor no encontrado",
-        )
+    if not is_admin_without_profile:
+        if not user.teacher_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Usuario no tiene perfil de profesor asociado",
+            )
 
-    course_ids = {c.id for c in teacher.courses}
-    if payload.course_id not in course_ids:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes acceso a este curso",
-        )
+        # Verify teacher has access to this course
+        teacher = await teacher_repo.get_with_courses(user.teacher_id)
+        if not teacher:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Profesor no encontrado",
+            )
+
+        course_ids = {c.id for c in teacher.courses}
+        if payload.course_id not in course_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tienes acceso a este curso",
+            )
 
     processed = 0
     errors: list[str] = []
