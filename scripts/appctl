@@ -1,0 +1,724 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Defaults
+DEF_REGISTRY_USER="moffermann"
+DEF_TAG="latest"
+VERBOSE=""
+
+# Project source directories (for build)
+DEV_PROJECTS_BASE="/home/gocode/projects"
+
+usage() {
+  cat <<USAGE
+Uso:
+  appctl deploy --env <dev|qa|prod> --app <nombre> [--tag <tag>] [--preserve-workspace] [--skip-push] [--verbose]
+  appctl rm     --env <dev|qa|prod> --app <nombre> [--verbose]
+  appctl status --env <dev|qa|prod> --app <nombre> [--verbose]
+  appctl logs   --env <dev|qa|prod> --app <nombre> [-f] [--verbose]
+  appctl verify --env <dev|qa|prod> --app <nombre> [--verbose]
+  appctl validate --env <dev|qa|prod> --app <nombre> [--verbose]
+
+Comportamiento:
+  - Deploy SIEMPRE construye una nueva imagen desde el código fuente actualizado.
+  - Antes de construir, hace git pull para asegurar el código más reciente.
+  - La imagen se tagea con timestamp (YYYY.MM.DD.HHMM) y 'latest'.
+  - Después del deploy, la imagen se sube a Docker Hub en background (async).
+  - En DEV: sincroniza /srv/dev/workspaces/<app> con /app de la imagen (uid/gid 10001).
+  - Usa --preserve-workspace si no quieres sobrescribir el workspace.
+  - Usa --skip-push para no subir la imagen al registry.
+  - Verificación post-deploy: GET http://<app>:8080/healthz desde la red net_<env>.
+USAGE
+}
+
+die(){ echo "Error: $*" >&2; exit 1; }
+
+have(){ command -v "$1" >/dev/null 2>&1; }
+
+log_step() {
+  [[ -n "${VERBOSE}" ]] || return 0
+  echo ">> $*" >&2
+}
+
+run_as_root(){
+  log_step "Ejecutando como root: $*"
+  if [[ "${EUID}" -eq 0 ]]; then
+    "$@"
+  else
+    have sudo || die "Se requieren privilegios de root para ejecutar: $*"
+    sudo "$@"
+  fi
+}
+
+cmd="${1:-}"; shift || true
+[[ -z "${cmd}" ]] && { usage; exit 1; }
+
+PRESERVE_WORKSPACE=""
+SKIP_PUSH=""
+
+ENV=""; APP=""; TAG_IN=""
+FOLLOW=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --env) ENV="$2"; shift 2;;
+    --app) APP="$2"; shift 2;;
+    --tag) TAG_IN="$2"; shift 2;;
+    --preserve-workspace) PRESERVE_WORKSPACE="1"; shift;;
+    --skip-push) SKIP_PUSH="1"; shift;;
+    --verbose|-v) VERBOSE="1"; shift;;
+    -f) FOLLOW="1"; shift;;
+    *) die "Flag desconocida: $1";;
+  esac
+done
+
+[[ -n "${ENV}" ]] && [[ "${ENV}" =~ ^(dev|qa|prod)$ ]] || die "--env dev|qa|prod requerido"
+[[ -n "${APP}" ]] || die "--app requerido"
+
+REGISTRY_USER="${DEF_REGISTRY_USER}"
+IMAGE_NAME="${APP}"
+IMAGE="${REGISTRY_USER}/${IMAGE_NAME}"
+
+# Generate timestamp tag if not provided
+if [[ -n "${TAG_IN}" ]]; then
+  TAG="${TAG_IN}"
+else
+  TAG="$(date -u +%Y.%m.%d.%H%M)"
+fi
+
+BASE="/srv/${ENV}/apps/${APP}"
+NET="net-${ENV}"
+CONTAINER_NAME="${APP}-${ENV}"
+if [[ "${ENV}" == "dev" ]]; then
+  WORKDIR_HOST="/srv/dev/workspaces/${APP}"
+else
+  WORKDIR_HOST="${BASE}"
+fi
+UIDC=10001
+GIDC=10001
+DEV_WORKSPACE_USER="${DEV_WORKSPACE_USER:-gocode}"
+DEV_WORKSPACE_GROUP="${DEV_WORKSPACE_GROUP:-app}"
+ENV_FILE="${BASE}/.env"
+PROJECT_COMPOSE="${BASE}/docker-compose.yml"
+
+# Source code directory
+SOURCE_DIR="${DEV_PROJECTS_BASE}/${APP}"
+
+ensure_dirs() {
+  log_step "Creando directorios para ${APP} en ${BASE}"
+  run_as_root mkdir -p "${BASE}"
+  if [[ "${ENV}" == "dev" ]]; then
+    run_as_root mkdir -p "${WORKDIR_HOST}"
+    run_as_root chown -R ${UIDC}:${GIDC} "${WORKDIR_HOST}"
+    run_as_root find "${WORKDIR_HOST}" -type d -exec chmod 775 {} \; || true
+    run_as_root find "${WORKDIR_HOST}" -type f -exec chmod 664 {} \; || true
+    grant_dev_host_access "${WORKDIR_HOST}"
+  fi
+}
+
+grant_dev_host_access() {
+  local target="${1}"
+  [[ "${ENV}" == "dev" ]] || return 0
+  log_step "Aplicando ACL para ${DEV_WORKSPACE_USER} en ${target}"
+  if have setfacl; then
+    run_as_root setfacl -R -m u:"${DEV_WORKSPACE_USER}":rwx "${target}" || true
+    run_as_root setfacl -R -d -m u:"${DEV_WORKSPACE_USER}":rwx "${target}" || true
+  else
+    echo "WARN: setfacl no está disponible; considera agregar a ${DEV_WORKSPACE_USER} al grupo ${DEV_WORKSPACE_GROUP} para acceso." >&2
+  fi
+}
+
+# ==============================================================================
+# update_source - Git pull to get latest code
+# ==============================================================================
+update_source() {
+  echo "== Actualizando código fuente =="
+
+  if [[ ! -d "${SOURCE_DIR}" ]]; then
+    die "Directorio de código fuente no encontrado: ${SOURCE_DIR}"
+  fi
+
+  if [[ ! -d "${SOURCE_DIR}/.git" ]]; then
+    die "El directorio ${SOURCE_DIR} no es un repositorio git"
+  fi
+
+  log_step "Ejecutando git pull en ${SOURCE_DIR}"
+  pushd "${SOURCE_DIR}" > /dev/null
+
+  # Stash any local changes
+  local has_changes=""
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "  → Guardando cambios locales (git stash)..."
+    git stash push -m "appctl auto-stash before deploy" || true
+    has_changes="1"
+  fi
+
+  # Get current branch
+  local current_branch
+  current_branch="$(git rev-parse --abbrev-ref HEAD)"
+  echo "  → Branch actual: ${current_branch}"
+
+  # Pull latest changes
+  echo "  → Descargando cambios (git pull)..."
+  if git pull origin "${current_branch}"; then
+    echo "  ✓ Código actualizado"
+  else
+    echo "  ⚠ Warning: git pull falló, continuando con código local"
+  fi
+
+  # Show current commit
+  local current_commit
+  current_commit="$(git rev-parse --short HEAD)"
+  local commit_msg
+  commit_msg="$(git log -1 --format='%s')"
+  echo "  → Commit: ${current_commit} - ${commit_msg}"
+
+  # Restore stashed changes if any
+  if [[ -n "${has_changes}" ]]; then
+    echo "  → Restaurando cambios locales (git stash pop)..."
+    git stash pop || true
+  fi
+
+  popd > /dev/null
+}
+
+# ==============================================================================
+# build_image - Build Docker image from source
+# ==============================================================================
+build_image() {
+  echo "== Construyendo imagen Docker =="
+  echo "  → Imagen: ${IMAGE}:${TAG}"
+  echo "  → Contexto: ${SOURCE_DIR}"
+
+  if [[ ! -f "${SOURCE_DIR}/Dockerfile" ]]; then
+    die "Dockerfile no encontrado en ${SOURCE_DIR}"
+  fi
+
+  log_step "Ejecutando docker build"
+
+  # Build the image
+  if docker build -t "${IMAGE}:${TAG}" -t "${IMAGE}:latest" "${SOURCE_DIR}"; then
+    echo "  ✓ Imagen construida: ${IMAGE}:${TAG}"
+    echo "  ✓ Imagen taggeada: ${IMAGE}:latest"
+  else
+    die "Error construyendo imagen Docker"
+  fi
+
+  # Show image info
+  local image_size
+  image_size="$(docker image inspect "${IMAGE}:${TAG}" --format='{{.Size}}' | awk '{printf "%.1f MB", $1/1024/1024}')"
+  echo "  → Tamaño: ${image_size}"
+}
+
+# ==============================================================================
+# push_image_async - Push image to registry in background
+# ==============================================================================
+push_image_async() {
+  if [[ -n "${SKIP_PUSH}" ]]; then
+    echo "  → Omitiendo push al registry (--skip-push)"
+    return 0
+  fi
+
+  echo "== Subiendo imagen al registry (async) =="
+  echo "  → Iniciando push en background..."
+
+  # Push both tags in background
+  (
+    docker push "${IMAGE}:${TAG}" 2>&1 | while read -r line; do
+      echo "[push ${TAG}] ${line}"
+    done
+    docker push "${IMAGE}:latest" 2>&1 | while read -r line; do
+      echo "[push latest] ${line}"
+    done
+    echo "[push] ✓ Imagen subida: ${IMAGE}:${TAG} y ${IMAGE}:latest"
+  ) >> "/tmp/appctl-push-${APP}-${TAG}.log" 2>&1 &
+
+  local push_pid=$!
+  echo "  → Push PID: ${push_pid}"
+  echo "  → Log: /tmp/appctl-push-${APP}-${TAG}.log"
+  echo "  → El push continúa en background, el deploy no espera."
+}
+
+sync_dev_workspace() {
+  [[ "${ENV}" != "dev" ]] && return 0
+  if [[ -n "${PRESERVE_WORKSPACE}" ]]; then
+    echo "INFO: Conservando workspace local (--preserve-workspace)."
+    return 0
+  fi
+
+  log_step "Sincronizando workspace dev desde la imagen hacia ${WORKDIR_HOST}"
+  echo "Sincronizando workspace desde ${IMAGE}:${TAG} ..."
+  local compose_backup=""
+  if [[ -f "${PROJECT_COMPOSE}" ]]; then
+    compose_backup="$(mktemp)"
+    cp "${PROJECT_COMPOSE}" "${compose_backup}"
+  fi
+  CID="$(docker create "${IMAGE}:${TAG}")"
+  run_as_root rm -rf "${WORKDIR_HOST}" || true
+  run_as_root mkdir -p "${WORKDIR_HOST}"
+  run_as_root docker cp "${CID}":/app/. "${WORKDIR_HOST}/" || true
+  docker rm "${CID}" >/dev/null
+  run_as_root chown -R ${UIDC}:${GIDC} "${WORKDIR_HOST}"
+  run_as_root find "${WORKDIR_HOST}" -type d -exec chmod 775 {} \; || true
+  run_as_root find "${WORKDIR_HOST}" -type f -exec chmod 664 {} \; || true
+  grant_dev_host_access "${WORKDIR_HOST}"
+
+  if [[ -n "${compose_backup}" ]]; then
+    run_as_root cp "${compose_backup}" "${PROJECT_COMPOSE}"
+    run_as_root chown ${UIDC}:${GIDC} "${PROJECT_COMPOSE}"
+    rm -f "${compose_backup}"
+  fi
+}
+
+use_project_compose() {
+  log_step "Buscando docker-compose del proyecto en ${PROJECT_COMPOSE}"
+  if [[ ! -f "${PROJECT_COMPOSE}" ]]; then
+    return 1
+  fi
+
+  local tmp
+  tmp="$(mktemp)"
+
+  local content
+  content="$(cat "${PROJECT_COMPOSE}")"
+  content="${content//<ENV>/${ENV}}"
+  content="${content//<APP>/${APP}}"
+  content="${content//<TAG>/${TAG}}"
+
+  if [[ "${ENV}" == "dev" ]]; then
+    content="$(printf '%s\n' "${content}" | sed -E \
+      -e "s|(^[[:space:]]*context:[[:space:]]*)\\.[[:space:]]*$|\\1${WORKDIR_HOST}|" \
+      -e "s|(^[[:space:]]*- ['\"]?)\\./|\\1${WORKDIR_HOST}/|")"
+  fi
+
+  printf '%s\n' "${content}" > "${tmp}"
+  run_as_root cp "${tmp}" "${PROJECT_COMPOSE}"
+  rm -f "${tmp}"
+  echo "INFO: Usando docker-compose del proyecto: ${PROJECT_COMPOSE}"
+  return 0
+}
+
+write_compose() {
+  log_step "Preparando docker-compose en ${PROJECT_COMPOSE}"
+  if use_project_compose; then
+    log_step "docker-compose del proyecto detectado y aplicado."
+    return
+  fi
+  log_step "Generando docker-compose base (imagen ${IMAGE}:${TAG})"
+  local image="${IMAGE}:${TAG}"
+  local env_file_block=""
+  if [[ -f "${ENV_FILE}" ]]; then
+    printf -v env_file_block "    env_file:\n      - %s\n" "${ENV_FILE}"
+  fi
+  run_as_root tee "${PROJECT_COMPOSE}" >/dev/null <<YAML
+services:
+  ${APP}:
+    container_name: ${APP}
+    image: ${image}
+    restart: unless-stopped
+    networks:
+      - ${NET}
+${env_file_block}    environment:
+      - PORT=8080
+      - LOG_LEVEL=info
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/healthz || wget -qO- http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+YAML
+
+  if [[ "${ENV}" == "dev" ]]; then
+    run_as_root awk -v mnt="      - ${WORKDIR_HOST}:/app" '
+      $0 ~ "^\\s*healthcheck:" { print; hc=1; next }
+      hc && NF==0 { print; print "    volumes:"; print mnt; hc=0; next }
+      { print }
+    ' "${PROJECT_COMPOSE}" | run_as_root tee "${PROJECT_COMPOSE}.tmp" >/dev/null
+    run_as_root mv "${PROJECT_COMPOSE}.tmp" "${PROJECT_COMPOSE}"
+  fi
+
+  cat <<YAML | run_as_root tee -a "${PROJECT_COMPOSE}" >/dev/null
+networks:
+  ${NET}:
+    external: true
+YAML
+}
+
+# ==============================================================================
+# validate_compose - Validates docker-compose.yml before deployment
+# ==============================================================================
+validate_compose() {
+  log_step "Validando docker-compose.yml en ${PROJECT_COMPOSE}"
+
+  if [[ ! -f "${PROJECT_COMPOSE}" ]]; then
+    echo "WARN: No se encontró docker-compose.yml en ${PROJECT_COMPOSE}"
+    return 0
+  fi
+
+  local errors=0
+  local warnings=0
+  local compose_content
+  compose_content="$(cat "${PROJECT_COMPOSE}")"
+
+  echo "== Validando docker-compose.yml =="
+
+  # 1. Validar que la red externa esperada existe
+  log_step "Verificando que la red ${NET} existe"
+  if ! docker network inspect "${NET}" >/dev/null 2>&1; then
+    echo "ERROR: La red Docker '${NET}' no existe."
+    echo "       Créala con: docker network create ${NET}"
+    ((errors++))
+  else
+    echo "  ✓ Red '${NET}' existe"
+  fi
+
+  # 2. Validar que el compose referencia la red correcta
+  log_step "Verificando configuración de red en compose"
+  if echo "${compose_content}" | grep -qE "external:\s*(true|yes)"; then
+    local net_name
+    net_name=$(echo "${compose_content}" | grep -A1 "external:" | grep "name:" | sed -E 's/.*name:\s*\$\{[^}]+:-([^}]+)\}.*/\1/' | head -1)
+    if [[ -z "${net_name}" ]]; then
+      net_name=$(echo "${compose_content}" | grep -A1 "external:" | grep "name:" | sed -E 's/.*name:\s*([^[:space:]]+).*/\1/' | head -1)
+    fi
+
+    local expected_net_suffix
+    case "${ENV}" in
+      dev) expected_net_suffix="dev";;
+      qa) expected_net_suffix="qa";;
+      prod) expected_net_suffix="prod";;
+    esac
+
+    if [[ -n "${net_name}" ]]; then
+      if [[ "${net_name}" != *"${expected_net_suffix}"* && "${net_name}" != "net-${ENV}" && "${net_name}" != "net_${ENV}" ]]; then
+        echo "WARN: La red en compose (${net_name}) podría no coincidir con el entorno '${ENV}'"
+        echo "      Esperado: net-${ENV} o net_${ENV}"
+        ((warnings++))
+      else
+        echo "  ✓ Red en compose parece correcta para entorno ${ENV}"
+      fi
+    fi
+  else
+    echo "WARN: No se encontró configuración de red externa en el compose"
+    ((warnings++))
+  fi
+
+  # 3. Validar que el servicio principal existe
+  log_step "Verificando servicio principal ${APP}"
+  if ! echo "${compose_content}" | grep -qE "^\s+${APP}:|^\s+\"${APP}\":"; then
+    local app_underscore="${APP//-/_}"
+    if ! echo "${compose_content}" | grep -qE "^\s+${app_underscore}:|^\s+\"${app_underscore}\":"; then
+      echo "ERROR: No se encontró el servicio '${APP}' en docker-compose.yml"
+      ((errors++))
+    else
+      echo "  ✓ Servicio '${app_underscore}' encontrado"
+    fi
+  else
+    echo "  ✓ Servicio '${APP}' encontrado"
+  fi
+
+  # 4. Validar que hay healthcheck definido
+  log_step "Verificando healthcheck"
+  if ! echo "${compose_content}" | grep -q "healthcheck:"; then
+    echo "WARN: No se encontró healthcheck en el compose"
+    echo "      Recomendado agregar healthcheck para verificación post-deploy"
+    ((warnings++))
+  else
+    echo "  ✓ Healthcheck configurado"
+  fi
+
+  # 5. En dev, verificar/advertir sobre volúmenes para workspace
+  if [[ "${ENV}" == "dev" ]]; then
+    log_step "Verificando configuración de workspace para dev"
+    if echo "${compose_content}" | grep -qE "volumes:|/srv/dev/workspaces"; then
+      echo "  ✓ Configuración de volúmenes presente"
+    else
+      echo "INFO: No hay volúmenes de workspace en compose."
+      echo "      El código se ejecutará desde la imagen, no desde el workspace local."
+      echo "      Para desarrollo con hot-reload, considera montar el workspace."
+    fi
+  fi
+
+  # 6. Validar sintaxis básica del compose con docker compose config
+  log_step "Validando sintaxis del compose"
+  if command -v docker >/dev/null 2>&1; then
+    local config_output
+    if config_output=$(docker compose -f "${PROJECT_COMPOSE}" config 2>&1); then
+      echo "  ✓ Sintaxis del compose válida"
+    else
+      echo "ERROR: El compose tiene errores de sintaxis:"
+      echo "${config_output}" | head -10
+      ((errors++))
+    fi
+  fi
+
+  # Resumen
+  echo ""
+  if [[ ${errors} -gt 0 ]]; then
+    echo "VALIDACIÓN FALLIDA: ${errors} error(es), ${warnings} advertencia(s)"
+    echo "Corrige los errores antes de continuar con el deploy."
+    return 1
+  elif [[ ${warnings} -gt 0 ]]; then
+    echo "VALIDACIÓN OK con ${warnings} advertencia(s)"
+    return 0
+  else
+    echo "VALIDACIÓN OK"
+    return 0
+  fi
+}
+
+run_migrations() {
+  if [[ ! -f "${PROJECT_COMPOSE}" ]]; then
+    echo "INFO: compose no encontrado; omitiendo migraciones."
+    return 0
+  fi
+  log_step "Ejecutando migraciones dentro de ${APP}"
+  echo "== Ejecutando migraciones (npm run migrate) =="
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    run_as_root docker compose -f "${PROJECT_COMPOSE}" exec -T "${APP}" npm run migrate || true
+  elif command -v docker-compose >/dev/null 2>&1; then
+    run_as_root docker-compose -f "${PROJECT_COMPOSE}" exec -T "${APP}" npm run migrate || true
+  else
+    echo "INFO: docker compose no disponible; omitiendo migraciones."
+  fi
+}
+
+deploy() {
+  log_step "Inicio deploy env=${ENV} app=${APP} tag=${TAG} preserve_ws=${PRESERVE_WORKSPACE:-0}"
+
+  echo ""
+  echo "╔════════════════════════════════════════════════════════════════╗"
+  echo "║  DEPLOY: ${APP} → ${ENV}"
+  echo "╚════════════════════════════════════════════════════════════════╝"
+  echo ""
+
+  # 1. Ensure directories exist
+  ensure_dirs
+
+  # 2. Update source code (git pull)
+  update_source
+
+  # 3. Build Docker image
+  build_image
+
+  # 4. Sync workspace (dev only)
+  sync_dev_workspace
+
+  # 5. Write/update compose file
+  log_step "Escribiendo compose y levantando contenedores"
+  write_compose
+
+  # 6. Validate compose before deploying
+  if ! validate_compose; then
+    die "Validación del docker-compose falló. Abortando deploy."
+  fi
+
+  # 7. Deploy containers
+  echo "== Desplegando contenedores =="
+  # First, stop and remove any existing containers to avoid name conflicts
+  # Use docker compose down with proper env vars, and also force-remove the main container by name
+  run_as_root bash -lc "cd '${BASE}' && APP_ENV='${ENV}' docker compose down --remove-orphans" 2>/dev/null || true
+  # Force remove the main app container if it exists (handles orphaned containers)
+  docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
+  run_as_root bash -lc "cd '${BASE}' && APP_ENV='${ENV}' docker compose up -d --force-recreate"
+
+  # 8. Run migrations
+  run_migrations
+
+  # 9. Run post-deploy hook
+  run_postdeploy_hook
+
+  # 10. Sync nginx config
+  sync_nginx_config
+
+  # 11. Verify health
+  verify
+
+  # 12. Push image to registry (async, in background)
+  push_image_async
+
+  echo ""
+  echo "╔════════════════════════════════════════════════════════════════╗"
+  echo "║  ✓ DEPLOY COMPLETADO: ${APP} → ${ENV}"
+  echo "║  → Imagen: ${IMAGE}:${TAG}"
+  echo "╚════════════════════════════════════════════════════════════════╝"
+  echo ""
+}
+
+rm_app() {
+  log_step "Bajando stack y limpiando recursos de ${APP} en ${ENV}"
+  if [[ -f "${BASE}/compose.yml" ]]; then
+    run_as_root bash -lc "cd '${BASE}' && docker compose down" || true
+  fi
+  echo "OK: ${APP} eliminado de ${ENV} (si existía)."
+}
+
+status() {
+  log_step "Mostrando estado de contenedores para ${APP}"
+  docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Networks}}\t{{.Mounts}}" | grep -E "^${APP}\b" || true
+}
+
+logs() {
+  log_step "Mostrando logs de ${CONTAINER_NAME} (follow=${FOLLOW:-0})"
+  if [[ -n "${FOLLOW}" ]]; then
+    docker logs -f "${CONTAINER_NAME}"
+  else
+    docker logs --tail=200 "${CONTAINER_NAME}"
+  fi
+}
+
+run_postdeploy_hook() {
+  local hook="${WORKDIR_HOST}/scripts/appctl-postdeploy.sh"
+  if [[ -f "${hook}" && -x "${hook}" ]]; then
+    log_step "Ejecutando hook postdeploy ${hook}"
+    echo "== Ejecutando hook postdeploy =="
+    run_as_root bash -lc "cd "${WORKDIR_HOST}" && "${hook}" "${APP}" "${ENV}""
+  fi
+}
+
+# ==============================================================================
+# sync_nginx_config - Syncs nginx config from project to /srv/nginx/
+# If config doesn't exist in project, generates from template
+# ==============================================================================
+sync_nginx_config() {
+  local nginx_src="${WORKDIR_HOST}/nginx/${ENV}.conf"
+  local nginx_dir="${WORKDIR_HOST}/nginx"
+  local nginx_repo="/srv/nginx"
+  local container_name="${APP}-${ENV}"
+
+  # Determine domain based on environment
+  # dev/qa: app.dev.gocode.cl, app.qa.gocode.cl
+  # prod: app.gocode.cl (without .prod suffix)
+  local server_domain
+  local ssl_cert_env
+  if [[ "${ENV}" == "prod" ]]; then
+    server_domain="${APP}.gocode.cl"
+    ssl_cert_env="gocode.cl"
+  else
+    server_domain="${APP}.${ENV}.gocode.cl"
+    ssl_cert_env="${ENV}.gocode.cl"
+  fi
+  local nginx_dest="/srv/nginx/conf.d/50-${server_domain}-ssl.conf"
+
+  echo "== Sincronizando configuración nginx =="
+
+  # If config doesn't exist in project, generate from template
+  if [[ ! -f "${nginx_src}" ]]; then
+    log_step "No nginx config found at ${nginx_src}, generating from template"
+    echo "  → Generando config desde template..."
+
+    # Create nginx directory in project if needed
+    run_as_root mkdir -p "${nginx_dir}"
+
+    # Generate config from template
+    run_as_root tee "${nginx_src}" > /dev/null <<NGINX_TEMPLATE
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name ${server_domain};
+
+  ssl_certificate     /etc/letsencrypt/live/${ssl_cert_env}/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/${ssl_cert_env}/privkey.pem;
+
+  location / {
+    resolver 127.0.0.11 valid=30s;
+    set \$upstream ${container_name}:8080;
+
+    proxy_pass http://\$upstream;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+  }
+}
+NGINX_TEMPLATE
+
+    # Fix ownership for dev workspace
+    if [[ "${ENV}" == "dev" ]]; then
+      run_as_root chown -R ${UIDC}:${GIDC} "${nginx_dir}"
+    fi
+
+    echo "  ✓ Generado ${nginx_src}"
+  fi
+
+  log_step "Syncing nginx config from ${nginx_src} to ${nginx_dest}"
+
+  # Copy config to nginx directory
+  run_as_root cp "${nginx_src}" "${nginx_dest}"
+  echo "  ✓ Copiado ${nginx_src} -> ${nginx_dest}"
+
+  # Commit changes in nginx repo
+  if [[ -d "${nginx_repo}/.git" ]]; then
+    log_step "Committing nginx config change"
+    local commit_msg="Deploy ${APP} ${ENV}: update nginx config"
+
+    pushd "${nginx_repo}" > /dev/null
+    run_as_root git add -A
+    if ! run_as_root git diff --cached --quiet; then
+      run_as_root git commit -m "${commit_msg}" || true
+      echo "  ✓ Commit en ${nginx_repo}: ${commit_msg}"
+    else
+      echo "  ✓ Sin cambios en nginx config"
+    fi
+    popd > /dev/null
+  fi
+
+  # Test and reload nginx
+  log_step "Testing and reloading nginx"
+  if docker exec nginx-nginx-1 nginx -t >/dev/null 2>&1; then
+    docker exec nginx-nginx-1 nginx -s reload
+    echo "  ✓ Nginx recargado"
+  else
+    echo "  ✗ ERROR: nginx config inválida, revirtiendo..."
+    run_as_root git -C "${nginx_repo}" checkout -- "${nginx_dest}" || true
+    return 1
+  fi
+}
+
+verify() {
+  log_step "Verificando health en red ${NET} (http://${APP}:8080/healthz)"
+  echo "== Verificando health en ${ENV} =="
+  local tries=18 rc=1
+  while (( tries-- > 0 )); do
+    rc=$(docker run --rm --network "${NET}" curlimages/curl:8.10.1 \
+      -s -o /dev/null -w '%{http_code}\n' "http://${APP}:8080/healthz" || echo 000)
+    if [[ "${rc}" == "200" ]]; then
+      echo "OK: health 200 (${APP} en ${ENV})"
+      status
+      return 0
+    fi
+    sleep 5
+  done
+  echo "WARN: health no llegó a 200 (último rc=${rc}). Estado:"
+  status
+  echo "Logs recientes:"
+  docker logs --tail=120 "${CONTAINER_NAME}" || true
+  return 1
+}
+
+validate_only() {
+  ensure_dirs
+
+  # Validar compose
+  if [[ -f "${PROJECT_COMPOSE}" ]]; then
+    validate_compose
+  else
+    echo "No existe ${PROJECT_COMPOSE}"
+    echo "Buscando docker-compose.yml en el workspace..."
+    if [[ -f "${WORKDIR_HOST}/docker-compose.yml" ]]; then
+      echo "Encontrado en ${WORKDIR_HOST}/docker-compose.yml"
+      PROJECT_COMPOSE="${WORKDIR_HOST}/docker-compose.yml"
+      validate_compose
+    else
+      die "No se encontró docker-compose.yml para validar"
+    fi
+  fi
+}
+
+case "${cmd}" in
+  deploy) deploy;;
+  rm) rm_app;;
+  status) status;;
+  logs) logs;;
+  verify) verify;;
+  validate) validate_only;;
+  *) usage; exit 1;;
+esac

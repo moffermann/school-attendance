@@ -179,4 +179,4 @@ volumes:
 networks:
   app_net:
     external: true
-    name: ${DOCKER_NETWORK:-net-dev}
+    name: ${DOCKER_NETWORK:-net-${APP_ENV:-dev}}
