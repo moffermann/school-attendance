@@ -571,11 +571,17 @@ logs() {
 }
 
 run_postdeploy_hook() {
-  local hook="${WORKDIR_HOST}/scripts/appctl-postdeploy.sh"
-  if [[ -f "${hook}" && -x "${hook}" ]]; then
-    log_step "Ejecutando hook postdeploy ${hook}"
+  local compose_project="${APP}-${ENV}"
+  local hook_script="scripts/appctl-postdeploy.sh"
+
+  # Check if the hook exists inside the container
+  if docker compose -p "${compose_project}" -f "${PROJECT_COMPOSE}" exec -T "${APP}" test -f "${hook_script}" 2>/dev/null; then
+    log_step "Ejecutando hook postdeploy desde contenedor"
     echo "== Ejecutando hook postdeploy =="
-    run_as_root bash -lc "cd "${WORKDIR_HOST}" && "${hook}" "${APP}" "${ENV}""
+    docker compose -p "${compose_project}" -f "${PROJECT_COMPOSE}" exec -T "${APP}" bash -c "chmod +x ${hook_script} && ./${hook_script} ${APP} ${ENV}"
+    echo "== Post-deploy hook completed successfully =="
+  else
+    log_step "No se encontró hook postdeploy en el contenedor"
   fi
 }
 
