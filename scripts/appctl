@@ -514,12 +514,14 @@ deploy() {
 
   # 8. Deploy containers
   echo "== Desplegando contenedores =="
+  # Use project name with environment suffix to isolate compose stacks
+  local compose_project="${APP}-${ENV}"
   # First, stop and remove any existing containers to avoid name conflicts
   # Use docker compose down with proper env vars, and also force-remove the main container by name
-  run_as_root bash -lc "cd '${BASE}' && APP_ENV='${ENV}' docker compose down --remove-orphans" 2>/dev/null || true
+  run_as_root bash -lc "cd '${BASE}' && APP_ENV='${ENV}' docker compose -p '${compose_project}' down --remove-orphans" 2>/dev/null || true
   # Force remove the main app container if it exists (handles orphaned containers)
   docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
-  run_as_root bash -lc "cd '${BASE}' && APP_ENV='${ENV}' docker compose up -d --force-recreate"
+  run_as_root bash -lc "cd '${BASE}' && APP_ENV='${ENV}' docker compose -p '${compose_project}' up -d --force-recreate"
 
   # 9. Run migrations
   run_migrations
@@ -546,8 +548,9 @@ deploy() {
 
 rm_app() {
   log_step "Bajando stack y limpiando recursos de ${APP} en ${ENV}"
-  if [[ -f "${BASE}/compose.yml" ]]; then
-    run_as_root bash -lc "cd '${BASE}' && docker compose down" || true
+  local compose_project="${APP}-${ENV}"
+  if [[ -f "${BASE}/compose.yml" ]] || [[ -f "${BASE}/docker-compose.yml" ]]; then
+    run_as_root bash -lc "cd '${BASE}' && APP_ENV='${ENV}' docker compose -p '${compose_project}' down" || true
   fi
   echo "OK: ${APP} eliminado de ${ENV} (si existía)."
 }
