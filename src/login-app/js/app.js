@@ -103,7 +103,7 @@ async function tryLogin(email, password) {
       // Super admin token has typ: "super_admin"
       return { data, isSuperAdmin: true };
     }
-  } catch (e) {
+  } catch {
     // Super admin login failed, try regular login
   }
 

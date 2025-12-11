@@ -24,7 +24,7 @@ Views.directorStudents = function() {
           <label class="form-label">Curso</label>
           <select id="filter-course" class="form-select">
             <option value="">Todos</option>
-            ${courses.map(c => `<option value="${c.id}" ${selectedCourse == c.id ? 'selected' : ''}>${Components.escapeHtml(c.name)}</option>`).join('')}
+            ${courses.map(c => `<option value="${c.id}" ${selectedCourse === c.id ? 'selected' : ''}>${Components.escapeHtml(c.name)}</option>`).join('')}
           </select>
         </div>
 

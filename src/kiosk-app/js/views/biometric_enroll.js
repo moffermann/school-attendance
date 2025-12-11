@@ -226,8 +226,6 @@ Views.biometricEnroll = function() {
 
     const btn = document.getElementById('enroll-btn');
     const guide = document.getElementById('fingerprint-guide');
-    const sensor = document.getElementById('fingerprint-sensor');
-    const guideText = document.getElementById('guide-text');
 
     // Hide button, show guide
     if (btn) btn.style.display = 'none';

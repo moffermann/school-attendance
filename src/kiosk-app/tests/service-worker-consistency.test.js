@@ -92,7 +92,6 @@ function runTests() {
   console.log('='.repeat(50));
 
   const errors = [];
-  const warnings = [];
 
   // Get URLs from service worker
   let swUrls;
@@ -110,7 +109,6 @@ function runTests() {
 
   // Normalize URLs for comparison
   const normalizedSwUrls = new Set(swUrls.map(normalizeUrl));
-  const normalizedExistingFiles = new Set(existingFiles.map(normalizeUrl));
 
   // Test 1: All SW URLs should exist in filesystem
   console.log('Test 1: Checking if all SW URLs exist in filesystem...');

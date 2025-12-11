@@ -9,7 +9,7 @@ test.describe('Authentication', () => {
     await page.waitForLoadState('domcontentloaded');
     await page.evaluate(() => {
       localStorage.clear();
-      try { indexedDB.deleteDatabase('TeacherPWA'); } catch(e) {}
+      try { indexedDB.deleteDatabase('TeacherPWA'); } catch {}
     });
     await page.reload();
   });

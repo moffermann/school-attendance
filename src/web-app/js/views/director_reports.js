@@ -51,30 +51,20 @@ Views.directorReports = function() {
     const courseId = document.getElementById('course-select').value;
     const selectedCourses = courseId ? [State.getCourse(parseInt(courseId))] : courses;
 
-    let totalStudents = 0;
-    let totalPresent = 0;
-    let totalLate = 0;
-    let totalAbsent = 0;
-
     const reportRows = selectedCourses.map(course => {
-      const students = State.getStudentsByCourse(course.id);
+      const courseStudents = State.getStudentsByCourse(course.id);
       const events = State.getAttendanceEvents({ courseId: course.id });
       const inEvents = events.filter(e => e.type === 'IN');
       const lateEvents = inEvents.filter(e => e.ts.split('T')[1] > '08:30:00');
 
       const presentCount = new Set(inEvents.map(e => e.student_id)).size;
-      const absentCount = students.length - presentCount;
+      const absentCount = courseStudents.length - presentCount;
 
-      totalStudents += students.length;
-      totalPresent += presentCount;
-      totalLate += lateEvents.length;
-      totalAbsent += absentCount;
-
-      const attendancePercent = ((presentCount / students.length) * 100).toFixed(1);
+      const attendancePercent = ((presentCount / courseStudents.length) * 100).toFixed(1);
 
       return [
         course.name,
-        students.length,
+        courseStudents.length,
         presentCount,
         lateEvents.length,
         absentCount,
@@ -113,7 +103,6 @@ Views.directorReports = function() {
       const barCanvas = document.getElementById('attendance-chart');
       if (barCanvas) {
         const data = selectedCourses.map(c => {
-          const students = State.getStudentsByCourse(c.id);
           const events = State.getAttendanceEvents({ courseId: c.id });
           const inEvents = events.filter(e => e.type === 'IN');
           return new Set(inEvents.map(e => e.student_id)).size;
@@ -183,11 +172,11 @@ Views.directorReports = function() {
     const totalLate = allIn.filter(e => e.ts.split('T')[1] > '08:30:00').length;
     const overallRate = ((totalPresent / totalStudents) * 100).toFixed(1);
 
-    y = Components.addPDFSection(doc, 'Totales Generales', y);
-    y = Components.addPDFText(doc, `Total Alumnos: ${totalStudents}`, y);
-    y = Components.addPDFText(doc, `Total Presentes: ${totalPresent}`, y);
-    y = Components.addPDFText(doc, `Total Atrasos: ${totalLate}`, y);
-    y = Components.addPDFText(doc, `Tasa de Asistencia General: ${overallRate}%`, y);
+    let finalY = Components.addPDFSection(doc, 'Totales Generales', y);
+    finalY = Components.addPDFText(doc, `Total Alumnos: ${totalStudents}`, finalY);
+    finalY = Components.addPDFText(doc, `Total Presentes: ${totalPresent}`, finalY);
+    finalY = Components.addPDFText(doc, `Total Atrasos: ${totalLate}`, finalY);
+    Components.addPDFText(doc, `Tasa de Asistencia General: ${overallRate}%`, finalY);
 
     // Footer
     const pageHeight = doc.internal.pageSize.getHeight();

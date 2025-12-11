@@ -70,6 +70,7 @@ Views.auth = function() {
     </div>
   `;
 
+  // eslint-disable-next-line no-unused-vars -- Prepared for demo mode role selection
   let selectedRole = null;
 
   // Triple-click on logo to reveal demo mode (emergency access)

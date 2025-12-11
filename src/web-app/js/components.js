@@ -70,7 +70,6 @@ const Components = {
       </div>
     `;
 
-    const modal = container.querySelector('.modal');
     const closeBtn = container.querySelector('.modal-close');
 
     // F12 fix: Store listener references for cleanup
@@ -349,7 +348,7 @@ const Components = {
   },
 
   // Stat card
-  createStatCard(label, value, type = 'info') {
+  createStatCard(label, value, _type = 'info') {
     return `
       <div class="stat-card">
         <div class="stat-label">${this.escapeHtml(label)}</div>

@@ -39,7 +39,7 @@ const State = {
         const data = await API.getTeacherMe();
         // Token is valid - restore session from server data
         this.setTeacherProfile(data.teacher, data.courses);
-      } catch (e) {
+      } catch {
         // Token invalid or expired - clear session
         console.warn('JWT token invalid or expired, clearing session');
         this.logout();

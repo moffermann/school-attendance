@@ -49,7 +49,7 @@ Views.directorBiometric = function() {
                   <div class="form-group" style="margin-bottom: 0;">
                     <select id="filter-course" class="form-select" onchange="Views.directorBiometric.filterStudents()">
                       <option value="">Todos los cursos</option>
-                      ${courses.map(c => `<option value="${c.id}" ${selectedCourse == c.id ? 'selected' : ''}>${Components.escapeHtml(c.name)}</option>`).join('')}
+                      ${courses.map(c => `<option value="${c.id}" ${selectedCourse === c.id ? 'selected' : ''}>${Components.escapeHtml(c.name)}</option>`).join('')}
                     </select>
                   </div>
                 </div>
@@ -335,7 +335,7 @@ Views.directorBiometric = function() {
       </tr>
     `).join('');
 
-    const modal = Components.showModal('Credenciales Biométricas', `
+    Components.showModal('Credenciales Biométricas', `
       <p style="margin-bottom: 1rem;">Credenciales registradas para <strong>${Components.escapeHtml(selectedStudent.full_name)}</strong>:</p>
       <div id="credentials-table-container">
         <table>
@@ -419,7 +419,7 @@ Views.directorBiometric = function() {
           document.querySelector('.modal-container')?.click();
           Components.showToast('Todas las credenciales eliminadas', 'success');
           Views.directorBiometric.selectStudent(selectedStudent.id);
-        } catch (err) {
+        } catch {
           Components.showToast('Error al eliminar credenciales', 'error');
         }
       }}

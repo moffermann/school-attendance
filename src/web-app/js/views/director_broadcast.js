@@ -133,7 +133,8 @@ Dirección</textarea>
 
     const courseId = document.getElementById('broadcast-course').value;
     const whatsapp = document.getElementById('channel-whatsapp').checked;
-    const email = document.getElementById('channel-email').checked;
+    // Email channel to be implemented in future
+    // const email = document.getElementById('channel-email').checked;
 
     // Simulate sending
     Components.showToast('Enviando mensajes...', 'info', 1000);

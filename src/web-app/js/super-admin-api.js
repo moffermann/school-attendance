@@ -25,7 +25,7 @@ const SuperAdminAPI = {
           if (payload.typ === 'super_admin') {
             this._token = unifiedToken;
           }
-        } catch (e) {
+        } catch {
           // Not a valid JWT, ignore
         }
       }

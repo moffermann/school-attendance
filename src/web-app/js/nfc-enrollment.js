@@ -281,7 +281,7 @@ const NFCEnrollment = {
                 if (parsed.type && parsed.id && parsed.token) {
                   result.enrollmentData = parsed;
                 }
-              } catch (e) {
+              } catch {
                 // Not JSON, ignore
               }
             } else if (record.recordType === 'url') {

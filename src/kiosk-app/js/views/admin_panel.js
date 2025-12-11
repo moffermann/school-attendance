@@ -8,7 +8,6 @@ Views.adminPanel = function() {
   let timeoutId = null;
   let warningId = null;
   let countdownInterval = null;
-  let sessionStartTime = Date.now();
 
   function render() {
     app.innerHTML = `
@@ -81,7 +80,7 @@ Views.adminPanel = function() {
     // Clear any existing timers
     clearTimers();
 
-    sessionStartTime = Date.now();
+    // Session timer started
 
     // Set warning timer (show warning 1 minute before expiry)
     warningId = setTimeout(() => {
@@ -128,7 +127,8 @@ Views.adminPanel = function() {
     Router.navigate('/home');
   }
 
-  function resetTimer() {
+  // eslint-disable-next-line no-unused-vars -- Prepared for future use with activity detection
+  function _resetTimer() {
     const timeoutElement = document.getElementById('session-timeout');
     const textElement = document.getElementById('timeout-text');
 

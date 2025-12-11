@@ -70,7 +70,7 @@ const State = {
         // Token is valid - restore session from server data
         this.setFromBootstrap(bootstrap);
         return; // Session restored from server
-      } catch (e) {
+      } catch {
         // Token invalid or expired - clear session
         console.warn('JWT token invalid or expired, clearing session');
         this.logout();

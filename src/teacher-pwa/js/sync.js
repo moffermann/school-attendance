@@ -33,8 +33,6 @@ const Sync = {
     const batch = pending.slice(0, this.batchSize);
 
     for (const event of batch) {
-      // F4 fix: Store original status to revert on failure
-      const originalStatus = event.status;
       event.status = 'in_progress';
       await IDB.put('queue', event);
 

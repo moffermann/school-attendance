@@ -423,7 +423,6 @@ Views.home = function() {
     const progressEl = document.getElementById('auto-resume-progress');
     const countdownEl = document.getElementById('auto-resume-countdown');
     let remaining = AUTO_RESUME_MS;
-    const intervalMs = 100; // Update every 100ms for smooth progress
 
     // Animate progress bar
     if (progressEl) {

@@ -133,7 +133,6 @@ Views.parentHistory = function() {
           ${events.map(event => {
             const isIn = event.type === 'IN';
             const bgColor = isIn ? 'var(--color-success-light)' : 'var(--color-info-light)';
-            const iconColor = isIn ? 'var(--color-success)' : 'var(--color-info)';
             const icon = isIn ? '📥' : '📤';
             const label = isIn ? 'Ingreso' : 'Salida';
 

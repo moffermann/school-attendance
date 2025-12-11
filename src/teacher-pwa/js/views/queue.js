@@ -3,7 +3,6 @@ Views.queue = async function() {
   const queue = await IDB.getAll('queue');
   const students = await IDB.getAll('students');
   const pending = queue.filter(e => e.status === 'pending');
-  const synced = queue.filter(e => e.status === 'synced');
   const errors = queue.filter(e => e.status === 'error');
 
   app.innerHTML = `

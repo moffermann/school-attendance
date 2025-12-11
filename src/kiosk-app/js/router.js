@@ -33,7 +33,7 @@ const Router = {
 
   handleRoute() {
     const hash = window.location.hash.slice(1) || '/home';
-    const [path, query] = hash.split('?');
+    const [path] = hash.split('?');
 
     // R13-FE5 fix: Call cleanup for previous route
     if (this.currentRoute && this.cleanupFunctions[this.currentRoute]) {
