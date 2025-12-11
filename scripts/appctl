@@ -374,26 +374,24 @@ validate_compose() {
   # 2. Validar que el compose referencia la red correcta
   log_step "Verificando configuración de red en compose"
   if echo "${compose_content}" | grep -qE "external:\s*(true|yes)"; then
-    local net_name
-    net_name=$(echo "${compose_content}" | grep -A1 "external:" | grep "name:" | sed -E 's/.*name:\s*\$\{[^}]+:-([^}]+)\}.*/\1/' | head -1)
-    if [[ -z "${net_name}" ]]; then
-      net_name=$(echo "${compose_content}" | grep -A1 "external:" | grep "name:" | sed -E 's/.*name:\s*([^[:space:]]+).*/\1/' | head -1)
-    fi
+    local net_line
+    net_line=$(echo "${compose_content}" | grep -A1 "external:" | grep "name:" | head -1)
 
-    local expected_net_suffix
-    case "${ENV}" in
-      dev) expected_net_suffix="dev";;
-      qa) expected_net_suffix="qa";;
-      prod) expected_net_suffix="prod";;
-    esac
+    # Extract the name value and evaluate it with APP_ENV set to current environment
+    local net_name_raw
+    net_name_raw=$(echo "${net_line}" | sed -E 's/.*name:\s*([^[:space:]]+).*/\1/')
+
+    # Evaluate the expression using bash with APP_ENV set to the current environment
+    local net_name
+    net_name=$(APP_ENV="${ENV}" bash -c "echo ${net_name_raw}" 2>/dev/null || echo "${net_name_raw}")
 
     if [[ -n "${net_name}" ]]; then
-      if [[ "${net_name}" != *"${expected_net_suffix}"* && "${net_name}" != "net-${ENV}" && "${net_name}" != "net_${ENV}" ]]; then
-        echo "WARN: La red en compose (${net_name}) podría no coincidir con el entorno '${ENV}'"
+      if [[ "${net_name}" == "net-${ENV}" || "${net_name}" == "net_${ENV}" || "${net_name}" == "${NET}" ]]; then
+        echo "  ✓ Red en compose correcta: ${net_name}"
+      else
+        echo "WARN: La red en compose (${net_name}) no coincide con el entorno '${ENV}'"
         echo "      Esperado: net-${ENV} o net_${ENV}"
         ((warnings++))
-      else
-        echo "  ✓ Red en compose parece correcta para entorno ${ENV}"
       fi
     fi
   else
