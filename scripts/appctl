@@ -247,11 +247,6 @@ sync_dev_workspace() {
 
   log_step "Sincronizando workspace dev desde la imagen hacia ${WORKDIR_HOST}"
   echo "Sincronizando workspace desde ${IMAGE}:${TAG} ..."
-  local compose_backup=""
-  if [[ -f "${PROJECT_COMPOSE}" ]]; then
-    compose_backup="$(mktemp)"
-    cp "${PROJECT_COMPOSE}" "${compose_backup}"
-  fi
   CID="$(docker create "${IMAGE}:${TAG}")"
   run_as_root rm -rf "${WORKDIR_HOST}" || true
   run_as_root mkdir -p "${WORKDIR_HOST}"
@@ -261,11 +256,16 @@ sync_dev_workspace() {
   run_as_root find "${WORKDIR_HOST}" -type d -exec chmod 775 {} \; || true
   run_as_root find "${WORKDIR_HOST}" -type f -exec chmod 664 {} \; || true
   grant_dev_host_access "${WORKDIR_HOST}"
+}
 
-  if [[ -n "${compose_backup}" ]]; then
-    run_as_root cp "${compose_backup}" "${PROJECT_COMPOSE}"
+# Syncs docker-compose.yml from source to the app directory for all environments
+sync_compose_from_source() {
+  local source_compose="${SOURCE_DIR}/docker-compose.yml"
+  if [[ -f "${source_compose}" ]]; then
+    log_step "Actualizando docker-compose.yml desde código fuente"
+    run_as_root cp "${source_compose}" "${PROJECT_COMPOSE}"
     run_as_root chown ${UIDC}:${GIDC} "${PROJECT_COMPOSE}"
-    rm -f "${compose_backup}"
+    echo "  ✓ docker-compose.yml actualizado desde ${SOURCE_DIR}"
   fi
 }
 
@@ -500,16 +500,19 @@ deploy() {
   # 4. Sync workspace (dev only)
   sync_dev_workspace
 
-  # 5. Write/update compose file
+  # 5. Sync docker-compose.yml from source code
+  sync_compose_from_source
+
+  # 6. Write/update compose file (applies variable substitutions)
   log_step "Escribiendo compose y levantando contenedores"
   write_compose
 
-  # 6. Validate compose before deploying
+  # 7. Validate compose before deploying
   if ! validate_compose; then
     die "Validación del docker-compose falló. Abortando deploy."
   fi
 
-  # 7. Deploy containers
+  # 8. Deploy containers
   echo "== Desplegando contenedores =="
   # First, stop and remove any existing containers to avoid name conflicts
   # Use docker compose down with proper env vars, and also force-remove the main container by name
@@ -518,19 +521,19 @@ deploy() {
   docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
   run_as_root bash -lc "cd '${BASE}' && APP_ENV='${ENV}' docker compose up -d --force-recreate"
 
-  # 8. Run migrations
+  # 9. Run migrations
   run_migrations
 
-  # 9. Run post-deploy hook
+  # 10. Run post-deploy hook
   run_postdeploy_hook
 
-  # 10. Sync nginx config
+  # 11. Sync nginx config
   sync_nginx_config
 
-  # 11. Verify health
+  # 12. Verify health
   verify
 
-  # 12. Push image to registry (async, in background)
+  # 13. Push image to registry (async, in background)
   push_image_async
 
   echo ""
