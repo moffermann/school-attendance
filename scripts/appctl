@@ -468,12 +468,13 @@ run_migrations() {
     echo "INFO: compose no encontrado; omitiendo migraciones."
     return 0
   fi
+  local compose_project="${APP}-${ENV}"
   log_step "Ejecutando migraciones dentro de ${APP}"
   echo "== Ejecutando migraciones (npm run migrate) =="
   if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-    run_as_root docker compose -f "${PROJECT_COMPOSE}" exec -T "${APP}" npm run migrate || true
+    run_as_root docker compose -p "${compose_project}" -f "${PROJECT_COMPOSE}" exec -T "${APP}" npm run migrate || true
   elif command -v docker-compose >/dev/null 2>&1; then
-    run_as_root docker-compose -f "${PROJECT_COMPOSE}" exec -T "${APP}" npm run migrate || true
+    run_as_root docker-compose -p "${compose_project}" -f "${PROJECT_COMPOSE}" exec -T "${APP}" npm run migrate || true
   else
     echo "INFO: docker compose no disponible; omitiendo migraciones."
   fi
