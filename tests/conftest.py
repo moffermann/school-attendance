@@ -25,6 +25,7 @@ from app.db.models.attendance_event import AttendanceEvent, AttendanceTypeEnum
 from app.db.models.notification import Notification
 from app.db.models.absence_request import AbsenceRequest
 from app.db.models.no_show_alert import NoShowAlert
+from app.db.models.push_subscription import PushSubscription
 
 
 # Use SQLite in-memory for tests

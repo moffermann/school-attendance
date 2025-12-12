@@ -367,3 +367,163 @@ Migration: `app/db/migrations/versions/0006_webauthn_credentials.py`
 - Solution: Re-register or use alternative method
 
 See `docs/webauthn-biometric.md` for complete documentation.
+
+---
+
+## Parent Portal PWA + Push Notifications + Passkeys (Session 2024-12-12)
+
+### Overview
+The parent portal (`src/web-app/`) has been converted to a Progressive Web App (PWA) with:
+- **Offline Support**: Service Worker with cache-first strategy
+- **Push Notifications**: Real-time alerts when students arrive/leave
+- **Passkey Authentication**: Biometric login (fingerprint/Face ID)
+
+### Architecture
+
+```
+BROWSER (PWA)
+    |
+    +-- Service Worker (cache, push handler)
+    +-- IndexedDB (offline data storage)
+    +-- WebAuthn API (passkey authentication)
+    |
+    v
+BACKEND (FastAPI)
+    |
+    +-- /api/v1/push/* (subscription management)
+    +-- /api/v1/webauthn/users/* (passkey registration/auth)
+    +-- pywebpush (send notifications)
+    |
+    v
+PUSH SERVICE (FCM/APNS)
+```
+
+### Key Files
+
+#### PWA Frontend
+| File | Purpose |
+|------|---------|
+| `src/web-app/manifest.webmanifest` | PWA configuration (name, icons, theme) |
+| `src/web-app/service-worker.js` | Cache management + push handler |
+| `src/web-app/js/idb.js` | IndexedDB wrapper for offline data |
+| `src/web-app/js/sync.js` | Offline sync queue |
+| `src/web-app/js/webauthn.js` | WebAuthn client for passkeys |
+| `src/web-app/js/views/auth.js` | Login with passkey option |
+| `src/web-app/js/views/parent_prefs.js` | Push subscription + passkey management UI |
+
+#### Push Notifications Backend
+| File | Purpose |
+|------|---------|
+| `app/db/models/push_subscription.py` | Push subscription model |
+| `app/db/repositories/push_subscriptions.py` | CRUD operations |
+| `app/api/v1/push_subscriptions.py` | REST API endpoints |
+| `app/schemas/push_subscription.py` | Pydantic schemas |
+| `app/workers/jobs/send_push.py` | Worker job for sending push |
+
+#### User Passkeys Backend
+| File | Purpose |
+|------|---------|
+| `app/services/webauthn_service.py` | WebAuthn registration/authentication |
+| `app/api/v1/webauthn.py` | User passkey endpoints (`/users/*`) |
+
+### API Endpoints
+
+#### Push Notifications
+- `GET /api/v1/push/vapid-public-key` - Get VAPID public key (public)
+- `POST /api/v1/push/subscribe` - Subscribe to push notifications
+- `DELETE /api/v1/push/unsubscribe?endpoint=...` - Unsubscribe
+- `GET /api/v1/push/subscriptions` - List user's subscriptions
+- `DELETE /api/v1/push/subscriptions/{id}` - Delete subscription
+
+#### User Passkeys (Guardian Authentication)
+- `POST /api/v1/webauthn/users/register/start` - Start passkey registration
+- `POST /api/v1/webauthn/users/register/complete` - Complete registration
+- `POST /api/v1/webauthn/users/authenticate/start` - Start passkey auth
+- `POST /api/v1/webauthn/users/authenticate/verify` - Verify and get JWT
+- `GET /api/v1/webauthn/users/credentials` - List user's passkeys
+- `DELETE /api/v1/webauthn/users/credentials/{id}` - Delete passkey
+
+### Configuration
+
+```bash
+# VAPID Keys (generate with: npx web-push generate-vapid-keys)
+VAPID_PUBLIC_KEY=BG20KqGf...                    # Public key for browser
+VAPID_PRIVATE_KEY=0DrMeX3W...                   # Private key for signing
+VAPID_SUBJECT=mailto:admin@school.cl            # Contact email
+
+# WebAuthn (same as student biometric)
+WEBAUTHN_RP_ID=localhost
+WEBAUTHN_RP_NAME=Sistema Asistencia Escolar
+WEBAUTHN_RP_ORIGIN=http://localhost:8080
+```
+
+### Database Migration
+
+```bash
+alembic upgrade head  # Creates push_subscriptions table
+```
+
+Migration: `app/db/migrations/versions/0011_push_subscriptions.py`
+
+### Push Notification Flow
+
+1. **User subscribes in preferences UI**
+2. Browser requests notification permission
+3. Browser gets subscription from push service (FCM/APNS)
+4. Frontend sends subscription to `/api/v1/push/subscribe`
+5. Backend stores in `push_subscriptions` table
+
+6. **Student registers attendance**
+7. `AttendanceNotificationService` queries guardian's push subscriptions
+8. Enqueues `send_push_notification` job for each subscription
+9. Worker sends via `pywebpush` library
+10. Push service delivers to browser
+11. Service Worker shows notification
+
+### Passkey Authentication Flow
+
+1. **User clicks "Iniciar con huella/Face ID" on login**
+2. Frontend calls `/webauthn/users/authenticate/start`
+3. Backend returns challenge + allowed credentials
+4. Browser prompts biometric verification
+5. Frontend sends credential to `/webauthn/users/authenticate/verify`
+6. Backend verifies signature and returns JWT tokens
+7. User is logged in
+
+### IndexedDB Stores
+
+| Store | Purpose |
+|-------|---------|
+| `guardians` | Guardian profile cache |
+| `students` | Children data cache |
+| `events` | Attendance events cache |
+| `absences` | Absence requests cache |
+| `preferences` | Notification preferences cache |
+| `queue` | Offline sync queue |
+| `config` | App configuration |
+
+### Troubleshooting
+
+#### Push Notifications Not Working
+1. Check `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` are set
+2. Verify `ENABLE_REAL_NOTIFICATIONS=true` for production
+3. Check browser notification permissions
+4. Verify Service Worker is registered: `navigator.serviceWorker.ready`
+5. Check push subscription exists: `registration.pushManager.getSubscription()`
+
+#### Passkey Registration Fails
+1. Verify HTTPS or localhost (WebAuthn requirement)
+2. Check `WEBAUTHN_RP_ORIGIN` matches current URL
+3. Verify platform authenticator available: `PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()`
+
+#### PWA Not Installing
+1. Check `manifest.webmanifest` is served with correct MIME type
+2. Verify Service Worker registered successfully
+3. Site must be served over HTTPS (or localhost)
+4. Check browser DevTools > Application > Manifest for errors
+
+### Recent Commits
+```
+112bff4 feat: PWA + Biometric auth + Push notifications for parent portal
+9cf532e chore: add VAPID keys for local development
+```
