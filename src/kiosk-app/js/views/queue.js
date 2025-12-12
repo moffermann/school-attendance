@@ -16,6 +16,20 @@ Views.queue = function() {
     app.innerHTML = `
       ${UI.createHeader()}
       <div class="container">
+        <!-- Banner explicativo sobre la cola -->
+        <div class="card" style="background: var(--color-info-light); border-left: 4px solid var(--color-info); margin-bottom: 1rem;">
+          <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+            <span style="font-size: 1.5rem;">ℹ️</span>
+            <div>
+              <strong style="color: var(--color-info-dark);">¿Qué es la cola de eventos?</strong>
+              <p style="margin: 0.25rem 0 0; font-size: 0.9rem; color: var(--color-gray-700);">
+                Cuando registras una entrada o salida, el evento se guarda localmente y se <strong>sincroniza automáticamente</strong> con el servidor.
+                Si no hay conexión a internet, los eventos quedan <strong>"pendientes"</strong> y se enviarán cuando se restablezca la conexión.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-value">${pending.length}</div>

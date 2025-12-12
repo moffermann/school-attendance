@@ -7,15 +7,61 @@ Views.directorAbsences = function() {
   const pageTitle = document.getElementById('page-title');
   if (pageTitle) pageTitle.textContent = 'Solicitudes de Ausencia';
 
-  const absences = State.getAbsences();
+  let absences = [];
   let activeTab = 'PENDING';
+  let isLoading = true;
+
+  // Fetch absences from API on mount
+  async function loadAbsences() {
+    isLoading = true;
+    renderAbsences();
+
+    try {
+      // Try API first, fallback to local State
+      if (typeof API !== 'undefined' && API.getAbsences) {
+        const response = await API.getAbsences();
+        absences = response.items || response || [];
+        // Also update local State for consistency
+        if (State.setAbsences) {
+          State.setAbsences(absences);
+        }
+      } else {
+        absences = State.getAbsences();
+      }
+    } catch (error) {
+      console.warn('Error fetching absences from API, using local state:', error);
+      absences = State.getAbsences();
+    }
+
+    isLoading = false;
+    renderAbsences();
+  }
 
   function renderAbsences() {
+    if (isLoading) {
+      content.innerHTML = `
+        <div class="card">
+          <div class="card-body" style="text-align: center; padding: 3rem;">
+            <div class="spinner"></div>
+            <p style="margin-top: 1rem; color: var(--color-gray-500);">Cargando solicitudes...</p>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
     const pending = absences.filter(a => a.status === 'PENDING');
     const approved = absences.filter(a => a.status === 'APPROVED');
     const rejected = absences.filter(a => a.status === 'REJECTED');
 
     content.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div></div>
+        <button class="btn btn-secondary btn-sm" onclick="Views.directorAbsences.refresh()" title="Actualizar lista">
+          🔄 Actualizar
+        </button>
+      </div>
+
       <div class="cards-grid">
         ${Components.createStatCard('Pendientes', pending.length)}
         ${Components.createStatCard('Aprobadas', approved.length)}
@@ -104,17 +150,48 @@ Views.directorAbsences = function() {
     renderAbsences();
   };
 
-  Views.directorAbsences.approve = function(absenceId) {
-    State.updateAbsence(absenceId, { status: 'APPROVED' });
-    Components.showToast('Solicitud aprobada', 'success');
-    renderAbsences();
+  Views.directorAbsences.refresh = function() {
+    loadAbsences();
   };
 
-  Views.directorAbsences.reject = function(absenceId) {
-    State.updateAbsence(absenceId, { status: 'REJECTED' });
-    Components.showToast('Solicitud rechazada', 'error');
-    renderAbsences();
+  Views.directorAbsences.approve = async function(absenceId) {
+    try {
+      // Try API first
+      if (typeof API !== 'undefined' && API.updateAbsenceStatus) {
+        await API.updateAbsenceStatus(absenceId, 'APPROVED');
+      }
+      // Update local state
+      State.updateAbsence(absenceId, { status: 'APPROVED' });
+      // Update local array
+      const idx = absences.findIndex(a => a.id === absenceId);
+      if (idx !== -1) absences[idx].status = 'APPROVED';
+
+      Components.showToast('Solicitud aprobada', 'success');
+      renderAbsences();
+    } catch (error) {
+      Components.showToast('Error al aprobar: ' + error.message, 'error');
+    }
   };
 
-  renderAbsences();
+  Views.directorAbsences.reject = async function(absenceId) {
+    try {
+      // Try API first
+      if (typeof API !== 'undefined' && API.updateAbsenceStatus) {
+        await API.updateAbsenceStatus(absenceId, 'REJECTED');
+      }
+      // Update local state
+      State.updateAbsence(absenceId, { status: 'REJECTED' });
+      // Update local array
+      const idx = absences.findIndex(a => a.id === absenceId);
+      if (idx !== -1) absences[idx].status = 'REJECTED';
+
+      Components.showToast('Solicitud rechazada', 'success');
+      renderAbsences();
+    } catch (error) {
+      Components.showToast('Error al rechazar: ' + error.message, 'error');
+    }
+  };
+
+  // Load absences from API on mount
+  loadAbsences();
 };

@@ -14,6 +14,7 @@ const Router = {
     this.addRoute('/director/broadcast', Views.directorBroadcast, ['director', 'inspector']);
     this.addRoute('/director/devices', Views.directorDevices, ['director', 'inspector']);
     this.addRoute('/director/students', Views.directorStudents, ['director', 'inspector']);
+    this.addRoute('/director/guardians', Views.directorGuardians, ['director', 'inspector']);
     this.addRoute('/director/teachers', Views.directorTeachers, ['director']);
     this.addRoute('/director/absences', Views.directorAbsences, ['director', 'inspector']);
     this.addRoute('/director/notifications', Views.directorNotifications, ['director', 'inspector']);

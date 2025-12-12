@@ -34,11 +34,18 @@ Views.scan = function() {
       </div>
 
       <div class="card">
-        <div class="card-header">Tokens de Prueba</div>
-        <div style="font-size: 0.875rem;">
-          <p><strong>Válidos:</strong> nfc_001, nfc_002, qr_011, qr_012</p>
-          <p><strong>Revocados:</strong> nfc_006, qr_013</p>
-          <p><strong>Inválidos:</strong> invalid_token_123</p>
+        <div class="card-header">ℹ️ Tokens de Prueba (Demo)</div>
+        <div style="font-size: 0.875rem; padding: 0.5rem 0;">
+          <p style="margin-bottom: 0.5rem; color: var(--color-gray-600);">
+            <strong>Nota:</strong> En modo demo, solo funcionan estos tokens predefinidos:
+          </p>
+          <p><strong style="color: var(--color-success);">✓ Válidos:</strong> nfc_001 a nfc_010, qr_011, qr_012, qr_014, qr_015</p>
+          <p><strong style="color: var(--color-error);">✗ Revocados:</strong> nfc_006, qr_013</p>
+          <p><strong style="color: var(--color-warning);">⚠ Profesores:</strong> nfc_teacher_001, nfc_teacher_002, qr_teacher_003</p>
+          <p style="margin-top: 0.75rem; padding: 0.5rem; background: var(--color-warning-light); border-radius: 4px; font-size: 0.8rem;">
+            <strong>¿Tu QR no funciona?</strong> Los QR generados desde "Enrolar QR" en web-app requieren conexión al servidor.
+            En demo local, usa los tokens de arriba.
+          </p>
         </div>
       </div>
     </div>
@@ -58,9 +65,15 @@ Views.scan = function() {
       const result = State.resolveByToken(token);
 
       if (!result) {
-        UI.showToast('Token no válido', 'error');
+        // Provide helpful error message based on token format
+        const isGeneratedToken = token.includes('_') && token.split('_').length > 2;
+        if (isGeneratedToken) {
+          UI.showToast('Token no registrado. ¿Usaste "Generar Token Válido"?', 'error', 4000);
+        } else {
+          UI.showToast('Token no válido. Revisa los tokens de prueba.', 'error', 3000);
+        }
       } else if (result.error === 'REVOKED') {
-        UI.showToast('Credencial revocada', 'error');
+        UI.showToast('Credencial revocada - Contactar administración', 'error', 3000);
       } else if (result.type === 'teacher') {
         // Teacher detected - navigate to admin panel
         Router.navigate('/admin-panel');

@@ -59,6 +59,31 @@ Views.directorDashboard = function() {
         ${createEnhancedStatCard('Sin Ingreso', stats.noInCount, '❌', 'error')}
       </div>
 
+      ${stats.noInCount > 0 ? `
+      <!-- Alerta destacada de alumnos sin ingreso -->
+      <div class="card" style="background: linear-gradient(135deg, var(--color-error-light) 0%, #fff 100%); border-left: 4px solid var(--color-error); margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span style="font-size: 2rem;">🚨</span>
+            <div>
+              <strong style="color: var(--color-error-dark); font-size: 1.1rem;">${stats.noInCount} alumno${stats.noInCount > 1 ? 's' : ''} sin registro de entrada</strong>
+              <p style="margin: 0.25rem 0 0; font-size: 0.9rem; color: var(--color-gray-600);">
+                Estos alumnos no han registrado ingreso hoy.
+              </p>
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-secondary btn-sm" onclick="Views.directorDashboard.showNoIngressList()">
+              👁️ Ver Lista
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="Router.navigate('/director/reports?filter=no-ingress')">
+              📊 Ir a Reportes
+            </button>
+          </div>
+        </div>
+      </div>
+      ` : ''}
+
       <div class="card">
         <div class="card-header flex justify-between items-center">
           <span style="font-size: 1.1rem;">Eventos de Hoy</span>
@@ -218,6 +243,62 @@ Views.directorDashboard = function() {
     Components.showModal('Fotos de Evidencia', `
       <div>${photosHTML || '<p>No hay fotos disponibles</p>'}</div>
     `, [
+      { label: 'Cerrar', action: 'close', className: 'btn-secondary' }
+    ]);
+  };
+
+  // UX #10: Show list of students without entry today
+  Views.directorDashboard.showNoIngressList = function() {
+    const students = State.getStudents();
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // Get students who have NOT registered IN today
+    const studentsWithIN = new Set(
+      todayEvents
+        .filter(e => e.type === 'IN')
+        .map(e => e.student_id)
+    );
+
+    const noIngressStudents = students.filter(s => !studentsWithIN.has(s.id));
+
+    const listHTML = noIngressStudents.length > 0
+      ? `
+        <table style="width: 100%;">
+          <thead>
+            <tr>
+              <th>Alumno</th>
+              <th>Curso</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${noIngressStudents.slice(0, 20).map(s => {
+              const course = State.getCourse(s.course_id);
+              return `
+                <tr>
+                  <td>${Components.escapeHtml(s.full_name)}</td>
+                  <td>${course ? Components.escapeHtml(course.name) : '-'}</td>
+                  <td>
+                    <button class="btn btn-secondary btn-sm" onclick="Router.navigate('/director/students?view=${s.id}')">
+                      Ver Perfil
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+        ${noIngressStudents.length > 20 ? `<p style="margin-top: 1rem; text-align: center; color: var(--color-gray-500);">... y ${noIngressStudents.length - 20} más. <a href="#" onclick="Router.navigate('/director/reports?filter=no-ingress'); return false;">Ver todos en Reportes</a></p>` : ''}
+      `
+      : '<p>Todos los alumnos han registrado entrada hoy. ✅</p>';
+
+    Components.showModal(`🚨 Alumnos Sin Ingreso (${noIngressStudents.length})`, `
+      <div style="margin-bottom: 1rem; padding: 0.75rem; background: var(--color-warning-light); border-radius: 8px; font-size: 0.9rem;">
+        <strong>💡 Nota:</strong> Estos alumnos no tienen registro de entrada el día de hoy (${new Date().toLocaleDateString('es-CL')}).
+      </div>
+      ${listHTML}
+    `, [
+      { label: 'Ir a Reportes', action: () => Router.navigate('/director/reports?filter=no-ingress'), className: 'btn-primary' },
       { label: 'Cerrar', action: 'close', className: 'btn-secondary' }
     ]);
   };

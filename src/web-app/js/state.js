@@ -552,6 +552,36 @@ const State = {
   },
 
   // ============================================
+  // CRUD: Guardians
+  // ============================================
+  addGuardian(guardian) {
+    if (!this.data.guardians) this.data.guardians = [];
+    const id = Math.max(0, ...this.data.guardians.map(g => g.id)) + 1;
+    guardian.id = id;
+    guardian.student_ids = guardian.student_ids || [];
+    this.data.guardians.push(guardian);
+    this.persist();
+    return guardian;
+  },
+
+  updateGuardian(id, data) {
+    if (!this.data.guardians) return null;
+    const index = this.data.guardians.findIndex(g => g.id === id);
+    if (index !== -1) {
+      this.data.guardians[index] = { ...this.data.guardians[index], ...data };
+      this.persist();
+      return this.data.guardians[index];
+    }
+    return null;
+  },
+
+  deleteGuardian(id) {
+    if (!this.data.guardians) return;
+    this.data.guardians = this.data.guardians.filter(g => g.id !== id);
+    this.persist();
+  },
+
+  // ============================================
   // CRUD: Students
   // ============================================
   addStudent(student) {

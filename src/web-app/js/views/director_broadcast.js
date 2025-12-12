@@ -10,6 +10,39 @@ Views.directorBroadcast = function() {
   const courses = State.getCourses();
 
   content.innerHTML = `
+    <!-- Explicación de qué es Broadcast -->
+    <div class="card" style="background: var(--color-info-light); border-left: 4px solid var(--color-info); margin-bottom: 1rem;">
+      <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+        <span style="font-size: 1.5rem;">📢</span>
+        <div>
+          <strong style="color: var(--color-info-dark);">¿Qué es un Comunicado Masivo?</strong>
+          <p style="margin: 0.25rem 0 0; font-size: 0.9rem; color: var(--color-gray-700);">
+            Envía mensajes a todos los apoderados de un curso (o de todo el colegio) vía WhatsApp y/o Email.
+            Útil para avisos de suspensiones, reuniones, cambios de horario, etc.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Templates predefinidos -->
+    <div class="card mb-3">
+      <div class="card-header">📝 Templates Rápidos</div>
+      <div class="card-body" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="Views.directorBroadcast.loadTemplate('suspension')">
+          Suspensión de clases
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="Views.directorBroadcast.loadTemplate('reunion')">
+          Reunión de apoderados
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="Views.directorBroadcast.loadTemplate('horario')">
+          Cambio de horario
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="Views.directorBroadcast.loadTemplate('actividad')">
+          Actividad especial
+        </button>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-header">Enviar Mensaje Masivo</div>
       <div class="card-body">
@@ -77,6 +110,71 @@ Dirección</textarea>
 
     <div id="broadcast-results" class="mt-3"></div>
   `;
+
+  // Templates predefinidos
+  const templates = {
+    suspension: {
+      subject: 'Suspensión de clases',
+      message: `Estimado/a apoderado/a:
+
+Le informamos que las clases del curso {{curso}} se encuentran SUSPENDIDAS el día {{fecha}}.
+
+Motivo: {{motivo}}
+
+Los alumnos NO deben asistir al establecimiento en dicha fecha. Las clases se retomarán con normalidad al día siguiente.
+
+Saludos cordiales,
+Dirección`
+    },
+    reunion: {
+      subject: 'Reunión de apoderados',
+      message: `Estimado/a apoderado/a:
+
+Se convoca a reunión de apoderados del curso {{curso}} para el día {{fecha}}.
+
+Motivo: {{motivo}}
+
+Es muy importante su asistencia. En caso de no poder asistir, favor comunicarse con el profesor jefe.
+
+Saludos cordiales,
+Dirección`
+    },
+    horario: {
+      subject: 'Cambio de horario',
+      message: `Estimado/a apoderado/a:
+
+Le informamos que el curso {{curso}} tendrá un cambio de horario el día {{fecha}}.
+
+Motivo: {{motivo}}
+
+Por favor tome las precauciones necesarias para el traslado de su pupilo/a.
+
+Saludos cordiales,
+Dirección`
+    },
+    actividad: {
+      subject: 'Actividad especial',
+      message: `Estimado/a apoderado/a:
+
+Le informamos que el curso {{curso}} participará en una actividad especial el día {{fecha}}.
+
+Actividad: {{motivo}}
+
+Los alumnos deben presentarse con [indique vestimenta o materiales requeridos].
+
+Saludos cordiales,
+Dirección`
+    }
+  };
+
+  Views.directorBroadcast.loadTemplate = function(templateName) {
+    const template = templates[templateName];
+    if (template) {
+      document.getElementById('broadcast-subject').value = template.subject;
+      document.getElementById('broadcast-message').value = template.message;
+      Components.showToast('Template cargado', 'success');
+    }
+  };
 
   Views.directorBroadcast.showPreview = function() {
     const subject = document.getElementById('broadcast-subject').value || '[motivo]';

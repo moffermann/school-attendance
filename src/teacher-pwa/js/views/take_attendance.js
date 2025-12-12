@@ -34,8 +34,13 @@ Views.takeAttendance = async function() {
             </div>
           `;
         }).join('')}
+        <!-- Nota explicativa sobre sincronización -->
+        <div style="background: var(--color-info-light); padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.85rem;">
+          <strong>💡 Nota:</strong> Los registros se guardan localmente y se sincronizan automáticamente con el servidor cuando hay conexión.
+        </div>
+
         <div class="flex gap-1 mt-2">
-          <button class="btn btn-primary" onclick="Views.takeAttendance.submit()">Enviar a Cola</button>
+          <button class="btn btn-primary" onclick="Views.takeAttendance.submit()">✓ Guardar Asistencia</button>
           <button class="btn btn-secondary" onclick="Router.navigate('/roster')">← Volver</button>
         </div>
       </div>
@@ -69,7 +74,7 @@ Views.takeAttendance = async function() {
       }
     }
 
-    UI.showToast(`${count} registros encolados`, 'success');
+    UI.showToast(`${count} registros guardados. Se sincronizarán automáticamente.`, 'success');
     Router.navigate('/roster');
   };
 

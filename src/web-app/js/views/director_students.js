@@ -78,6 +78,9 @@ Views.directorStudents = function() {
                       <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.viewProfile(${student.id})" title="Ver perfil">
                         👁️
                       </button>
+                      <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.showEnrollMenu(${student.id})" title="Generar credencial QR/NFC">
+                        💳
+                      </button>
                       <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.viewAttendance(${student.id})" title="Ver asistencia">
                         📊
                       </button>
@@ -123,6 +126,12 @@ Views.directorStudents = function() {
       `<option value="${c.id}">${Components.escapeHtml(c.name)} - ${Components.escapeHtml(c.grade)}</option>`
     ).join('');
 
+    // Get guardians for selector
+    const guardians = State.getGuardians();
+    const guardiansOptions = guardians.map(g =>
+      `<option value="${g.id}">${Components.escapeHtml(g.full_name)} (${Components.escapeHtml(g.email || 'sin email')})</option>`
+    ).join('');
+
     Components.showModal('Nuevo Alumno', `
       <form id="student-form">
         <div class="form-group">
@@ -137,14 +146,44 @@ Views.directorStudents = function() {
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">RUT (opcional)</label>
-          <input type="text" id="student-rut" class="form-input" placeholder="Ej: 12.345.678-9">
+          <label class="form-label">RUT o N° Matrícula (opcional)</label>
+          <input type="text" id="student-rut" class="form-input" placeholder="Ej: 12.345.678-9 o MAT-2024-001">
+          <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
+            Identificador único del alumno en el colegio
+          </small>
         </div>
+
+        <!-- Guardian selector -->
+        <div class="form-group">
+          <label class="form-label">Apoderado</label>
+          <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+            <select id="student-guardian" class="form-select" style="flex: 1;">
+              <option value="">Sin apoderado asignado</option>
+              ${guardiansOptions}
+            </select>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="Views.directorStudents.goToCreateGuardian()" title="Crear nuevo apoderado" style="white-space: nowrap;">
+              + Nuevo
+            </button>
+          </div>
+          <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
+            El apoderado recibirá notificaciones de asistencia.
+            <a href="#/director/guardians" style="color: var(--color-primary);">Ir a gestión de apoderados</a>
+          </small>
+        </div>
+
         <div class="form-group">
           <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
             <input type="checkbox" id="student-photo">
             <span>Autorizar captura de fotos</span>
           </label>
+        </div>
+
+        <!-- Nota sobre enrolamiento -->
+        <div style="background: var(--color-info-light); padding: 0.75rem; border-radius: 8px; margin-top: 1rem; font-size: 0.85rem;">
+          <strong>💳 Credenciales QR/NFC:</strong>
+          <p style="margin: 0.25rem 0 0; color: var(--color-gray-600);">
+            Después de guardar el alumno, podrás generar su credencial QR o NFC desde el botón "👁️ Ver perfil" en la tabla.
+          </p>
         </div>
       </form>
     `, [
@@ -153,11 +192,19 @@ Views.directorStudents = function() {
     ]);
   };
 
+  Views.directorStudents.goToCreateGuardian = function() {
+    document.querySelector('.modal-container').click();
+    Components.showToast('Cree el apoderado y luego vuelva a crear el alumno', 'info', 3000);
+    Router.navigate('/director/guardians');
+  };
+
   Views.directorStudents.saveStudent = function(studentId = null) {
     const name = document.getElementById('student-name').value.trim();
     const courseId = parseInt(document.getElementById('student-course').value);
     const rut = document.getElementById('student-rut')?.value.trim() || '';
     const photoOptIn = document.getElementById('student-photo').checked;
+    const guardianSelect = document.getElementById('student-guardian');
+    const guardianId = guardianSelect ? parseInt(guardianSelect.value) || null : null;
 
     if (!name || !courseId) {
       Components.showToast('Complete los campos requeridos', 'error');
@@ -171,12 +218,42 @@ Views.directorStudents = function() {
       photo_pref_opt_in: photoOptIn
     };
 
+    let newStudentId = studentId;
     if (studentId) {
       State.updateStudent(studentId, studentData);
       Components.showToast('Alumno actualizado correctamente', 'success');
     } else {
-      State.addStudent(studentData);
+      const newStudent = State.addStudent(studentData);
+      newStudentId = newStudent.id;
       Components.showToast('Alumno creado correctamente', 'success');
+    }
+
+    // Handle guardian association
+    if (newStudentId) {
+      const guardians = State.getGuardians();
+
+      // Find current guardian (if editing)
+      const currentGuardian = guardians.find(g => g.student_ids && g.student_ids.includes(newStudentId));
+
+      // Remove from old guardian if different
+      if (currentGuardian && currentGuardian.id !== guardianId) {
+        State.updateGuardian(currentGuardian.id, {
+          student_ids: currentGuardian.student_ids.filter(id => id !== newStudentId)
+        });
+      }
+
+      // Add to new guardian if selected
+      if (guardianId) {
+        const newGuardian = State.getGuardian(guardianId);
+        if (newGuardian) {
+          const guardianStudentIds = newGuardian.student_ids || [];
+          if (!guardianStudentIds.includes(newStudentId)) {
+            State.updateGuardian(guardianId, {
+              student_ids: [...guardianStudentIds, newStudentId]
+            });
+          }
+        }
+      }
     }
 
     document.querySelector('.modal-container').click(); // Close modal
@@ -192,6 +269,13 @@ Views.directorStudents = function() {
       `<option value="${c.id}" ${c.id === student.course_id ? 'selected' : ''}>${Components.escapeHtml(c.name)} - ${Components.escapeHtml(c.grade)}</option>`
     ).join('');
 
+    // Get guardians and find current guardian for this student
+    const guardians = State.getGuardians();
+    const currentGuardian = guardians.find(g => g.student_ids && g.student_ids.includes(studentId));
+    const guardiansOptions = guardians.map(g =>
+      `<option value="${g.id}" ${currentGuardian && currentGuardian.id === g.id ? 'selected' : ''}>${Components.escapeHtml(g.full_name)} (${Components.escapeHtml(g.email || 'sin email')})</option>`
+    ).join('');
+
     Components.showModal('Editar Alumno', `
       <form id="student-form">
         <div class="form-group">
@@ -205,9 +289,30 @@ Views.directorStudents = function() {
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">RUT</label>
-          <input type="text" id="student-rut" class="form-input" value="${Components.escapeHtml(student.rut || '')}">
+          <label class="form-label">RUT o N° Matrícula</label>
+          <input type="text" id="student-rut" class="form-input" value="${Components.escapeHtml(student.rut || '')}" placeholder="Ej: 12.345.678-9 o MAT-2024-001">
+          <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
+            Identificador único del alumno en el colegio
+          </small>
         </div>
+
+        <!-- Guardian selector -->
+        <div class="form-group">
+          <label class="form-label">Apoderado</label>
+          <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+            <select id="student-guardian" class="form-select" style="flex: 1;">
+              <option value="">Sin apoderado asignado</option>
+              ${guardiansOptions}
+            </select>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="Views.directorStudents.goToCreateGuardian()" title="Crear nuevo apoderado" style="white-space: nowrap;">
+              + Nuevo
+            </button>
+          </div>
+          <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
+            El apoderado recibirá notificaciones de asistencia.
+          </small>
+        </div>
+
         <div class="form-group">
           <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
             <input type="checkbox" id="student-photo" ${student.photo_pref_opt_in ? 'checked' : ''}>
@@ -268,8 +373,8 @@ Views.directorStudents = function() {
           <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
             <div><strong>Nombre:</strong><br>${Components.escapeHtml(student.full_name)}</div>
             <div><strong>Curso:</strong><br>${course ? Components.escapeHtml(course.name + ' - ' + course.grade) : '-'}</div>
-            <div><strong>RUT:</strong><br>${student.rut || 'No registrado'}</div>
-            <div><strong>ID:</strong><br>${student.id}</div>
+            <div><strong>RUT/Matrícula:</strong><br>${student.rut || 'No registrado'}</div>
+            <div><strong>ID Sistema:</strong><br><span style="font-family: monospace; color: var(--color-gray-500);">#${student.id}</span> <small style="color: var(--color-gray-400);">(auto)</small></div>
           </div>
         </div>
       </div>
@@ -420,6 +525,49 @@ Views.directorStudents = function() {
     // Refresh the modal
     document.querySelector('.modal-container').click();
     Views.directorStudents.viewAttendance(studentId);
+  };
+
+  Views.directorStudents.showEnrollMenu = function(studentId) {
+    const student = State.getStudent(studentId);
+    if (!student) return;
+
+    Components.showModal('Generar Credencial', `
+      <div style="text-align: center; padding: 1rem;">
+        <p style="margin-bottom: 1.5rem;">
+          Selecciona el tipo de credencial para <strong>${Components.escapeHtml(student.full_name)}</strong>:
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <button class="btn btn-primary btn-lg" onclick="Views.directorStudents.enrollQR(${studentId})">
+            📱 Generar QR
+            <small style="display: block; font-weight: normal; font-size: 0.8rem;">Para imprimir en credencial</small>
+          </button>
+          <button class="btn btn-secondary btn-lg" onclick="Views.directorStudents.enrollNFC(${studentId})">
+            💳 Escribir NFC
+            <small style="display: block; font-weight: normal; font-size: 0.8rem;">Requiere lector NFC</small>
+          </button>
+        </div>
+      </div>
+    `, [
+      { label: 'Cancelar', action: 'close', className: 'btn-secondary' }
+    ]);
+  };
+
+  Views.directorStudents.enrollQR = function(studentId) {
+    document.querySelector('.modal-container')?.click();
+    if (typeof QREnrollment !== 'undefined') {
+      QREnrollment.showStudentEnrollmentModal(studentId);
+    } else {
+      Components.showToast('Servicio QR no disponible', 'error');
+    }
+  };
+
+  Views.directorStudents.enrollNFC = function(studentId) {
+    document.querySelector('.modal-container')?.click();
+    if (typeof NFCEnrollment !== 'undefined') {
+      NFCEnrollment.showStudentEnrollmentModal(studentId);
+    } else {
+      Components.showToast('Servicio NFC no disponible', 'error');
+    }
   };
 
   renderStudents();
