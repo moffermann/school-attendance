@@ -1,0 +1,194 @@
+# =============================================================================
+# Docker Compose - Local Development
+# =============================================================================
+# Configuracion simplificada para desarrollo local:
+# - Puertos dinamicos (asignados por Docker)
+# - Volumenes montados para hot-reload
+# - Sin parametrizacion por ambiente
+# - Construye imagen localmente
+#
+# Uso:
+#   docker compose -f docker-compose.local.yml up --build
+#   docker compose -f docker-compose.local.yml ps  # Ver puertos asignados
+# =============================================================================
+
+services:
+  postgres:
+    container_name: school-attendance-postgres-local
+    image: postgres:15
+    environment:
+      POSTGRES_USER: school_attendance
+      POSTGRES_PASSWORD: school_attendance
+      POSTGRES_DB: school_attendance
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U school_attendance -d school_attendance"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data
+    ports:
+      - "5432"  # Puerto dinamico
+    networks:
+      - app_net_local
+
+  redis:
+    container_name: school-attendance-redis-local
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    ports:
+      - "6379"  # Puerto dinamico
+    networks:
+      - app_net_local
+
+  minio:
+    container_name: school-attendance-minio-local
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: dev-access
+      MINIO_ROOT_PASSWORD: dev-secret
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - minio_data_local:/data
+    ports:
+      - "9000"  # API - Puerto dinamico
+      - "9001"  # Console - Puerto dinamico
+    networks:
+      - app_net_local
+
+  # Main API + Frontend monolith (con hot-reload)
+  school-attendance:
+    container_name: school-attendance-local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://school_attendance:school_attendance@school-attendance-postgres-local:5432/school_attendance
+      REDIS_URL: redis://school-attendance-redis-local:6379/0
+      S3_ENDPOINT: http://school-attendance-minio-local:9000
+      S3_BUCKET: attendance-photos
+      S3_ACCESS_KEY: dev-access
+      S3_SECRET_KEY: dev-secret
+      S3_REGION: us-east-1
+      S3_SECURE: "false"
+      SECRET_KEY: local-dev-secret-key
+      DEVICE_API_KEY: local-dev-device-key
+      SES_SOURCE_EMAIL: no-reply@example.com
+      WHATSAPP_ACCESS_TOKEN: dummy
+      WHATSAPP_PHONE_NUMBER_ID: dummy
+      CORS_ORIGINS: "[]"
+      RATE_LIMIT_DEFAULT: 100/minute
+      WEBAUTHN_RP_ID: localhost
+      WEBAUTHN_RP_NAME: Sistema Asistencia Escolar
+      WEBAUTHN_RP_ORIGIN: http://localhost:8080
+      WEBAUTHN_TIMEOUT_MS: "60000"
+      DEFAULT_TENANT_SLUG: demo
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    volumes:
+      # Montar codigo fuente para hot-reload
+      - ./app:/app/app:ro
+      - ./src:/app/src:ro
+      - ./scripts:/app/scripts:ro
+    ports:
+      - "8080:8080"  # Puerto fijo para acceso predecible
+    networks:
+      - app_net_local
+
+  # Background worker for RQ jobs
+  worker:
+    container_name: school-attendance-worker-local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m app.workers.rq_worker
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://school_attendance:school_attendance@school-attendance-postgres-local:5432/school_attendance
+      REDIS_URL: redis://school-attendance-redis-local:6379/0
+      SECRET_KEY: local-dev-secret-key
+      S3_ENDPOINT: http://school-attendance-minio-local:9000
+      S3_BUCKET: attendance-photos
+      S3_ACCESS_KEY: dev-access
+      S3_SECRET_KEY: dev-secret
+      S3_REGION: us-east-1
+      S3_SECURE: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app:ro
+    networks:
+      - app_net_local
+
+  # Scheduler for periodic jobs
+  scheduler:
+    container_name: school-attendance-scheduler-local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m app.workers.scheduler
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://school_attendance:school_attendance@school-attendance-postgres-local:5432/school_attendance
+      REDIS_URL: redis://school-attendance-redis-local:6379/0
+      SECRET_KEY: local-dev-secret-key
+      S3_ENDPOINT: http://school-attendance-minio-local:9000
+      S3_BUCKET: attendance-photos
+      S3_ACCESS_KEY: dev-access
+      S3_SECRET_KEY: dev-secret
+      S3_REGION: us-east-1
+      S3_SECURE: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app:ro
+    networks:
+      - app_net_local
+
+  # RQ Dashboard (siempre habilitado en local)
+  rq-dashboard:
+    container_name: school-attendance-rq-dashboard-local
+    image: eoranged/rq-dashboard
+    environment:
+      RQ_DASHBOARD_REDIS_URL: redis://school-attendance-redis-local:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "9181"  # Puerto dinamico
+    networks:
+      - app_net_local
+
+volumes:
+  postgres_data_local:
+  minio_data_local:
+
+networks:
+  app_net_local:
+    driver: bridge
