@@ -235,13 +235,12 @@ e0835c7 feat(kiosk): Respect photo consent
 ## Pending / Future Work
 
 ### Not Yet Implemented
-- [ ] Email notifications (SES client exists but not integrated in attendance flow)
-- [ ] Push to remote repository
+- [x] Email notifications (COMPLETE: HTML templates, tenant support, integrated in attendance flow)
 - [ ] Template approval in Meta Business Suite (manual step)
-- [ ] End-to-end testing with real WhatsApp
+- [ ] End-to-end testing with real WhatsApp/Email
 
 ### Optional Enhancements
-- [ ] NFC tag support in backend (currently QR only)
+- [x] NFC tag support (COMPLETE: backend API, Tag model, Web NFC in kiosk/admin)
 - [ ] Granular photo privacy settings (who can view, custom retention)
 - [ ] Notification delivery status tracking webhook
 - [ ] Parent mobile app
