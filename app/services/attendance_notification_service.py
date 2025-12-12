@@ -11,6 +11,7 @@ from rq import Queue
 from app.core.config import settings
 from app.db.repositories.guardians import GuardianRepository
 from app.db.repositories.notifications import NotificationRepository
+from app.db.repositories.push_subscriptions import PushSubscriptionRepository
 from app.db.repositories.students import StudentRepository
 from app.schemas.notifications import NotificationChannel, NotificationType
 
@@ -28,6 +29,7 @@ class AttendanceNotificationService:
         self.notification_repo = NotificationRepository(session)
         self.guardian_repo = GuardianRepository(session)
         self.student_repo = StudentRepository(session)
+        self.push_repo = PushSubscriptionRepository(session)
         self._redis: Redis | None = None
         self._queue: Queue | None = None
 
@@ -109,6 +111,17 @@ class AttendanceNotificationService:
                 if not self._is_channel_enabled(event_prefs, channel):
                     continue
 
+                # PUSH channel is handled separately - uses subscriptions, not contacts
+                if channel == NotificationChannel.PUSH:
+                    push_ids = await self._process_push_notifications(
+                        guardian=guardian,
+                        notification_type=notification_type,
+                        payload=payload,
+                        event_id=event.id,
+                    )
+                    notification_ids.extend(push_ids)
+                    continue
+
                 recipient = self._get_recipient(guardian, channel)
                 if not recipient:
                     logger.debug(
@@ -170,10 +183,11 @@ class AttendanceNotificationService:
         channel: NotificationChannel,
     ) -> bool:
         """Check if a notification channel is enabled for this event type."""
-        # Default: WhatsApp enabled, Email disabled
+        # Default: WhatsApp enabled, Email disabled, Push enabled (if subscribed)
         defaults = {
             NotificationChannel.WHATSAPP: True,
             NotificationChannel.EMAIL: False,
+            NotificationChannel.PUSH: True,  # Always try push if subscribed
         }
         return event_prefs.get(channel.value.lower(), defaults.get(channel, False))
 
@@ -220,5 +234,136 @@ class AttendanceNotificationService:
             recipient,
             template,
             payload,
+        )
+        return True
+
+    async def _process_push_notifications(
+        self,
+        guardian,
+        notification_type: NotificationType,
+        payload: dict,
+        event_id: int,
+    ) -> list[int]:
+        """Process push notifications for a guardian's subscriptions.
+
+        Args:
+            guardian: The guardian to notify
+            notification_type: Type of notification
+            payload: Notification payload
+            event_id: The attendance event ID
+
+        Returns:
+            List of notification IDs created
+        """
+        # Check if VAPID is configured
+        if not settings.vapid_public_key or not settings.vapid_private_key:
+            logger.debug("VAPID not configured, skipping push notifications")
+            return []
+
+        # Get active push subscriptions for this guardian
+        subscriptions = await self.push_repo.list_active_by_guardian(guardian.id)
+        if not subscriptions:
+            logger.debug(f"Guardian {guardian.id} has no push subscriptions")
+            return []
+
+        notification_ids = []
+
+        # Build push-specific payload
+        push_payload = self._build_push_payload(notification_type, payload)
+
+        for subscription in subscriptions:
+            # Create notification record
+            notification = await self.notification_repo.create(
+                guardian_id=guardian.id,
+                channel=NotificationChannel.PUSH.value,
+                template=notification_type.value,
+                payload=payload,
+                event_id=event_id,
+            )
+            await self.session.flush()
+
+            # Enqueue push notification
+            self._enqueue_push_notification(
+                notification_id=notification.id,
+                subscription=subscription,
+                push_payload=push_payload,
+            )
+
+            notification_ids.append(notification.id)
+            logger.info(
+                f"Queued PUSH notification {notification.id} "
+                f"for guardian {guardian.id} (subscription {subscription.id})"
+            )
+
+        return notification_ids
+
+    def _build_push_payload(
+        self,
+        notification_type: NotificationType,
+        payload: dict,
+    ) -> dict:
+        """Build the push notification payload."""
+        student_name = payload.get("student_name", "Estudiante")
+        time_str = payload.get("time", "")
+        event_type = payload.get("type", "")
+
+        # Build title and body based on notification type
+        if notification_type == NotificationType.INGRESO_OK:
+            title = "Ingreso registrado"
+            body = f"{student_name} ingreso al colegio a las {time_str}"
+        elif notification_type == NotificationType.SALIDA_OK:
+            title = "Salida registrada"
+            body = f"{student_name} salio del colegio a las {time_str}"
+        elif notification_type == NotificationType.NO_INGRESO_UMBRAL:
+            title = "Alerta de inasistencia"
+            body = f"{student_name} no ha registrado ingreso hoy"
+        else:
+            title = "Notificacion de asistencia"
+            body = f"Actualizacion para {student_name}"
+
+        return {
+            "title": title,
+            "body": body,
+            "icon": "/app/assets/logo.svg",
+            "badge": "/app/assets/badge.svg",
+            "tag": f"attendance-{payload.get('event_id', 'unknown')}",
+            "url": "/app/#/parent/home",
+            "data": payload,
+        }
+
+    def _enqueue_push_notification(
+        self,
+        notification_id: int,
+        subscription,
+        push_payload: dict,
+    ) -> bool:
+        """Enqueue a push notification for async processing.
+
+        Args:
+            notification_id: ID of the notification record
+            subscription: PushSubscription model instance
+            push_payload: Push notification payload
+
+        Returns:
+            True if enqueued successfully
+        """
+        queue = self.queue
+        if queue is None:
+            logger.warning(f"Skipping push notification {notification_id}: Redis unavailable")
+            return False
+
+        subscription_info = {
+            "endpoint": subscription.endpoint,
+            "keys": {
+                "p256dh": subscription.p256dh,
+                "auth": subscription.auth,
+            },
+        }
+
+        queue.enqueue(
+            "app.workers.jobs.send_push.send_push_notification",
+            notification_id,
+            subscription_info,
+            push_payload,
         )
         return True

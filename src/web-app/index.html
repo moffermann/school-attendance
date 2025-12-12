@@ -3,8 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#10b981">
   <title>Control de Ingreso/Salida Escolar</title>
   <link rel="stylesheet" href="css/styles.css">
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/logo.svg">
   <!-- jsPDF for PDF generation -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
@@ -22,6 +26,10 @@
       <p>Cargando...</p>
     </div>
   </div>
+
+  <!-- PWA modules (must load before api.js) -->
+  <script src="js/idb.js"></script>
+  <script src="js/sync.js"></script>
 
   <script src="js/api.js"></script>
   <script src="js/state.js"></script>
@@ -59,8 +67,17 @@
   <script src="js/nfc-enrollment.js"></script>
   <!-- QR Enrollment service -->
   <script src="js/qr-enrollment.js"></script>
+  <!-- WebAuthn passkey authentication -->
+  <script src="js/webauthn.js"></script>
 
   <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
+        .catch(err => console.warn('[PWA] Service Worker registration failed:', err));
+    }
+
     // Extract tokens from URL hash (from server login redirect)
     function extractTokensFromHash() {
       const hash = window.location.hash;
@@ -90,6 +107,11 @@
       const tokens = extractTokensFromHash();
 
       await State.init();
+
+      // Start offline sync queue
+      if (typeof Sync !== 'undefined') {
+        Sync.startAutoSync();
+      }
 
       // Re-initialize SuperAdminAPI after tokens are saved to sessionStorage
       // This allows it to pick up super admin tokens from unified login

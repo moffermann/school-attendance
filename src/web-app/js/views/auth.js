@@ -40,6 +40,22 @@ Views.auth = function() {
 
         <div id="auth-login-form" style="display: none;">
           <p class="mb-3" id="login-title">Iniciar sesión</p>
+
+          <!-- Passkey login option -->
+          <div id="passkey-login-section" style="display: none; margin-bottom: 1.5rem;">
+            <button type="button" class="btn btn-primary" id="btn-passkey-login" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/>
+              </svg>
+              Iniciar con huella / Face ID
+            </button>
+            <div class="separator" style="display: flex; align-items: center; margin: 1rem 0; color: var(--color-gray-400); font-size: 0.85rem;">
+              <span style="flex: 1; border-bottom: 1px solid var(--color-gray-200);"></span>
+              <span style="padding: 0 1rem;">o con contraseña</span>
+              <span style="flex: 1; border-bottom: 1px solid var(--color-gray-200);"></span>
+            </div>
+          </div>
+
           <form id="login-form">
             <div class="form-group">
               <label class="form-label">Email</label>
@@ -93,6 +109,59 @@ Views.auth = function() {
     });
   }
 
+  // Check if WebAuthn/passkeys are available
+  async function checkPasskeySupport() {
+    if (typeof WebAuthn !== 'undefined' && WebAuthn.isSupported()) {
+      const hasPlatformAuth = await WebAuthn.isPlatformAuthenticatorAvailable();
+      if (hasPlatformAuth) {
+        const passkeySection = document.getElementById('passkey-login-section');
+        if (passkeySection) {
+          passkeySection.style.display = 'block';
+        }
+      }
+    }
+  }
+
+  // Handle passkey login
+  async function handlePasskeyLogin() {
+    const errorDiv = document.getElementById('login-error');
+    const btn = document.getElementById('btn-passkey-login');
+
+    errorDiv.style.display = 'none';
+    btn.disabled = true;
+    btn.innerHTML = `
+      <div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>
+      Autenticando...
+    `;
+
+    try {
+      const result = await WebAuthn.authenticateWithPasskey();
+
+      // Get bootstrap data
+      const bootstrap = await API.getBootstrap();
+      State.setFromBootstrap(bootstrap);
+
+      const user = bootstrap.current_user || bootstrap.user;
+      Components.showToast(`Bienvenido, ${user.full_name}`, 'success');
+
+      // Navigate based on role
+      const redirectPath = user.role === 'PARENT' ? '/parent/home' : '/director/dashboard';
+      Router.navigate(redirectPath);
+    } catch (error) {
+      console.error('Passkey login error:', error);
+      errorDiv.textContent = error.message || 'Error al autenticar con passkey';
+      errorDiv.style.display = 'block';
+
+      btn.disabled = false;
+      btn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/>
+        </svg>
+        Iniciar con huella / Face ID
+      `;
+    }
+  }
+
   // R13-FE1 fix: Use event delegation to prevent listener duplication on re-render
   app.addEventListener('click', (e) => {
     // Staff button
@@ -108,6 +177,10 @@ Views.auth = function() {
     // Back button
     if (e.target.closest('#btn-back')) {
       showModeSelect();
+    }
+    // Passkey login button
+    if (e.target.closest('#btn-passkey-login')) {
+      handlePasskeyLogin();
     }
   });
 
@@ -154,6 +227,9 @@ Views.auth = function() {
     document.getElementById('auth-login-form').style.display = 'block';
     document.getElementById('login-title').textContent = `Iniciar sesión - ${title}`;
     document.getElementById('login-email').focus();
+
+    // Check for passkey support and show button if available
+    checkPasskeySupport();
   }
 
   function showModeSelect() {

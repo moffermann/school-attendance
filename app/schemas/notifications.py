@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 class NotificationChannel(str, Enum):
     WHATSAPP = "WHATSAPP"
     EMAIL = "EMAIL"
+    PUSH = "PUSH"
 
 
 class NotificationType(str, Enum):

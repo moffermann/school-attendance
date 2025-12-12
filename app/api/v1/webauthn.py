@@ -484,3 +484,72 @@ async def delete_my_passkey(
         deleted=True,
         message="Passkey eliminado exitosamente",
     )
+
+
+# =============================================================================
+# User Passkey Authentication (Password-less Login)
+# =============================================================================
+
+
+@router.post(
+    "/users/authenticate/start",
+    summary="Iniciar autenticación con passkey",
+)
+async def start_user_passkey_authentication(
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Inicia el flujo de autenticación sin contraseña con passkey.
+
+    Retorna las opciones de autenticación WebAuthn para usar con
+    navigator.credentials.get() en el navegador.
+    """
+    result = await webauthn_service.start_user_authentication()
+
+    return {
+        "challenge_id": result["challenge_id"],
+        "options": result["options"],
+    }
+
+
+@router.post(
+    "/users/authenticate/verify",
+    summary="Verificar autenticación con passkey",
+)
+async def verify_user_passkey_authentication(
+    request: VerifyAuthenticationRequest,
+    webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
+):
+    """
+    Verifica la autenticación con passkey y retorna tokens JWT.
+
+    Permite login sin contraseña usando huella digital, Face ID,
+    o cualquier autenticador FIDO2 registrado.
+    """
+    from app.core.security import create_access_token, create_refresh_token
+
+    # Verify the passkey authentication
+    user = await webauthn_service.verify_user_authentication(
+        challenge_id=request.challenge_id,
+        credential_response=request.credential,
+    )
+
+    # Generate JWT tokens
+    access_token = create_access_token(
+        str(user.id),
+        role=user.role,
+        guardian_id=user.guardian_id,
+    )
+    refresh_token = create_refresh_token(str(user.id))
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+        },
+    }

@@ -74,6 +74,24 @@ class Settings(BaseSettings):
         description="Timeout for WebAuthn operations in milliseconds"
     )
 
+    # Web Push Notifications (VAPID)
+    # Generate keys: npx web-push generate-vapid-keys
+    vapid_private_key: str = Field(
+        default="",
+        env="VAPID_PRIVATE_KEY",
+        description="VAPID private key for Web Push (base64)"
+    )
+    vapid_public_key: str = Field(
+        default="",
+        env="VAPID_PUBLIC_KEY",
+        description="VAPID public key for Web Push (base64)"
+    )
+    vapid_subject: str = Field(
+        default="mailto:admin@school.cl",
+        env="VAPID_SUBJECT",
+        description="VAPID subject (mailto: or https: URL)"
+    )
+
     # Multi-tenant configuration
     default_tenant_slug: str | None = Field(
         default=None,

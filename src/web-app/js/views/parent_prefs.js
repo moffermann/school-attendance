@@ -203,6 +203,39 @@ Views.parentPrefs = async function() {
       </div>
     </div>
 
+    <!-- Push Notifications -->
+    <div class="card" style="margin-bottom: 1.5rem;" id="push-section">
+      <div class="card-header" style="display: flex; align-items: center; gap: 0.75rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+        <span>Notificaciones Push</span>
+      </div>
+      <div class="card-body" id="push-content">
+        <div id="push-loading" style="text-align: center; padding: 2rem;">
+          <div class="spinner"></div>
+          <p style="color: var(--color-gray-500); margin-top: 1rem;">Cargando...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seguridad - Passkeys -->
+    <div class="card" style="margin-bottom: 1.5rem;" id="passkey-section">
+      <div class="card-header" style="display: flex; align-items: center; gap: 0.75rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/>
+        </svg>
+        <span>Seguridad - Acceso Biometrico</span>
+      </div>
+      <div class="card-body" id="passkey-content">
+        <div id="passkey-loading" style="text-align: center; padding: 2rem;">
+          <div class="spinner"></div>
+          <p style="color: var(--color-gray-500); margin-top: 1rem;">Cargando...</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Botones de acción -->
     <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
       <button class="btn btn-primary btn-lg" id="btn-save-prefs" onclick="Views.parentPrefs.savePreferences()" style="flex: 1; min-width: 200px;">
@@ -295,4 +328,365 @@ Views.parentPrefs = async function() {
       btn.disabled = false;
     }
   };
+
+  // Initialize push notification section
+  initPushSection();
+
+  async function initPushSection() {
+    const content = document.getElementById('push-content');
+    const section = document.getElementById('push-section');
+
+    // Check if push notifications are supported
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      content.innerHTML = `
+        <div style="text-align: center; padding: 1.5rem; color: var(--color-gray-500);">
+          <p>Tu navegador no soporta notificaciones push.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Check notification permission
+    const permission = Notification.permission;
+
+    if (permission === 'denied') {
+      content.innerHTML = `
+        <div style="background: var(--color-warning-50); border-radius: 12px; padding: 1rem; color: var(--color-warning-700);">
+          <p style="margin: 0;"><strong>Notificaciones bloqueadas</strong></p>
+          <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">
+            Has bloqueado las notificaciones. Para activarlas, debes cambiar los permisos en la configuracion de tu navegador.
+          </p>
+        </div>
+      `;
+      return;
+    }
+
+    // Check if already subscribed
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const existingSubscription = await registration.pushManager.getSubscription();
+
+      if (existingSubscription) {
+        // Already subscribed
+        content.innerHTML = `
+          <div style="background: var(--color-success-50); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem;">
+            <div style="width: 32px; height: 32px; background: var(--color-success); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <div>
+              <div style="font-weight: 600; color: var(--color-success-700);">Notificaciones push activadas</div>
+              <div style="font-size: 0.85rem; color: var(--color-success-600);">Recibiras alertas cuando tu hijo ingrese o salga del colegio</div>
+            </div>
+          </div>
+          <button class="btn btn-secondary" id="btn-unsubscribe-push" style="width: 100%;">
+            Desactivar notificaciones push
+          </button>
+        `;
+
+        document.getElementById('btn-unsubscribe-push')?.addEventListener('click', handleUnsubscribePush);
+      } else {
+        // Not subscribed
+        content.innerHTML = `
+          <div style="background: var(--color-gray-50); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;">
+            <p style="color: var(--color-gray-600); font-size: 0.9rem; margin: 0;">
+              Activa las notificaciones push para recibir alertas instantaneas cuando tu hijo ingrese o salga del colegio.
+            </p>
+          </div>
+          <button class="btn btn-primary" id="btn-subscribe-push" style="width: 100%;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.5rem;">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            Activar notificaciones push
+          </button>
+        `;
+
+        document.getElementById('btn-subscribe-push')?.addEventListener('click', handleSubscribePush);
+      }
+    } catch (error) {
+      console.error('Error checking push subscription:', error);
+      content.innerHTML = `
+        <div style="text-align: center; padding: 1.5rem; color: var(--color-gray-500);">
+          <p>Error al verificar el estado de notificaciones.</p>
+          <button class="btn btn-secondary btn-sm" onclick="Views.parentPrefs.reloadPushSection()">Reintentar</button>
+        </div>
+      `;
+    }
+  }
+
+  Views.parentPrefs.reloadPushSection = initPushSection;
+
+  async function handleSubscribePush() {
+    const btn = document.getElementById('btn-subscribe-push');
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div> Activando...';
+
+    try {
+      // Request notification permission
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        Components.showToast('Debes permitir las notificaciones', 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        return;
+      }
+
+      // Get VAPID public key from server
+      const vapidResponse = await API.fetch('/push/vapid-public-key');
+      if (!vapidResponse.ok) {
+        throw new Error('No se pudo obtener la clave del servidor');
+      }
+      const { public_key: vapidPublicKey } = await vapidResponse.json();
+
+      // Subscribe to push
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+
+      // Get device name
+      const deviceName = navigator.userAgent.includes('iPhone') ? 'iPhone' :
+                        navigator.userAgent.includes('iPad') ? 'iPad' :
+                        navigator.userAgent.includes('Android') ? 'Android' :
+                        navigator.userAgent.includes('Mac') ? 'Mac' :
+                        navigator.userAgent.includes('Windows') ? 'Windows' : 'Dispositivo';
+
+      // Send subscription to server
+      const subJson = subscription.toJSON();
+      const response = await API.fetch('/push/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({
+          endpoint: subJson.endpoint,
+          keys: {
+            p256dh: subJson.keys.p256dh,
+            auth: subJson.keys.auth,
+          },
+          device_name: deviceName,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al registrar la suscripcion');
+      }
+
+      Components.showToast('Notificaciones push activadas', 'success');
+      await initPushSection();
+    } catch (error) {
+      console.error('Error subscribing to push:', error);
+      Components.showToast(error.message || 'Error al activar notificaciones', 'error');
+      btn.disabled = false;
+      btn.innerHTML = originalHTML;
+    }
+  }
+
+  async function handleUnsubscribePush() {
+    const btn = document.getElementById('btn-unsubscribe-push');
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div> Desactivando...';
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+
+      if (subscription) {
+        // Unsubscribe from browser
+        await subscription.unsubscribe();
+
+        // Notify server
+        const subJson = subscription.toJSON();
+        await API.fetch(`/push/unsubscribe?endpoint=${encodeURIComponent(subJson.endpoint)}`, {
+          method: 'DELETE',
+        });
+      }
+
+      Components.showToast('Notificaciones push desactivadas', 'success');
+      await initPushSection();
+    } catch (error) {
+      console.error('Error unsubscribing from push:', error);
+      Components.showToast(error.message || 'Error al desactivar notificaciones', 'error');
+      btn.disabled = false;
+      btn.innerHTML = originalHTML;
+    }
+  }
+
+  // Helper function to convert base64 URL to Uint8Array
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  // Initialize passkey section
+  initPasskeySection();
+
+  async function initPasskeySection() {
+    const content = document.getElementById('passkey-content');
+    const section = document.getElementById('passkey-section');
+
+    // Check if WebAuthn is supported
+    if (typeof WebAuthn === 'undefined' || !WebAuthn.isSupported()) {
+      section.style.display = 'none';
+      return;
+    }
+
+    const hasPlatformAuth = await WebAuthn.isPlatformAuthenticatorAvailable();
+    if (!hasPlatformAuth) {
+      content.innerHTML = `
+        <div style="text-align: center; padding: 1.5rem; color: var(--color-gray-500);">
+          <p>Tu dispositivo no soporta autenticacion biometrica.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Load passkeys
+    await loadPasskeys();
+  }
+
+  async function loadPasskeys() {
+    const content = document.getElementById('passkey-content');
+
+    try {
+      const passkeys = await WebAuthn.listPasskeys();
+
+      if (passkeys.length === 0) {
+        content.innerHTML = `
+          <div style="background: var(--color-gray-50); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;">
+            <p style="color: var(--color-gray-600); font-size: 0.9rem; margin: 0;">
+              Registra tu huella digital o Face ID para iniciar sesion sin contraseña.
+              <br>Es mas rapido y seguro.
+            </p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-passkey" style="width: 100%;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.5rem;">
+              <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/>
+            </svg>
+            Agregar huella / Face ID
+          </button>
+        `;
+      } else {
+        content.innerHTML = `
+          <div style="background: var(--color-success-50); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem;">
+            <div style="width: 32px; height: 32px; background: var(--color-success); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <div>
+              <div style="font-weight: 600; color: var(--color-success-700);">Acceso biometrico activado</div>
+              <div style="font-size: 0.85rem; color: var(--color-success-600);">Puedes iniciar sesion con tu huella o Face ID</div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 1rem;">
+            <div style="font-weight: 500; color: var(--color-gray-700); margin-bottom: 0.75rem;">Dispositivos registrados:</div>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+              ${passkeys.map(pk => `
+                <div style="display: flex; align-items: center; padding: 0.875rem 1rem; background: var(--color-gray-50); border-radius: 10px;">
+                  <div style="flex: 1;">
+                    <div style="font-weight: 500; color: var(--color-gray-800);">${Components.escapeHtml(pk.device_name || 'Dispositivo')}</div>
+                    <div style="font-size: 0.8rem; color: var(--color-gray-500);">
+                      Registrado: ${new Date(pk.created_at).toLocaleDateString('es-CL')}
+                      ${pk.last_used_at ? ` • Ultimo uso: ${new Date(pk.last_used_at).toLocaleDateString('es-CL')}` : ''}
+                    </div>
+                  </div>
+                  <button class="btn btn-secondary btn-sm btn-delete-passkey" data-credential-id="${Components.escapeHtml(pk.credential_id)}" style="padding: 0.5rem 0.75rem;">
+                    Eliminar
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <button class="btn btn-secondary" id="btn-add-passkey" style="width: 100%;">
+            + Agregar otro dispositivo
+          </button>
+        `;
+      }
+
+      // Bind event handlers
+      const addBtn = document.getElementById('btn-add-passkey');
+      if (addBtn) {
+        addBtn.addEventListener('click', handleAddPasskey);
+      }
+
+      document.querySelectorAll('.btn-delete-passkey').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const credentialId = e.target.dataset.credentialId;
+          handleDeletePasskey(credentialId);
+        });
+      });
+
+    } catch (error) {
+      console.error('Error loading passkeys:', error);
+      content.innerHTML = `
+        <div style="text-align: center; padding: 1.5rem; color: var(--color-gray-500);">
+          <p>Error al cargar passkeys.</p>
+          <button class="btn btn-secondary btn-sm" onclick="Views.parentPrefs.reloadPasskeys()">Reintentar</button>
+        </div>
+      `;
+    }
+  }
+
+  Views.parentPrefs.reloadPasskeys = loadPasskeys;
+
+  async function handleAddPasskey() {
+    const btn = document.getElementById('btn-add-passkey');
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div> Registrando...';
+
+    try {
+      // Get device name
+      const deviceName = navigator.userAgent.includes('iPhone') ? 'iPhone' :
+                        navigator.userAgent.includes('iPad') ? 'iPad' :
+                        navigator.userAgent.includes('Android') ? 'Android' :
+                        navigator.userAgent.includes('Mac') ? 'Mac' :
+                        navigator.userAgent.includes('Windows') ? 'Windows' : 'Dispositivo';
+
+      await WebAuthn.registerPasskey(deviceName);
+      Components.showToast('Passkey registrado exitosamente', 'success');
+      await loadPasskeys();
+    } catch (error) {
+      console.error('Error registering passkey:', error);
+      Components.showToast(error.message || 'Error al registrar passkey', 'error');
+      btn.disabled = false;
+      btn.innerHTML = originalHTML;
+    }
+  }
+
+  async function handleDeletePasskey(credentialId) {
+    const confirmed = await new Promise(resolve => {
+      Components.showModal('Eliminar Passkey', `
+        <p>¿Estas seguro de que deseas eliminar este passkey?</p>
+        <p style="font-size: 0.9rem; color: var(--color-gray-500);">
+          Ya no podras usar este dispositivo para iniciar sesion sin contraseña.
+        </p>
+      `, [
+        { label: 'Cancelar', action: 'close', className: 'btn-secondary', onClick: () => resolve(false) },
+        { label: 'Eliminar', action: 'submit', className: 'btn-danger', onClick: () => resolve(true) }
+      ]);
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await WebAuthn.deletePasskey(credentialId);
+      Components.showToast('Passkey eliminado', 'success');
+      await loadPasskeys();
+    } catch (error) {
+      console.error('Error deleting passkey:', error);
+      Components.showToast(error.message || 'Error al eliminar passkey', 'error');
+    }
+  }
 };

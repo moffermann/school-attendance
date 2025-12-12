@@ -53,6 +53,15 @@ class WebAuthnRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_all_user_credentials(self) -> list[WebAuthnCredential]:
+        """Get all credentials linked to users (for web-app passkey authentication)."""
+        stmt = (
+            select(WebAuthnCredential)
+            .where(WebAuthnCredential.user_id.isnot(None))
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def create(self, credential: WebAuthnCredential) -> WebAuthnCredential:
         """Create a new WebAuthn credential."""
         self.session.add(credential)

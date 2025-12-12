@@ -470,6 +470,126 @@ class WebAuthnService:
         return credential
 
     # =========================================================================
+    # User Authentication (Web-app Passkey Login)
+    # =========================================================================
+
+    async def start_user_authentication(self) -> dict:
+        """
+        Generate authentication options for a user's passkey login.
+
+        This is a "usernameless" flow - allows login with just biometric.
+        """
+        # Get all user credentials for allowCredentials
+        all_credentials = await self.credential_repo.get_all_user_credentials()
+
+        allow_credentials = [
+            PublicKeyCredentialDescriptor(
+                id=base64url_to_bytes(cred.credential_id),
+                transports=self._parse_transports(cred.transports),
+            )
+            for cred in all_credentials
+        ] if all_credentials else None
+
+        options = generate_authentication_options(
+            rp_id=settings.webauthn_rp_id,
+            allow_credentials=allow_credentials,
+            user_verification=UserVerificationRequirement.REQUIRED,
+            timeout=settings.webauthn_timeout_ms,
+        )
+
+        challenge_id = secrets.token_urlsafe(32)
+        _challenge_store[challenge_id] = {
+            "challenge": options.challenge,
+            "entity_type": "user_auth",
+            "expires": datetime.now(timezone.utc) + timedelta(milliseconds=settings.webauthn_timeout_ms),
+        }
+
+        _cleanup_expired_challenges()
+
+        return {
+            "challenge_id": challenge_id,
+            "options": options_to_json(options),
+        }
+
+    async def verify_user_authentication(
+        self,
+        challenge_id: str,
+        credential_response: dict,
+    ) -> User:
+        """
+        Verify a user's WebAuthn authentication assertion.
+
+        Returns the authenticated user if successful.
+        """
+        _cleanup_expired_challenges()
+
+        challenge_data = _challenge_store.pop(challenge_id, None)
+        if not challenge_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Challenge inválido o expirado"
+            )
+
+        if challenge_data["expires"] < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Challenge expirado"
+            )
+
+        if challenge_data["entity_type"] != "user_auth":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Challenge no corresponde a autenticación de usuario"
+            )
+
+        credential_id = credential_response.get("id") or credential_response.get("rawId")
+        if not credential_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="credential_id no proporcionado"
+            )
+
+        credential = await self.credential_repo.get_by_credential_id(credential_id)
+        if not credential or not credential.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Credencial no reconocida"
+            )
+
+        try:
+            verification = verify_authentication_response(
+                credential=credential_response,
+                expected_challenge=challenge_data["challenge"],
+                expected_origin=settings.webauthn_rp_origin,
+                expected_rp_id=settings.webauthn_rp_id,
+                credential_public_key=credential.public_key,
+                credential_current_sign_count=credential.sign_count,
+                require_user_verification=True,
+            )
+        except Exception as e:
+            logger.error("WebAuthn user authentication verification failed: %s", e)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Error verificando autenticación"
+            )
+
+        # Update sign count and last_used_at
+        await self.credential_repo.update_sign_count(
+            credential.credential_id,
+            verification.new_sign_count
+        )
+        await self.session.commit()
+
+        user = await self.user_repo.get(credential.user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado"
+            )
+
+        return user
+
+    # =========================================================================
     # Credential Management
     # =========================================================================
 

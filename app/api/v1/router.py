@@ -13,6 +13,7 @@ from app.api.v1 import (
     kiosk,
     notifications,
     parents,
+    push_subscriptions,
     schedules,
     tags,
     teachers,
@@ -49,3 +50,4 @@ api_router.include_router(absences.router, prefix="/absences", tags=["absences"]
 api_router.include_router(teachers.router, prefix="/teachers", tags=["teachers"])
 api_router.include_router(kiosk.router, prefix="/kiosk", tags=["kiosk"])
 api_router.include_router(webauthn.router, prefix="/webauthn", tags=["webauthn"])
+api_router.include_router(push_subscriptions.router)
