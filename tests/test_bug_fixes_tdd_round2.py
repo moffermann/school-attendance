@@ -88,7 +88,10 @@ class TestBugR2_2_GuardianPreferencesMerge:
         # This test verifies merge behavior
         assert "SALIDA_OK" in final_prefs, "SALIDA_OK preference was deleted!"
         assert "NO_INGRESO_UMBRAL" in final_prefs, "NO_INGRESO_UMBRAL preference was deleted!"
-        assert final_prefs["INGRESO_OK"].whatsapp is False, "INGRESO_OK should be updated"
+        # TDD-R2-BUG2 fix: preferences are now stored as dicts for JSON serialization
+        ingreso_pref = final_prefs["INGRESO_OK"]
+        whatsapp_val = ingreso_pref["whatsapp"] if isinstance(ingreso_pref, dict) else ingreso_pref.whatsapp
+        assert whatsapp_val is False, "INGRESO_OK should be updated"
 
 
 class TestBugR2_3_CSVSanitization:

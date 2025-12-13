@@ -31,7 +31,12 @@ class ConsentService:
         # TDD-R2-BUG2 fix: Merge preferences instead of overwriting entire dict
         if payload.preferences:
             existing_prefs = guardian.notification_prefs or {}
-            guardian.notification_prefs = {**existing_prefs, **payload.preferences}
+            # Convert ChannelPreference objects to dicts for JSON serialization
+            new_prefs = {
+                k: v.model_dump() if hasattr(v, 'model_dump') else v
+                for k, v in payload.preferences.items()
+            }
+            guardian.notification_prefs = {**existing_prefs, **new_prefs}
 
         if payload.photo_consents:
             student_map = {student.id: student for student in guardian.students}
