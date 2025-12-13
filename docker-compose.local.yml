@@ -30,7 +30,7 @@ services:
     ports:
       - "5432"  # Puerto dinamico
     networks:
-      - app_net_local
+      - school-attendance-net
 
   redis:
     container_name: school-attendance-redis-local
@@ -43,7 +43,7 @@ services:
     ports:
       - "6379"  # Puerto dinamico
     networks:
-      - app_net_local
+      - school-attendance-net
 
   minio:
     container_name: school-attendance-minio-local
@@ -63,7 +63,7 @@ services:
       - "9000"  # API - Puerto dinamico
       - "9001"  # Console - Puerto dinamico
     networks:
-      - app_net_local
+      - school-attendance-net
 
   # Main API + Frontend monolith (con hot-reload)
   school-attendance:
@@ -117,7 +117,7 @@ services:
     ports:
       - "8080:8080"  # Puerto fijo para acceso predecible
     networks:
-      - app_net_local
+      - school-attendance-net
 
   # Background worker for RQ jobs
   worker:
@@ -150,7 +150,7 @@ services:
     volumes:
       - ./app:/app/app:ro
     networks:
-      - app_net_local
+      - school-attendance-net
 
   # Scheduler for periodic jobs
   scheduler:
@@ -178,7 +178,7 @@ services:
     volumes:
       - ./app:/app/app:ro
     networks:
-      - app_net_local
+      - school-attendance-net
 
   # RQ Dashboard (siempre habilitado en local)
   rq-dashboard:
@@ -192,12 +192,13 @@ services:
     ports:
       - "9181"  # Puerto dinamico
     networks:
-      - app_net_local
+      - school-attendance-net
 
 volumes:
   postgres_data_local:
   minio_data_local:
 
 networks:
-  app_net_local:
+  school-attendance-net:
+    name: school-attendance-net
     driver: bridge
