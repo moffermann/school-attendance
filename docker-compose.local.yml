@@ -1,15 +1,19 @@
 # =============================================================================
-# Docker Compose - Local Development
+# Docker Compose - Local Development (Infrastructure Only)
 # =============================================================================
-# Configuracion simplificada para desarrollo local:
-# - Puertos dinamicos (asignados por Docker)
-# - Volumenes montados para hot-reload
-# - Sin parametrizacion por ambiente
-# - Construye imagen localmente
+# Solo servicios de infraestructura. El servidor web corre localmente
+# para mejor performance (sin virtualización).
+#
+# Puertos fijos terminados en 43 para evitar conflictos:
+#   - PostgreSQL: 5443
+#   - Redis: 6343
+#   - MinIO API: 9043
+#   - MinIO Console: 9143
+#   - RQ Dashboard: 9243
 #
 # Uso:
-#   docker compose -f docker-compose.local.yml up --build
-#   docker compose -f docker-compose.local.yml ps  # Ver puertos asignados
+#   docker compose -f docker-compose.local.yml up -d
+#   uvicorn app.main:app --reload --port 8043  # Servidor web local
 # =============================================================================
 
 services:
@@ -28,9 +32,7 @@ services:
     volumes:
       - postgres_data_local:/var/lib/postgresql/data
     ports:
-      - "5432"  # Puerto dinamico
-    networks:
-      - school-attendance-net
+      - "5443:5432"
 
   redis:
     container_name: school-attendance-redis-local
@@ -41,9 +43,7 @@ services:
       timeout: 3s
       retries: 3
     ports:
-      - "6379"  # Puerto dinamico
-    networks:
-      - school-attendance-net
+      - "6343:6379"
 
   minio:
     container_name: school-attendance-minio-local
@@ -60,64 +60,8 @@ services:
     volumes:
       - minio_data_local:/data
     ports:
-      - "9000"  # API - Puerto dinamico
-      - "9001"  # Console - Puerto dinamico
-    networks:
-      - school-attendance-net
-
-  # Main API + Frontend monolith (con hot-reload)
-  school-attendance:
-    container_name: school-attendance-local
-    build:
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      APP_ENV: development
-      DATABASE_URL: postgresql+asyncpg://school_attendance:school_attendance@school-attendance-postgres-local:5432/school_attendance
-      REDIS_URL: redis://school-attendance-redis-local:6379/0
-      S3_ENDPOINT: http://school-attendance-minio-local:9000
-      S3_BUCKET: attendance-photos
-      S3_ACCESS_KEY: dev-access
-      S3_SECRET_KEY: dev-secret
-      S3_REGION: us-east-1
-      S3_SECURE: "false"
-      SECRET_KEY: local-dev-secret-key
-      DEVICE_API_KEY: local-dev-device-key
-      SES_SOURCE_EMAIL: no-reply@example.com
-      WHATSAPP_ACCESS_TOKEN: dummy
-      WHATSAPP_PHONE_NUMBER_ID: dummy
-      CORS_ORIGINS: "[]"
-      RATE_LIMIT_DEFAULT: 100/minute
-      WEBAUTHN_RP_ID: localhost
-      WEBAUTHN_RP_NAME: Sistema Asistencia Escolar
-      WEBAUTHN_RP_ORIGIN: http://localhost:8080
-      WEBAUTHN_TIMEOUT_MS: "60000"
-      DEFAULT_TENANT_SLUG: demo
-      # Web Push VAPID keys
-      VAPID_PUBLIC_KEY: BG20KqGfbFlLuZQPdz1ya3ZJEwJ8wO1UWC_O4hcdHM5gw5dQ-1zM5qKOOsTn40906Zs2UVD2ax0wCh21d9I0krM
-      VAPID_PRIVATE_KEY: 0DrMeX3Wadu9eEAGH8YgC-l9nIZg0qj6QRe4-dI9nMI
-      VAPID_SUBJECT: mailto:admin@school.cl
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-    volumes:
-      # Montar codigo fuente para hot-reload
-      - ./app:/app/app:ro
-      - ./src:/app/src:ro
-      - ./scripts:/app/scripts:ro
-    ports:
-      - "8080:8080"  # Puerto fijo para acceso predecible
-    networks:
-      - school-attendance-net
+      - "9043:9000"
+      - "9143:9001"
 
   # Background worker for RQ jobs
   worker:
@@ -128,10 +72,10 @@ services:
     command: python -m app.workers.rq_worker
     environment:
       APP_ENV: development
-      DATABASE_URL: postgresql+asyncpg://school_attendance:school_attendance@school-attendance-postgres-local:5432/school_attendance
-      REDIS_URL: redis://school-attendance-redis-local:6379/0
+      DATABASE_URL: postgresql+asyncpg://school_attendance:school_attendance@host.docker.internal:5443/school_attendance
+      REDIS_URL: redis://host.docker.internal:6343/0
       SECRET_KEY: local-dev-secret-key
-      S3_ENDPOINT: http://school-attendance-minio-local:9000
+      S3_ENDPOINT: http://host.docker.internal:9043
       S3_BUCKET: attendance-photos
       S3_ACCESS_KEY: dev-access
       S3_SECRET_KEY: dev-secret
@@ -142,6 +86,8 @@ services:
       VAPID_PRIVATE_KEY: 0DrMeX3Wadu9eEAGH8YgC-l9nIZg0qj6QRe4-dI9nMI
       VAPID_SUBJECT: mailto:admin@school.cl
       ENABLE_REAL_NOTIFICATIONS: "false"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -149,8 +95,6 @@ services:
         condition: service_healthy
     volumes:
       - ./app:/app/app:ro
-    networks:
-      - school-attendance-net
 
   # Scheduler for periodic jobs
   scheduler:
@@ -161,15 +105,17 @@ services:
     command: python -m app.workers.scheduler
     environment:
       APP_ENV: development
-      DATABASE_URL: postgresql+asyncpg://school_attendance:school_attendance@school-attendance-postgres-local:5432/school_attendance
-      REDIS_URL: redis://school-attendance-redis-local:6379/0
+      DATABASE_URL: postgresql+asyncpg://school_attendance:school_attendance@host.docker.internal:5443/school_attendance
+      REDIS_URL: redis://host.docker.internal:6343/0
       SECRET_KEY: local-dev-secret-key
-      S3_ENDPOINT: http://school-attendance-minio-local:9000
+      S3_ENDPOINT: http://host.docker.internal:9043
       S3_BUCKET: attendance-photos
       S3_ACCESS_KEY: dev-access
       S3_SECRET_KEY: dev-secret
       S3_REGION: us-east-1
       S3_SECURE: "false"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -177,28 +123,21 @@ services:
         condition: service_healthy
     volumes:
       - ./app:/app/app:ro
-    networks:
-      - school-attendance-net
 
-  # RQ Dashboard (siempre habilitado en local)
+  # RQ Dashboard
   rq-dashboard:
     container_name: school-attendance-rq-dashboard-local
     image: eoranged/rq-dashboard
     environment:
-      RQ_DASHBOARD_REDIS_URL: redis://school-attendance-redis-local:6379/0
+      RQ_DASHBOARD_REDIS_URL: redis://host.docker.internal:6343/0
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       redis:
         condition: service_healthy
     ports:
-      - "9181"  # Puerto dinamico
-    networks:
-      - school-attendance-net
+      - "9243:9181"
 
 volumes:
   postgres_data_local:
   minio_data_local:
-
-networks:
-  school-attendance-net:
-    name: school-attendance-net
-    driver: bridge
