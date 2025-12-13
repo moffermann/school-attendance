@@ -13,8 +13,8 @@ class AttendanceType(str, Enum):
 
 class AttendanceEventCreate(BaseModel):
     student_id: int
-    device_id: str
-    gate_id: str
+    device_id: str = Field(..., max_length=64)
+    gate_id: str = Field(..., max_length=64)
     type: AttendanceType
     occurred_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     photo_ref: str | None = None
