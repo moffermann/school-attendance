@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -128,7 +128,7 @@ async def favicon():
     if favicon_path.exists():
         return FileResponse(favicon_path, media_type="image/svg+xml")
     # Return empty response if no favicon exists
-    return FileResponse(status_code=204)
+    return Response(status_code=204)
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
