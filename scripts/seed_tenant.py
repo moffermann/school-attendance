@@ -259,7 +259,7 @@ class TenantSeeder:
             await session.commit()
 
             print(f"\n{'='*60}")
-            print(f"✅ Tenant seed complete for {self.env}!")
+            print(f"[SUCCESS] Tenant seed complete for {self.env}!")
             print(f"{'='*60}\n")
 
     async def _seed_tenant(self) -> None:
@@ -330,7 +330,7 @@ class TenantSeeder:
                 {"tenant_id": self.tenant_id, "feature_name": feature}
             )
 
-        print(f"  ✓ Tenant '{self.config['slug']}' configured (id={self.tenant_id})")
+        print(f"  [OK] Tenant '{self.config['slug']}' configured (id={self.tenant_id})")
 
     async def _create_schema(self) -> None:
         """Create tenant schema and tables."""
@@ -346,7 +346,7 @@ class TenantSeeder:
         for sql in tables_sql:
             await self.conn.execute(text(sql))
 
-        print(f"  ✓ Schema '{self.schema}' ready")
+        print(f"  [OK] Schema '{self.schema}' ready")
 
     def _get_tables_ddl(self) -> list[str]:
         """Get DDL statements for tenant tables."""
@@ -571,7 +571,7 @@ class TenantSeeder:
                 course
             )
         await self.conn.execute(text(f"SELECT setval('{self.schema}.courses_id_seq', 10, true)"))
-        print(f"  ✓ {len(DEMO_COURSES)} courses")
+        print(f"  [OK] {len(DEMO_COURSES)} courses")
 
         # Teachers (with environment-specific emails)
         for teacher in DEMO_TEACHERS:
@@ -590,7 +590,7 @@ class TenantSeeder:
                 }
             )
         await self.conn.execute(text(f"SELECT setval('{self.schema}.teachers_id_seq', 10, true)"))
-        print(f"  ✓ {len(DEMO_TEACHERS)} teachers")
+        print(f"  [OK] {len(DEMO_TEACHERS)} teachers")
 
         # Teacher-course assignments
         for tc in TEACHER_COURSES:
@@ -649,7 +649,7 @@ class TenantSeeder:
 
         await self.conn.execute(text(f"SELECT setval('{self.schema}.guardians_id_seq', 100, true)"))
         await self.conn.execute(text(f"SELECT setval('{self.schema}.students_id_seq', 100, true)"))
-        print(f"  ✓ {len(DEMO_STUDENTS)} students with guardians")
+        print(f"  [OK] {len(DEMO_STUDENTS)} students with guardians")
 
         # Users (with environment-specific emails)
         demo_users = [
@@ -705,7 +705,7 @@ class TenantSeeder:
             user_id += 1
 
         await self.conn.execute(text(f"SELECT setval('{self.schema}.users_id_seq', 100, true)"))
-        print(f"  ✓ {user_id - 1} users")
+        print(f"  [OK] {user_id - 1} users")
 
         # Devices
         for device in DEMO_DEVICES:
@@ -717,7 +717,7 @@ class TenantSeeder:
                 """),
                 device
             )
-        print(f"  ✓ {len(DEMO_DEVICES)} devices")
+        print(f"  [OK] {len(DEMO_DEVICES)} devices")
 
         # Schedules (Monday-Friday, 8:00-16:00)
         for course_id in [1, 2, 3]:
@@ -730,7 +730,7 @@ class TenantSeeder:
                     """),
                     {"course_id": course_id, "day": day}
                 )
-        print("  ✓ Schedules configured")
+        print("  [OK] Schedules configured")
 
         # QR tags for students
         for student in DEMO_STUDENTS:
@@ -748,7 +748,7 @@ class TenantSeeder:
                     "token_preview": token[:8],
                 }
             )
-        print(f"  ✓ QR tags for {len(DEMO_STUDENTS)} students")
+        print(f"  [OK] QR tags for {len(DEMO_STUDENTS)} students")
 
         # Enrollments
         current_year = date.today().year
@@ -765,7 +765,7 @@ class TenantSeeder:
                     "year": current_year,
                 }
             )
-        print(f"  ✓ Enrollments for year {current_year}")
+        print(f"  [OK] Enrollments for year {current_year}")
 
     async def _clear_data(self) -> None:
         """Clear existing transactional data for idempotency."""
@@ -892,8 +892,8 @@ class TenantSeeder:
             if (day_idx + 1) % 10 == 0:
                 print(f"  Processed {day_idx + 1}/{len(school_days)} days...")
 
-        print(f"  ✓ {total_events} attendance events")
-        print(f"  ✓ {total_notifications} notifications")
+        print(f"  [OK] {total_events} attendance events")
+        print(f"  [OK] {total_notifications} notifications")
 
         # Usage stats
         for school_day in school_days:
@@ -927,7 +927,7 @@ class TenantSeeder:
                     }
                 )
 
-        print(f"  ✓ Usage stats for {len(school_days)} days")
+        print(f"  [OK] Usage stats for {len(school_days)} days")
 
 
 def main():
