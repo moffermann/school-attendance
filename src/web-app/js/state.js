@@ -373,7 +373,10 @@ const State = {
     return this.data.students.filter(s => s.course_id === courseId);
   },
 
-  getSchedules(courseId) {
+  getSchedules(courseId = null) {
+    if (courseId === null) {
+      return this.data.schedules;
+    }
     return this.data.schedules.filter(s => s.course_id === courseId);
   },
 
@@ -658,6 +661,193 @@ const State = {
       }
     });
     this.persist();
+  },
+
+  // ============================================
+  // CRUD: Courses (with API integration)
+  // ============================================
+
+  /**
+   * Refresh courses from API
+   */
+  async refreshCourses() {
+    if (!this.isApiAuthenticated()) {
+      // In demo mode, just return local data
+      return this.data.courses;
+    }
+
+    try {
+      const response = await API.getCourses({ limit: 100 });
+      this.data.courses = response.items || [];
+      this.persist();
+      return this.data.courses;
+    } catch (error) {
+      console.error('Error refreshing courses:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get course detail with stats from API
+   */
+  async getCourseDetail(courseId) {
+    if (!this.isApiAuthenticated()) {
+      // In demo mode, return local course
+      return this.getCourse(courseId);
+    }
+
+    try {
+      return await API.getCourse(courseId);
+    } catch (error) {
+      console.error('Error getting course detail:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Create a new course via API
+   */
+  async createCourse(courseData) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - create locally
+      if (!this.data.courses) this.data.courses = [];
+      const id = Math.max(0, ...this.data.courses.map(c => c.id)) + 1;
+      const course = {
+        id,
+        name: courseData.name,
+        grade: courseData.grade,
+        status: 'ACTIVE',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      this.data.courses.push(course);
+      this.persist();
+      return course;
+    }
+
+    try {
+      const course = await API.createCourse(courseData);
+      // Add to local data
+      this.data.courses.push(course);
+      this.persist();
+      return course;
+    } catch (error) {
+      console.error('Error creating course:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update a course via API
+   */
+  async updateCourse(courseId, updateData) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - update locally
+      const index = this.data.courses.findIndex(c => c.id === courseId);
+      if (index !== -1) {
+        this.data.courses[index] = { ...this.data.courses[index], ...updateData, updated_at: new Date().toISOString() };
+        this.persist();
+        return this.data.courses[index];
+      }
+      throw new Error('Curso no encontrado');
+    }
+
+    try {
+      const course = await API.updateCourse(courseId, updateData);
+      // Update local data
+      const index = this.data.courses.findIndex(c => c.id === courseId);
+      if (index !== -1) {
+        this.data.courses[index] = course;
+      } else {
+        this.data.courses.push(course);
+      }
+      this.persist();
+      return course;
+    } catch (error) {
+      console.error('Error updating course:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a course via API (soft delete)
+   */
+  async deleteCourse(courseId) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - delete locally
+      const course = this.getCourse(courseId);
+      if (!course) {
+        throw new Error('Curso no encontrado');
+      }
+      // Check for students
+      const students = this.getStudentsByCourse(courseId);
+      if (students.length > 0) {
+        throw new Error(`No se puede eliminar: tiene ${students.length} alumno(s) asignado(s)`);
+      }
+      this.data.courses = this.data.courses.filter(c => c.id !== courseId);
+      // Remove schedules for this course
+      this.data.schedules = this.data.schedules.filter(s => s.course_id !== courseId);
+      this.persist();
+      return true;
+    }
+
+    try {
+      await API.deleteCourse(courseId);
+      // Remove from local data
+      this.data.courses = this.data.courses.filter(c => c.id !== courseId);
+      this.persist();
+      return true;
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Search courses
+   */
+  async searchCourses(query, options = {}) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - search locally
+      const q = query.toLowerCase();
+      return this.data.courses.filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        c.grade.toLowerCase().includes(q)
+      ).slice(0, options.limit || 20);
+    }
+
+    try {
+      return await API.searchCourses(query, options);
+    } catch (error) {
+      console.error('Error searching courses:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Export courses to CSV
+   */
+  async exportCoursesCSV(filters = {}) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - generate CSV locally
+      let courses = this.data.courses;
+      if (filters.grade) {
+        courses = courses.filter(c => c.grade === filters.grade);
+      }
+
+      const headers = ['ID', 'Nombre', 'Grado', 'Estado', 'Creado'];
+      const rows = courses.map(c => [c.id, c.name, c.grade, c.status || 'ACTIVE', c.created_at || '']);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+      return new Blob([csv], { type: 'text/csv' });
+    }
+
+    try {
+      return await API.exportCoursesCSV(filters);
+    } catch (error) {
+      console.error('Error exporting courses:', error);
+      throw error;
+    }
   },
 
   // ============================================

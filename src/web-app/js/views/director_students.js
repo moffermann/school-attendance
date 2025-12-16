@@ -571,4 +571,14 @@ Views.directorStudents = function() {
   };
 
   renderStudents();
+
+  // Check for viewProfile query param to auto-open student profile
+  const hash = window.location.hash;
+  const queryMatch = hash.match(/\?viewProfile=(\d+)/);
+  if (queryMatch) {
+    const studentId = parseInt(queryMatch[1]);
+    if (studentId && State.getStudent(studentId)) {
+      setTimeout(() => Views.directorStudents.viewProfile(studentId), 100);
+    }
+  }
 };

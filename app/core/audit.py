@@ -28,6 +28,13 @@ class AuditEvent(str, Enum):
     STUDENT_DELETED = "data.student.deleted"
     GUARDIAN_LINKED = "data.guardian.linked"
 
+    # Course events
+    COURSE_CREATED = "data.course.created"
+    COURSE_UPDATED = "data.course.updated"
+    COURSE_DELETED = "data.course.deleted"
+    COURSE_VIEWED = "data.course.viewed"
+    COURSE_EXPORTED = "data.course.exported"
+
     # Attendance events
     ATTENDANCE_REGISTERED = "attendance.registered"
     ATTENDANCE_PHOTO_UPLOADED = "attendance.photo.uploaded"

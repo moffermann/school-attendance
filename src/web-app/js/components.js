@@ -137,7 +137,8 @@ const Components = {
     settings: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>',
     calendar: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>',
     biometric: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10V21"></path><path d="M18.5 8a6.5 6.5 0 1 0-13 0c0 4.5 6.5 11 6.5 11s6.5-6.5 6.5-11Z"></path><circle cx="12" cy="8" r="2"></circle></svg>',
-    guardians: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path><circle cx="9" cy="7" r="2" fill="currentColor"></circle></svg>'
+    guardians: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path><circle cx="9" cy="7" r="2" fill="currentColor"></circle></svg>',
+    courses: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>'
   },
 
   // Mobile menu toggle functions
@@ -270,6 +271,7 @@ const Components = {
                 <li><a href="#/director/students" role="menuitem">${this.icons.students}<span>Alumnos</span></a></li>
                 <li><a href="#/director/guardians" role="menuitem">${this.icons.guardians}<span>Apoderados</span></a></li>
                 <li><a href="#/director/teachers" role="menuitem">${this.icons.teachers}<span>Profesores</span></a></li>
+                <li><a href="#/director/courses" role="menuitem">${this.icons.courses}<span>Cursos</span></a></li>
                 <li><a href="#/director/absences" role="menuitem">${this.icons.absences}<span>Ausencias</span></a></li>
                 <li><a href="#/director/notifications" role="menuitem">${this.icons.notifications}<span>Notificaciones</span></a></li>
                 <li><a href="#/director/biometric" role="menuitem">${this.icons.biometric}<span>Biometría</span></a></li>
@@ -691,5 +693,72 @@ const Components = {
     ctx.lineTo(padding, height - padding);
     ctx.lineTo(width - padding, height - padding);
     ctx.stroke();
+  },
+
+  // Show student profile modal (reusable from any view)
+  showStudentProfile(studentId) {
+    const student = State.getStudent(studentId);
+    if (!student) {
+      this.showToast('Estudiante no encontrado', 'error');
+      return;
+    }
+
+    const course = State.getCourse(student.course_id);
+    const guardians = State.getGuardians().filter(g => g.student_ids.includes(studentId));
+    const stats = State.getStudentAttendanceStats(studentId);
+
+    const guardiansHTML = guardians.map(g => `
+      <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--color-gray-100);">
+        <strong>${this.escapeHtml(g.full_name)}</strong><br>
+        <span style="font-size: 0.85rem; color: var(--color-gray-500);">
+          ${g.contacts.map(c => `${c.type}: ${c.value} ${c.verified ? '✅' : '⏳'}`).join(' | ')}
+        </span>
+      </li>
+    `).join('');
+
+    this.showModal(`Perfil - ${student.full_name}`, `
+      <div class="card mb-2">
+        <div class="card-header">Información Básica</div>
+        <div class="card-body">
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+            <div><strong>Nombre:</strong><br>${this.escapeHtml(student.full_name)}</div>
+            <div><strong>Curso:</strong><br>${course ? this.escapeHtml(course.name + ' - ' + course.grade) : '-'}</div>
+            <div><strong>RUT/Matrícula:</strong><br>${student.rut || 'No registrado'}</div>
+            <div><strong>ID Sistema:</strong><br><span style="font-family: monospace; color: var(--color-gray-500);">#${student.id}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-2">
+        <div class="card-header">Estadísticas de Asistencia</div>
+        <div class="card-body">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; text-align: center;">
+            <div style="background: var(--color-success-light); padding: 1rem; border-radius: 8px;">
+              <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-success);">${stats.percentage}%</div>
+              <div style="font-size: 0.8rem; color: var(--color-gray-600);">Asistencia</div>
+            </div>
+            <div style="background: var(--color-primary-light); padding: 1rem; border-radius: 8px;">
+              <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-primary);">${stats.daysPresent}</div>
+              <div style="font-size: 0.8rem; color: var(--color-gray-600);">Días Presente</div>
+            </div>
+            <div style="background: var(--color-warning-light); padding: 1rem; border-radius: 8px;">
+              <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-warning);">${stats.lateArrivals}</div>
+              <div style="font-size: 0.8rem; color: var(--color-gray-600);">Atrasos</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">Apoderados Vinculados</div>
+        <div class="card-body">
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            ${guardiansHTML || '<li style="color: var(--color-gray-500);">Sin apoderados registrados</li>'}
+          </ul>
+        </div>
+      </div>
+    `, [
+      { label: 'Cerrar', action: 'close', className: 'btn-secondary' }
+    ]);
   }
 };

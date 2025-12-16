@@ -243,10 +243,12 @@ class WebAppDataService:
 
     @staticmethod
     def _map_course(course: Course) -> CourseSummary:
+        """Map Course model to CourseSummary schema."""
         return CourseSummary(
             id=course.id,
             name=course.name,
             grade=course.grade,
+            status=course.status,
             teacher_ids=[teacher.id for teacher in course.teachers] if course.teachers else [],
         )
 

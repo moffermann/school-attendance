@@ -340,4 +340,118 @@ const API = Object.assign(createApiClient('webAppConfig'), {
       tenantName: sessionStorage.getItem('impersonation_tenant_name'),
     };
   },
+
+  // ==================== Courses API ====================
+
+  /**
+   * List courses with pagination and filters
+   */
+  async getCourses(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.limit) params.append('limit', filters.limit);
+    if (filters.offset) params.append('offset', filters.offset);
+    if (filters.grade) params.append('grade', filters.grade);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.search) params.append('search', filters.search);
+
+    const queryString = params.toString();
+    const response = await this.request(`/courses${queryString ? '?' + queryString : ''}`);
+    if (!response.ok) {
+      throw new Error('No se pudo obtener cursos');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get course detail with statistics
+   */
+  async getCourse(courseId) {
+    const response = await this.request(`/courses/${courseId}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Curso no encontrado');
+      }
+      throw new Error('No se pudo obtener el curso');
+    }
+    return response.json();
+  },
+
+  /**
+   * Search courses
+   */
+  async searchCourses(query, options = {}) {
+    const params = new URLSearchParams();
+    params.append('q', query);
+    if (options.limit) params.append('limit', options.limit);
+    if (options.fuzzy) params.append('fuzzy', options.fuzzy);
+
+    const response = await this.request(`/courses/search?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error('No se pudo buscar cursos');
+    }
+    return response.json();
+  },
+
+  /**
+   * Create a new course
+   */
+  async createCourse(data) {
+    const response = await this.request('/courses', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al crear curso' }));
+      throw new Error(error.detail || 'Error al crear curso');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update a course
+   */
+  async updateCourse(courseId, data) {
+    const response = await this.request(`/courses/${courseId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al actualizar curso' }));
+      throw new Error(error.detail || 'Error al actualizar curso');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a course (soft delete)
+   */
+  async deleteCourse(courseId) {
+    const response = await this.request(`/courses/${courseId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al eliminar curso' }));
+      throw new Error(error.detail || 'Error al eliminar curso');
+    }
+    return true;
+  },
+
+  /**
+   * Export courses to CSV
+   */
+  async exportCoursesCSV(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.grade) params.append('grade', filters.grade);
+    if (filters.status) params.append('status', filters.status);
+
+    const queryString = params.toString();
+    const response = await this.request(`/courses/export${queryString ? '?' + queryString : ''}`);
+    if (!response.ok) {
+      throw new Error('No se pudo exportar cursos');
+    }
+    return response.blob();
+  },
 });

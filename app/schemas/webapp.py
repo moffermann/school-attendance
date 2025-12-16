@@ -41,6 +41,7 @@ class CourseSummary(BaseModel):
     id: int
     name: str
     grade: str
+    status: str = "ACTIVE"
     teacher_ids: list[int] = Field(default_factory=list)
 
 

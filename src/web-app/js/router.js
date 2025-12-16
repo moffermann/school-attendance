@@ -16,6 +16,7 @@ const Router = {
     this.addRoute('/director/students', Views.directorStudents, ['director', 'inspector']);
     this.addRoute('/director/guardians', Views.directorGuardians, ['director', 'inspector']);
     this.addRoute('/director/teachers', Views.directorTeachers, ['director']);
+    this.addRoute('/director/courses', Views.directorCourses, ['director', 'inspector']);
     this.addRoute('/director/absences', Views.directorAbsences, ['director', 'inspector']);
     this.addRoute('/director/notifications', Views.directorNotifications, ['director', 'inspector']);
     this.addRoute('/director/biometric', Views.directorBiometric, ['director', 'inspector']);
@@ -60,6 +61,18 @@ const Router = {
         route = {
           handler: () => Views.superAdminTenantDetail(params.tenantId),
           isSuperAdmin: true
+        };
+      }
+    }
+
+    // Handle dynamic course detail route
+    if (!route && hashBase.startsWith('/director/courses/')) {
+      const courseId = hashBase.replace('/director/courses/', '');
+      if (courseId && !isNaN(parseInt(courseId))) {
+        params.courseId = parseInt(courseId);
+        route = {
+          handler: () => Views.directorCourseDetail(params.courseId),
+          allowedRoles: ['director', 'inspector']
         };
       }
     }
