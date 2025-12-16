@@ -4,9 +4,10 @@
 # This script is called by appctl from INSIDE the container after deployment.
 # Arguments:
 #   $1 - APP name (e.g., "school-attendance")
-#   $2 - ENV (dev, qa, prod)
+#   $2 - ENV (dev, qa, prod, staging, development, production)
 #
-# It seeds demo data for non-production environments.
+# It seeds demo data for environments based on configuration.
+# Production seeding requires SEED_DEMO_IN_PROD=true environment variable.
 
 set -euo pipefail
 
@@ -15,16 +16,30 @@ ENV="${2:-}"
 
 echo "== Post-deploy hook for ${APP} in ${ENV} =="
 
-# Only seed data in dev/qa, NEVER in prod
-if [[ "${ENV}" == "prod" ]]; then
-    echo "Skipping seed in production environment"
-    exit 0
+# Map environment names to seed script values
+case "${ENV}" in
+    "development") SEED_ENV="dev" ;;
+    "staging"|"qa") SEED_ENV="qa" ;;
+    "production"|"prod") SEED_ENV="prod" ;;
+    "local") SEED_ENV="local" ;;
+    *) SEED_ENV="${ENV}" ;;
+esac
+
+echo "Mapped ENV '${ENV}' -> SEED_ENV '${SEED_ENV}'"
+
+# Handle production seeding with explicit confirmation
+if [[ "${SEED_ENV}" == "prod" ]]; then
+    if [[ "${SEED_DEMO_IN_PROD:-false}" != "true" ]]; then
+        echo "Skipping seed in production (set SEED_DEMO_IN_PROD=true to enable)"
+        exit 0
+    fi
+    echo "WARNING: Seeding demo data in PRODUCTION environment"
 fi
 
-echo "Running tenant seed for ${ENV}..."
+echo "Running tenant seed for ${SEED_ENV}..."
 
-# Execute seed script directly (we're already inside the container)
-python scripts/seed_tenant.py --env "${ENV}"
+# Execute seed script with mapped environment
+python scripts/seed_tenant.py --env "${SEED_ENV}"
 
 SEED_EXIT=$?
 

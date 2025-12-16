@@ -2,12 +2,15 @@
 """Seed tenant data parametrized by environment.
 
 This script creates a demo tenant with test data, configured for the specific
-environment (dev, qa). It is idempotent and can be run multiple times safely.
+environment (local, dev, qa, prod). It is idempotent and can be run multiple times safely.
 
 Usage:
+    python scripts/seed_tenant.py --env local
     python scripts/seed_tenant.py --env dev
     python scripts/seed_tenant.py --env qa
+    python scripts/seed_tenant.py --env prod --force  # Requires SEED_DEMO_IN_PROD=true
     python scripts/seed_tenant.py --env dev --skip-historical  # Skip 30 days of events
+    python scripts/seed_tenant.py --env dev --verbose  # Show detailed output
 
 This script is intended to be called from appctl-postdeploy.sh hook.
 """
@@ -31,6 +34,17 @@ if str(ROOT) not in sys.path:
 
 # Environment-specific configuration
 ENV_CONFIG = {
+    "local": {
+        "slug": "demo-local",
+        "name": "Colegio Demo Local",
+        "domain": "localhost",
+        "subdomain": "demo-local",
+        "email_suffix": "demo.example.com",  # Use valid TLD for email validation
+        "schema": "tenant_demo_local",
+        "plan": "enterprise",
+        "max_students": 1000,
+        "credentials_from_env": False,  # Uses dummy values
+    },
     "dev": {
         "slug": "demo",
         "name": "Colegio Demo GoCode",
@@ -40,6 +54,7 @@ ENV_CONFIG = {
         "schema": "tenant_demo",
         "plan": "enterprise",
         "max_students": 1000,
+        "credentials_from_env": True,
     },
     "qa": {
         "slug": "demo-qa",
@@ -50,8 +65,76 @@ ENV_CONFIG = {
         "schema": "tenant_demo_qa",
         "plan": "enterprise",
         "max_students": 1000,
+        "credentials_from_env": True,
+    },
+    "prod": {
+        "slug": "demo-prod",
+        "name": "Colegio Demo Production",
+        "domain": "school-attendance.gocode.cl",
+        "subdomain": "demo-prod",
+        "email_suffix": "colegio-demo-prod.cl",
+        "schema": "tenant_demo_prod",
+        "plan": "enterprise",
+        "max_students": 1000,
+        "credentials_from_env": True,
     },
 }
+
+# Credential environment variable mapping
+CREDENTIAL_ENV_VARS = {
+    "whatsapp_access_token": "WHATSAPP_ACCESS_TOKEN",
+    "whatsapp_phone_number_id": "WHATSAPP_PHONE_NUMBER_ID",
+    "ses_region": "SES_REGION",
+    "ses_source_email": "SES_SOURCE_EMAIL",
+    "ses_access_key": "SES_ACCESS_KEY",
+    "ses_secret_key": "SES_SECRET_KEY",
+    "device_api_key": "DEVICE_API_KEY",
+    "s3_bucket": "S3_BUCKET",
+}
+
+# Default dummy credentials for local development
+LOCAL_DUMMY_CREDENTIALS = {
+    "whatsapp_access_token": "local-dummy-whatsapp-token",
+    "whatsapp_phone_number_id": "123456789",
+    "ses_region": "us-east-1",
+    "ses_source_email": "no-reply@localhost",
+    "ses_access_key": "local-dummy-access-key",
+    "ses_secret_key": "local-dummy-secret-key",
+    "device_api_key": "local-dev-device-key",
+    "s3_bucket": "attendance-photos",
+}
+
+# Notification status distribution (must sum to 1.0)
+NOTIFICATION_STATUS_DISTRIBUTION = {
+    "delivered": 0.85,
+    "pending": 0.05,
+    "failed": 0.05,
+    "retrying": 0.03,
+    "bounced": 0.02,
+}
+
+# Absence request status distribution
+ABSENCE_STATUS_DISTRIBUTION = {
+    "APPROVED": 0.70,
+    "REJECTED": 0.15,
+    "PENDING": 0.15,
+}
+
+# Absence request types
+ABSENCE_TYPES = ["MEDICAL", "FAMILY", "VACATION", "OTHER"]
+
+# Tag status distribution
+TAG_STATUS_DISTRIBUTION = {
+    "ACTIVE": 0.90,
+    "PENDING": 0.05,
+    "REVOKED": 0.05,
+}
+
+# Push subscription rate (percentage of guardians with push)
+PUSH_SUBSCRIPTION_RATE = 0.30
+
+# NFC tag rate (percentage of active students with additional NFC tag)
+NFC_TAG_RATE = 0.20
 
 # Demo courses (same for all environments)
 DEMO_COURSES = [
@@ -156,14 +239,31 @@ SCHOOL_ENTRY_TIME = time(8, 0)
 SCHOOL_EXIT_TIME = time(16, 0)
 
 
-def get_school_days(start_date: date, num_days: int) -> list[date]:
-    """Get list of school days (Monday-Friday, excluding weekends)."""
+def get_school_days(start_date: date, num_days: int, include_start: bool = True) -> list[date]:
+    """Get list of school days (Monday-Friday, excluding weekends).
+
+    Args:
+        start_date: The starting date (usually today)
+        num_days: Number of historical school days to include
+        include_start: If True and start_date is a weekday, include it in addition to num_days
+
+    Returns:
+        Sorted list of school days from oldest to newest
+    """
     school_days = []
     current = start_date
-    while len(school_days) < num_days:
+
+    # Include start_date if it's a weekday and include_start is True
+    if include_start and current.weekday() < 5:
+        school_days.append(current)
+        current -= timedelta(days=1)
+
+    # Collect num_days school days going backward
+    while len(school_days) < num_days + (1 if include_start and start_date.weekday() < 5 else 0):
         if current.weekday() < 5:
             school_days.append(current)
         current -= timedelta(days=1)
+
     return sorted(school_days)
 
 
@@ -192,13 +292,14 @@ def random_exit_time(is_early: bool = False) -> time:
 class TenantSeeder:
     """Seeds tenant data for a specific environment."""
 
-    def __init__(self, env: str, skip_historical: bool = False):
+    def __init__(self, env: str, skip_historical: bool = False, verbose: bool = False):
         if env not in ENV_CONFIG:
             raise ValueError(f"Unknown environment: {env}. Valid: {list(ENV_CONFIG.keys())}")
 
         self.env = env
         self.config = ENV_CONFIG[env]
         self.skip_historical = skip_historical
+        self.verbose = verbose
         self.schema = self.config["schema"]
         self.email_suffix = self.config["email_suffix"]
 
@@ -206,9 +307,43 @@ class TenantSeeder:
         self.conn = None
         self.tenant_id = None
 
+    def _get_credentials_from_env(self) -> dict[str, str | None]:
+        """Get credentials from environment variables or use dummy values for local."""
+        if not self.config.get("credentials_from_env", True):
+            # Local environment - use dummy credentials
+            return LOCAL_DUMMY_CREDENTIALS.copy()
+
+        credentials = {}
+        missing = []
+
+        for key, env_var in CREDENTIAL_ENV_VARS.items():
+            value = os.getenv(env_var)
+            credentials[key] = value
+            if not value and key not in ("ses_access_key", "ses_secret_key"):
+                # SES keys are optional (can use IAM role)
+                missing.append(env_var)
+
+        if missing and self.verbose:
+            print(f"  [WARN] Missing optional env vars: {', '.join(missing)}")
+
+        return credentials
+
+    def _validate_production_seed(self) -> None:
+        """Validate that production seeding is intentional."""
+        if self.env == "prod":
+            if os.getenv("SEED_DEMO_IN_PROD") != "true":
+                raise ValueError(
+                    "Cannot seed demo data in production without explicit confirmation.\n"
+                    "Set SEED_DEMO_IN_PROD=true environment variable to proceed."
+                )
+
     def seed(self) -> None:
         """Run the complete seed process."""
         import asyncio
+
+        # Validate production seed if applicable
+        self._validate_production_seed()
+
         asyncio.run(self._seed_async())
 
     async def _seed_async(self) -> None:
@@ -225,6 +360,7 @@ class TenantSeeder:
             print(f"  Domain: {self.config['domain']}")
             print(f"  Schema: {self.schema}")
             print(f"  Email suffix: @{self.email_suffix}")
+            print(f"  Credentials from env: {self.config.get('credentials_from_env', True)}")
             print(f"{'='*60}\n")
 
             # Check if tenant already exists
@@ -244,17 +380,29 @@ class TenantSeeder:
             # 1. Create/update tenant in public schema
             await self._seed_tenant()
 
-            # 2. Create tenant schema and tables
+            # 2. Seed tenant config with credentials
+            await self._seed_tenant_config()
+
+            # 3. Create tenant schema and tables
             await self._create_schema()
 
-            # 3. Seed base data (courses, teachers, students, etc.)
+            # 4. Seed base data (courses, teachers, students, etc.)
             await self._seed_base_data()
 
-            # 4. Seed historical data (attendance events, notifications, etc.)
+            # 5. Seed tags with various states
+            await self._seed_tags_with_states()
+
+            # 6. Seed push subscriptions
+            await self._seed_push_subscriptions()
+
+            # 7. Seed historical data (attendance events, notifications, etc.)
             if not self.skip_historical:
                 await self._seed_historical_data()
             else:
                 print("Skipping historical data (--skip-historical flag)")
+
+            # 8. Seed absence requests with various states
+            await self._seed_absence_requests()
 
             await session.commit()
 
@@ -331,6 +479,52 @@ class TenantSeeder:
             )
 
         print(f"  [OK] Tenant '{self.config['slug']}' configured (id={self.tenant_id})")
+
+    async def _seed_tenant_config(self) -> None:
+        """Seed tenant configuration with credentials (encrypted for sensitive values)."""
+        from sqlalchemy import text
+        from app.core.encryption import encrypt_if_present
+
+        print("Configuring tenant credentials...")
+
+        credentials = self._get_credentials_from_env()
+
+        # Encrypt sensitive credentials
+        encrypted_whatsapp_token = encrypt_if_present(credentials.get("whatsapp_access_token"))
+        encrypted_ses_access_key = encrypt_if_present(credentials.get("ses_access_key"))
+        encrypted_ses_secret_key = encrypt_if_present(credentials.get("ses_secret_key"))
+        encrypted_device_key = encrypt_if_present(credentials.get("device_api_key"))
+
+        # Update tenant_configs with credentials (using correct column names with _encrypted suffix)
+        await self.conn.execute(
+            text("""
+                UPDATE public.tenant_configs SET
+                    whatsapp_access_token_encrypted = :whatsapp_token,
+                    whatsapp_phone_number_id = :whatsapp_phone_id,
+                    ses_region = :ses_region,
+                    ses_source_email = :ses_source_email,
+                    ses_access_key_encrypted = :ses_access_key,
+                    ses_secret_key_encrypted = :ses_secret_key,
+                    device_api_key_encrypted = :device_api_key,
+                    s3_bucket = :s3_bucket,
+                    updated_at = NOW()
+                WHERE tenant_id = :tenant_id
+            """),
+            {
+                "tenant_id": self.tenant_id,
+                "whatsapp_token": encrypted_whatsapp_token,
+                "whatsapp_phone_id": credentials.get("whatsapp_phone_number_id"),
+                "ses_region": credentials.get("ses_region", "us-east-1"),
+                "ses_source_email": credentials.get("ses_source_email"),
+                "ses_access_key": encrypted_ses_access_key,
+                "ses_secret_key": encrypted_ses_secret_key,
+                "device_api_key": encrypted_device_key,
+                "s3_bucket": credentials.get("s3_bucket"),
+            }
+        )
+
+        source = "environment variables" if self.config.get("credentials_from_env", True) else "dummy values"
+        print(f"  [OK] Tenant credentials configured from {source}")
 
     async def _create_schema(self) -> None:
         """Create tenant schema and tables."""
@@ -732,23 +926,7 @@ class TenantSeeder:
                 )
         print("  [OK] Schedules configured")
 
-        # QR tags for students
-        for student in DEMO_STUDENTS:
-            token = f"QR-{student['id']:04d}-{self.config['slug'].upper()}"
-            token_hash = hashlib.sha256(token.encode()).hexdigest()
-            await self.conn.execute(
-                text(f"""
-                    INSERT INTO {self.schema}.tags (student_id, tag_token_hash, tag_token_preview, status, created_at)
-                    VALUES (:student_id, :token_hash, :token_preview, 'ACTIVE', NOW())
-                    ON CONFLICT (tag_token_hash) DO NOTHING
-                """),
-                {
-                    "student_id": student["id"],
-                    "token_hash": token_hash,
-                    "token_preview": token[:8],
-                }
-            )
-        print(f"  [OK] QR tags for {len(DEMO_STUDENTS)} students")
+        # Note: Tags are seeded separately in _seed_tags_with_states()
 
         # Enrollments
         current_year = date.today().year
@@ -772,21 +950,304 @@ class TenantSeeder:
         from sqlalchemy import text
 
         # Only clear transactional data, not structure
+        # Order matters due to foreign key constraints (notifications -> attendance_events)
         tables_to_clear = [
-            "attendance_events", "notifications", "no_show_alerts",
-            "absence_requests", "schedule_exceptions",
+            "notifications",        # FK to attendance_events
+            "no_show_alerts",       # FK to students, guardians, courses
+            "attendance_events",    # FK to students
+            "absence_requests",     # FK to students
+            "schedule_exceptions",  # FK to courses
+            "push_subscriptions",   # FK to users (if exists)
+            "webauthn_credentials", # FK to students, users
+            "tags",                 # FK to students
+            "audit_logs",           # No critical FKs
+            "consents",             # FK to guardians
+            "users",                # FK to guardians, teachers
+            "enrollments",          # FK to students, courses
+            "student_guardians",    # FK to students, guardians
+            "students",             # FK to courses
+            "guardians",            # No FKs
+            "teacher_courses",      # FK to teachers, courses
+            "teachers",             # No FKs
+            "schedules",            # FK to courses
+            "devices",              # No FKs
+            "courses",              # No FKs
         ]
-        for table in tables_to_clear:
-            await self.conn.execute(text(f"DELETE FROM {self.schema}.{table}"))
 
-    async def _seed_historical_data(self) -> None:
-        """Seed 30 days of historical attendance data."""
+        # Check which tables exist first to avoid transaction abort
+        result = await self.conn.execute(
+            text("""
+                SELECT table_name FROM information_schema.tables
+                WHERE table_schema = :schema
+            """),
+            {"schema": self.schema}
+        )
+        existing_tables = {row[0] for row in result.fetchall()}
+
+        for table in tables_to_clear:
+            if table in existing_tables:
+                await self.conn.execute(text(f"DELETE FROM {self.schema}.{table}"))
+
+    async def _seed_tags_with_states(self) -> None:
+        """Seed QR and NFC tags with various states."""
         from sqlalchemy import text
 
-        print("\nSeeding historical data (30 days)...")
+        print("\nSeeding tags with various states...")
+
+        qr_count = 0
+        nfc_count = 0
+        status_counts = {"ACTIVE": 0, "PENDING": 0, "REVOKED": 0}
+
+        for student in DEMO_STUDENTS:
+            # Determine status based on distribution
+            rand = random.random()
+            cumulative = 0.0
+            status = "ACTIVE"
+            for s, prob in TAG_STATUS_DISTRIBUTION.items():
+                cumulative += prob
+                if rand < cumulative:
+                    status = s
+                    break
+
+            # Create QR tag
+            token = f"QR-{student['id']:04d}-{self.config['slug'].upper()}"
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+            revoked_at = None
+            if status == "REVOKED":
+                revoked_at = datetime.now() - timedelta(days=random.randint(1, 30))
+
+            days_ago = random.randint(30, 180)
+            await self.conn.execute(
+                text(f"""
+                    INSERT INTO {self.schema}.tags
+                    (student_id, tag_token_hash, tag_token_preview, tag_uid, status, created_at, revoked_at)
+                    VALUES (:student_id, :token_hash, :token_preview, NULL, :status,
+                            NOW() - INTERVAL '1 day' * :days, :revoked_at)
+                    ON CONFLICT (tag_token_hash) DO UPDATE SET status = :status, revoked_at = :revoked_at
+                """),
+                {
+                    "student_id": student["id"],
+                    "token_hash": token_hash,
+                    "token_preview": token[:8],
+                    "status": status,
+                    "days": days_ago,
+                    "revoked_at": revoked_at,
+                }
+            )
+            qr_count += 1
+            status_counts[status] += 1
+
+            # Add NFC tag for some active students
+            if status == "ACTIVE" and random.random() < NFC_TAG_RATE:
+                nfc_uid = f"NFC-{student['id']:04d}-{random.randint(1000, 9999)}"
+                nfc_token = f"NFC-{nfc_uid}"
+                nfc_hash = hashlib.sha256(nfc_token.encode()).hexdigest()
+                nfc_days_ago = random.randint(1, 60)
+
+                await self.conn.execute(
+                    text(f"""
+                        INSERT INTO {self.schema}.tags
+                        (student_id, tag_token_hash, tag_token_preview, tag_uid, status, created_at)
+                        VALUES (:student_id, :token_hash, :token_preview, :tag_uid, 'ACTIVE',
+                                NOW() - INTERVAL '1 day' * :days)
+                        ON CONFLICT (tag_token_hash) DO NOTHING
+                    """),
+                    {
+                        "student_id": student["id"],
+                        "token_hash": nfc_hash,
+                        "token_preview": nfc_token[:8],
+                        "tag_uid": nfc_uid,
+                        "days": nfc_days_ago,
+                    }
+                )
+                nfc_count += 1
+
+        print(f"  [OK] {qr_count} QR tags (ACTIVE: {status_counts['ACTIVE']}, "
+              f"PENDING: {status_counts['PENDING']}, REVOKED: {status_counts['REVOKED']})")
+        print(f"  [OK] {nfc_count} NFC tags (additional)")
+
+    async def _seed_push_subscriptions(self) -> None:
+        """Seed push subscriptions for some guardians."""
+        from sqlalchemy import text
+
+        print("\nSeeding push subscriptions...")
+
+        # Check if push_subscriptions table exists using information_schema (avoids transaction abort)
+        result = await self.conn.execute(
+            text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_schema = :schema AND table_name = 'push_subscriptions'
+                )
+            """),
+            {"schema": self.schema}
+        )
+        table_exists = result.scalar()
+
+        if not table_exists:
+            # Table doesn't exist, create it
+            await self.conn.execute(text(f"""
+                CREATE TABLE IF NOT EXISTS {self.schema}.push_subscriptions (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES {self.schema}.users(id),
+                    endpoint VARCHAR(512) NOT NULL UNIQUE,
+                    p256dh VARCHAR(255) NOT NULL,
+                    auth VARCHAR(255) NOT NULL,
+                    user_agent VARCHAR(512),
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    last_used_at TIMESTAMP WITH TIME ZONE
+                )
+            """))
+
+        # Get parent users (users with guardian_id set)
+        result = await self.conn.execute(
+            text(f"SELECT id, guardian_id FROM {self.schema}.users WHERE guardian_id IS NOT NULL")
+        )
+        parent_users = result.fetchall()
+
+        subscription_count = 0
+        for user_id, guardian_id in parent_users:
+            if random.random() < PUSH_SUBSCRIPTION_RATE:
+                # Create a mock push subscription
+                endpoint = f"https://fcm.googleapis.com/fcm/send/{guardian_id}-{random.randint(10000, 99999)}"
+                p256dh = hashlib.sha256(f"p256dh-{user_id}-{random.random()}".encode()).hexdigest()[:86]
+                auth = hashlib.sha256(f"auth-{user_id}-{random.random()}".encode()).hexdigest()[:22]
+
+                days_ago = random.randint(7, 90)
+                last_days_ago = random.randint(0, 7)
+                await self.conn.execute(
+                    text(f"""
+                        INSERT INTO {self.schema}.push_subscriptions
+                        (user_id, endpoint, p256dh, auth, user_agent, created_at, last_used_at)
+                        VALUES (:user_id, :endpoint, :p256dh, :auth, :user_agent,
+                                NOW() - INTERVAL '1 day' * :days, NOW() - INTERVAL '1 day' * :last_days)
+                        ON CONFLICT (endpoint) DO NOTHING
+                    """),
+                    {
+                        "user_id": user_id,
+                        "endpoint": endpoint,
+                        "p256dh": p256dh,
+                        "auth": auth,
+                        "user_agent": "Mozilla/5.0 (Demo Browser)",
+                        "days": days_ago,
+                        "last_days": last_days_ago,
+                    }
+                )
+                subscription_count += 1
+
+        print(f"  [OK] {subscription_count} push subscriptions ({PUSH_SUBSCRIPTION_RATE*100:.0f}% of parents)")
+
+    async def _seed_absence_requests(self) -> None:
+        """Seed absence requests with various states and types."""
+        from sqlalchemy import text
+
+        print("\nSeeding absence requests...")
+
+        # Get students and their guardians
+        result = await self.conn.execute(
+            text(f"""
+                SELECT s.id as student_id, sg.guardian_id
+                FROM {self.schema}.students s
+                JOIN {self.schema}.student_guardians sg ON s.id = sg.student_id
+            """)
+        )
+        student_guardians = result.fetchall()
+
+        # Create some absence requests
+        num_requests = min(len(student_guardians), 30)  # Up to 30 requests
+        selected = random.sample(student_guardians, num_requests)
+
+        status_counts = {"APPROVED": 0, "REJECTED": 0, "PENDING": 0}
+        type_counts = {t: 0 for t in ABSENCE_TYPES}
 
         today = date.today()
-        school_days = get_school_days(today - timedelta(days=1), NUM_HISTORICAL_DAYS)
+
+        for student_id, guardian_id in selected:
+            # Determine status
+            rand = random.random()
+            cumulative = 0.0
+            status = "PENDING"
+            for s, prob in ABSENCE_STATUS_DISTRIBUTION.items():
+                cumulative += prob
+                if rand < cumulative:
+                    status = s
+                    break
+
+            # Determine type
+            absence_type = random.choice(ABSENCE_TYPES)
+
+            # Generate dates (some past, some future)
+            days_offset = random.randint(-30, 14)
+            start_date = today + timedelta(days=days_offset)
+            duration = random.randint(1, 5)
+            end_date = start_date + timedelta(days=duration - 1)
+
+            # Submission time
+            submitted_at = datetime.combine(start_date, time(8, 0)) - timedelta(days=random.randint(1, 7))
+
+            # Resolution time for non-pending
+            resolved_at = None
+            approver_id = None
+            if status != "PENDING":
+                resolved_at = submitted_at + timedelta(hours=random.randint(1, 48))
+                approver_id = guardian_id  # Self-approved for simplicity
+
+            # Comment based on type
+            comments = {
+                "MEDICAL": "Cita medica programada",
+                "FAMILY": "Asunto familiar importante",
+                "VACATION": "Viaje familiar",
+                "OTHER": "Motivo personal",
+            }
+
+            await self.conn.execute(
+                text(f"""
+                    INSERT INTO {self.schema}.absence_requests
+                    (student_id, type, start_date, end_date, comment, status,
+                     approver_id, ts_submitted, ts_resolved)
+                    VALUES (:student_id, :type, :start_date, :end_date, :comment, :status,
+                            :approver_id, :ts_submitted, :ts_resolved)
+                """),
+                {
+                    "student_id": student_id,
+                    "type": absence_type,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "comment": comments.get(absence_type, ""),
+                    "status": status,
+                    "approver_id": approver_id,
+                    "ts_submitted": submitted_at,
+                    "ts_resolved": resolved_at,
+                }
+            )
+            status_counts[status] += 1
+            type_counts[absence_type] += 1
+
+        print(f"  [OK] {num_requests} absence requests")
+        print(f"       Status: APPROVED={status_counts['APPROVED']}, "
+              f"REJECTED={status_counts['REJECTED']}, PENDING={status_counts['PENDING']}")
+        print(f"       Types: {', '.join(f'{k}={v}' for k, v in type_counts.items())}")
+
+    def _random_notification_status(self) -> str:
+        """Get a random notification status based on distribution."""
+        rand = random.random()
+        cumulative = 0.0
+        for status, prob in NOTIFICATION_STATUS_DISTRIBUTION.items():
+            cumulative += prob
+            if rand < cumulative:
+                return status
+        return "delivered"
+
+    async def _seed_historical_data(self) -> None:
+        """Seed attendance data for today + 30 days back."""
+        from sqlalchemy import text
+
+        print("\nSeeding historical data (today + 30 days back)...")
+
+        today = date.today()
+        # Include today + 30 school days back
+        school_days = get_school_days(today, NUM_HISTORICAL_DAYS)
 
         # Get students and guardians
         result = await self.conn.execute(
@@ -801,6 +1262,7 @@ class TenantSeeder:
 
         total_events = 0
         total_notifications = 0
+        notification_status_counts = {s: 0 for s in NOTIFICATION_STATUS_DISTRIBUTION.keys()}
 
         for day_idx, school_day in enumerate(school_days):
             attending = random.sample(students, int(len(students) * ATTENDANCE_RATE))
@@ -831,23 +1293,38 @@ class TenantSeeder:
                 )
                 total_events += 1
 
-                # Entry notification
+                # Entry notification with various statuses
                 if guardian_id:
+                    notif_status = self._random_notification_status()
+                    ts_sent = None
+                    retries = 0
+
+                    # Set ts_sent only for delivered status
+                    if notif_status == "delivered":
+                        ts_sent = entry_dt + timedelta(seconds=random.randint(5, 60))
+                    elif notif_status == "retrying":
+                        retries = random.randint(1, 3)
+                    elif notif_status == "failed":
+                        retries = random.randint(3, 5)
+
                     await self.conn.execute(
                         text(f"""
                             INSERT INTO {self.schema}.notifications
-                            (guardian_id, channel, template, status, payload, ts_sent, ts_created)
-                            VALUES (:guardian_id, 'whatsapp', 'ingreso_ok', 'delivered',
-                                    :payload, :ts_sent, :ts_created)
+                            (guardian_id, channel, template, status, payload, ts_sent, ts_created, retries)
+                            VALUES (:guardian_id, 'whatsapp', 'ingreso_ok', :status,
+                                    :payload, :ts_sent, :ts_created, :retries)
                         """),
                         {
                             "guardian_id": guardian_id,
+                            "status": notif_status,
                             "payload": f'{{"student_id": {student_id}, "time": "{entry_time.strftime("%H:%M")}"}}',
-                            "ts_sent": entry_dt + timedelta(seconds=random.randint(5, 60)),
+                            "ts_sent": ts_sent,
                             "ts_created": entry_dt,
+                            "retries": retries,
                         }
                     )
                     total_notifications += 1
+                    notification_status_counts[notif_status] += 1
 
                 # Exit event
                 is_early = random.random() < EARLY_EXIT_RATE
@@ -873,27 +1350,42 @@ class TenantSeeder:
                     total_events += 1
 
                     if guardian_id:
+                        notif_status = self._random_notification_status()
+                        ts_sent = None
+                        retries = 0
+
+                        if notif_status == "delivered":
+                            ts_sent = exit_dt + timedelta(seconds=random.randint(5, 60))
+                        elif notif_status == "retrying":
+                            retries = random.randint(1, 3)
+                        elif notif_status == "failed":
+                            retries = random.randint(3, 5)
+
                         await self.conn.execute(
                             text(f"""
                                 INSERT INTO {self.schema}.notifications
-                                (guardian_id, channel, template, status, payload, ts_sent, ts_created)
-                                VALUES (:guardian_id, 'whatsapp', 'salida_ok', 'delivered',
-                                        :payload, :ts_sent, :ts_created)
+                                (guardian_id, channel, template, status, payload, ts_sent, ts_created, retries)
+                                VALUES (:guardian_id, 'whatsapp', 'salida_ok', :status,
+                                        :payload, :ts_sent, :ts_created, :retries)
                             """),
                             {
                                 "guardian_id": guardian_id,
+                                "status": notif_status,
                                 "payload": f'{{"student_id": {student_id}, "time": "{exit_time.strftime("%H:%M")}"}}',
-                                "ts_sent": exit_dt + timedelta(seconds=random.randint(5, 60)),
+                                "ts_sent": ts_sent,
                                 "ts_created": exit_dt,
+                                "retries": retries,
                             }
                         )
                         total_notifications += 1
+                        notification_status_counts[notif_status] += 1
 
             if (day_idx + 1) % 10 == 0:
                 print(f"  Processed {day_idx + 1}/{len(school_days)} days...")
 
         print(f"  [OK] {total_events} attendance events")
         print(f"  [OK] {total_notifications} notifications")
+        print(f"       Status: {', '.join(f'{k}={v}' for k, v in notification_status_counts.items())}")
 
         # Usage stats
         for school_day in school_days:
@@ -934,9 +1426,9 @@ def main():
     parser = argparse.ArgumentParser(description="Seed tenant data for environment")
     parser.add_argument(
         "--env", "-e",
-        choices=["dev", "qa"],
-        default=os.getenv("APP_ENV", "dev"),
-        help="Target environment (default: from APP_ENV or 'dev')"
+        choices=["local", "dev", "qa", "prod"],
+        default=os.getenv("SEED_ENV", os.getenv("APP_ENV", "local")),
+        help="Target environment (default: from SEED_ENV, APP_ENV, or 'local')"
     )
     parser.add_argument(
         "--skip-historical",
@@ -948,18 +1440,37 @@ def main():
         action="store_true",
         help="Force re-seed even if tenant already exists (clears transactional data)"
     )
+    parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Show detailed output including warnings"
+    )
     args = parser.parse_args()
 
     # Map APP_ENV values to our env keys
     env = args.env
-    if env == "development":
-        env = "dev"
-    elif env == "production":
-        print("ERROR: Cannot seed demo data in production!")
+    env_mapping = {
+        "development": "dev",
+        "staging": "qa",
+        "production": "prod",
+    }
+    env = env_mapping.get(env, env)
+
+    # Validate environment is valid
+    if env not in ENV_CONFIG:
+        print(f"ERROR: Unknown environment '{env}'. Valid: {list(ENV_CONFIG.keys())}")
         sys.exit(1)
 
-    seeder = TenantSeeder(env=env, skip_historical=args.skip_historical)
-    seeder.seed()
+    try:
+        seeder = TenantSeeder(
+            env=env,
+            skip_historical=args.skip_historical,
+            verbose=args.verbose
+        )
+        seeder.seed()
+    except ValueError as e:
+        print(f"ERROR: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

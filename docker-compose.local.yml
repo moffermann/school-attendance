@@ -13,7 +13,7 @@
 #
 # Uso:
 #   docker compose -f docker-compose.local.yml up -d
-#   uvicorn app.main:app --reload --port 8043  # Servidor web local
+#   uvicorn app.main:app --reload --port 8083  # Servidor web local
 # =============================================================================
 
 services:

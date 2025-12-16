@@ -582,6 +582,10 @@ const Components = {
             </ul>
           </nav>
           <div class="sidebar-footer">
+            <button class="btn btn-outline-light btn-sm btn-block mb-2" onclick="window.location.href='/'">
+              ${this.icons.home || '🏠'}
+              <span>Selector de Apps</span>
+            </button>
             <button class="btn btn-secondary btn-sm btn-block" onclick="SuperAdminAPI.clearToken(); Router.navigate('/super-admin/auth')">
               ${this.icons.logout}
               <span>Cerrar Sesión</span>
