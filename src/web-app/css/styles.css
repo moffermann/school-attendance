@@ -149,6 +149,10 @@ body {
   to { transform: rotate(360deg); }
 }
 
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
 /* ============================================
    LAYOUT PRINCIPAL
    ============================================ */
@@ -549,6 +553,17 @@ body {
 
 .form-input::placeholder {
   color: var(--color-gray-400);
+}
+
+/* Indicador visual para campos no guardados (schedules) */
+.border-warning {
+  border: 2px dashed var(--color-warning) !important;
+  background-color: var(--color-warning-light);
+}
+
+.border-warning:focus {
+  border-color: var(--color-warning) !important;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15);
 }
 
 .form-textarea {
@@ -2184,5 +2199,964 @@ tbody tr:last-child td {
 
   .toast {
     animation: none;
+  }
+}
+
+/* ============================================
+   SCHEDULE TIME PICKER - MODERN UI
+   ============================================ */
+
+/* Time Picker Modal Overlay */
+.time-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+  animation: fadeIn 0.2s ease;
+}
+
+.time-picker-overlay.show {
+  display: flex;
+}
+
+/* Time Picker Container */
+.time-picker-container {
+  background: white;
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-xl);
+  max-width: 380px;
+  width: 100%;
+  animation: modalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+/* Time Picker Header */
+.time-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+  background: var(--gradient-primary);
+  color: white;
+}
+
+.time-picker-header h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.time-picker-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast);
+}
+
+.time-picker-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Time Picker Body */
+.time-picker-body {
+  padding: var(--spacing-lg);
+}
+
+/* Time Display */
+.time-display {
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.time-display-value {
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Time Picker Sections */
+.time-picker-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.time-picker-section:last-child {
+  margin-bottom: 0;
+}
+
+.time-picker-section h4 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Time Picker Grid */
+.time-picker-grid {
+  display: grid;
+  gap: 4px;
+}
+
+.time-picker-grid.hours {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.time-picker-grid.minutes {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* Time Picker Buttons */
+.tp-btn {
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-gray-200);
+  background: white;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-gray-700);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tp-btn:hover {
+  background: var(--color-gray-50);
+  border-color: var(--color-gray-300);
+}
+
+.tp-btn.selected {
+  background: var(--gradient-primary);
+  color: white;
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.tp-btn:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* Preset Times */
+.time-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.preset-btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-gray-50);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--border-radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-gray-600);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.preset-btn:hover {
+  background: var(--color-primary-50);
+  border-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+/* Time Picker Footer */
+.time-picker-footer {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: var(--color-gray-50);
+  border-top: 1px solid var(--color-gray-100);
+}
+
+.time-picker-footer .btn {
+  flex: 1;
+}
+
+/* Time Picker Title */
+.time-picker-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Time Display in Picker */
+.time-picker-display {
+  text-align: center;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  background: linear-gradient(135deg, var(--color-primary-50), var(--color-gray-50));
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--color-primary);
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+/* Grid aliases for JS-generated classes */
+.hours-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+
+.minutes-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+/* Time Picker Presets */
+.time-picker-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  align-items: center;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-gray-50);
+  border-top: 1px solid var(--color-gray-100);
+}
+
+.presets-label {
+  font-size: 0.8rem;
+  color: var(--color-gray-500);
+  font-weight: 500;
+  margin-right: var(--spacing-sm);
+}
+
+.tp-preset {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: white;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--border-radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-gray-600);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.tp-preset:hover {
+  background: var(--color-primary-50);
+  border-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+/* Time Picker Actions (buttons at bottom) */
+.time-picker-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: var(--color-gray-50);
+  border-top: 1px solid var(--color-gray-100);
+}
+
+.time-picker-actions .btn {
+  flex: 1;
+}
+
+/* Active state for time buttons */
+.tp-btn.active {
+  background: var(--gradient-primary);
+  color: white;
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+/* ============================================
+   SCHEDULE CARDS - MODERN LAYOUT
+   ============================================ */
+
+/* Schedule Course Section */
+.schedule-course-section {
+  background: white;
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-card);
+  margin-bottom: var(--spacing-xl);
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Course Header */
+.schedule-course-header {
+  padding: var(--spacing-lg) var(--spacing-xl);
+  background: linear-gradient(to right, var(--color-gray-50), white);
+  border-bottom: 1px solid var(--color-gray-100);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.schedule-course-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-gray-800);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.schedule-course-title svg {
+  color: var(--color-primary);
+}
+
+/* Bulk Actions */
+.schedule-bulk-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+/* Schedule Days Grid */
+.schedule-days-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
+}
+
+/* Schedule Day Card */
+.schedule-day-card {
+  background: var(--color-gray-50);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  border: 2px solid var(--color-gray-200);
+  transition: all var(--transition-base);
+  position: relative;
+}
+
+.schedule-day-card:hover {
+  border-color: var(--color-gray-300);
+  box-shadow: var(--shadow-md);
+}
+
+.schedule-day-card.has-schedule {
+  background: white;
+  border-color: var(--color-success);
+  border-style: solid;
+}
+
+.schedule-day-card.no-schedule {
+  border-style: dashed;
+  background: linear-gradient(135deg, var(--color-gray-50) 0%, white 100%);
+}
+
+/* Day Card Header */
+.schedule-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.schedule-day-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--color-gray-800);
+}
+
+.schedule-day-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+  font-weight: 600;
+}
+
+.schedule-day-badge.saved {
+  background: var(--color-success-light);
+  color: #065f46;
+}
+
+.schedule-day-badge.unsaved {
+  background: var(--color-warning-light);
+  color: #92400e;
+}
+
+/* Time Input Wrapper */
+.schedule-time-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.schedule-time-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.schedule-time-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Time Input */
+.schedule-time-input {
+  width: 100%;
+  padding: var(--spacing-md);
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--border-radius);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-gray-800);
+  text-align: center;
+  background: white;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.schedule-time-input:hover {
+  border-color: var(--color-primary-light);
+}
+
+.schedule-time-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.schedule-time-input::placeholder {
+  color: var(--color-gray-400);
+  font-weight: 400;
+}
+
+.schedule-time-input.time-updated {
+  animation: timeUpdated 0.5s ease;
+}
+
+@keyframes timeUpdated {
+  0%, 100% {
+    transform: scale(1);
+    border-color: var(--color-gray-200);
+  }
+  50% {
+    transform: scale(1.02);
+    border-color: var(--color-success);
+    background: var(--color-success-light);
+  }
+}
+
+/* Day Card Actions */
+.schedule-day-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.schedule-day-actions .btn-icon {
+  flex: 1;
+  min-width: 0;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-gray-200);
+  background: white;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-gray-600);
+}
+
+.schedule-day-actions .btn-icon:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.schedule-day-actions .btn-icon.btn-save {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.schedule-day-actions .btn-icon.btn-save:hover {
+  background: var(--color-success);
+  color: white;
+}
+
+.schedule-day-actions .btn-icon.btn-copy {
+  color: var(--color-info);
+  border-color: var(--color-info);
+}
+
+.schedule-day-actions .btn-icon.btn-copy:hover {
+  background: var(--color-info);
+  color: white;
+}
+
+.schedule-day-actions .btn-icon.btn-delete {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.schedule-day-actions .btn-icon.btn-delete:hover {
+  background: var(--color-error);
+  color: white;
+}
+
+.schedule-day-actions .btn-icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.schedule-day-actions .btn-icon.saving {
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Bulk Action Buttons */
+.btn-bulk {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-gray-300);
+  background: white;
+  border-radius: var(--border-radius);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.btn-bulk:hover {
+  background: var(--color-gray-50);
+  transform: translateY(-1px);
+}
+
+.btn-bulk.btn-copy-all {
+  color: var(--color-primary);
+  border-color: var(--color-primary-light);
+}
+
+.btn-bulk.btn-copy-all:hover {
+  background: var(--color-primary-50);
+}
+
+.btn-bulk.btn-delete-all {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.btn-bulk.btn-delete-all:hover {
+  background: var(--color-error-light);
+}
+
+/* Animations */
+.schedule-day-card.shake {
+  animation: shake 0.5s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+
+.schedule-day-card.copied {
+  animation: copied 0.5s ease;
+}
+
+@keyframes copied {
+  0% { transform: scale(1); }
+  50% {
+    transform: scale(1.02);
+    border-color: var(--color-success);
+    background: var(--color-success-light);
+  }
+  100% { transform: scale(1); }
+}
+
+/* Empty State for Schedules */
+.schedule-empty-hint {
+  text-align: center;
+  padding: var(--spacing-md);
+  color: var(--color-gray-400);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* Schedule Grid Container */
+.schedule-grid-container {
+  padding: var(--spacing-lg);
+}
+
+.schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--spacing-md);
+}
+
+/* Schedule Course Card wrapper */
+.schedule-course-card {
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+}
+
+/* Schedule Day Card States */
+.schedule-day-card.saved {
+  background: white;
+  border-color: var(--color-success);
+  border-style: solid;
+}
+
+.schedule-day-card.unsaved {
+  background: linear-gradient(135deg, var(--color-gray-50), white);
+  border-color: var(--color-warning);
+  border-style: dashed;
+}
+
+.schedule-day-card.saving {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Day Header */
+.schedule-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.day-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--color-gray-800);
+}
+
+.day-short {
+  display: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--color-gray-500);
+}
+
+/* Schedule Times */
+.schedule-times {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.time-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.time-input-group label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.time-input-wrapper {
+  position: relative;
+}
+
+.time-input-wrapper .schedule-time-input {
+  padding-right: 36px;
+}
+
+.time-input-wrapper .clock-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-gray-400);
+  pointer-events: none;
+}
+
+/* Schedule Time Input */
+.schedule-time-input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-gray-800);
+  text-align: center;
+  background: white;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.schedule-time-input:hover {
+  border-color: var(--color-primary-light);
+}
+
+.schedule-time-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.schedule-time-input::placeholder {
+  color: var(--color-gray-400);
+  font-weight: 400;
+}
+
+/* Time Updated Animation */
+.schedule-time-input.time-updated {
+  animation: timeUpdated 0.5s ease;
+}
+
+/* Schedule Day Actions */
+.schedule-day-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-gray-200);
+  background: white;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--color-gray-500);
+}
+
+.btn-icon:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-icon:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-icon.btn-save {
+  color: var(--color-success);
+  border-color: var(--color-success-light);
+}
+
+.btn-icon.btn-save:hover:not(:disabled) {
+  background: var(--color-success);
+  color: white;
+  border-color: var(--color-success);
+}
+
+.btn-icon.btn-copy {
+  color: var(--color-info);
+  border-color: var(--color-info-light);
+}
+
+.btn-icon.btn-copy:hover:not(:disabled) {
+  background: var(--color-info);
+  color: white;
+  border-color: var(--color-info);
+}
+
+.btn-icon.btn-delete {
+  color: var(--color-error);
+  border-color: var(--color-error-light);
+}
+
+.btn-icon.btn-delete:hover:not(:disabled) {
+  background: var(--color-error);
+  color: white;
+  border-color: var(--color-error);
+}
+
+.btn-icon.saving {
+  animation: pulse 1s infinite;
+}
+
+/* Bulk Action Button Styles */
+.schedule-bulk-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.btn-outline {
+  background: white;
+  border: 1px solid var(--color-gray-300);
+  color: var(--color-gray-600);
+}
+
+.btn-outline:hover {
+  background: var(--color-gray-50);
+  border-color: var(--color-gray-400);
+}
+
+.btn-danger-outline {
+  background: white;
+  border: 1px solid var(--color-error-light);
+  color: var(--color-error);
+}
+
+.btn-danger-outline:hover {
+  background: var(--color-error-light);
+  border-color: var(--color-error);
+}
+
+/* ============================================
+   SCHEDULE RESPONSIVE STYLES
+   ============================================ */
+
+@media (max-width: 768px) {
+  .schedule-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+  }
+
+  .schedule-grid-container {
+    padding: var(--spacing-md);
+  }
+
+  .schedule-bulk-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .schedule-bulk-actions .btn {
+    flex: 1;
+    font-size: 0.75rem;
+    padding: var(--spacing-sm);
+  }
+
+  .time-picker-container {
+    margin: var(--spacing-md);
+    max-width: calc(100% - 2rem);
+  }
+
+  .time-picker-display {
+    font-size: 2.5rem;
+    padding: var(--spacing-lg);
+  }
+
+  .hours-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .schedule-day-card {
+    padding: var(--spacing-md);
+  }
+
+  .day-name {
+    display: none;
+  }
+
+  .day-short {
+    display: block;
+  }
+
+  .schedule-time-input {
+    font-size: 0.9rem;
+    padding: var(--spacing-sm);
+  }
+
+  .schedule-day-actions .btn-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .schedule-day-actions .btn-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .time-picker-presets {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .presets-label {
+    width: 100%;
+    text-align: center;
+    margin-bottom: var(--spacing-xs);
+  }
+}
+
+@media (max-width: 480px) {
+  .schedule-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .day-name {
+    display: block;
+  }
+
+  .day-short {
+    display: none;
+  }
+
+  .hours-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .tp-preset {
+    flex: 1;
+    min-width: calc(25% - var(--spacing-sm));
+    text-align: center;
+  }
+
+  .time-picker-body {
+    padding: var(--spacing-md);
+  }
+
+  .time-picker-section label {
+    font-size: 0.7rem;
+  }
+
+  .tp-btn {
+    min-height: 36px;
+    font-size: 0.8rem;
   }
 }

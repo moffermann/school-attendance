@@ -10,6 +10,7 @@ from fastapi import HTTPException, Request, status
 from app.core.audit import AuditEvent, audit_log
 from app.db.models.course import CourseStatus
 from app.db.repositories.courses import CourseRepository
+from app.db.repositories.teachers import TeacherRepository
 from app.schemas.courses import (
     CourseCreate,
     CourseFilters,
@@ -40,6 +41,7 @@ class CourseService:
     def __init__(self, session: "AsyncSession"):
         self.session = session
         self.course_repo = CourseRepository(session)
+        self.teacher_repo = TeacherRepository(session)
 
     # -------------------------------------------------------------------------
     # List operations
@@ -192,7 +194,7 @@ class CourseService:
         payload: CourseCreate,
         request: Request | None = None,
     ) -> CourseRead:
-        """Create a new course with validation and audit."""
+        """Create a new course with optional teacher assignment."""
         # 1. Validate permissions
         if user.role not in self.WRITE_ROLES:
             raise HTTPException(
@@ -208,18 +210,38 @@ class CourseService:
                 detail=f"Ya existe un curso con el nombre '{payload.name}'",
             )
 
+        # 3. Validate teachers exist (if provided)
+        teachers = []
+        if payload.teacher_ids:
+            teachers = await self.teacher_repo.get_by_ids(payload.teacher_ids)
+            if len(teachers) != len(payload.teacher_ids):
+                found_ids = {t.id for t in teachers}
+                missing = [tid for tid in payload.teacher_ids if tid not in found_ids]
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Profesor(es) no encontrado(s): {missing}",
+                )
+
         try:
-            # 3. Create course
+            # 4. Create course
             course = await self.course_repo.create(
                 name=payload.name,
                 grade=payload.grade,
             )
 
-            # 4. Commit
+            # 5. Assign teachers if provided
+            if teachers:
+                course.teachers = teachers
+                await self.session.flush()
+
+            # 6. Commit
             await self.session.commit()
             await self.session.refresh(course)
 
-            # 5. Audit log with IP
+            # 7. Build teacher_ids for response
+            teacher_ids = [t.id for t in teachers]
+
+            # 8. Audit log with IP
             client_ip = request.client.host if request and request.client else None
             audit_log(
                 AuditEvent.COURSE_CREATED,
@@ -227,11 +249,26 @@ class CourseService:
                 ip_address=client_ip,
                 resource_type="course",
                 resource_id=course.id,
-                details={"name": course.name, "grade": course.grade},
+                details={
+                    "name": course.name,
+                    "grade": course.grade,
+                    "teacher_count": len(teacher_ids),
+                },
             )
 
-            return CourseRead.model_validate(course)
+            return CourseRead(
+                id=course.id,
+                name=course.name,
+                grade=course.grade,
+                status=course.status,
+                teacher_ids=teacher_ids,
+                created_at=course.created_at,
+                updated_at=course.updated_at,
+            )
 
+        except HTTPException:
+            await self.session.rollback()
+            raise
         except Exception as e:
             await self.session.rollback()
             logger.error(f"Failed to create course: {e}")
@@ -248,7 +285,7 @@ class CourseService:
         payload: CourseUpdate,
         request: Request | None = None,
     ) -> CourseRead:
-        """Update course with validation and audit."""
+        """Update course with optional teacher reassignment."""
         # 1. Validate permissions
         if user.role not in self.WRITE_ROLES:
             raise HTTPException(
@@ -256,8 +293,8 @@ class CourseService:
                 detail="No tienes permisos para editar cursos",
             )
 
-        # 2. Validate course exists and is active
-        course = await self.course_repo.get(course_id)
+        # 2. Validate course exists and is active (with teachers loaded)
+        course = await self.course_repo.get_with_details(course_id)
         if not course:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -281,28 +318,54 @@ class CourseService:
                     detail=f"Ya existe un curso con el nombre '{payload.name}'",
                 )
 
+        # 4. Validate teachers exist (if provided)
+        new_teachers = None
+        if payload.teacher_ids is not None:
+            if payload.teacher_ids:
+                new_teachers = await self.teacher_repo.get_by_ids(payload.teacher_ids)
+                if len(new_teachers) != len(payload.teacher_ids):
+                    found_ids = {t.id for t in new_teachers}
+                    missing = [tid for tid in payload.teacher_ids if tid not in found_ids]
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Profesor(es) no encontrado(s): {missing}",
+                    )
+            else:
+                new_teachers = []  # Empty list means remove all teachers
+
         try:
-            # 4. Update course
+            # 5. Update course fields
             old_name = course.name
             old_grade = course.grade
+            old_teacher_ids = [t.id for t in (course.teachers or [])]
 
-            updated_course = await self.course_repo.update(
-                course_id,
-                name=payload.name,
-                grade=payload.grade,
-            )
+            if payload.name is not None:
+                course.name = payload.name.strip()
+            if payload.grade is not None:
+                course.grade = payload.grade.strip()
 
-            # 5. Commit
+            # 6. Update teachers if provided
+            if new_teachers is not None:
+                course.teachers = new_teachers
+
+            await self.session.flush()
+
+            # 7. Commit
             await self.session.commit()
-            await self.session.refresh(updated_course)
+            await self.session.refresh(course)
 
-            # 6. Audit log with IP
+            # 8. Build response teacher_ids
+            teacher_ids = [t.id for t in new_teachers] if new_teachers is not None else old_teacher_ids
+
+            # 9. Audit log with IP
             client_ip = request.client.host if request and request.client else None
             changes = {}
             if payload.name and payload.name != old_name:
                 changes["name"] = {"old": old_name, "new": payload.name}
             if payload.grade and payload.grade != old_grade:
                 changes["grade"] = {"old": old_grade, "new": payload.grade}
+            if payload.teacher_ids is not None and set(teacher_ids) != set(old_teacher_ids):
+                changes["teachers"] = {"old": old_teacher_ids, "new": teacher_ids}
 
             audit_log(
                 AuditEvent.COURSE_UPDATED,
@@ -313,8 +376,19 @@ class CourseService:
                 details={"changes": changes},
             )
 
-            return CourseRead.model_validate(updated_course)
+            return CourseRead(
+                id=course.id,
+                name=course.name,
+                grade=course.grade,
+                status=course.status,
+                teacher_ids=teacher_ids,
+                created_at=course.created_at,
+                updated_at=course.updated_at,
+            )
 
+        except HTTPException:
+            await self.session.rollback()
+            raise
         except Exception as e:
             await self.session.rollback()
             logger.error(f"Failed to update course {course_id}: {e}")

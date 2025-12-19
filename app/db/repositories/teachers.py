@@ -93,6 +93,14 @@ class TeacherRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_by_ids(self, teacher_ids: list[int]) -> list[Teacher]:
+        """Get multiple teachers by their IDs."""
+        if not teacher_ids:
+            return []
+        stmt = select(Teacher).where(Teacher.id.in_(teacher_ids))
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def list_all_courses(self) -> list[Course]:
         """List all courses (for admin access)."""
         stmt = select(Course).order_by(Course.grade, Course.name)

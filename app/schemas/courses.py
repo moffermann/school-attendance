@@ -21,6 +21,7 @@ class CourseCreate(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=128)
     grade: str = Field(..., min_length=1, max_length=32)
+    teacher_ids: list[int] = Field(default_factory=list)
 
     @field_validator("name", "grade")
     @classmethod
@@ -35,6 +36,7 @@ class CourseUpdate(BaseModel):
 
     name: str | None = Field(None, min_length=1, max_length=128)
     grade: str | None = Field(None, min_length=1, max_length=32)
+    teacher_ids: list[int] | None = None
 
     @field_validator("name", "grade", mode="before")
     @classmethod
@@ -51,10 +53,24 @@ class CourseRead(BaseModel):
     name: str
     grade: str
     status: str
+    teacher_ids: list[int] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @classmethod
+    def from_orm_with_teachers(cls, course: "Course") -> "CourseRead":
+        """Create CourseRead with teacher_ids populated from relationship."""
+        return cls(
+            id=course.id,
+            name=course.name,
+            grade=course.grade,
+            status=course.status,
+            teacher_ids=[t.id for t in (course.teachers or [])],
+            created_at=course.created_at,
+            updated_at=course.updated_at,
+        )
 
 
 class CourseWithStats(CourseRead):

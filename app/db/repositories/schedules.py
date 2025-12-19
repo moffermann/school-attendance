@@ -24,6 +24,15 @@ class ScheduleRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_by_course_and_weekday(self, course_id: int, weekday: int) -> Schedule | None:
+        """Get schedule by course_id and weekday for upsert operations."""
+        stmt = select(Schedule).where(
+            Schedule.course_id == course_id,
+            Schedule.weekday == weekday
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def create(
         self, course_id: int, *, weekday: int, in_time: time, out_time: time
     ) -> Schedule:

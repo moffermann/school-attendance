@@ -168,11 +168,10 @@ const API = Object.assign(createApiClient('webAppConfig'), {
   // ==================== Schedules API ====================
 
   /**
-   * Get schedules
+   * Get schedules for a course
    */
-  async getSchedules(courseId = null) {
-    const params = courseId ? `?course_id=${courseId}` : '';
-    const response = await this.request(`/schedules${params}`);
+  async getSchedules(courseId) {
+    const response = await this.request(`/schedules/courses/${courseId}`);
     if (!response.ok) {
       throw new Error('No se pudo obtener horarios');
     }
@@ -180,7 +179,33 @@ const API = Object.assign(createApiClient('webAppConfig'), {
   },
 
   /**
-   * Update schedule
+   * Create a schedule for a course
+   */
+  async createSchedule(courseId, data) {
+    const response = await this.request(`/schedules/courses/${courseId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+
+      // Manejo específico por código HTTP
+      if (response.status === 403) {
+        throw new Error('No tienes permisos para crear horarios');
+      } else if (response.status === 400 || response.status === 422) {
+        throw new Error(error.detail || 'Datos de horario inválidos');
+      } else if (response.status === 404) {
+        throw new Error('Curso no encontrado');
+      }
+
+      throw new Error(error.detail || 'No se pudo crear horario');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update a schedule
    */
   async updateSchedule(scheduleId, data) {
     const response = await this.request(`/schedules/${scheduleId}`, {
@@ -189,7 +214,17 @@ const API = Object.assign(createApiClient('webAppConfig'), {
     });
 
     if (!response.ok) {
-      throw new Error('No se pudo actualizar horario');
+      const error = await response.json().catch(() => ({}));
+
+      if (response.status === 403) {
+        throw new Error('No tienes permisos para modificar horarios');
+      } else if (response.status === 404) {
+        throw new Error('Horario no encontrado');
+      } else if (response.status === 400 || response.status === 422) {
+        throw new Error(error.detail || 'Datos de horario inválidos');
+      }
+
+      throw new Error(error.detail || 'No se pudo actualizar horario');
     }
     return response.json();
   },

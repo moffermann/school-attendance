@@ -71,7 +71,7 @@ class WebAppDataService:
         course_ids = {student.course_id for student in students}
 
         courses = await self._load_courses(course_ids, is_staff)
-        schedules = await self._load_schedules(course_ids)
+        schedules = await self._load_schedules(course_ids, is_staff)
         schedule_exceptions = await self._load_schedule_exceptions(course_ids, is_staff)
         guardians = await self._load_guardians(is_staff, guardian)
         attendance_events = await self._load_attendance_events(student_ids, is_staff)
@@ -138,14 +138,13 @@ class WebAppDataService:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def _load_schedules(self, course_ids: set[int]) -> list[Schedule]:
-        if not course_ids:
-            return []
-        stmt = (
-            select(Schedule)
-            .where(Schedule.course_id.in_(course_ids))
-            .order_by(Schedule.course_id, Schedule.weekday)
-        )
+    async def _load_schedules(self, course_ids: set[int], is_staff: bool) -> list[Schedule]:
+        stmt = select(Schedule).order_by(Schedule.course_id, Schedule.weekday)
+        # Staff users see all schedules; non-staff only see schedules for their courses
+        if not is_staff:
+            if not course_ids:
+                return []
+            stmt = stmt.where(Schedule.course_id.in_(course_ids))
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 

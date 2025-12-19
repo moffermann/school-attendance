@@ -21,12 +21,24 @@ class ScheduleService:
         return [ScheduleRead.model_validate(s, from_attributes=True) for s in schedules]
 
     async def create_schedule(self, course_id: int, payload: ScheduleCreate) -> ScheduleRead:
-        schedule = await self.repository.create(
-            course_id,
-            weekday=payload.weekday,
-            in_time=payload.in_time,
-            out_time=payload.out_time,
-        )
+        # Upsert: check if schedule exists for this course_id + weekday
+        existing = await self.repository.get_by_course_and_weekday(course_id, payload.weekday)
+        if existing:
+            # Update existing schedule
+            schedule = await self.repository.update(
+                existing.id,
+                weekday=payload.weekday,
+                in_time=payload.in_time,
+                out_time=payload.out_time,
+            )
+        else:
+            # Create new schedule
+            schedule = await self.repository.create(
+                course_id,
+                weekday=payload.weekday,
+                in_time=payload.in_time,
+                out_time=payload.out_time,
+            )
         await self.session.commit()
         return ScheduleRead.model_validate(schedule, from_attributes=True)
 

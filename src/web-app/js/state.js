@@ -1,4 +1,19 @@
 // State management with localStorage persistence
+
+/**
+ * Normalize course data to ensure consistent structure.
+ * @param {Object} course - Raw course data from API
+ * @returns {Object} Normalized course with guaranteed fields
+ */
+function normalizeCourse(course) {
+  if (!course) return null;
+  return {
+    ...course,
+    teacher_ids: Array.isArray(course.teacher_ids) ? course.teacher_ids : [],
+    status: course.status || 'ACTIVE',
+  };
+}
+
 const State = {
   // Security: Valid roles for the application
   VALID_ROLES: ['director', 'inspector', 'parent', 'super_admin'],
@@ -514,11 +529,63 @@ const State = {
     }
   },
 
-  updateSchedule(id, data) {
-    const index = this.data.schedules.findIndex(s => s.id === id);
-    if (index !== -1) {
-      this.data.schedules[index] = { ...this.data.schedules[index], ...data };
+  /**
+   * Create a new schedule via API
+   */
+  async createSchedule(courseId, scheduleData) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - crear localmente
+      if (!this.data.schedules) this.data.schedules = [];
+      const id = Math.max(0, ...this.data.schedules.map(s => s.id)) + 1;
+      const schedule = {
+        id,
+        course_id: courseId,
+        weekday: scheduleData.weekday,
+        in_time: scheduleData.in_time,
+        out_time: scheduleData.out_time
+      };
+      this.data.schedules.push(schedule);
       this.persist();
+      return schedule;
+    }
+
+    try {
+      const schedule = await API.createSchedule(courseId, scheduleData);
+      this.data.schedules.push(schedule);
+      this.persist();
+      return schedule;
+    } catch (error) {
+      console.error('Error creating schedule:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update a schedule via API
+   */
+  async updateSchedule(scheduleId, updateData) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - actualizar localmente
+      const index = this.data.schedules.findIndex(s => s.id === scheduleId);
+      if (index !== -1) {
+        this.data.schedules[index] = { ...this.data.schedules[index], ...updateData };
+        this.persist();
+        return this.data.schedules[index];
+      }
+      throw new Error('Horario no encontrado');
+    }
+
+    try {
+      const schedule = await API.updateSchedule(scheduleId, updateData);
+      const index = this.data.schedules.findIndex(s => s.id === scheduleId);
+      if (index !== -1) {
+        this.data.schedules[index] = schedule;
+      }
+      this.persist();
+      return schedule;
+    } catch (error) {
+      console.error('Error updating schedule:', error);
+      throw error;
     }
   },
 
@@ -678,7 +745,8 @@ const State = {
 
     try {
       const response = await API.getCourses({ limit: 100 });
-      this.data.courses = response.items || [];
+      // Normalize all courses to ensure consistent structure
+      this.data.courses = (response.items || []).map(normalizeCourse);
       this.persist();
       return this.data.courses;
     } catch (error) {
@@ -727,10 +795,11 @@ const State = {
 
     try {
       const course = await API.createCourse(courseData);
-      // Add to local data
-      this.data.courses.push(course);
+      // Normalize and add to local data
+      const normalized = normalizeCourse(course);
+      this.data.courses.push(normalized);
       this.persist();
-      return course;
+      return normalized;
     } catch (error) {
       console.error('Error creating course:', error);
       throw error;
@@ -754,15 +823,16 @@ const State = {
 
     try {
       const course = await API.updateCourse(courseId, updateData);
-      // Update local data
+      // Normalize and update local data
+      const normalized = normalizeCourse(course);
       const index = this.data.courses.findIndex(c => c.id === courseId);
       if (index !== -1) {
-        this.data.courses[index] = course;
+        this.data.courses[index] = normalized;
       } else {
-        this.data.courses.push(course);
+        this.data.courses.push(normalized);
       }
       this.persist();
-      return course;
+      return normalized;
     } catch (error) {
       console.error('Error updating course:', error);
       throw error;

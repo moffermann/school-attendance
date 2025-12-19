@@ -147,6 +147,8 @@ Views.directorCourses = function() {
   };
 
   Views.directorCourses.showCreateForm = function() {
+    const allTeachers = State.getTeachers ? State.getTeachers() : [];
+
     Components.showModal('Nuevo Curso', `
       <form id="course-form">
         <div class="form-group">
@@ -160,6 +162,21 @@ Views.directorCourses = function() {
             Nivel educativo del curso (ej: Pre-Kinder, 1° Básico, 8° Básico, 4° Medio)
           </small>
         </div>
+        <div class="form-group">
+          <label class="form-label">Profesores (opcional)</label>
+          ${allTeachers.length > 0 ? `
+            <select id="course-teachers" class="form-select" multiple style="min-height: 100px;">
+              ${allTeachers.map(t => `<option value="${t.id}">${Components.escapeHtml(t.full_name)}</option>`).join('')}
+            </select>
+            <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
+              Mantén Ctrl/Cmd para seleccionar múltiples profesores
+            </small>
+          ` : `
+            <p style="color: var(--color-gray-500); font-size: 0.9rem; margin: 0;">
+              No hay profesores registrados. Puedes asignarlos después.
+            </p>
+          `}
+        </div>
       </form>
     `, [
       { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
@@ -171,6 +188,12 @@ Views.directorCourses = function() {
     const name = document.getElementById('course-name').value.trim();
     const grade = document.getElementById('course-grade').value.trim();
 
+    // Get selected teachers (if select exists)
+    const teacherSelect = document.getElementById('course-teachers');
+    const teacher_ids = teacherSelect
+      ? Array.from(teacherSelect.selectedOptions).map(opt => parseInt(opt.value))
+      : [];
+
     if (!name || !grade) {
       Components.showToast('Complete los campos requeridos', 'error');
       return;
@@ -180,10 +203,10 @@ Views.directorCourses = function() {
 
     try {
       if (courseId) {
-        await State.updateCourse(courseId, { name, grade });
+        await State.updateCourse(courseId, { name, grade, teacher_ids });
         Components.showToast('Curso actualizado correctamente', 'success');
       } else {
-        await State.createCourse({ name, grade });
+        await State.createCourse({ name, grade, teacher_ids });
         Components.showToast('Curso creado correctamente', 'success');
       }
 
@@ -201,6 +224,9 @@ Views.directorCourses = function() {
     const course = State.getCourse(courseId);
     if (!course) return;
 
+    const allTeachers = State.getTeachers ? State.getTeachers() : [];
+    const currentTeacherIds = course.teacher_ids || [];
+
     Components.showModal('Editar Curso', `
       <form id="course-form">
         <div class="form-group">
@@ -213,6 +239,21 @@ Views.directorCourses = function() {
           <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
             Nivel educativo del curso (ej: Pre-Kinder, 1° Básico, 8° Básico, 4° Medio)
           </small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Profesores</label>
+          ${allTeachers.length > 0 ? `
+            <select id="course-teachers" class="form-select" multiple style="min-height: 100px;">
+              ${allTeachers.map(t => `<option value="${t.id}" ${currentTeacherIds.includes(t.id) ? 'selected' : ''}>${Components.escapeHtml(t.full_name)}</option>`).join('')}
+            </select>
+            <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
+              Mantén Ctrl/Cmd para seleccionar múltiples profesores
+            </small>
+          ` : `
+            <p style="color: var(--color-gray-500); font-size: 0.9rem; margin: 0;">
+              No hay profesores registrados.
+            </p>
+          `}
         </div>
       </form>
     `, [
