@@ -1,9 +1,9 @@
 """Tag repository with race condition protection."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.tag import Tag
@@ -98,3 +98,44 @@ class TagRepository:
         stmt = select(Tag).order_by(Tag.id)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def has_recent_pending(self, student_id: int, minutes: int = 5) -> bool:
+        """Check if student has a PENDING tag created in the last N minutes.
+
+        Used to prevent concurrent enrollment attempts.
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+        stmt = select(Tag).where(
+            Tag.student_id == student_id,
+            Tag.status == "PENDING",
+            Tag.created_at > cutoff,
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
+    async def revoke_active_for_student(self, student_id: int) -> int:
+        """Revoke all ACTIVE tags for a student before creating a new one.
+
+        Returns the count of revoked tags.
+        """
+        stmt = (
+            update(Tag)
+            .where(Tag.student_id == student_id, Tag.status == "ACTIVE")
+            .values(status="REVOKED", revoked_at=datetime.now(timezone.utc))
+        )
+        result = await self.session.execute(stmt)
+        return result.rowcount
+
+    async def cleanup_expired_pending(self, hours: int = 1) -> int:
+        """Change PENDING tags older than N hours to EXPIRED status.
+
+        Returns the count of expired tags.
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        stmt = (
+            update(Tag)
+            .where(Tag.status == "PENDING", Tag.created_at < cutoff)
+            .values(status="EXPIRED")
+        )
+        result = await self.session.execute(stmt)
+        return result.rowcount

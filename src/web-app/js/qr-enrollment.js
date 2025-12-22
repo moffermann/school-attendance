@@ -12,8 +12,34 @@ const QREnrollment = {
     lostFoundMessage: 'Si encontro esta credencial, por favor devolverla en porteria del colegio o llamar al telefono indicado. Gracias.'
   },
 
+  // Token info from backend provisioning
+  _tokenInfo: null,
+
   /**
-   * Generate a unique token for enrollment
+   * Provision a secure token from the backend
+   * @param {number} studentId - Student ID
+   * @returns {Promise<string>} Token preview
+   */
+  async provisionToken(studentId) {
+    try {
+      const response = await API.provisionTag(studentId);
+
+      // Store for later confirmation
+      this._tokenInfo = {
+        preview: response.tag_token_preview,
+        ndef_uri: response.ndef_uri,
+        checksum: response.checksum
+      };
+
+      return response.tag_token_preview;
+    } catch (error) {
+      Components.showToast(error.message || 'Error al generar token', 'error');
+      throw error;
+    }
+  },
+
+  /**
+   * Generate a unique token for enrollment (LEGACY - for teachers only)
    * @param {string} type - 'student' or 'teacher'
    * @param {number} id - Entity ID
    * @returns {string} Token
@@ -267,7 +293,7 @@ const QREnrollment = {
    * Show enrollment modal for a student
    * @param {number} studentId - Student ID
    */
-  showStudentEnrollmentModal(studentId) {
+  async showStudentEnrollmentModal(studentId) {
     const student = State.getStudent(studentId);
     if (!student) {
       Components.showToast('Alumno no encontrado', 'error');
@@ -276,18 +302,28 @@ const QREnrollment = {
 
     const course = State.getCourse(student.course_id);
     const guardians = State.getGuardians().filter(g => g.student_ids.includes(studentId));
-    const token = this.generateToken('student', studentId);
-    const data = this.buildStudentData(student, course, guardians, token);
 
-    this._showEnrollmentModal({
-      type: 'student',
-      entity: student,
-      course,
-      guardians,
-      token,
-      data,
-      title: `Enrolar QR - ${student.full_name}`
-    });
+    try {
+      // Show loading
+      Components.showToast('Generando token seguro...', 'info');
+
+      // Provision token from backend (creates PENDING tag in DB)
+      const token = await this.provisionToken(studentId);
+      const data = this.buildStudentData(student, course, guardians, token);
+
+      this._showEnrollmentModal({
+        type: 'student',
+        entity: student,
+        course,
+        guardians,
+        token,
+        data,
+        title: `Enrolar QR - ${student.full_name}`
+      });
+    } catch (error) {
+      // Error already shown in provisionToken()
+      console.error('Error provisioning QR tag:', error);
+    }
   },
 
   /**
@@ -446,6 +482,23 @@ const QREnrollment = {
 
       // Store for later use
       this._currentQRDataURL = qrDataURL;
+
+      // Confirm tag in backend (QR generated = "written")
+      if (this._tokenInfo && this._currentEnrollment?.type === 'student') {
+        try {
+          await API.confirmTag(
+            this._currentEnrollment.entity.id,
+            this._tokenInfo.preview,
+            null, // No hardware UID for QR
+            this._tokenInfo.checksum
+          );
+          console.log('Tag confirmed in backend');
+        } catch (confirmError) {
+          console.error('Failed to confirm tag:', confirmError);
+          // Don't block QR display, but warn user
+          Components.showToast('QR generado, pero confirmación pendiente', 'warning');
+        }
+      }
 
       // Update UI
       if (loadingEl) loadingEl.style.display = 'none';

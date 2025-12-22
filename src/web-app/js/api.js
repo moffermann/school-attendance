@@ -165,6 +165,83 @@ const API = Object.assign(createApiClient('webAppConfig'), {
     return response.json();
   },
 
+  // ==================== Tags API ====================
+
+  /**
+   * Provision a new NFC/QR tag for a student
+   * @param {number} studentId - Student ID
+   * @returns {Promise<{ndef_uri: string, tag_token_preview: string, checksum: string}>}
+   */
+  async provisionTag(studentId) {
+    const response = await this.request('/tags/provision', {
+      method: 'POST',
+      body: JSON.stringify({ student_id: studentId }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 403) {
+        throw new Error('No tienes permisos para generar tags');
+      } else if (response.status === 404) {
+        throw new Error('Estudiante no encontrado');
+      } else if (response.status === 409) {
+        throw new Error('Ya existe un proceso de enrolamiento activo. Espere 5 minutos.');
+      }
+      throw new Error(error.detail || 'No se pudo generar el token del tag');
+    }
+    return response.json();
+  },
+
+  /**
+   * Confirm NFC/QR tag write (after writing to hardware)
+   * @param {number} studentId
+   * @param {string} tagTokenPreview - Preview del token (8 chars)
+   * @param {string|null} tagUID - UID del hardware NFC (opcional)
+   * @param {string|null} checksum - Checksum para verificación
+   * @returns {Promise<{id: number, student_id: number, status: string, tag_token_preview: string}>}
+   */
+  async confirmTag(studentId, tagTokenPreview, tagUID = null, checksum = null) {
+    const body = {
+      student_id: studentId,
+      tag_token_preview: tagTokenPreview,
+    };
+    if (tagUID) body.tag_uid = tagUID;
+    if (checksum) body.checksum = checksum;
+
+    const response = await this.request('/tags/confirm', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Tag pendiente no encontrado');
+      }
+      throw new Error(error.detail || 'No se pudo confirmar el tag');
+    }
+    return response.json();
+  },
+
+  /**
+   * Revoke an existing tag
+   * @param {number} tagId
+   */
+  async revokeTag(tagId) {
+    const response = await this.request(`/tags/${tagId}/revoke`, {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Tag no encontrado');
+      }
+      throw new Error(error.detail || 'No se pudo revocar el tag');
+    }
+    return response.json();
+  },
+
   // ==================== Schedules API ====================
 
   /**

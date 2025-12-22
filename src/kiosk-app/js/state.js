@@ -86,9 +86,35 @@ const State = {
   },
 
   resolveByToken(token) {
-    const tag = this.tags.find(t => t.token === token);
+    // Normalize token for search
+    const normalizedToken = token.trim();
+
+    // Try exact match first
+    let tag = this.tags.find(t => t.token === normalizedToken);
+
+    // If not found, try preview match (first 8 chars, case-insensitive)
+    if (!tag && normalizedToken.length >= 8) {
+      const preview = normalizedToken.substring(0, 8).toUpperCase();
+      tag = this.tags.find(t =>
+        t.token && t.token.toUpperCase().startsWith(preview)
+      );
+    }
+
+    // If still not found, try matching by tag_token_preview field (backend format)
+    if (!tag && normalizedToken.length >= 8) {
+      const preview = normalizedToken.substring(0, 8).toUpperCase();
+      tag = this.tags.find(t =>
+        t.tag_token_preview && t.tag_token_preview.toUpperCase() === preview
+      );
+    }
+
     if (!tag) return null;
-    if (tag.status !== 'ACTIVE') return { error: 'REVOKED' };
+
+    // Handle non-active statuses
+    if (tag.status === 'REVOKED') return { error: 'REVOKED' };
+    if (tag.status === 'EXPIRED') return { error: 'EXPIRED' };
+    if (tag.status === 'PENDING') return { error: 'PENDING' };
+    if (tag.status !== 'ACTIVE') return { error: 'INVALID_STATUS' };
 
     // Check if it's a teacher
     if (tag.teacher_id) {
@@ -106,9 +132,35 @@ const State = {
   },
 
   resolveStudentByToken(token) {
-    const tag = this.tags.find(t => t.token === token);
+    // Normalize token for search
+    const normalizedToken = token.trim();
+
+    // Try exact match first
+    let tag = this.tags.find(t => t.token === normalizedToken);
+
+    // If not found, try preview match (first 8 chars, case-insensitive)
+    if (!tag && normalizedToken.length >= 8) {
+      const preview = normalizedToken.substring(0, 8).toUpperCase();
+      tag = this.tags.find(t =>
+        t.token && t.token.toUpperCase().startsWith(preview)
+      );
+    }
+
+    // If still not found, try matching by tag_token_preview field (backend format)
+    if (!tag && normalizedToken.length >= 8) {
+      const preview = normalizedToken.substring(0, 8).toUpperCase();
+      tag = this.tags.find(t =>
+        t.tag_token_preview && t.tag_token_preview.toUpperCase() === preview
+      );
+    }
+
     if (!tag) return null;
-    if (tag.status !== 'ACTIVE') return { error: 'REVOKED' };
+
+    // Handle non-active statuses
+    if (tag.status === 'REVOKED') return { error: 'REVOKED' };
+    if (tag.status === 'EXPIRED') return { error: 'EXPIRED' };
+    if (tag.status === 'PENDING') return { error: 'PENDING' };
+    if (tag.status !== 'ACTIVE') return { error: 'INVALID_STATUS' };
 
     const student = this.students.find(s => s.id === tag.student_id);
     return student || null;

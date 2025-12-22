@@ -22,10 +22,10 @@ const NFCEnrollment = {
    * @param {Object} student - Student data
    * @param {Object} course - Course data
    * @param {Array} guardians - Guardian data
-   * @param {string} token - Unique token for kiosk identification
+   * @param {string} tokenPreview - Token preview (from backend)
    * @returns {Array} NDEF records
    */
-  buildStudentRecords(student, course, guardians, token) {
+  buildStudentRecords(student, course, guardians, tokenPreview) {
     const guardiansText = guardians.length > 0
       ? guardians.map(g => g.full_name).join(', ')
       : 'No registrados';
@@ -40,11 +40,11 @@ const NFCEnrollment = {
       tel: ''
     });
 
-    // Build enrollment data as JSON for internal use
+    // Build enrollment data as JSON for internal use (using preview, not full token)
     const enrollmentData = {
       type: 'student',
       id: student.id,
-      token: token,
+      token_preview: tokenPreview,
       name: student.full_name,
       rut: student.rut || '',
       course: course ? { id: course.id, name: course.name, grade: course.grade } : null,
@@ -61,9 +61,12 @@ const NFCEnrollment = {
       enrolled_at: new Date().toISOString()
     };
 
+    // Use NDEF URI from backend (includes security signature)
+    const ndefUri = this._tokenInfo?.ndef_uri || `${window.location.origin}/t/${tokenPreview}`;
+
     return [
-      // Primary: URL for kiosk recognition (token-based)
-      { recordType: 'url', data: `${window.location.origin}/t/${token}` },
+      // Primary: URL for kiosk recognition (from backend with signature)
+      { recordType: 'url', data: ndefUri },
       // Secondary: Full enrollment data as JSON
       { recordType: 'text', data: JSON.stringify(enrollmentData) },
       // Tertiary: vCard for lost & found
@@ -326,7 +329,7 @@ const NFCEnrollment = {
    * Show enrollment modal for a student
    * @param {number} studentId - Student ID
    */
-  showStudentEnrollmentModal(studentId) {
+  async showStudentEnrollmentModal(studentId) {
     const student = State.getStudent(studentId);
     if (!student) {
       Components.showToast('Alumno no encontrado', 'error');
@@ -335,17 +338,27 @@ const NFCEnrollment = {
 
     const course = State.getCourse(student.course_id);
     const guardians = State.getGuardians().filter(g => g.student_ids.includes(studentId));
-    const token = this.generateToken('student', studentId);
 
-    this._showEnrollmentModal({
-      type: 'student',
-      entity: student,
-      course,
-      guardians,
-      token,
-      title: `Enrolar NFC - ${student.full_name}`,
-      records: this.buildStudentRecords(student, course, guardians, token)
-    });
+    try {
+      // Show loading indicator
+      Components.showToast('Generando token seguro...', 'info');
+
+      // Provision token from backend (secure)
+      const tokenPreview = await this.provisionToken(studentId);
+
+      this._showEnrollmentModal({
+        type: 'student',
+        entity: student,
+        course,
+        guardians,
+        token: tokenPreview,
+        title: `Enrolar NFC - ${student.full_name}`,
+        records: this.buildStudentRecords(student, course, guardians, tokenPreview)
+      });
+    } catch (error) {
+      // Error already shown in provisionToken()
+      console.error('Error provisioning tag:', error);
+    }
   },
 
   /**
@@ -488,10 +501,11 @@ const NFCEnrollment = {
   },
 
   /**
-   * Start the NFC write process
+   * Start the NFC write process with backend confirmation
    * @private
    */
   async _startWriteProcess() {
+    const MAX_CONFIRM_RETRIES = 3;
     const statusContainer = document.getElementById('nfc-status-container');
     const statusIcon = document.getElementById('nfc-status-icon');
     const statusText = document.getElementById('nfc-status-text');
@@ -507,7 +521,8 @@ const NFCEnrollment = {
       if (statusDetail) statusDetail.textContent = detail;
     };
 
-    const result = await this.writeTag(this._currentEnrollment.records, (stage, message) => {
+    // Step 1: Write to NFC tag
+    const writeResult = await this.writeTag(this._currentEnrollment.records, (stage, message) => {
       switch (stage) {
         case 'initializing':
           updateStatus('⚙️', message);
@@ -524,28 +539,104 @@ const NFCEnrollment = {
       }
     });
 
-    if (result.success) {
-      if (statusContainer) statusContainer.style.display = 'none';
-      if (successContainer) successContainer.style.display = 'block';
-
-      // Update modal buttons to show test option
-      const modalFooter = document.querySelector('.modal-footer');
-      if (modalFooter) {
-        modalFooter.innerHTML = `
-          <button class="btn btn-secondary" data-action="close">Cerrar</button>
-          <button class="btn btn-primary" onclick="NFCEnrollment._startTestProcess()">Probar Tag</button>
-        `;
-        // Re-attach close handler
-        modalFooter.querySelector('[data-action="close"]').addEventListener('click', () => {
-          document.querySelector('.modal-container').click();
-        });
-      }
-
-      Components.showToast('Tag NFC escrito correctamente', 'success');
-    } else {
-      updateStatus('❌', 'Error al escribir', result.error);
-      Components.showToast(result.error, 'error');
+    if (!writeResult.success) {
+      updateStatus('❌', 'Error al escribir', writeResult.error);
+      Components.showToast(writeResult.error, 'error');
+      return;
     }
+
+    // Step 2: Confirm tag in backend with retries
+    updateStatus('🔄', 'Registrando tag en el sistema...', 'Confirmando con el servidor');
+
+    let confirmSuccess = false;
+    let confirmResult = null;
+
+    for (let attempt = 1; attempt <= MAX_CONFIRM_RETRIES; attempt++) {
+      try {
+        confirmResult = await API.confirmTag(
+          this._currentEnrollment.entity.id,
+          this._tokenInfo.preview,
+          writeResult.serialNumber || null,
+          this._tokenInfo.checksum
+        );
+
+        confirmSuccess = true;
+        this._currentEnrollment.tag = confirmResult;
+        break;
+
+      } catch (error) {
+        console.warn(`Tag confirmation attempt ${attempt} failed:`, error.message);
+
+        if (attempt === MAX_CONFIRM_RETRIES) {
+          // Save for later retry
+          const pendingConfirmation = {
+            studentId: this._currentEnrollment.entity.id,
+            tokenPreview: this._tokenInfo.preview,
+            tagUID: writeResult.serialNumber || null,
+            checksum: this._tokenInfo.checksum,
+            timestamp: Date.now()
+          };
+
+          // Save to localStorage for automatic retry
+          const pending = JSON.parse(localStorage.getItem('pendingTagConfirmations') || '[]');
+          pending.push(pendingConfirmation);
+          localStorage.setItem('pendingTagConfirmations', JSON.stringify(pending));
+
+          // Show warning but don't fail completely (tag was written)
+          if (statusContainer) statusContainer.style.display = 'none';
+          if (successContainer) {
+            successContainer.style.display = 'block';
+            successContainer.innerHTML = `
+              <div class="card-body" style="text-align: center; padding: 2rem; background: var(--color-warning-light);">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+                <div style="font-size: 1.1rem; font-weight: 500; color: var(--color-warning);">Tag escrito - Confirmacion pendiente</div>
+                <div style="font-size: 0.9rem; color: var(--color-gray-600); margin-top: 0.5rem;">
+                  El tag funciona pero la confirmacion con el servidor quedo pendiente.<br>
+                  Se reintentara automaticamente cuando se restablezca la conexion.
+                </div>
+              </div>
+            `;
+          }
+
+          Components.showToast('Tag funcional. Confirmacion pendiente (reintento automatico)', 'warning');
+
+          // Update modal buttons
+          const modalFooter = document.querySelector('.modal-footer');
+          if (modalFooter) {
+            modalFooter.innerHTML = `
+              <button class="btn btn-secondary" data-action="close">Cerrar</button>
+              <button class="btn btn-primary" onclick="NFCEnrollment._startTestProcess()">Probar Tag</button>
+            `;
+            modalFooter.querySelector('[data-action="close"]').addEventListener('click', () => {
+              document.querySelector('.modal-container').click();
+            });
+          }
+          return;
+        }
+
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+
+    // Success: Tag written AND confirmed
+    if (statusContainer) statusContainer.style.display = 'none';
+    if (successContainer) successContainer.style.display = 'block';
+
+    // Update modal buttons to show test option
+    const modalFooter = document.querySelector('.modal-footer');
+    if (modalFooter) {
+      modalFooter.innerHTML = `
+        <button class="btn btn-secondary" data-action="close">Cerrar</button>
+        <button class="btn btn-primary" onclick="NFCEnrollment._startTestProcess()">Probar Tag</button>
+      `;
+      // Re-attach close handler
+      modalFooter.querySelector('[data-action="close"]').addEventListener('click', () => {
+        document.querySelector('.modal-container').click();
+      });
+    }
+
+    Components.showToast('Tag NFC escrito y registrado correctamente', 'success');
   },
 
   /**
@@ -643,7 +734,75 @@ const NFCEnrollment = {
   },
 
   // Current enrollment data (used during modal interactions)
-  _currentEnrollment: null
+  _currentEnrollment: null,
+
+  // Token info from backend provisioning (stores ndef_uri, preview, checksum)
+  _tokenInfo: null,
+
+  /**
+   * Provision a token from the backend (secure)
+   * @param {number} studentId - Student ID
+   * @returns {Promise<string>} Token preview
+   */
+  async provisionToken(studentId) {
+    try {
+      const response = await API.provisionTag(studentId);
+
+      // Store for confirmation after write
+      this._tokenInfo = {
+        preview: response.tag_token_preview,
+        ndef_uri: response.ndef_uri,
+        checksum: response.checksum
+      };
+
+      return response.tag_token_preview;
+    } catch (error) {
+      Components.showToast(error.message, 'error');
+      throw error;
+    }
+  },
+
+  /**
+   * Retry pending tag confirmations that failed due to network issues.
+   * Call on app init and periodically.
+   */
+  async retryPendingConfirmations() {
+    const pending = JSON.parse(localStorage.getItem('pendingTagConfirmations') || '[]');
+
+    if (pending.length === 0) return;
+
+    const stillPending = [];
+
+    for (const conf of pending) {
+      // Expire confirmations older than 1 hour
+      if (Date.now() - conf.timestamp > 3600000) {
+        console.warn(`Tag confirmation expired for student ${conf.studentId}`);
+        continue;
+      }
+
+      try {
+        await API.confirmTag(
+          conf.studentId,
+          conf.tokenPreview,
+          conf.tagUID,
+          conf.checksum
+        );
+
+        console.log(`Successfully confirmed pending tag for student ${conf.studentId}`);
+
+      } catch (error) {
+        // If fails, keep in list
+        stillPending.push(conf);
+      }
+    }
+
+    localStorage.setItem('pendingTagConfirmations', JSON.stringify(stillPending));
+
+    if (stillPending.length < pending.length) {
+      const confirmed = pending.length - stillPending.length;
+      Components.showToast(`Se confirmaron ${confirmed} tag(s) pendiente(s)`, 'success');
+    }
+  }
 };
 
 // Export for global access

@@ -219,12 +219,14 @@ class TenantMiddleware(BaseHTTPMiddleware):
 
     async def _resolve_tenant(self, request: Request) -> "Tenant | None":
         """Resolve tenant from request."""
-        # 1. Check X-Tenant-ID header (super admin impersonation)
+        # 1. Check X-Tenant-ID header (super admin or device key)
         # TDD-BUG1.3 fix: Only accept X-Tenant-ID if token is super_admin
+        # Production fix: Also accept X-Tenant-ID if request has valid device key
         tenant_id_header = request.headers.get("X-Tenant-ID")
         if tenant_id_header:
-            # Validate that the request has a super_admin token before accepting X-Tenant-ID
-            if self._has_super_admin_token(request):
+            # Validate that the request has super_admin token OR valid device key
+            has_auth = self._has_super_admin_token(request) or self._has_valid_device_key(request)
+            if has_auth:
                 try:
                     tenant_id = int(tenant_id_header)
                     tenant = await self._get_tenant_by_id(tenant_id)
@@ -234,8 +236,8 @@ class TenantMiddleware(BaseHTTPMiddleware):
                 except ValueError:
                     pass  # Invalid header, continue to other methods
             else:
-                # X-Tenant-ID header provided but token is not super_admin
-                logger.warning("X-Tenant-ID header rejected: requires super_admin token")
+                # X-Tenant-ID header provided but no valid auth
+                logger.warning("X-Tenant-ID header rejected: requires super_admin token or device key")
                 # Continue to other resolution methods instead of accepting header
 
         # Get host header
@@ -322,6 +324,22 @@ class TenantMiddleware(BaseHTTPMiddleware):
             return payload.get("typ") == "super_admin"
         except Exception:
             return False
+
+    def _has_valid_device_key(self, request: Request) -> bool:
+        """
+        Check if the request has a valid device API key.
+
+        This allows kiosk devices to specify X-Tenant-ID header when authenticated
+        with X-Device-Key. Essential for multi-tenant kiosk deployments.
+        """
+        import secrets as secrets_module
+
+        device_key = request.headers.get("X-Device-Key", "")
+        if not device_key:
+            return False
+
+        # Use timing-safe comparison to prevent timing attacks
+        return secrets_module.compare_digest(device_key, settings.device_api_key)
 
 
 def get_current_tenant(request: Request) -> "Tenant | None":

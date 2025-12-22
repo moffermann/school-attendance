@@ -2,11 +2,20 @@
 
 import hashlib
 import hmac
+import logging
 import secrets
 
 from app.core.config import settings
 from app.db.repositories.tags import TagRepository
 from app.schemas.tags import TagConfirmRequest, TagProvisionRequest, TagProvisionResponse, TagRead
+
+logger = logging.getLogger(__name__)
+
+
+class ConcurrentEnrollmentError(Exception):
+    """Raised when a student already has an active enrollment process."""
+
+    pass
 
 
 class TagProvisionService:
@@ -15,6 +24,18 @@ class TagProvisionService:
         self.repository = TagRepository(session)
 
     async def provision(self, payload: TagProvisionRequest) -> TagProvisionResponse:
+        # Check for concurrent enrollment attempt (PENDING tag < 5 minutes old)
+        if await self.repository.has_recent_pending(payload.student_id):
+            raise ConcurrentEnrollmentError(
+                "Ya existe un proceso de enrolamiento activo para este estudiante. "
+                "Espere 5 minutos o cancele el anterior."
+            )
+
+        # Auto-revoke any existing ACTIVE tags for this student
+        revoked_count = await self.repository.revoke_active_for_student(payload.student_id)
+        if revoked_count > 0:
+            logger.info(f"Auto-revoked {revoked_count} active tag(s) for student {payload.student_id}")
+
         token = secrets.token_urlsafe(16)
         tag_hash = hmac.new(settings.secret_key.encode(), token.encode(), hashlib.sha256).hexdigest()
         preview = token[:8].upper()
@@ -60,3 +81,16 @@ class TagProvisionService:
             status=tag.status,
             tag_token_preview=tag.tag_token_preview,
         )
+
+    async def cleanup_expired_pending_tags(self) -> int:
+        """Clean up PENDING tags that have been waiting more than 1 hour.
+
+        Changes their status to EXPIRED. Should be run periodically via cron/scheduler.
+
+        Returns the count of expired tags.
+        """
+        count = await self.repository.cleanup_expired_pending(hours=1)
+        await self.session.commit()
+        if count > 0:
+            logger.info(f"Cleaned up {count} expired PENDING tag(s)")
+        return count

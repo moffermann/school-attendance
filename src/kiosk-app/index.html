@@ -49,6 +49,12 @@
     window.addEventListener('DOMContentLoaded', async () => {
       await State.init();
       I18n.init();
+
+      // Sync with backend on startup if API key is configured
+      if (State.config.deviceApiKey && State.config.deviceApiKey !== 'CONFIGURE_DEVICE_KEY_HERE') {
+        await Sync.syncBootstrap();
+      }
+
       Router.init();
     });
   </script>

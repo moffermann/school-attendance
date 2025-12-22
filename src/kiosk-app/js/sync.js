@@ -8,8 +8,22 @@ const Sync = {
       baseUrl: State.config.apiBaseUrl || '/api/v1',
       deviceKey: State.config.deviceApiKey || '',
       deviceId: State.device.device_id || 'DEV-01',
-      gateId: State.device.gate_id || 'GATE-1'
+      gateId: State.device.gate_id || 'GATE-1',
+      tenantId: State.config.tenantId || null
     };
+  },
+
+  // Get common headers for API requests
+  getHeaders() {
+    const config = this.getApiConfig();
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Device-Key': config.deviceKey
+    };
+    if (config.tenantId) {
+      headers['X-Tenant-ID'] = config.tenantId;
+    }
+    return headers;
   },
 
   async processQueue() {
@@ -84,15 +98,12 @@ const Sync = {
         type: event.type, // 'IN' or 'OUT'
         occurred_at: event.ts,
         photo_ref: event.photo_ref || null,
-        local_seq: event.id
+        local_seq: event.local_seq  // Usar entero local_seq, no string event.id
       };
 
       const response = await fetch(`${config.baseUrl}/attendance/events`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Device-Key': config.deviceKey
-        },
+        headers: this.getHeaders(),
         body: JSON.stringify(payload)
       });
 
@@ -160,11 +171,13 @@ const Sync = {
       const formData = new FormData();
       formData.append('file', blob, `photo_${eventId}.jpg`);
 
+      // For FormData, don't set Content-Type (browser sets it with boundary)
+      const headers = { 'X-Device-Key': config.deviceKey };
+      if (config.tenantId) headers['X-Tenant-ID'] = config.tenantId;
+
       const response = await fetch(`${config.baseUrl}/attendance/events/${eventId}/photo`, {
         method: 'POST',
-        headers: {
-          'X-Device-Key': config.deviceKey
-        },
+        headers,
         body: formData
       });
 
@@ -245,11 +258,12 @@ const Sync = {
     }
 
     try {
+      const headers = { 'X-Device-Key': config.deviceKey };
+      if (config.tenantId) headers['X-Tenant-ID'] = config.tenantId;
+
       const response = await fetch(`${config.baseUrl}/kiosk/students`, {
         method: 'GET',
-        headers: {
-          'X-Device-Key': config.deviceKey
-        }
+        headers
       });
 
       if (response.ok) {
@@ -269,6 +283,39 @@ const Sync = {
     }
   },
 
+  // Sync tags from backend (incremental update)
+  async syncTags() {
+    const config = this.getApiConfig();
+
+    if (!config.deviceKey) {
+      console.log('No device API key configured, skipping tags sync');
+      return false;
+    }
+
+    try {
+      const headers = { 'X-Device-Key': config.deviceKey };
+      if (config.tenantId) headers['X-Tenant-ID'] = config.tenantId;
+
+      const response = await fetch(`${config.baseUrl}/kiosk/tags`, {
+        method: 'GET',
+        headers
+      });
+
+      if (response.ok) {
+        const tags = await response.json();
+        State.updateTags(tags);
+        console.log(`Synced ${tags.length} tags from server`);
+        return true;
+      } else {
+        console.error('Tags sync failed:', response.status);
+        return false;
+      }
+    } catch (err) {
+      console.error('Error syncing tags:', err);
+      return false;
+    }
+  },
+
   // Full bootstrap sync - get all kiosk data
   async syncBootstrap() {
     const config = this.getApiConfig();
@@ -279,13 +326,13 @@ const Sync = {
     }
 
     try {
-      UI.showToast('Sincronizando datos...', 'info', 2000);
+      const url = `${config.baseUrl}/kiosk/bootstrap`;
+      const headers = { 'X-Device-Key': config.deviceKey };
+      if (config.tenantId) headers['X-Tenant-ID'] = config.tenantId;
 
-      const response = await fetch(`${config.baseUrl}/kiosk/bootstrap`, {
+      const response = await fetch(url, {
         method: 'GET',
-        headers: {
-          'X-Device-Key': config.deviceKey
-        }
+        headers
       });
 
       if (response.ok) {
@@ -302,16 +349,13 @@ const Sync = {
           teachers: data.teachers.length
         });
 
-        UI.showToast('Datos sincronizados', 'success');
         return true;
       } else {
         console.error('Bootstrap sync failed:', response.status);
-        UI.showToast('Error al sincronizar', 'error');
         return false;
       }
     } catch (err) {
       console.error('Error in bootstrap sync:', err);
-      UI.showToast('Error de conexión', 'error');
       return false;
     }
   }
@@ -326,10 +370,11 @@ Sync._queueIntervalId = setInterval(() => {
   }
 }, 30000);
 
-// Sync student preferences every 5 minutes
+// Sync student preferences and tags every 5 minutes
 Sync._studentsIntervalId = setInterval(() => {
   if (State.device.online && Sync.isRealApiMode()) {
     Sync.syncStudents();
+    Sync.syncTags();
   }
 }, 5 * 60 * 1000);
 

@@ -332,7 +332,7 @@ Views.home = function() {
     const result = State.resolveByToken(token);
 
     if (!result) {
-      UI.showToast(I18n.t('scanner.invalid_code'), 'error');
+      UI.showToast(I18n.t('scanner.invalid_credential'), 'error');
       setTimeout(() => {
         scanning = true;
         scanningState = 'ready';

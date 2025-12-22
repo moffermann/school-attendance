@@ -58,6 +58,7 @@ def create_app() -> FastAPI:
         "Authorization",
         "Content-Type",
         "X-Device-Key",
+        "X-Tenant-ID",
         "X-Requested-With",
         "Accept",
         "Origin",

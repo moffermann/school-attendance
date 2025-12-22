@@ -2,7 +2,8 @@
   "photoEnabled": true,
   "highContrast": false,
   "schoolName": "Colegio San Patricio",
-  "autoResumeDelay": 5000,
-  "apiBaseUrl": "/api/v1",
-  "deviceApiKey": ""
+  "autoResumeDelay": 8000,
+  "apiBaseUrl": "https://rep-alignment-bridges-diesel.trycloudflare.com/api/v1",
+  "deviceApiKey": "local-dev-device-key",
+  "tenantId": "1"
 }
