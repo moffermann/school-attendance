@@ -105,6 +105,40 @@ ORDER BY id DESC LIMIT 1;
 -- 6674 | 23 | IN | DEV-01 | 2025-12-22 19:11:38
 ```
 
+## Corrección de NFC - Activación por Usuario
+
+### Problema
+El kiosko intentaba iniciar NFC automáticamente al cargar la página, mostrando "Reintentando NFC..." 3 veces y luego "NFC no disponible".
+
+### Causa
+Web NFC API requiere "transient user activation" (gesto del usuario) antes de poder llamar a `NDEFReader.scan()`. La activación automática viola esta restricción de seguridad del navegador.
+
+### Solución Implementada
+
+#### `src/kiosk-app/js/views/home.js`
+- Cambiado NFC de auto-activación a **activación por botón**
+- Agregado botón visible "📱 Toca para activar NFC" sobre el visor de cámara
+- El botón usa `addEventListener('click', activateNFC)` en lugar de inline onclick
+- Flujo: Usuario toca botón → Navegador pide permisos → NFC activado → "Esperando tarjeta..."
+
+#### `src/kiosk-app/css/styles.css`
+- Agregados estilos para estado `.nfc-tap-to-activate`:
+  - Fondo azul con borde punteado
+  - Animación de pulse ring
+  - Estados hover/focus/active para feedback visual
+- **CRÍTICO**: Agregado `pointer-events: auto` al botón NFC
+  - El `.qr-overlay` tiene `pointer-events: none` para que clicks pasen al video
+  - Sin este fix, el botón no recibía clicks
+
+#### `src/kiosk-app/service-worker.js`
+- Cache actualizado a v13
+
+### Testing
+- ✅ Botón NFC visible y clickeable en móvil
+- ✅ Al tocar, navegador pide permisos de NFC
+- ✅ Después de autorizar, NFC queda en modo lectura
+- ✅ QR sigue funcionando en paralelo
+
 ## Problemas Resueltos
 
 | Problema | Causa | Solución |
@@ -112,6 +146,8 @@ ORDER BY id DESC LIMIT 1;
 | Kiosko mostraba 24 tags en vez de 68 | TenantMiddleware rechazaba X-Tenant-ID sin super_admin | Agregado `_has_valid_device_key()` |
 | "Failed to fetch" en móvil | CORS bloqueaba header X-Tenant-ID | Agregado a `allowed_headers` |
 | Pantalla de resultado muy rápida | `autoResumeDelay` era 5 segundos | Aumentado a 8 segundos |
+| NFC mostraba "Reintentando" 3 veces | Web NFC requiere user gesture | Cambiado a botón de activación |
+| Botón NFC no respondía a clicks | `pointer-events: none` en overlay padre | Agregado `pointer-events: auto` al botón |
 
 ## Archivos Modificados
 

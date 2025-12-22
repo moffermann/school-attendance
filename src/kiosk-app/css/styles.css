@@ -1770,6 +1770,35 @@ td {
   animation: spin 1s linear infinite;
 }
 
+/* NFC tap-to-activate button state */
+.nfc-reading-indicator.nfc-tap-to-activate {
+  background: rgba(59, 130, 246, 0.9);
+  cursor: pointer;
+  border: 3px dashed rgba(255, 255, 255, 0.5);
+  transition: transform 0.2s ease, background 0.2s ease;
+  pointer-events: auto; /* Override parent's pointer-events: none */
+}
+
+.nfc-reading-indicator.nfc-tap-to-activate:hover,
+.nfc-reading-indicator.nfc-tap-to-activate:focus {
+  transform: translate(-50%, -50%) scale(1.05);
+  background: rgba(59, 130, 246, 1);
+  outline: none;
+}
+
+.nfc-reading-indicator.nfc-tap-to-activate:active {
+  transform: translate(-50%, -50%) scale(0.98);
+}
+
+.nfc-reading-indicator.nfc-tap-to-activate .nfc-pulse-ring {
+  border-color: rgba(255, 255, 255, 0.4);
+  animation: nfc-pulse 2s ease-out infinite;
+}
+
+.nfc-reading-indicator.nfc-tap-to-activate .nfc-text {
+  font-weight: 600;
+}
+
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }

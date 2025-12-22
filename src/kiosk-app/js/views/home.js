@@ -18,10 +18,8 @@ Views.home = function() {
   let lastScanTime = 0;
   const DEBOUNCE_MS = 500;
 
-  // NFC retry configuration
-  const NFC_MAX_RETRIES = 3;
-  const NFC_RETRY_DELAY_MS = 2000;
-  let nfcRetryCount = 0;
+  // NFC configuration
+  let nfcActivated = false; // Track if user has activated NFC
 
   // Auto-resume configuration (default 5 seconds, 0 = disabled)
   const AUTO_RESUME_MS = State.config.autoResumeDelay || 5000;
@@ -51,13 +49,14 @@ Views.home = function() {
             <div class="qr-corner qr-corner-bl"></div>
             <div class="qr-corner qr-corner-br"></div>
           </div>
-          <!-- NFC prominent indicator -->
+          <!-- NFC activation button - Web NFC requires user gesture -->
           ${nfcSupported ? `
-            <div class="nfc-reading-indicator" id="nfc-indicator">
+            <button class="nfc-reading-indicator nfc-tap-to-activate" id="nfc-indicator"
+                    aria-label="Activar NFC">
               <div class="nfc-pulse-ring"></div>
               <div class="nfc-icon">📱</div>
-              <div class="nfc-text">${I18n.t('scanner.waiting_nfc')}</div>
-            </div>
+              <div class="nfc-text">Toca para activar NFC</div>
+            </button>
           ` : ''}
           <div class="qr-instruction">
             ${nfcSupported
@@ -77,7 +76,13 @@ Views.home = function() {
     canvasContext = canvas.getContext('2d');
 
     startCamera();
-    startNFC();
+
+    // NFC is NOT started automatically - requires user gesture
+    // Attach click handler to NFC button
+    const nfcButton = document.getElementById('nfc-indicator');
+    if (nfcButton) {
+      nfcButton.addEventListener('click', activateNFC);
+    }
   }
 
   async function startCamera() {
@@ -150,18 +155,33 @@ Views.home = function() {
     }
   }
 
-  async function startNFC() {
+  // User-initiated NFC activation (called from button click)
+  async function activateNFC() {
     if (!nfcSupported) {
-      console.log('Web NFC not supported in this browser');
+      UI.showToast('NFC no soportado en este navegador', 'error');
       return;
+    }
+
+    if (nfcActivated && nfcReader) {
+      // Already activated
+      return;
+    }
+
+    const indicator = document.getElementById('nfc-indicator');
+    if (indicator) {
+      indicator.classList.remove('nfc-tap-to-activate');
+      indicator.querySelector('.nfc-text').textContent = 'Activando NFC...';
+      indicator.querySelector('.nfc-icon').textContent = '🔄';
     }
 
     try {
       nfcReader = new NDEFReader();
       await nfcReader.scan();
+
       console.log('NFC scan started successfully');
-      nfcRetryCount = 0; // Reset retry count on success
+      nfcActivated = true;
       updateNFCIndicator('waiting');
+      UI.showToast('NFC activado correctamente', 'success');
 
       nfcReader.addEventListener('reading', ({ message, serialNumber }) => {
         console.log('NFC tag detected:', serialNumber);
@@ -201,9 +221,9 @@ Views.home = function() {
         updateNFCIndicator('error', 'Error al leer tarjeta');
         UI.showToast('Error al leer tarjeta NFC', 'error');
 
-        // Auto-retry after delay
+        // Return to waiting state after delay
         setTimeout(() => {
-          if (scanningState === 'ready') {
+          if (scanningState === 'ready' && nfcActivated) {
             updateNFCIndicator('waiting');
           }
         }, 2000);
@@ -211,36 +231,21 @@ Views.home = function() {
 
     } catch (err) {
       console.error('Error starting NFC:', err);
-      nfcRetryCount++;
 
-      // Retry NFC initialization if under max retries
-      if (nfcRetryCount < NFC_MAX_RETRIES) {
-        console.log(`NFC retry ${nfcRetryCount}/${NFC_MAX_RETRIES}`);
-        updateNFCIndicator('retrying', `Reintentando NFC (${nfcRetryCount}/${NFC_MAX_RETRIES})...`);
-        UI.showToast(`Reintentando NFC (${nfcRetryCount}/${NFC_MAX_RETRIES})...`, 'info');
+      // Show error and reset to tap-to-activate state
+      UI.showToast('No se pudo activar NFC. Toca de nuevo para reintentar.', 'error');
 
-        setTimeout(() => {
-          startNFC();
-        }, NFC_RETRY_DELAY_MS);
-      } else {
-        // Max retries reached, disable NFC
-        nfcSupported = false;
-        updateNFCIndicator('error', 'NFC no disponible');
+      if (indicator) {
+        indicator.classList.add('nfc-tap-to-activate');
+        indicator.querySelector('.nfc-text').textContent = 'Toca para activar NFC';
+        indicator.querySelector('.nfc-icon').textContent = '📱';
+      }
 
-        const nfcStatus = document.getElementById('nfc-status');
-        if (nfcStatus) {
-          nfcStatus.classList.remove('nfc-active');
-          nfcStatus.classList.add('nfc-inactive');
-          nfcStatus.querySelector('.status-text').textContent = 'NFC No disponible';
-        }
-
-        // Hide NFC indicator after showing error
-        const indicator = document.getElementById('nfc-indicator');
-        if (indicator) {
-          setTimeout(() => {
-            indicator.style.display = 'none';
-          }, 3000);
-        }
+      // Update status bar
+      const nfcStatus = document.getElementById('nfc-status');
+      if (nfcStatus) {
+        nfcStatus.classList.remove('nfc-active');
+        nfcStatus.classList.add('nfc-inactive');
       }
     }
   }
@@ -254,6 +259,7 @@ Views.home = function() {
       nfcReader.onreadingerror = null;
       nfcReader = null;
     }
+    nfcActivated = false;
   }
 
   function scanQRCode() {
@@ -514,8 +520,8 @@ Views.home = function() {
     }
 
     scanningState = 'ready';
-    nfcRetryCount = 0; // Reset NFC retry count
     nfcSupported = 'NDEFReader' in window; // Re-check NFC support
+    nfcActivated = false; // Reset NFC activation state
     renderCamera();
   };
 

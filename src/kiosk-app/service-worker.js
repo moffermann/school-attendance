@@ -1,5 +1,5 @@
 // Service Worker for offline caching
-const CACHE_NAME = 'kiosk-cache-v10';
+const CACHE_NAME = 'kiosk-cache-v13';
 
 // Static assets - cache first, update in background
 const STATIC_ASSETS = [
