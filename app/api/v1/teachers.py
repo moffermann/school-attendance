@@ -194,6 +194,7 @@ async def submit_bulk_attendance(
                 gate_id=payload.gate_id,
                 device_id=payload.device_id,
                 occurred_at=occurred_at,
+                source="MANUAL",  # Teacher bulk registration is always manual
             )
             processed += 1
         except Exception as e:

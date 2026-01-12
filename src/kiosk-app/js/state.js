@@ -9,28 +9,64 @@ const State = {
   localSeq: 0,
 
   async init() {
-    // Load from localStorage or JSON
+    // Load persisted user data from localStorage (queue, synced data)
     const stored = localStorage.getItem('kioskData');
     if (stored) {
       // TDD-R4-BUG4 fix: Handle corrupted localStorage JSON with try/catch
       try {
         const data = JSON.parse(stored);
+        // Only restore user/dynamic data - NOT config (config always from source)
         this.students = data.students || [];
         this.teachers = data.teachers || [];
         this.tags = data.tags || [];
         this.queue = data.queue || [];
-        this.device = data.device || {};
-        this.config = data.config || {};
         this.localSeq = data.localSeq || 0;
       } catch (e) {
         console.error('Error parsing localStorage data, resetting to defaults:', e);
-        // Clear corrupted data and use defaults
         localStorage.removeItem('kioskData');
       }
     }
 
+    // Always load config and device from JSON files (deployment config, not user data)
+    await this.loadConfigFromJSON();
+
+    // Load mock data only if no students (first run without backend)
     if (!this.students.length) {
-      await this.loadFromJSON();
+      await this.loadMockData();
+    }
+  },
+
+  async loadConfigFromJSON() {
+    try {
+      const [device, config] = await Promise.all([
+        fetch('data/device.json').then(r => r.json()),
+        fetch('data/config.json').then(r => r.json())
+      ]);
+      this.device = device;
+      this.config = config;
+    } catch (e) {
+      console.error('Error loading config:', e);
+      // Fallback defaults if config files fail to load
+      this.device = this.device || { device_id: 'DEV-01', gate_id: 'GATE-1', online: true };
+      this.config = this.config || { photoEnabled: true, autoResumeDelay: 5000 };
+    }
+  },
+
+  async loadMockData() {
+    try {
+      const [students, teachers, tags, queue] = await Promise.all([
+        fetch('data/students.json').then(r => r.json()),
+        fetch('data/teachers.json').then(r => r.json()),
+        fetch('data/tags.json').then(r => r.json()),
+        fetch('data/queue.json').then(r => r.json())
+      ]);
+      this.students = students;
+      this.teachers = teachers;
+      this.tags = tags;
+      this.queue = queue;
+      this.persist();
+    } catch (e) {
+      console.error('Error loading mock data:', e);
     }
   },
 
@@ -59,15 +95,15 @@ const State = {
 
   persist() {
     // R4-F10 fix: Handle localStorage quota exceeded error
+    // Note: Only persist user/dynamic data. Config and device always come from JSON files.
     try {
       localStorage.setItem('kioskData', JSON.stringify({
         students: this.students,
         teachers: this.teachers,
         tags: this.tags,
         queue: this.queue,
-        device: this.device,
-        config: this.config,
         localSeq: this.localSeq
+        // config and device intentionally NOT persisted - always loaded fresh from JSON
       }));
     } catch (e) {
       if (e.name === 'QuotaExceededError' || e.code === 22) {
@@ -168,9 +204,23 @@ const State = {
 
   nextEventTypeFor(studentId) {
     const today = new Date().toISOString().split('T')[0];
-    const todayEvents = this.queue.filter(e => e.student_id === studentId && e.ts.startsWith(today));
+    // BUG-FIX: Ensure numeric comparison to avoid type mismatch after JSON.parse
+    const numStudentId = parseInt(studentId, 10);
+    const todayEvents = this.queue.filter(e => {
+      const eventStudentId = parseInt(e.student_id, 10);
+      return eventStudentId === numStudentId && e.ts.startsWith(today);
+    });
+
+    // Debug logging to help diagnose IN/OUT toggle issues
+    console.log(`nextEventTypeFor(${studentId}): today=${today}, queue=${this.queue.length}, todayEvents=${todayEvents.length}`);
+    if (todayEvents.length > 0) {
+      console.log('Today events:', todayEvents.map(e => ({ id: e.id, type: e.type, ts: e.ts, status: e.status })));
+    }
+
     const lastEvent = todayEvents[todayEvents.length - 1];
-    return lastEvent && lastEvent.type === 'IN' ? 'OUT' : 'IN';
+    const nextType = lastEvent && lastEvent.type === 'IN' ? 'OUT' : 'IN';
+    console.log(`Last event: ${lastEvent ? lastEvent.type : 'none'} -> next: ${nextType}`);
+    return nextType;
   },
 
   enqueueEvent(event) {
@@ -228,7 +278,7 @@ const State = {
     this.persist();
   },
 
-  // Update students from server data (includes photo_pref_opt_in)
+  // Update students from server data (includes photo_url presigned)
   updateStudents(serverStudents) {
     // R4-F5 fix: Validate server response before processing
     if (!serverStudents || serverStudents.length === 0) {
@@ -245,7 +295,7 @@ const State = {
         // Update existing student with server data
         existing.full_name = serverStudent.full_name;
         existing.course_id = serverStudent.course_id;
-        existing.photo_ref = serverStudent.photo_ref;
+        existing.photo_url = serverStudent.photo_url;  // Presigned URL from server
         existing.photo_opt_in = serverStudent.photo_pref_opt_in ?? false;
         existing.evidence_preference = serverStudent.evidence_preference ?? 'none';
       } else {
@@ -254,7 +304,7 @@ const State = {
           id: serverStudent.id,
           full_name: serverStudent.full_name,
           course_id: serverStudent.course_id,
-          photo_ref: serverStudent.photo_ref,
+          photo_url: serverStudent.photo_url,  // Presigned URL from server
           photo_opt_in: serverStudent.photo_pref_opt_in ?? false,
           evidence_preference: serverStudent.evidence_preference ?? 'none',
           guardian_name: null // Not provided by kiosk endpoint
@@ -299,6 +349,42 @@ const State = {
     this.persist();
   },
 
+  // Import today's events from server for IN/OUT state tracking
+  // Called on bootstrap to restore proper IN/OUT alternation after cache clear
+  importTodayEvents(serverEvents) {
+    if (!serverEvents || serverEvents.length === 0) {
+      console.log('No server events to import for today');
+      return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // Add server events to queue as 'synced' so they count for IN/OUT but don't re-sync
+    for (const event of serverEvents) {
+      // Check if this event already exists in queue (by server id)
+      const existing = this.queue.find(e =>
+        e.server_id === event.id ||
+        (e.student_id === event.student_id && e.ts === event.ts)
+      );
+
+      if (!existing) {
+        // Add as synced event
+        this.queue.push({
+          id: `server_${event.id}`,
+          server_id: event.id,
+          student_id: event.student_id,
+          type: event.type,
+          ts: event.ts,
+          status: 'synced',
+          from_server: true  // Flag to identify server-imported events
+        });
+      }
+    }
+
+    console.log(`Imported ${serverEvents.length} server events for today's IN/OUT state`);
+    this.persist();
+  },
+
   // Check if student has photo consent
   hasPhotoConsent(studentId) {
     const student = this.students.find(s => s.id === studentId);
@@ -317,16 +403,16 @@ const State = {
     if (existing) {
       // Update existing student
       existing.full_name = studentData.full_name || existing.full_name;
-      existing.photo_ref = studentData.photo_url || existing.photo_ref;
+      existing.photo_url = studentData.photo_url || existing.photo_url;
       existing.photo_opt_in = studentData.has_photo_consent ?? existing.photo_opt_in;
     } else {
       // Add new student from biometric response
       this.students.push({
         id: studentData.student_id,
         full_name: studentData.full_name,
-        rut: studentData.rut,
+        national_id: studentData.national_id,
         course_id: null,
-        photo_ref: studentData.photo_url,
+        photo_url: studentData.photo_url,
         photo_opt_in: studentData.has_photo_consent ?? false,
         guardian_name: null
       });

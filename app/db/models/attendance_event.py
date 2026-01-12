@@ -14,6 +14,14 @@ class AttendanceTypeEnum(str, Enum):
     OUT = "OUT"
 
 
+class AttendanceSourceEnum(str, Enum):
+    """Method used to register attendance."""
+    BIOMETRIC = "BIOMETRIC"  # WebAuthn/Passkey fingerprint
+    QR = "QR"                # QR code scan
+    NFC = "NFC"              # NFC card/tag
+    MANUAL = "MANUAL"        # Manual entry by staff
+
+
 class AttendanceEvent(Base):
     __tablename__ = "attendance_events"
 
@@ -27,5 +35,11 @@ class AttendanceEvent(Base):
     photo_ref: Mapped[str | None] = mapped_column(String(512))
     audio_ref: Mapped[str | None] = mapped_column(String(512))
     synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Method used to register attendance (BIOMETRIC, QR, NFC, MANUAL)
+    source: Mapped[str | None] = mapped_column(
+        SAEnum(AttendanceSourceEnum, name="attendance_source"),
+        nullable=True,  # Nullable for backward compatibility with existing records
+        index=True
+    )
 
     student = relationship("Student")

@@ -698,8 +698,9 @@ td {
   height: 100vh;
   background: white;
   z-index: 99;
-  animation: flash 0.3s ease-out;
+  animation: flash 0.3s ease-out forwards;
   pointer-events: none;
+  opacity: 0;
 }
 
 @keyframes flash {
@@ -741,6 +742,75 @@ td {
 .welcome-time {
   font-size: 1.5rem;
   color: var(--color-gray-500);
+}
+
+/* Welcome Screen Entry/Exit Variations */
+.welcome-screen.welcome-entry {
+  background: linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%);
+}
+
+.welcome-screen.welcome-exit {
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #f87171 100%);
+}
+
+.welcome-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 50px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  animation: badgePop 0.4s ease-out;
+}
+
+@keyframes badgePop {
+  0% { transform: scale(0.5); opacity: 0; }
+  70% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.welcome-type-badge.badge-entry {
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: white;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+}
+
+.welcome-type-badge.badge-exit {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  color: white;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+}
+
+.welcome-type-badge .badge-icon {
+  font-size: 1.5rem;
+}
+
+.welcome-message.message-entry {
+  color: #059669;
+}
+
+.welcome-message.message-exit {
+  color: #dc2626;
+}
+
+.welcome-time.time-entry {
+  color: #047857;
+  font-weight: 600;
+}
+
+.welcome-time.time-exit {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.auto-resume-progress.progress-entry {
+  background: linear-gradient(90deg, #059669, #10b981);
+}
+
+.auto-resume-progress.progress-exit {
+  background: linear-gradient(90deg, #dc2626, #ef4444);
 }
 
 /* Scan Result Screen - New Design */
@@ -1379,6 +1449,8 @@ td {
   width: auto;
   height: auto;
   object-fit: cover;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .qr-canvas {
@@ -1867,6 +1939,7 @@ td {
   cursor: pointer;
   transition: all 0.3s ease;
   white-space: nowrap;
+  z-index: 100;
 }
 
 .btn-biometric:hover {

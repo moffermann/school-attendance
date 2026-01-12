@@ -24,6 +24,7 @@ class AttendanceRepository:
         occurred_at: datetime,
         photo_ref: str | None = None,
         local_seq: int | None = None,
+        source: str | None = None,
     ) -> AttendanceEvent:
         event = AttendanceEvent(
             student_id=student_id,
@@ -33,6 +34,7 @@ class AttendanceRepository:
             occurred_at=occurred_at,
             photo_ref=photo_ref,
             local_seq=local_seq,
+            source=source,
         )
         self.session.add(event)
         await self.session.flush()
@@ -120,3 +122,16 @@ class AttendanceRepository:
         )
         result = await self.session.execute(stmt)
         return set(result.scalars().all())
+
+    async def list_by_date(self, target_date: date) -> list[AttendanceEvent]:
+        """List all attendance events for a specific date.
+
+        Used by kiosk bootstrap to restore IN/OUT state after cache clear.
+        """
+        stmt = (
+            select(AttendanceEvent)
+            .where(func.date(AttendanceEvent.occurred_at) == target_date)
+            .order_by(AttendanceEvent.occurred_at.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())

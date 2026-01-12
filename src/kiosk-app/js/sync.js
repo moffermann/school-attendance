@@ -2,6 +2,76 @@
 const Sync = {
   isSyncing: false,
 
+  // ==================== Image Cache for Authenticated Photos ====================
+  imageCache: new Map(),
+  MAX_CACHE_SIZE: 30, // Less than web-app (kiosk has less memory)
+
+  /**
+   * Load an image with device key authentication and return a blob URL
+   * Used for displaying student photos that require device key authentication
+   * @param {string} url - Full URL to the image
+   * @returns {Promise<string|null>} - Blob URL or null on error
+   */
+  async loadImageWithDeviceKey(url) {
+    try {
+      // Check cache first
+      if (this.imageCache.has(url)) {
+        return this.imageCache.get(url);
+      }
+
+      // Loading timeout of 10 seconds
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      // Get headers with device key (without Content-Type for image fetch)
+      const headers = this.getHeaders();
+      delete headers['Content-Type'];
+
+      const response = await fetch(url, {
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        console.error('Image load failed:', response.status, url);
+        return null;
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      // LRU cache: remove oldest entry if at capacity
+      if (this.imageCache.size >= this.MAX_CACHE_SIZE) {
+        const firstKey = this.imageCache.keys().next().value;
+        const oldBlobUrl = this.imageCache.get(firstKey);
+        URL.revokeObjectURL(oldBlobUrl);
+        this.imageCache.delete(firstKey);
+      }
+
+      this.imageCache.set(url, blobUrl);
+      return blobUrl;
+
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.error('Image load timeout:', url);
+      } else {
+        console.error('Error loading image:', error);
+      }
+      return null;
+    }
+  },
+
+  /**
+   * Clear all cached image blob URLs
+   * Should be called on cache clear to prevent memory leaks
+   */
+  clearImageCache() {
+    this.imageCache.forEach(blobUrl => URL.revokeObjectURL(blobUrl));
+    this.imageCache.clear();
+  },
+
   // Get API configuration from State
   getApiConfig() {
     return {
@@ -98,7 +168,8 @@ const Sync = {
         type: event.type, // 'IN' or 'OUT'
         occurred_at: event.ts,
         photo_ref: event.photo_ref || null,
-        local_seq: event.local_seq  // Usar entero local_seq, no string event.id
+        local_seq: event.local_seq,  // Usar entero local_seq, no string event.id
+        source: event.source || null  // BIOMETRIC, QR, NFC, MANUAL
       };
 
       const response = await fetch(`${config.baseUrl}/attendance/events`, {
@@ -343,10 +414,16 @@ const Sync = {
         State.updateTags(data.tags);
         State.updateTeachers(data.teachers);
 
+        // Import today's events for IN/OUT state tracking
+        if (data.today_events) {
+          State.importTodayEvents(data.today_events);
+        }
+
         console.log('Bootstrap sync complete:', {
           students: data.students.length,
           tags: data.tags.length,
-          teachers: data.teachers.length
+          teachers: data.teachers.length,
+          today_events: data.today_events?.length || 0
         });
 
         return true;
@@ -356,6 +433,39 @@ const Sync = {
       }
     } catch (err) {
       console.error('Error in bootstrap sync:', err);
+      return false;
+    }
+  },
+
+  // Sync today's events for IN/OUT state (called after cache clear)
+  async syncTodayEvents() {
+    const config = this.getApiConfig();
+
+    if (!config.deviceKey) {
+      console.log('No device API key configured, skipping today events sync');
+      return false;
+    }
+
+    try {
+      const headers = { 'X-Device-Key': config.deviceKey };
+      if (config.tenantId) headers['X-Tenant-ID'] = config.tenantId;
+
+      const response = await fetch(`${config.baseUrl}/kiosk/today-events`, {
+        method: 'GET',
+        headers
+      });
+
+      if (response.ok) {
+        const events = await response.json();
+        State.importTodayEvents(events);
+        console.log(`Synced ${events.length} today events for IN/OUT state`);
+        return true;
+      } else {
+        console.error('Today events sync failed:', response.status);
+        return false;
+      }
+    } catch (err) {
+      console.error('Error syncing today events:', err);
       return false;
     }
   }

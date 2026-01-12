@@ -7,6 +7,86 @@
  */
 const API = Object.assign(createApiClient('webAppConfig'), {
 
+  // ==================== Image Cache for Authenticated Photos ====================
+  imageCache: new Map(),
+  MAX_CACHE_SIZE: 50,
+
+  /**
+   * Load an image with authentication headers and return a blob URL
+   * Used for displaying photos that require JWT authentication
+   * @param {string} url - Full URL to the image
+   * @returns {Promise<string|null>} - Blob URL or null on error
+   */
+  async loadAuthenticatedImage(url) {
+    try {
+      // Check cache first
+      if (this.imageCache.has(url)) {
+        return this.imageCache.get(url);
+      }
+
+      // Loading timeout of 10 seconds
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      const headers = {};
+      if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+      }
+
+      const response = await fetch(url, {
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        console.error('Image load failed:', response.status, url);
+        return null;
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      // LRU cache: remove oldest entry if at capacity
+      if (this.imageCache.size >= this.MAX_CACHE_SIZE) {
+        const firstKey = this.imageCache.keys().next().value;
+        const oldBlobUrl = this.imageCache.get(firstKey);
+        URL.revokeObjectURL(oldBlobUrl);
+        this.imageCache.delete(firstKey);
+      }
+
+      this.imageCache.set(url, blobUrl);
+      return blobUrl;
+
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.error('Image load timeout:', url);
+      } else {
+        console.error('Error loading image:', error);
+      }
+      return null;
+    }
+  },
+
+  /**
+   * Clear all cached image blob URLs
+   * Should be called on logout to prevent memory leaks
+   */
+  clearImageCache() {
+    this.imageCache.forEach(blobUrl => URL.revokeObjectURL(blobUrl));
+    this.imageCache.clear();
+  },
+
+  /**
+   * Override logout to also clear image cache
+   */
+  logout() {
+    this.accessToken = null;
+    this.refreshToken = null;
+    this.clearImageCache();
+  },
+
   // ==================== Web App API Methods ====================
 
   /**
@@ -565,5 +645,102 @@ const API = Object.assign(createApiClient('webAppConfig'), {
       throw new Error('No se pudo exportar cursos');
     }
     return response.blob();
+  },
+
+  // ==================== Students API ====================
+
+  /**
+   * Get student details
+   */
+  async getStudent(studentId) {
+    const response = await this.request(`/students/${studentId}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Estudiante no encontrado');
+      }
+      throw new Error('No se pudo obtener el estudiante');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update student
+   */
+  async updateStudent(studentId, data) {
+    const response = await this.request(`/students/${studentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al actualizar estudiante' }));
+      throw new Error(error.detail || 'Error al actualizar estudiante');
+    }
+    return response.json();
+  },
+
+  /**
+   * Upload student photo
+   * @param {number} studentId - Student ID
+   * @param {File} file - Image file to upload
+   * @returns {Promise<{id: number, full_name: string, photo_url: string, photo_presigned_url: string}>}
+   */
+  async uploadStudentPhoto(studentId, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await this.requestMultipart(`/students/${studentId}/photo`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al subir foto' }));
+      if (response.status === 400) {
+        throw new Error(error.detail || 'Archivo no válido');
+      } else if (response.status === 404) {
+        throw new Error('Estudiante no encontrado');
+      }
+      throw new Error(error.detail || 'Error al subir foto');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete student photo
+   */
+  async deleteStudentPhoto(studentId) {
+    const response = await this.request(`/students/${studentId}/photo`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Estudiante no encontrado');
+      }
+      throw new Error('Error al eliminar foto');
+    }
+    return true;
+  },
+
+  /**
+   * Make multipart/form-data request (for file uploads)
+   */
+  async requestMultipart(endpoint, options = {}) {
+    const url = `${this.baseUrl}${endpoint}`;
+    const headers = {};
+
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+
+    // Don't set Content-Type - browser will set it automatically with boundary
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...headers,
+        ...options.headers,
+      },
+    });
   },
 });

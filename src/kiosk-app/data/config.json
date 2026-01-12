@@ -3,7 +3,7 @@
   "highContrast": false,
   "schoolName": "Colegio San Patricio",
   "autoResumeDelay": 8000,
-  "apiBaseUrl": "https://rep-alignment-bridges-diesel.trycloudflare.com/api/v1",
+  "apiBaseUrl": "https://orchestra-toolkit-capitol-professor.trycloudflare.com/api/v1",
   "deviceApiKey": "local-dev-device-key",
   "tenantId": "1"
 }

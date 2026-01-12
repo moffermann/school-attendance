@@ -65,10 +65,39 @@ class PhotoService:
         await asyncio.to_thread(self._client.delete_object, Bucket=self._bucket, Key=key)
         logger.info("Deleted photo bucket=%s key=%s", self._bucket, key)
 
+    async def get_photo(self, key: str) -> tuple[bytes, str] | None:
+        """Download a photo from S3/MinIO.
+
+        Returns:
+            Tuple of (photo_bytes, content_type) or None if not found.
+        """
+        if not key:
+            return None
+
+        def _download():
+            response = self._client.get_object(Bucket=self._bucket, Key=key)
+            content_type = response.get("ContentType", "image/jpeg")
+            data = response["Body"].read()
+            return data, content_type
+
+        try:
+            return await asyncio.to_thread(_download)
+        except self._client.exceptions.NoSuchKey:
+            logger.warning("Photo not found: %s", key)
+            return None
+        except Exception as exc:
+            logger.error("Failed to download photo %s: %s", key, exc)
+            return None
+
     async def generate_presigned_url(self, key: str, expires: int = 3600) -> str | None:
         """Generate a presigned URL for accessing a photo.
 
         R12-P5 fix: Made async to avoid blocking event loop during S3 API call.
+
+        If S3_PUBLIC_URL is configured, the internal endpoint URL in the presigned
+        URL will be replaced with the public URL. This is necessary when MinIO
+        is accessed from external devices (e.g., kiosk on a phone) that cannot
+        reach localhost or Docker container names.
 
         Returns:
             The presigned URL string, or None if generation fails.
@@ -84,7 +113,13 @@ class PhotoService:
             )
 
         try:
-            return await asyncio.to_thread(_generate)
+            url = await asyncio.to_thread(_generate)
+
+            # Replace internal endpoint with public URL if configured
+            if settings.s3_public_url and url:
+                url = url.replace(settings.s3_endpoint, settings.s3_public_url.rstrip('/'))
+
+            return url
         except Exception as exc:  # pragma: no cover - best effort URL generation
             logger.error("Failed to generate presigned URL for %s: %s", key, exc)
             return None

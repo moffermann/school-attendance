@@ -75,7 +75,7 @@ class StudentAuthenticationResponse(BaseModel):
     """Response after successful student biometric authentication."""
     student_id: int
     full_name: str
-    rut: str | None
+    national_id: str | None
     course_id: int | None
     photo_url: str | None
 
@@ -141,7 +141,7 @@ class KioskAuthenticationResult(BaseModel):
     """Result of kiosk biometric authentication including attendance data."""
     student_id: int
     full_name: str
-    rut: str | None
+    national_id: str | None
     course_name: str | None
     photo_url: str | None
     # For attendance flow integration

@@ -60,3 +60,33 @@ class StudentRepository:
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_with_course(self, student_id: int) -> Student | None:
+        """Get a student with their course eagerly loaded."""
+        stmt = (
+            select(Student)
+            .where(Student.id == student_id)
+            .options(selectinload(Student.course))
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def update_photo_url(self, student_id: int, photo_url: str) -> Student | None:
+        """Update a student's photo URL."""
+        student = await self.get(student_id)
+        if not student:
+            return None
+        student.photo_url = photo_url
+        await self.session.flush()
+        return student
+
+    async def update(self, student_id: int, **kwargs) -> Student | None:
+        """Update a student's fields."""
+        student = await self.get(student_id)
+        if not student:
+            return None
+        for key, value in kwargs.items():
+            if hasattr(student, key):
+                setattr(student, key, value)
+        await self.session.flush()
+        return student

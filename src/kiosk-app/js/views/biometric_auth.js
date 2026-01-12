@@ -138,7 +138,7 @@ Views.biometricAuth = function() {
 
         // Navigate to scan result after brief delay
         setTimeout(() => {
-          Router.navigate(`/scan-result?student_id=${result.student.student_id}&source=Biometric`);
+          Router.navigate(`/scan-result?student_id=${result.student.student_id}&source=BIOMETRIC`);
         }, 1500);
       } else {
         updateSensorState('error');

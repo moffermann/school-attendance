@@ -126,7 +126,7 @@ Views.directorBiometric = function() {
         </div>
         <div class="student-details">
           <h3 class="student-name-lg">${Components.escapeHtml(selectedStudent.full_name)}</h3>
-          <div class="student-meta">${course ? Components.escapeHtml(course.name) : ''} ${selectedStudent.rut ? '| RUT: ' + selectedStudent.rut : ''}</div>
+          <div class="student-meta">${course ? Components.escapeHtml(course.name) : ''} ${selectedStudent.national_id ? '| ID: ' + selectedStudent.national_id : ''}</div>
         </div>
       </div>
 

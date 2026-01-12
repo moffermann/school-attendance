@@ -31,10 +31,9 @@ class TagProvisionService:
                 "Espere 5 minutos o cancele el anterior."
             )
 
-        # Auto-revoke any existing ACTIVE tags for this student
-        revoked_count = await self.repository.revoke_active_for_student(payload.student_id)
-        if revoked_count > 0:
-            logger.info(f"Auto-revoked {revoked_count} active tag(s) for student {payload.student_id}")
+        # Note: Multiple active tags allowed per student (QR, NFC, Biometric can coexist)
+        # Previous behavior auto-revoked existing tags, but PM confirmed all methods
+        # should remain active simultaneously when enrolled.
 
         token = secrets.token_urlsafe(16)
         tag_hash = hmac.new(settings.secret_key.encode(), token.encode(), hashlib.sha256).hexdigest()

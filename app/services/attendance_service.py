@@ -46,6 +46,7 @@ class AttendanceService:
             occurred_at=payload.occurred_at,
             photo_ref=payload.photo_ref,
             local_seq=payload.local_seq,
+            source=payload.source.value if payload.source else None,
         )
 
         await self.session.commit()

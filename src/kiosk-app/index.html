@@ -10,6 +10,70 @@
   <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
 <body>
+  <!-- Debug Console Overlay - tap top-right corner to toggle -->
+  <div id="debug-console" style="
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 100%;
+    max-height: 40vh;
+    background: rgba(0,0,0,0.9);
+    color: #0f0;
+    font-family: monospace;
+    font-size: 11px;
+    overflow-y: auto;
+    z-index: 99999;
+    padding: 8px;
+    display: none;
+    white-space: pre-wrap;
+    word-break: break-all;
+  "></div>
+  <button id="debug-toggle" style="
+    position: fixed;
+    top: 5px;
+    right: 5px;
+    width: 40px;
+    height: 40px;
+    background: rgba(255,0,0,0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    z-index: 100000;
+    font-size: 16px;
+    cursor: pointer;
+  ">🐛</button>
+  <script>
+    (function() {
+      const debugEl = document.getElementById('debug-console');
+      const toggleBtn = document.getElementById('debug-toggle');
+      let visible = false;
+
+      toggleBtn.addEventListener('click', () => {
+        visible = !visible;
+        debugEl.style.display = visible ? 'block' : 'none';
+        toggleBtn.style.background = visible ? 'rgba(0,255,0,0.7)' : 'rgba(255,0,0,0.7)';
+      });
+
+      function addLog(type, args) {
+        const time = new Date().toLocaleTimeString();
+        const msg = Array.from(args).map(a =>
+          typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)
+        ).join(' ');
+        const color = type === 'error' ? '#f00' : type === 'warn' ? '#ff0' : '#0f0';
+        debugEl.innerHTML += `<div style="color:${color}">[${time}] ${type.toUpperCase()}: ${msg}</div>`;
+        debugEl.scrollTop = debugEl.scrollHeight;
+      }
+
+      const origLog = console.log;
+      const origError = console.error;
+      const origWarn = console.warn;
+
+      console.log = function() { origLog.apply(console, arguments); addLog('log', arguments); };
+      console.error = function() { origError.apply(console, arguments); addLog('error', arguments); };
+      console.warn = function() { origWarn.apply(console, arguments); addLog('warn', arguments); };
+    })();
+  </script>
+
   <a href="#app" class="skip-link">Saltar al contenido principal</a>
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
   <main id="app" tabindex="-1">
@@ -47,15 +111,40 @@
     }
 
     window.addEventListener('DOMContentLoaded', async () => {
-      await State.init();
-      I18n.init();
+      console.log('[INIT] DOMContentLoaded fired');
 
-      // Sync with backend on startup if API key is configured
-      if (State.config.deviceApiKey && State.config.deviceApiKey !== 'CONFIGURE_DEVICE_KEY_HERE') {
-        await Sync.syncBootstrap();
+      try {
+        console.log('[INIT] Calling State.init()...');
+        await State.init();
+        console.log('[INIT] State.init() complete, config:', State.config);
+
+        I18n.init();
+        console.log('[INIT] I18n.init() complete');
+
+        // Sync with backend on startup if API key is configured (with timeout)
+        if (State.config.deviceApiKey && State.config.deviceApiKey !== 'CONFIGURE_DEVICE_KEY_HERE') {
+          console.log('[INIT] Starting syncBootstrap with 10s timeout...');
+          const syncPromise = Sync.syncBootstrap();
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Sync timeout')), 10000)
+          );
+
+          try {
+            await Promise.race([syncPromise, timeoutPromise]);
+            console.log('[INIT] syncBootstrap complete');
+          } catch (err) {
+            console.warn('[INIT] syncBootstrap failed or timed out:', err.message);
+          }
+        }
+
+        console.log('[INIT] Calling Router.init()...');
+        Router.init();
+        console.log('[INIT] Router.init() complete');
+      } catch (err) {
+        console.error('[INIT] Critical error during initialization:', err);
+        // Still try to start the router even if init fails
+        Router.init();
       }
-
-      Router.init();
     });
   </script>
 </body>

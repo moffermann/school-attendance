@@ -22,11 +22,15 @@ class Student(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # National ID (RUT in Chile, DNI in Argentina, etc.)
+    national_id: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     # R12-P2 fix: Add index for course filtering queries
     course_id: Mapped[int] = mapped_column(ForeignKey("courses.id"), nullable=False, index=True)
     # R12-P8 fix: Add index for active student filtering
     status: Mapped[str] = mapped_column(String(32), default="ACTIVE", index=True)
     qr_code_hash: Mapped[str | None] = mapped_column(String(128))
+    # URL or path to student photo
+    photo_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     # Legacy field - maintained for backward compatibility
     photo_pref_opt_in: Mapped[bool] = mapped_column(Boolean, default=False)
     # New evidence preference: "photo", "audio", or "none"

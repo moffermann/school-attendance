@@ -151,7 +151,7 @@ Views.biometricEnroll = function() {
     const lowerQuery = query.toLowerCase();
     const matches = State.students.filter(s =>
       s.full_name.toLowerCase().includes(lowerQuery) ||
-      (s.rut && s.rut.includes(query))
+      (s.national_id && s.national_id.includes(query))
     ).slice(0, 10); // Limit to 10 results
 
     if (matches.length === 0) {
@@ -162,7 +162,7 @@ Views.biometricEnroll = function() {
     listEl.innerHTML = matches.map(student => `
       <div class="student-list-item" onclick="Views.biometricEnroll.selectStudent(${student.id})">
         <div class="student-list-name">${student.full_name}</div>
-        <div class="student-list-info">${student.course_id}° - ${student.rut || 'Sin RUT'}</div>
+        <div class="student-list-info">${student.course_id}° - ${student.national_id || 'Sin ID'}</div>
       </div>
     `).join('');
   };
@@ -180,8 +180,8 @@ Views.biometricEnroll = function() {
     areaEl.innerHTML = `
       <div class="selected-student">
         <div class="student-avatar">
-          ${selectedStudent.photo_ref
-            ? `<img src="${selectedStudent.photo_ref}" alt="Foto">`
+          ${selectedStudent.photo_url
+            ? `<img src="${selectedStudent.photo_url}" alt="Foto" onerror="this.parentElement.innerHTML='<span class=\\'avatar-placeholder\\'>👤</span>'">`
             : '<span class="avatar-placeholder">👤</span>'
           }
         </div>

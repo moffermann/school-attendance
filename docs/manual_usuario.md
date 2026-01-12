@@ -437,7 +437,27 @@ Los estudiantes pueden registrarse de tres formas:
 2. Coloca su dedo en el lector biometrico
 3. El sistema lo identifica y registra el evento
 
-### 7.3 Confirmacion de Registro
+### 7.3 Politica de Multiples Credenciales
+
+El sistema permite que cada estudiante tenga **multiples metodos de identificacion activos simultaneamente**. Esto significa que:
+
+- Un alumno puede tener QR, NFC y huella digital, todos activos al mismo tiempo
+- Enrollar un nuevo metodo **no desactiva** los metodos anteriores
+- El estudiante puede usar cualquiera de sus credenciales activas para registrarse
+
+**Ventajas de esta politica:**
+
+| Escenario | Solucion |
+|-----------|----------|
+| Olvido la tarjeta NFC | Usa el QR en el celular del apoderado |
+| El celular no tiene bateria | Usa la tarjeta NFC |
+| Perdio ambas credenciales | Usa la huella digital |
+
+**Recomendacion:** Se sugiere enrollar al menos dos metodos por estudiante para garantizar que siempre pueda registrar su asistencia.
+
+> **Nota para administradores:** Si necesita revocar una credencial especifica (por ejemplo, por perdida de tarjeta), puede hacerlo individualmente desde el panel de administracion sin afectar los otros metodos del estudiante.
+
+### 7.4 Confirmacion de Registro
 
 Despues de un registro exitoso, el kiosko muestra:
 - Nombre del estudiante
@@ -573,7 +593,10 @@ R: Verifique que:
 R: Si, desde la seccion de Preferencias puede desactivar cualquier tipo de notificacion.
 
 **P: Mi hijo perdio su tarjeta de acceso, que hago?**
-R: Contacte a la inspectoria del colegio para solicitar una nueva tarjeta. Mientras tanto, el inspector puede registrar manualmente la asistencia.
+R: Si su hijo tiene otros metodos de identificacion activos (QR o huella digital), puede seguir usandolos normalmente. Contacte a la inspectoria para:
+1. Revocar la tarjeta perdida (evita uso indebido)
+2. Solicitar una nueva tarjeta NFC
+Los otros metodos de registro permaneceran activos durante este proceso.
 
 ### Personal del Colegio
 

@@ -35,7 +35,7 @@ const NFCEnrollment = {
       name: student.full_name,
       org: this.schoolConfig.name,
       title: `Alumno - ${course ? course.name : 'Sin curso'}`,
-      note: `RUT: ${student.rut || 'No registrado'}\nCurso: ${course ? course.name + ' - ' + course.grade : 'N/A'}\nApoderados: ${guardiansText}\n\n${this.schoolConfig.lostFoundMessage}`,
+      note: `ID: ${student.national_id || 'No registrado'}\nCurso: ${course ? course.name + ' - ' + course.grade : 'N/A'}\nApoderados: ${guardiansText}\n\n${this.schoolConfig.lostFoundMessage}`,
       email: student.email || '',
       tel: ''
     });
@@ -46,7 +46,7 @@ const NFCEnrollment = {
       id: student.id,
       token_preview: tokenPreview,
       name: student.full_name,
-      rut: student.rut || '',
+      national_id: student.national_id || '',
       course: course ? { id: course.id, name: course.name, grade: course.grade } : null,
       guardians: guardians.map(g => ({
         name: g.full_name,
@@ -407,7 +407,7 @@ const NFCEnrollment = {
       infoHTML = `
         <div class="enrollment-info">
           <div class="info-row"><strong>Nombre:</strong> ${Components.escapeHtml(entity.full_name)}</div>
-          <div class="info-row"><strong>RUT:</strong> ${Components.escapeHtml(entity.rut || 'No registrado')}</div>
+          <div class="info-row"><strong>RUT/Matrícula:</strong> ${Components.escapeHtml(entity.national_id || 'No registrado')}</div>
           <div class="info-row"><strong>Curso:</strong> ${course ? Components.escapeHtml(course.name + ' - ' + course.grade) : 'Sin curso'}</div>
           <div class="info-row"><strong>Apoderados:</strong></div>
           <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">${guardiansText}</ul>

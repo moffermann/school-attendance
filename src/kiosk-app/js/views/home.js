@@ -22,7 +22,10 @@ Views.home = function() {
   let nfcActivated = false; // Track if user has activated NFC
 
   // Auto-resume configuration (default 5 seconds, 0 = disabled)
-  const AUTO_RESUME_MS = State.config.autoResumeDelay || 5000;
+  // Note: Read at runtime to ensure State.config is loaded
+  function getAutoResumeMs() {
+    return State.config.autoResumeDelay || 5000;
+  }
 
   function renderCamera() {
     const nfcStatusClass = nfcSupported ? 'nfc-active' : 'nfc-inactive';
@@ -63,11 +66,11 @@ Views.home = function() {
               ? I18n.t('scanner.instruction_both')
               : I18n.t('scanner.instruction_qr')}
           </div>
-          <!-- Fingerprint option button -->
-          <button class="btn btn-biometric" onclick="Router.navigate('/biometric-auth')" aria-label="Usar huella digital">
-            🖐️ ¿Olvidaste tu tarjeta? Usa tu huella
-          </button>
         </div>
+        <!-- Fingerprint option button - outside qr-overlay for proper click handling -->
+        <button class="btn btn-biometric" id="biometric-btn" aria-label="Usar huella digital">
+          🖐️ ¿Olvidaste tu tarjeta? Usa tu huella
+        </button>
       </div>
     `;
 
@@ -82,6 +85,18 @@ Views.home = function() {
     const nfcButton = document.getElementById('nfc-indicator');
     if (nfcButton) {
       nfcButton.addEventListener('click', activateNFC);
+    }
+
+    // Attach click handler to biometric button
+    const biometricButton = document.getElementById('biometric-btn');
+    console.log('Biometric button found:', biometricButton);
+    if (biometricButton) {
+      biometricButton.addEventListener('click', (e) => {
+        console.log('Biometric button clicked!', e);
+        stopCamera();
+        stopNFC();
+        Router.navigate('/biometric-auth');
+      });
     }
   }
 
@@ -193,7 +208,17 @@ Views.home = function() {
         for (const record of message.records) {
           if (record.recordType === 'text') {
             const textDecoder = new TextDecoder(record.encoding);
-            token = textDecoder.decode(record.data);
+            const content = textDecoder.decode(record.data);
+
+            // Check if content contains "Token: XXXXXXXX" pattern (enrollment info format)
+            const tokenMatch = content.match(/Token:\s*([A-Za-z0-9]+)/);
+            if (tokenMatch) {
+              token = tokenMatch[1];
+              console.log('Extracted token from enrollment info:', token);
+            } else {
+              // Use content directly as token
+              token = content;
+            }
             break;
           } else if (record.recordType === 'url') {
             const textDecoder = new TextDecoder();
@@ -384,30 +409,54 @@ Views.home = function() {
     const eventType = State.nextEventTypeFor(student.id);
     const timestamp = new Date().toISOString();
     const sourceIcon = source === 'NFC' ? '📶' : '📷';
-    const autoResumeEnabled = AUTO_RESUME_MS > 0;
-    const greeting = eventType === 'IN' ? I18n.t('welcome.greeting_in') : I18n.t('welcome.greeting_out');
+    const AUTO_RESUME_VALUE = State.config.autoResumeDelay || 5000;
+    const autoResumeEnabled = AUTO_RESUME_VALUE > 0;
+    const isEntry = eventType === 'IN';
+    const greeting = isEntry ? I18n.t('welcome.greeting_in') : I18n.t('welcome.greeting_out');
+    const entryIcon = isEntry ? '👋' : '🎒';
+    const actionLabel = isEntry ? 'Ingreso' : 'Salida';
+
+    // Store photo URL for async loading (if available from API)
+    const studentPhotoUrl = student.photo_url;
 
     app.innerHTML = `
-      <div class="welcome-screen">
+      <div class="welcome-screen ${isEntry ? 'welcome-entry' : 'welcome-exit'}">
         <div class="welcome-card">
           <div class="capture-flash"></div>
-          <img src="assets/placeholder_photo.jpg" alt="Foto" class="welcome-photo">
-          <div class="welcome-name">${student.full_name}</div>
-          <div class="welcome-message">${greeting}</div>
-          <div class="welcome-time">${UI.formatTime(timestamp)}</div>
+          <div class="welcome-type-badge ${isEntry ? 'badge-entry' : 'badge-exit'}">
+            <span class="badge-icon">${entryIcon}</span>
+            <span class="badge-text">${actionLabel}</span>
+          </div>
+          <img id="student-photo" src="assets/placeholder_photo.jpg" alt="Foto" class="welcome-photo">
+          <div class="welcome-name">${UI.escapeHtml(student.full_name)}</div>
+          <div class="welcome-message ${isEntry ? 'message-entry' : 'message-exit'}">${greeting}</div>
+          <div class="welcome-time ${isEntry ? 'time-entry' : 'time-exit'}">${UI.formatTime(timestamp)}</div>
           <div class="welcome-source">${sourceIcon} ${I18n.t('welcome.detected_by')} ${source}</div>
           ${autoResumeEnabled ? `
             <div class="auto-resume-indicator" id="auto-resume-indicator">
-              <div class="auto-resume-progress" id="auto-resume-progress"></div>
-              <span class="auto-resume-text">${I18n.t('welcome.returning_in')} <span id="auto-resume-countdown">${Math.ceil(AUTO_RESUME_MS / 1000)}</span>s...</span>
+              <div class="auto-resume-progress ${isEntry ? 'progress-entry' : 'progress-exit'}" id="auto-resume-progress"></div>
+              <span class="auto-resume-text">${I18n.t('welcome.returning_in')} <span id="auto-resume-countdown">${Math.ceil(AUTO_RESUME_VALUE / 1000)}</span>s...</span>
             </div>
           ` : ''}
-          <button class="btn btn-secondary" style="margin-top: 1rem" onclick="Views.home.resumeScan()">
+          <button class="btn ${isEntry ? 'btn-success' : 'btn-error'}" style="margin-top: 1rem" onclick="Views.home.resumeScan()">
             ${autoResumeEnabled ? I18n.t('welcome.scan_now') : I18n.t('welcome.scan_next')}
           </button>
         </div>
       </div>
     `;
+
+    // Load student photo with device key authentication (if URL available)
+    if (studentPhotoUrl) {
+      Sync.loadImageWithDeviceKey(studentPhotoUrl).then(blobUrl => {
+        const img = document.getElementById('student-photo');
+        if (img && blobUrl) {
+          img.src = blobUrl;
+        }
+      }).catch(err => {
+        console.error('Error loading student photo:', err);
+        // Keep placeholder on error
+      });
+    }
 
     // Enqueue event automatically
     const event = {
@@ -421,18 +470,18 @@ Views.home = function() {
 
     // Start auto-resume countdown if enabled
     if (autoResumeEnabled) {
-      startAutoResumeCountdown();
+      startAutoResumeCountdown(AUTO_RESUME_VALUE);
     }
   }
 
-  function startAutoResumeCountdown() {
+  function startAutoResumeCountdown(resumeDelayMs) {
     const progressEl = document.getElementById('auto-resume-progress');
     const countdownEl = document.getElementById('auto-resume-countdown');
-    let remaining = AUTO_RESUME_MS;
+    let remaining = resumeDelayMs;
 
     // Animate progress bar
     if (progressEl) {
-      progressEl.style.transition = `width ${AUTO_RESUME_MS}ms linear`;
+      progressEl.style.transition = `width ${resumeDelayMs}ms linear`;
       setTimeout(() => {
         progressEl.style.width = '100%';
       }, 50);
@@ -452,7 +501,7 @@ Views.home = function() {
       if (scanningState === 'showing_result') {
         Views.home.resumeScan();
       }
-    }, AUTO_RESUME_MS);
+    }, resumeDelayMs);
   }
 
   function showManualInput() {

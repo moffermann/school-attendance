@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     redis_url: str = Field("redis://localhost:6379/0", env="REDIS_URL")
 
     s3_endpoint: str = Field("http://localhost:9000", env="S3_ENDPOINT")
+    s3_public_url: str | None = Field(
+        None,
+        env="S3_PUBLIC_URL",
+        description="Public URL for S3/MinIO (for presigned URLs accessible from external devices)"
+    )
     s3_bucket: str = Field("attendance-photos", env="S3_BUCKET")
     s3_access_key: str = Field("dev-access", env="S3_ACCESS_KEY")
     s3_secret_key: str = Field("dev-secret", env="S3_SECRET_KEY")

@@ -11,6 +11,14 @@ class AttendanceType(str, Enum):
     OUT = "OUT"
 
 
+class AttendanceSource(str, Enum):
+    """Method used to register attendance."""
+    BIOMETRIC = "BIOMETRIC"  # WebAuthn/Passkey fingerprint
+    QR = "QR"                # QR code scan
+    NFC = "NFC"              # NFC card/tag
+    MANUAL = "MANUAL"        # Manual entry by staff
+
+
 class AttendanceEventCreate(BaseModel):
     student_id: int
     device_id: str = Field(..., max_length=64)
@@ -20,6 +28,7 @@ class AttendanceEventCreate(BaseModel):
     photo_ref: str | None = None
     audio_ref: str | None = None
     local_seq: int | None = None
+    source: AttendanceSource | None = None  # BIOMETRIC, QR, NFC, MANUAL
 
     @field_validator("occurred_at")
     @classmethod
@@ -43,3 +52,4 @@ class AttendanceEventCreate(BaseModel):
 class AttendanceEventRead(AttendanceEventCreate):
     id: int
     synced_at: datetime | None = None
+    source: AttendanceSource | None = None

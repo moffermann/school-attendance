@@ -1,4 +1,7 @@
 // Director Students Management
+// Counter for race condition protection when loading photos
+let photoLoadCounter = 0;
+
 Views.directorStudents = function() {
   const app = document.getElementById('app');
   app.innerHTML = Components.createLayout(State.currentRole);
@@ -198,13 +201,15 @@ Views.directorStudents = function() {
     Router.navigate('/director/guardians');
   };
 
-  Views.directorStudents.saveStudent = function(studentId = null) {
+  Views.directorStudents.saveStudent = async function(studentId = null) {
     const name = document.getElementById('student-name').value.trim();
     const courseId = parseInt(document.getElementById('student-course').value);
-    const rut = document.getElementById('student-rut')?.value.trim() || '';
+    const nationalId = document.getElementById('student-rut')?.value.trim() || '';
     const photoOptIn = document.getElementById('student-photo').checked;
     const guardianSelect = document.getElementById('student-guardian');
     const guardianId = guardianSelect ? parseInt(guardianSelect.value) || null : null;
+    const photoFileInput = document.getElementById('student-photo-file');
+    const photoFile = photoFileInput?.files?.[0] || null;
 
     if (!name || !courseId) {
       Components.showToast('Complete los campos requeridos', 'error');
@@ -214,18 +219,28 @@ Views.directorStudents = function() {
     const studentData = {
       full_name: name,
       course_id: courseId,
-      rut: rut,
+      national_id: nationalId,
       photo_pref_opt_in: photoOptIn
     };
 
     let newStudentId = studentId;
     if (studentId) {
       State.updateStudent(studentId, studentData);
-      Components.showToast('Alumno actualizado correctamente', 'success');
     } else {
       const newStudent = State.addStudent(studentData);
       newStudentId = newStudent.id;
-      Components.showToast('Alumno creado correctamente', 'success');
+    }
+
+    // Upload photo if a new one was selected
+    if (photoFile && newStudentId) {
+      try {
+        Components.showToast('Subiendo foto...', 'info', 2000);
+        await API.uploadStudentPhoto(newStudentId, photoFile);
+        Components.showToast('Foto subida correctamente', 'success');
+      } catch (e) {
+        console.error('Error uploading photo:', e);
+        Components.showToast(e.message || 'Error al subir la foto', 'error');
+      }
     }
 
     // Handle guardian association
@@ -256,14 +271,27 @@ Views.directorStudents = function() {
       }
     }
 
+    Components.showToast(studentId ? 'Alumno actualizado correctamente' : 'Alumno creado correctamente', 'success');
     document.querySelector('.modal-container').click(); // Close modal
     filteredStudents = State.getStudents();
     renderStudents();
   };
 
-  Views.directorStudents.showEditForm = function(studentId) {
+  Views.directorStudents.showEditForm = async function(studentId) {
     const student = State.getStudent(studentId);
     if (!student) return;
+
+    // Try to get photo URL from backend if available
+    let photoPreviewUrl = null;
+    try {
+      const studentDetails = await API.getStudent(studentId);
+      photoPreviewUrl = studentDetails.photo_presigned_url;
+    } catch (e) {
+      console.log('Could not fetch student photo details:', e);
+    }
+
+    // Generate unique ID for this photo load (race condition protection)
+    const currentPhotoLoadId = ++photoLoadCounter;
 
     const coursesOptions = courses.map(c =>
       `<option value="${c.id}" ${c.id === student.course_id ? 'selected' : ''}>${Components.escapeHtml(c.name)} - ${Components.escapeHtml(c.grade)}</option>`
@@ -276,8 +304,40 @@ Views.directorStudents = function() {
       `<option value="${g.id}" ${currentGuardian && currentGuardian.id === g.id ? 'selected' : ''}>${Components.escapeHtml(g.full_name)} (${Components.escapeHtml(g.email || 'sin email')})</option>`
     ).join('');
 
+    // Build photo HTML with loading state if URL exists
+    const photoHTML = photoPreviewUrl
+      ? `<div style="position: relative; display: inline-block; width: 100%; height: 100%;">
+           <img id="photo-preview" src="" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.3;" data-loading="true">
+           <div id="photo-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px;">⏳</div>
+         </div>`
+      : `<span id="photo-placeholder" style="font-size: 2rem; color: var(--color-gray-400);">📷</span>`;
+
     Components.showModal('Editar Alumno', `
       <form id="student-form">
+        <!-- Photo Upload Section -->
+        <div class="form-group">
+          <label class="form-label">Foto del Alumno</label>
+          <div style="display: flex; gap: 1rem; align-items: flex-start;">
+            <div id="photo-preview-container" style="width: 100px; height: 100px; border: 2px dashed var(--color-gray-300); border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--color-gray-50);">
+              ${photoHTML}
+            </div>
+            <div style="flex: 1;">
+              <input type="file" id="student-photo-file" accept="image/jpeg,image/png,image/webp" style="display: none;" onchange="Views.directorStudents.previewPhoto(this)">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('student-photo-file').click()">
+                ${photoPreviewUrl ? '📷 Cambiar foto' : '📷 Subir foto'}
+              </button>
+              ${photoPreviewUrl ? `
+                <button type="button" class="btn btn-error btn-sm" onclick="Views.directorStudents.removePhotoPreview(${studentId})" style="margin-left: 0.5rem;">
+                  🗑️ Eliminar
+                </button>
+              ` : ''}
+              <small style="color: var(--color-gray-500); display: block; margin-top: 0.5rem;">
+                Formatos: JPG, PNG, WebP. Máximo: 5MB
+              </small>
+            </div>
+          </div>
+        </div>
+
         <div class="form-group">
           <label class="form-label">Nombre Completo *</label>
           <input type="text" id="student-name" class="form-input" required value="${Components.escapeHtml(student.full_name)}">
@@ -290,7 +350,7 @@ Views.directorStudents = function() {
         </div>
         <div class="form-group">
           <label class="form-label">RUT o N° Matrícula</label>
-          <input type="text" id="student-rut" class="form-input" value="${Components.escapeHtml(student.rut || '')}" placeholder="Ej: 12.345.678-9 o MAT-2024-001">
+          <input type="text" id="student-rut" class="form-input" value="${Components.escapeHtml(student.national_id || '')}" placeholder="Ej: 12.345.678-9 o MAT-2024-001">
           <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
             Identificador único del alumno en el colegio
           </small>
@@ -324,6 +384,62 @@ Views.directorStudents = function() {
       { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
       { label: 'Guardar', action: 'save', className: 'btn-primary', onClick: () => Views.directorStudents.saveStudent(studentId) }
     ]);
+
+    // Load photo with authentication after modal is rendered
+    if (photoPreviewUrl) {
+      API.loadAuthenticatedImage(photoPreviewUrl).then(blobUrl => {
+        // Verify no navigation occurred during load (race condition protection)
+        if (photoLoadCounter !== currentPhotoLoadId) return;
+
+        const img = document.getElementById('photo-preview');
+        const loading = document.getElementById('photo-loading');
+
+        if (img && blobUrl) {
+          img.src = blobUrl;
+          img.style.opacity = '1';
+          img.removeAttribute('data-loading');
+        }
+        if (loading) loading.remove();
+      }).catch(err => {
+        console.error('Error loading photo:', err);
+        const loading = document.getElementById('photo-loading');
+        if (loading) loading.innerHTML = '❌';
+      });
+    }
+  };
+
+  // Preview photo before upload
+  Views.directorStudents.previewPhoto = function(input) {
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+
+      // Validate file size (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        Components.showToast('La imagen es demasiado grande. Máximo 5MB', 'error');
+        input.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const container = document.getElementById('photo-preview-container');
+        container.innerHTML = `<img id="photo-preview" src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Remove photo preview and mark for deletion
+  Views.directorStudents.removePhotoPreview = async function(studentId) {
+    try {
+      await API.deleteStudentPhoto(studentId);
+      const container = document.getElementById('photo-preview-container');
+      container.innerHTML = `<span id="photo-placeholder" style="font-size: 2rem; color: var(--color-gray-400);">📷</span>`;
+      document.getElementById('student-photo-file').value = '';
+      Components.showToast('Foto eliminada', 'success');
+    } catch (e) {
+      Components.showToast(e.message || 'Error al eliminar foto', 'error');
+    }
   };
 
   Views.directorStudents.confirmDelete = function(studentId) {
@@ -351,11 +467,23 @@ Views.directorStudents = function() {
     ]);
   };
 
-  Views.directorStudents.viewProfile = function(studentId) {
+  Views.directorStudents.viewProfile = async function(studentId) {
     const student = State.getStudent(studentId);
     const course = State.getCourse(student.course_id);
     const guardians = State.getGuardians().filter(g => g.student_ids.includes(studentId));
     const stats = State.getStudentAttendanceStats(studentId);
+
+    // Try to get photo URL from backend
+    let photoUrl = null;
+    try {
+      const studentDetails = await API.getStudent(studentId);
+      photoUrl = studentDetails.photo_presigned_url;
+    } catch (e) {
+      console.log('Could not fetch student photo:', e);
+    }
+
+    // Generate unique ID for this photo load (race condition protection)
+    const currentPhotoLoadId = ++photoLoadCounter;
 
     const guardiansHTML = guardians.map(g => `
       <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--color-gray-100);">
@@ -366,15 +494,28 @@ Views.directorStudents = function() {
       </li>
     `).join('');
 
+    // Build photo HTML with loading state if URL exists
+    const photoHTML = photoUrl
+      ? `<div style="position: relative; display: inline-block;">
+           <img id="profile-photo" src="" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 3px solid var(--color-primary); opacity: 0.3;" data-loading="true">
+           <div id="profile-photo-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px;">⏳</div>
+         </div>`
+      : `<div style="width: 120px; height: 120px; border-radius: 50%; background: var(--color-gray-200); display: flex; align-items: center; justify-content: center; font-size: 3rem; color: var(--color-gray-400);">👤</div>`;
+
     Components.showModal(`Perfil - ${student.full_name}`, `
       <div class="card mb-2">
         <div class="card-header">Información Básica</div>
         <div class="card-body">
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
-            <div><strong>Nombre:</strong><br>${Components.escapeHtml(student.full_name)}</div>
-            <div><strong>Curso:</strong><br>${course ? Components.escapeHtml(course.name + ' - ' + course.grade) : '-'}</div>
-            <div><strong>RUT/Matrícula:</strong><br>${student.rut || 'No registrado'}</div>
-            <div><strong>ID Sistema:</strong><br><span style="font-family: monospace; color: var(--color-gray-500);">#${student.id}</span> <small style="color: var(--color-gray-400);">(auto)</small></div>
+          <div style="display: flex; gap: 1.5rem; align-items: flex-start;">
+            <div style="flex-shrink: 0;">
+              ${photoHTML}
+            </div>
+            <div style="flex: 1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+              <div><strong>Nombre:</strong><br>${Components.escapeHtml(student.full_name)}</div>
+              <div><strong>Curso:</strong><br>${course ? Components.escapeHtml(course.name + ' - ' + course.grade) : '-'}</div>
+              <div><strong>RUT/Matrícula:</strong><br>${student.national_id || 'No registrado'}</div>
+              <div><strong>ID Sistema:</strong><br><span style="font-family: monospace; color: var(--color-gray-500);">#${student.id}</span> <small style="color: var(--color-gray-400);">(auto)</small></div>
+            </div>
           </div>
         </div>
       </div>
@@ -430,6 +571,28 @@ Views.directorStudents = function() {
         Views.directorStudents.viewAttendance(studentId);
       }}
     ]);
+
+    // Load photo with authentication after modal is rendered
+    if (photoUrl) {
+      API.loadAuthenticatedImage(photoUrl).then(blobUrl => {
+        // Verify no navigation occurred during load (race condition protection)
+        if (photoLoadCounter !== currentPhotoLoadId) return;
+
+        const img = document.getElementById('profile-photo');
+        const loading = document.getElementById('profile-photo-loading');
+
+        if (img && blobUrl) {
+          img.src = blobUrl;
+          img.style.opacity = '1';
+          img.removeAttribute('data-loading');
+        }
+        if (loading) loading.remove();
+      }).catch(err => {
+        console.error('Error loading profile photo:', err);
+        const loading = document.getElementById('profile-photo-loading');
+        if (loading) loading.innerHTML = '❌';
+      });
+    }
   };
 
   Views.directorStudents.viewAttendance = function(studentId) {

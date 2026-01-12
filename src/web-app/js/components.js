@@ -723,7 +723,7 @@ const Components = {
           <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
             <div><strong>Nombre:</strong><br>${this.escapeHtml(student.full_name)}</div>
             <div><strong>Curso:</strong><br>${course ? this.escapeHtml(course.name + ' - ' + course.grade) : '-'}</div>
-            <div><strong>RUT/Matrícula:</strong><br>${student.rut || 'No registrado'}</div>
+            <div><strong>RUT/Matrícula:</strong><br>${student.national_id || 'No registrado'}</div>
             <div><strong>ID Sistema:</strong><br><span style="font-family: monospace; color: var(--color-gray-500);">#${student.id}</span></div>
           </div>
         </div>

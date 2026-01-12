@@ -74,7 +74,7 @@ test.describe('NFCEnrollment Service - Unit Tests', () => {
 
   test('buildStudentRecords() should return array with 3 records', async ({ page }) => {
     const records = await page.evaluate(() => {
-      const student = { id: 1, full_name: 'Test Student', rut: '12345678-9', course_id: 1 };
+      const student = { id: 1, full_name: 'Test Student', national_id: '12345678-9', course_id: 1 };
       const course = { id: 1, name: '1A', grade: '1ro Basico' };
       const guardians = [{ full_name: 'Parent Name', contacts: [] }];
       const token = 'test_token_123';
@@ -88,7 +88,7 @@ test.describe('NFCEnrollment Service - Unit Tests', () => {
 
   test('buildStudentRecords() URL should contain token', async ({ page }) => {
     const records = await page.evaluate(() => {
-      const student = { id: 1, full_name: 'Test Student', rut: '12345678-9' };
+      const student = { id: 1, full_name: 'Test Student', national_id: '12345678-9' };
       const course = { id: 1, name: '1A', grade: '1ro' };
       const guardians = [];
       const token = 'unique_test_token';
@@ -99,7 +99,7 @@ test.describe('NFCEnrollment Service - Unit Tests', () => {
 
   test('buildStudentRecords() text should contain valid JSON', async ({ page }) => {
     const textRecord = await page.evaluate(() => {
-      const student = { id: 1, full_name: 'Maria Garcia', rut: '12345678-9' };
+      const student = { id: 1, full_name: 'Maria Garcia', national_id: '12345678-9' };
       const course = { id: 1, name: '1A', grade: '1ro' };
       const guardians = [{ full_name: 'Pedro Garcia', contacts: [{type: 'email', value: 'test@test.com'}] }];
       const token = 'test_token';
@@ -111,7 +111,7 @@ test.describe('NFCEnrollment Service - Unit Tests', () => {
     expect(parsed.type).toBe('student');
     expect(parsed.id).toBe(1);
     expect(parsed.name).toBe('Maria Garcia');
-    expect(parsed.rut).toBe('12345678-9');
+    expect(parsed.national_id).toBe('12345678-9');
     expect(parsed.guardians).toHaveLength(1);
     expect(parsed.school).toHaveProperty('name');
     expect(parsed.enrolled_at).toBeDefined();
@@ -119,7 +119,7 @@ test.describe('NFCEnrollment Service - Unit Tests', () => {
 
   test('buildStudentRecords() vCard should contain student name', async ({ page }) => {
     const vcardRecord = await page.evaluate(() => {
-      const student = { id: 1, full_name: 'Juan Perez', rut: '12345678-9' };
+      const student = { id: 1, full_name: 'Juan Perez', national_id: '12345678-9' };
       const course = { id: 1, name: '1A', grade: '1ro' };
       const guardians = [];
       const token = 'test_token';
@@ -316,7 +316,7 @@ test.describe('NFCEnrollment - Data Integrity', () => {
       const student = {
         id: 42,
         full_name: 'Complete Student',
-        rut: '12.345.678-9',
+        national_id: '12.345.678-9',
         course_id: 1,
         email: 'student@email.com'
       };
@@ -334,7 +334,7 @@ test.describe('NFCEnrollment - Data Integrity', () => {
     expect(data.id).toBe(42);
     expect(data.token).toBe('test_token');
     expect(data.name).toBe('Complete Student');
-    expect(data.rut).toBe('12.345.678-9');
+    expect(data.national_id).toBe('12.345.678-9');
     expect(data.course.name).toBe('1A');
     expect(data.course.grade).toBe('1ro Basico');
     expect(data.guardians).toHaveLength(2);
@@ -376,7 +376,7 @@ test.describe('NFCEnrollment - Data Integrity', () => {
 
   test('vCard should contain lost & found message', async ({ page }) => {
     const vcard = await page.evaluate(() => {
-      const student = { id: 1, full_name: 'Test', rut: '1-9' };
+      const student = { id: 1, full_name: 'Test', national_id: '1-9' };
       const course = { id: 1, name: '1A', grade: '1ro' };
       const records = NFCEnrollment.buildStudentRecords(student, course, [], 'token');
       return records[2].data;
@@ -387,7 +387,7 @@ test.describe('NFCEnrollment - Data Integrity', () => {
 
   test('URL record should use window.location.origin', async ({ page }) => {
     const urlRecord = await page.evaluate(() => {
-      const student = { id: 1, full_name: 'Test', rut: '1-9' };
+      const student = { id: 1, full_name: 'Test', national_id: '1-9' };
       const course = { id: 1, name: '1A', grade: '1ro' };
       const records = NFCEnrollment.buildStudentRecords(student, course, [], 'mytoken');
       return records[0].data;
@@ -402,14 +402,14 @@ test.describe('NFCEnrollment - Edge Cases', () => {
     await setupPage(page);
   });
 
-  test('should handle student without RUT', async ({ page }) => {
+  test('should handle student without national_id', async ({ page }) => {
     const data = await page.evaluate(() => {
-      const student = { id: 1, full_name: 'No RUT Student', course_id: 1 };
+      const student = { id: 1, full_name: 'No ID Student', course_id: 1 };
       const course = { id: 1, name: '1A', grade: '1ro' };
       const records = NFCEnrollment.buildStudentRecords(student, course, [], 'token');
       return JSON.parse(records[1].data);
     });
-    expect(data.rut).toBe('');
+    expect(data.national_id).toBe('');
   });
 
   test('should handle student without course', async ({ page }) => {
@@ -453,7 +453,7 @@ test.describe('NFCEnrollment - Edge Cases', () => {
 
   test('should handle special characters in names', async ({ page }) => {
     const data = await page.evaluate(() => {
-      const student = { id: 1, full_name: "María José O'Connor", rut: '12.345.678-K' };
+      const student = { id: 1, full_name: "María José O'Connor", national_id: '12.345.678-K' };
       const course = { id: 1, name: '1°A', grade: '1° Básico' };
       const guardians = [{ full_name: 'José "Pepe" García', contacts: [] }];
       const records = NFCEnrollment.buildStudentRecords(student, course, guardians, 'token');

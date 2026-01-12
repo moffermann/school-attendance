@@ -1,11 +1,14 @@
 """Kiosk device endpoints for provisioning and data sync."""
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from loguru import logger
 from pydantic import BaseModel
 
 from app.core import deps
 from app.core.rate_limiter import limiter
+from app.db.repositories.attendance import AttendanceRepository
 from app.db.repositories.students import StudentRepository
 from app.db.repositories.tags import TagRepository
 from app.db.repositories.teachers import TeacherRepository
@@ -20,7 +23,7 @@ class KioskStudentRead(BaseModel):
     id: int
     full_name: str
     course_id: int | None = None
-    photo_ref: str | None = None
+    photo_url: str | None = None  # Presigned URL for immediate display
     photo_pref_opt_in: bool = False
     # New field: "photo", "audio", or "none"
     evidence_preference: str = "none"
@@ -45,11 +48,20 @@ class KioskTeacherRead(BaseModel):
     full_name: str
 
 
+class KioskTodayEventRead(BaseModel):
+    """Today's attendance event for IN/OUT state tracking."""
+    id: int
+    student_id: int
+    type: str  # 'IN' or 'OUT'
+    ts: str  # ISO timestamp
+
+
 class KioskBootstrapResponse(BaseModel):
     """Bootstrap data for kiosk provisioning."""
     students: list[KioskStudentRead]
     tags: list[KioskTagRead]
     teachers: list[KioskTeacherRead]
+    today_events: list[KioskTodayEventRead] = []  # Today's events for IN/OUT state
 
 
 @router.get("/bootstrap", response_model=KioskBootstrapResponse)
@@ -63,7 +75,7 @@ async def get_kiosk_bootstrap(
     Get all data needed for kiosk provisioning.
 
     Requires device API key authentication via X-Device-Key header.
-    Returns students, tags, and teachers for local caching.
+    Returns students, tags, teachers and today's events for local caching.
     """
     # Log access for audit
     logger.info(
@@ -80,20 +92,32 @@ async def get_kiosk_bootstrap(
     student_repo = StudentRepository(session)
     tag_repo = TagRepository(session)
     teacher_repo = TeacherRepository(session)
+    attendance_repo = AttendanceRepository(session)
 
     # Get all students
     students_raw = await student_repo.list_all()
-    students = [
-        KioskStudentRead(
+
+    # Build photo proxy URLs for students with photos
+    # Uses /api/v1/photos/{key} endpoint which proxies through the API server
+    # This allows kiosk devices to access photos through the tunnel
+    from app.core.config import settings
+    base_url = str(settings.public_base_url).rstrip('/')
+
+    students = []
+    for s in students_raw:
+        photo_url = None
+        if s.photo_url:
+            # Use proxy URL instead of presigned URL
+            photo_url = f"{base_url}/api/v1/photos/{s.photo_url}"
+
+        students.append(KioskStudentRead(
             id=s.id,
             full_name=s.full_name,
             course_id=s.course_id,
-            photo_ref=getattr(s, "photo_ref", None),
+            photo_url=photo_url,
             photo_pref_opt_in=s.photo_pref_opt_in,
             evidence_preference=getattr(s, "effective_evidence_preference", "none"),
-        )
-        for s in students_raw
-    ]
+        ))
 
     # Get all tags - map DB fields to kiosk format
     # DB uses tag_token_preview, kiosk uses token
@@ -119,10 +143,24 @@ async def get_kiosk_bootstrap(
         for t in teachers_raw
     ]
 
+    # Get today's events for IN/OUT state tracking
+    today = date.today()
+    today_events_raw = await attendance_repo.list_by_date(today)
+    today_events = [
+        KioskTodayEventRead(
+            id=e.id,
+            student_id=e.student_id,
+            type=e.type,
+            ts=e.occurred_at.isoformat() if e.occurred_at else "",
+        )
+        for e in today_events_raw
+    ]
+
     return KioskBootstrapResponse(
         students=students,
         tags=tags,
         teachers=teachers,
+        today_events=today_events,
     )
 
 
@@ -133,7 +171,7 @@ async def get_kiosk_students(
     session: AsyncSession = Depends(deps.get_tenant_db),
     device_authenticated: bool = Depends(deps.verify_device_key),
 ) -> list[KioskStudentRead]:
-    """Get all students for kiosk."""
+    """Get all students for kiosk with photo proxy URLs."""
     if not device_authenticated:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -143,17 +181,26 @@ async def get_kiosk_students(
     student_repo = StudentRepository(session)
     students_raw = await student_repo.list_all()
 
-    return [
-        KioskStudentRead(
+    # Build photo proxy URLs for students with photos
+    from app.core.config import settings
+    base_url = str(settings.public_base_url).rstrip('/')
+
+    students = []
+    for s in students_raw:
+        photo_url = None
+        if s.photo_url:
+            photo_url = f"{base_url}/api/v1/photos/{s.photo_url}"
+
+        students.append(KioskStudentRead(
             id=s.id,
             full_name=s.full_name,
             course_id=s.course_id,
-            photo_ref=getattr(s, "photo_ref", None),
+            photo_url=photo_url,
             photo_pref_opt_in=s.photo_pref_opt_in,
             evidence_preference=getattr(s, "effective_evidence_preference", "none"),
-        )
-        for s in students_raw
-    ]
+        ))
+
+    return students
 
 
 @router.get("/tags", response_model=list[KioskTagRead])
@@ -207,4 +254,36 @@ async def get_kiosk_teachers(
             full_name=t.full_name,
         )
         for t in teachers_raw
+    ]
+
+
+@router.get("/today-events", response_model=list[KioskTodayEventRead])
+@limiter.limit("30/minute")
+async def get_kiosk_today_events(
+    request: Request,
+    session: AsyncSession = Depends(deps.get_tenant_db),
+    device_authenticated: bool = Depends(deps.verify_device_key),
+) -> list[KioskTodayEventRead]:
+    """Get today's attendance events for IN/OUT state tracking.
+
+    Called after cache clear to restore proper IN/OUT alternation.
+    """
+    if not device_authenticated:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Device key inválida"
+        )
+
+    attendance_repo = AttendanceRepository(session)
+    today = date.today()
+    events_raw = await attendance_repo.list_by_date(today)
+
+    return [
+        KioskTodayEventRead(
+            id=e.id,
+            student_id=e.student_id,
+            type=e.type,
+            ts=e.occurred_at.isoformat() if e.occurred_at else "",
+        )
+        for e in events_raw
     ]

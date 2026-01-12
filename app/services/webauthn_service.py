@@ -1,5 +1,6 @@
 """WebAuthn service for biometric authentication."""
 
+import json
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -140,7 +141,7 @@ class WebAuthnService:
 
         return {
             "challenge_id": challenge_id,
-            "options": options_to_json(options),
+            "options": json.loads(options_to_json(options)),
         }
 
     async def complete_student_registration(
@@ -260,7 +261,7 @@ class WebAuthnService:
 
         return {
             "challenge_id": challenge_id,
-            "options": options_to_json(options),
+            "options": json.loads(options_to_json(options)),
         }
 
     async def verify_student_authentication(
@@ -332,8 +333,8 @@ class WebAuthnService:
         )
         await self.session.commit()
 
-        # Return the student
-        student = await self.student_repo.get(credential.student_id)
+        # Return the student with course eagerly loaded (avoid lazy loading issues)
+        student = await self.student_repo.get_with_course(credential.student_id)
         if not student:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -401,7 +402,7 @@ class WebAuthnService:
 
         return {
             "challenge_id": challenge_id,
-            "options": options_to_json(options),
+            "options": json.loads(options_to_json(options)),
         }
 
     async def complete_user_registration(
@@ -508,7 +509,7 @@ class WebAuthnService:
 
         return {
             "challenge_id": challenge_id,
-            "options": options_to_json(options),
+            "options": json.loads(options_to_json(options)),
         }
 
     async def verify_user_authentication(

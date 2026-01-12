@@ -64,7 +64,7 @@ const QREnrollment = {
       id: student.id,
       token: token,
       name: student.full_name,
-      rut: student.rut || '',
+      national_id: student.national_id || '',
       course: course ? { id: course.id, name: course.name, grade: course.grade } : null,
       guardians: guardians.map(g => ({
         name: g.full_name,
@@ -260,7 +260,7 @@ const QREnrollment = {
               <div class="person-name">${this._escapeHtml(data.name)}</div>
               <div class="person-role">${role}</div>
               <div class="person-subtitle">${this._escapeHtml(subtitle)}</div>
-              ${data.rut ? `<div class="person-rut">RUT: ${this._escapeHtml(data.rut)}</div>` : ''}
+              ${data.national_id ? `<div class="person-rut">ID: ${this._escapeHtml(data.national_id)}</div>` : ''}
             </div>
             <div class="footer">
               ${this._escapeHtml(data.school.address)}<br>
@@ -372,7 +372,7 @@ const QREnrollment = {
       infoHTML = `
         <div class="enrollment-info">
           <div class="info-row"><strong>Nombre:</strong> ${Components.escapeHtml(entity.full_name)}</div>
-          <div class="info-row"><strong>RUT:</strong> ${Components.escapeHtml(entity.rut || 'No registrado')}</div>
+          <div class="info-row"><strong>RUT/Matrícula:</strong> ${Components.escapeHtml(entity.national_id || 'No registrado')}</div>
           <div class="info-row"><strong>Curso:</strong> ${course ? Components.escapeHtml(course.name + ' - ' + course.grade) : 'Sin curso'}</div>
           <div class="info-row"><strong>Apoderados:</strong></div>
           <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">${guardiansText}</ul>

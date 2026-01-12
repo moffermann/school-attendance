@@ -130,7 +130,7 @@ Views.directorCourseDetail = function(courseId) {
                 ${students.map(s => `
                   <tr>
                     <td><strong>${Components.escapeHtml(s.full_name)}</strong></td>
-                    <td>${s.rut || '<span style="color: var(--color-gray-400);">-</span>'}</td>
+                    <td>${s.national_id || '<span style="color: var(--color-gray-400);">-</span>'}</td>
                     <td style="text-align: center;">
                       <button class="btn btn-secondary btn-sm" onclick="Components.showStudentProfile(${s.id})" title="Ver perfil">
                         👁️ Ver Perfil

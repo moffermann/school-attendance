@@ -169,9 +169,9 @@ async def kiosk_verify_authentication(
     return KioskAuthenticationResult(
         student_id=student.id,
         full_name=student.full_name,
-        rut=student.rut,
+        national_id=student.national_id,
         course_name=student.course.name if student.course else None,
-        photo_url=student.photo_ref,
+        photo_url=student.photo_url,
         has_photo_consent=student.photo_pref_opt_in,
     )
 
