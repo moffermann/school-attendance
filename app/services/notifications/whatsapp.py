@@ -93,6 +93,33 @@ class WhatsAppClient:
             response.raise_for_status()
             logger.info("[WhatsApp] Image message sent to=%s", mask_phone(to))
 
+    async def send_text_message(self, to: str, text: str) -> None:
+        """Send a plain text message via WhatsApp (for broadcasts)."""
+        if not settings.enable_real_notifications:
+            logger.info(
+                "[WhatsApp] Dry-run text send to=%s text=%s",
+                mask_phone(to),
+                text[:50] + "..." if len(text) > 50 else text,
+            )
+            return
+
+        headers = {
+            "Authorization": f"Bearer {self._access_token}",
+            "Content-Type": "application/json",
+        }
+        payload: dict[str, Any] = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": to,
+            "type": "text",
+            "text": {"body": text},
+        }
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(self._base_url, headers=headers, json=payload)
+            response.raise_for_status()
+            logger.info("[WhatsApp] Text message sent to=%s", mask_phone(to))
+
 
 class TenantWhatsAppClient:
     """WhatsApp client using tenant-specific credentials."""
@@ -178,3 +205,31 @@ class TenantWhatsAppClient:
             response = await client.post(self._base_url, headers=headers, json=payload)
             response.raise_for_status()
             logger.info("[WhatsApp:tenant=%s] Image sent to=%s", self._tenant_id, mask_phone(to))
+
+    async def send_text_message(self, to: str, text: str) -> None:
+        """Send a plain text message via WhatsApp (for broadcasts)."""
+        if not settings.enable_real_notifications:
+            logger.info(
+                "[WhatsApp:tenant=%s] Dry-run text send to=%s text=%s",
+                self._tenant_id,
+                mask_phone(to),
+                text[:50] + "..." if len(text) > 50 else text,
+            )
+            return
+
+        headers = {
+            "Authorization": f"Bearer {self._access_token}",
+            "Content-Type": "application/json",
+        }
+        payload: dict[str, Any] = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": to,
+            "type": "text",
+            "text": {"body": text},
+        }
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(self._base_url, headers=headers, json=payload)
+            response.raise_for_status()
+            logger.info("[WhatsApp:tenant=%s] Text sent to=%s", self._tenant_id, mask_phone(to))

@@ -283,6 +283,7 @@ class WebAppDataService:
             ts=self._format_time(event.occurred_at) or datetime.now(timezone.utc).isoformat(),
             device_id=event.device_id,
             photo_ref=event.photo_ref,
+            source=event.source,
         )
 
     def _map_device(self, device: Device) -> DeviceSummary:

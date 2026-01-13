@@ -43,6 +43,25 @@ class Settings(BaseSettings):
     ses_region: str = Field("us-east-1", env="SES_REGION")
     ses_source_email: str = Field("no-reply@example.com", env="SES_SOURCE_EMAIL")
 
+    # Email provider selection: "ses" (AWS) or "smtp" (generic)
+    email_provider: str = Field(
+        default="ses",
+        env="EMAIL_PROVIDER",
+        description="Email provider: 'ses' for AWS SES, 'smtp' for generic SMTP (Gmail, etc.)"
+    )
+
+    # SMTP Configuration (for Gmail, Google Workspace, Outlook, etc.)
+    smtp_host: str = Field(default="smtp.gmail.com", env="SMTP_HOST")
+    smtp_port: int = Field(default=587, env="SMTP_PORT")
+    smtp_user: str = Field(default="", env="SMTP_USER")
+    smtp_password: str = Field(default="", env="SMTP_PASSWORD")
+    smtp_use_tls: bool = Field(default=True, env="SMTP_USE_TLS")
+    smtp_from_name: str = Field(
+        default="Sistema de Asistencia",
+        env="SMTP_FROM_NAME",
+        description="Display name for outgoing emails"
+    )
+
     rate_limit_default: str = Field("100/minute", env="RATE_LIMIT_DEFAULT")
     enable_real_notifications: bool = Field(False, env="ENABLE_REAL_NOTIFICATIONS")
 

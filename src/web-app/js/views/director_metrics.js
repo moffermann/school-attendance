@@ -73,50 +73,151 @@ Views.directorMetrics = function() {
   setTimeout(() => drawCharts(metrics), 100);
 
   function calculateMetrics(events, students, courses) {
-    // Get unique dates
-    const dates = [...new Set(events.map(e => e.ts.split('T')[0]))].sort();
-    const last30Days = dates.slice(-30);
+    const schedules = State.getSchedules();
+    const exceptions = State.getScheduleExceptions();
 
-    // Calculate attendance rate
+    // Helper: Get last 30 calendar days (not days with events)
+    const getLast30Days = () => {
+      const days = [];
+      const today = new Date();
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        days.push(`${y}-${m}-${day}`);
+      }
+      return days;
+    };
+
+    // Helper: Check if student was late based on course schedule
+    const isLate = (eventTime, scheduleInTime) => {
+      if (!eventTime || !scheduleInTime) return false;
+      // Add 10 minutes grace period
+      const [h, m] = scheduleInTime.split(':').map(Number);
+      const graceMinutes = h * 60 + m + 10;
+      const [eh, em] = eventTime.split(':').map(Number);
+      const eventMinutes = eh * 60 + em;
+      return eventMinutes > graceMinutes;
+    };
+
+    // Helper: Get weekday (0=Monday...6=Sunday) from date string
+    const getWeekday = (dateStr) => {
+      const d = new Date(`${dateStr}T00:00:00`);
+      const jsDay = d.getDay(); // 0=Sunday
+      return jsDay === 0 ? 6 : jsDay - 1; // Convert to 0=Monday
+    };
+
+    // Helper: Get exception for a date and course (if any)
+    const getException = (courseId, dateStr) => {
+      // First check for GLOBAL exception (applies to all courses)
+      const global = exceptions.find(e => e.scope === 'GLOBAL' && e.date === dateStr);
+      if (global) return global;
+      // Then check for COURSE-specific exception
+      return exceptions.find(e => e.scope === 'COURSE' && e.course_id === courseId && e.date === dateStr);
+    };
+
+    // Helper: Check if course has class on a given date (considering exceptions)
+    const hasSchedule = (courseId, dateStr) => {
+      const weekday = getWeekday(dateStr);
+      const baseSchedule = schedules.some(s => s.course_id === courseId && s.weekday === weekday);
+      if (!baseSchedule) return false;
+
+      // Check for exception (no class if exception exists without in_time)
+      const exception = getException(courseId, dateStr);
+      if (exception && !exception.in_time) return false; // Suspended day
+      return true;
+    };
+
+    // Helper: Get schedule for course on a date (considering exceptions)
+    const getScheduleForDate = (courseId, dateStr) => {
+      const weekday = getWeekday(dateStr);
+      const baseSchedule = schedules.find(s => s.course_id === courseId && s.weekday === weekday);
+      if (!baseSchedule) return null;
+
+      // Check for exception with modified schedule
+      const exception = getException(courseId, dateStr);
+      if (exception) {
+        if (!exception.in_time) return null; // No class this day
+        // Return modified schedule from exception
+        return { ...baseSchedule, in_time: exception.in_time, out_time: exception.out_time };
+      }
+      return baseSchedule;
+    };
+
+    const last30Days = getLast30Days();
     const inEvents = events.filter(e => e.type === 'IN');
-    const uniqueStudentDays = new Set(inEvents.map(e => `${e.student_id}-${e.ts.split('T')[0]}`));
-    const totalPossibleDays = students.length * last30Days.length;
-    const attendanceRate = totalPossibleDays > 0
-      ? ((uniqueStudentDays.size / totalPossibleDays) * 100).toFixed(1)
-      : 0;
 
-    // Late events (after 08:30)
-    const lateEvents = inEvents.filter(e => {
-      const time = e.ts.split('T')[1];
-      return time > '08:30:00';
+    // Filter events to last 30 days
+    const last30DaysSet = new Set(last30Days);
+    const recentInEvents = inEvents.filter(e => last30DaysSet.has(e.ts.split('T')[0]));
+
+    // Calculate attendance rate (only count school days)
+    let totalPossibleDays = 0;
+    let totalPresentDays = 0;
+
+    students.forEach(student => {
+      last30Days.forEach(date => {
+        if (hasSchedule(student.course_id, date)) {
+          totalPossibleDays++;
+          // Check if student has IN event on this day
+          const hasAttended = recentInEvents.some(
+            e => e.student_id === student.id && e.ts.startsWith(date)
+          );
+          if (hasAttended) totalPresentDays++;
+        }
+      });
     });
 
-    // Average late per day
-    const lateDays = new Set(lateEvents.map(e => e.ts.split('T')[0]));
-    const avgLatePerDay = lateDays.size > 0 ? lateEvents.length / lateDays.size : 0;
+    const attendanceRate = totalPossibleDays > 0
+      ? ((totalPresentDays / totalPossibleDays) * 100).toFixed(1)
+      : 0;
 
-    // Late students ranking
+    // Late events (using actual course schedule)
+    const lateEvents = [];
+    recentInEvents.forEach(e => {
+      const student = students.find(s => s.id === e.student_id);
+      if (!student) return;
+      const date = e.ts.split('T')[0];
+      const time = e.ts.split('T')[1].substring(0, 5);
+      const schedule = getScheduleForDate(student.course_id, date);
+      if (schedule && isLate(time, schedule.in_time)) {
+        lateEvents.push(e);
+      }
+    });
+
+    // Average late per day (only school days)
+    const schoolDays = last30Days.filter(date =>
+      courses.some(c => hasSchedule(c.id, date))
+    );
+    const lateDays = new Set(lateEvents.map(e => e.ts.split('T')[0]));
+    const avgLatePerDay = schoolDays.length > 0 ? lateEvents.length / schoolDays.length : 0;
+
+    // Late students ranking (count unique late days, not events)
     const lateByStudent = {};
     lateEvents.forEach(e => {
-      lateByStudent[e.student_id] = (lateByStudent[e.student_id] || 0) + 1;
+      const key = `${e.student_id}-${e.ts.split('T')[0]}`;
+      if (!lateByStudent[e.student_id]) lateByStudent[e.student_id] = new Set();
+      lateByStudent[e.student_id].add(e.ts.split('T')[0]);
     });
 
     // TDD-R5-BUG1 fix: Use parseInt with radix 10
     const lateStudentsRanking = Object.entries(lateByStudent)
-      .map(([studentId, count]) => ({
+      .map(([studentId, dates]) => ({
         student: students.find(s => s.id === parseInt(studentId, 10)),
-        count
+        count: dates.size // Count unique days, not events
       }))
       .filter(x => x.student)
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // Frequent late students (more than 3)
-    const frequentLateStudents = Object.values(lateByStudent).filter(c => c > 3).length;
+    // Frequent late students (more than 3 days)
+    const frequentLateStudents = Object.values(lateByStudent).filter(dates => dates.size > 3).length;
 
-    // Days without incidents (no late arrivals)
-    const daysWithLate = new Set(lateEvents.map(e => e.ts.split('T')[0])).size;
-    const daysWithoutIncidents = Math.max(0, last30Days.length - daysWithLate);
+    // Days without incidents (no late arrivals on school days)
+    const daysWithLate = lateDays.size;
+    const daysWithoutIncidents = Math.max(0, schoolDays.length - daysWithLate);
 
     // Late by hour distribution
     const lateByHour = {};
@@ -128,42 +229,85 @@ Views.directorMetrics = function() {
     // Course metrics
     const courseMetrics = courses.map(course => {
       const courseStudents = students.filter(s => s.course_id === course.id);
-      const courseEvents = inEvents.filter(e =>
-        courseStudents.some(s => s.id === e.student_id)
-      );
-      const courseLate = courseEvents.filter(e => e.ts.split('T')[1] > '08:30:00');
+      const courseScheduleDays = last30Days.filter(date => hasSchedule(course.id, date));
+      const courseScheduleDaysSet = new Set(courseScheduleDays);
 
-      const studentDays = new Set(courseEvents.map(e => `${e.student_id}-${e.ts.split('T')[0]}`));
-      const totalDays = courseStudents.length * last30Days.length;
-      const rate = totalDays > 0 ? ((studentDays.size / totalDays) * 100).toFixed(1) : 0;
+      // Get events for this course's students ONLY on days with schedule
+      const courseEvents = recentInEvents.filter(e => {
+        const eventDate = e.ts.split('T')[0];
+        return courseStudents.some(s => s.id === e.student_id) &&
+               courseScheduleDaysSet.has(eventDate); // Only count school days
+      });
+
+      // Group events by student-day and find first IN time
+      const firstInByStudentDay = {};
+      courseEvents.forEach(e => {
+        const date = e.ts.split('T')[0];
+        const time = e.ts.split('T')[1].substring(0, 5);
+        const key = `${e.student_id}-${date}`;
+        if (!firstInByStudentDay[key] || time < firstInByStudentDay[key]) {
+          firstInByStudentDay[key] = time;
+        }
+      });
+
+      // Count student-days with attendance (unique student-day pairs)
+      const studentDaysPresent = Object.keys(firstInByStudentDay).length;
+
+      // Count late student-days (where first IN was after schedule + grace)
+      let lateStudentDays = 0;
+      Object.entries(firstInByStudentDay).forEach(([key, firstInTime]) => {
+        const date = key.split('-').slice(1).join('-'); // Extract date from "studentId-YYYY-MM-DD"
+        const schedule = getScheduleForDate(course.id, date);
+        if (schedule && isLate(firstInTime, schedule.in_time)) {
+          lateStudentDays++;
+        }
+      });
+
+      // totalDays = alumnos × días con clase
+      const totalDays = courseStudents.length * courseScheduleDays.length;
+      const rate = totalDays > 0 ? ((studentDaysPresent / totalDays) * 100).toFixed(1) : 0;
 
       return {
         course,
         students: courseStudents.length,
         attendanceRate: rate,
-        totalLate: courseLate.length,
-        avgLate: courseStudents.length > 0 ? (courseLate.length / courseStudents.length).toFixed(2) : 0
+        totalLate: lateStudentDays,
+        avgLate: courseStudents.length > 0 ? (lateStudentDays / courseStudents.length).toFixed(2) : 0
       };
     });
 
-    // Risk students (>3 absences or >5 late in month)
+    // Risk students (>3 absences or >5 late days in month)
     const riskStudents = students.map(student => {
-      const studentEvents = inEvents.filter(e => e.student_id === student.id);
-      const studentLate = studentEvents.filter(e => e.ts.split('T')[1] > '08:30:00').length;
-      const studentDays = new Set(studentEvents.map(e => e.ts.split('T')[0])).size;
-      const absences = Math.max(0, last30Days.length - studentDays);
+      const studentScheduleDays = last30Days.filter(date => hasSchedule(student.course_id, date));
+      const studentEvents = recentInEvents.filter(e => e.student_id === student.id);
+      const studentPresentDays = new Set(studentEvents.map(e => e.ts.split('T')[0])).size;
+      const absences = Math.max(0, studentScheduleDays.length - studentPresentDays);
+
+      // Count late days
+      let lateDays = 0;
+      studentEvents.forEach(e => {
+        const date = e.ts.split('T')[0];
+        const time = e.ts.split('T')[1].substring(0, 5);
+        const schedule = getScheduleForDate(student.course_id, date);
+        if (schedule && isLate(time, schedule.in_time)) {
+          lateDays++;
+        }
+      });
 
       return {
         student,
         absences,
-        lateCount: studentLate,
-        isRisk: absences > 3 || studentLate > 5
+        lateCount: lateDays,
+        isRisk: absences > 3 || lateDays > 5
       };
     }).filter(x => x.isRisk);
 
-    // Daily attendance trend
+    // Daily attendance trend (only school days)
     const dailyTrend = last30Days.map(date => {
-      const dayEvents = inEvents.filter(e => e.ts.startsWith(date));
+      // Only count if it's a school day for at least one course
+      const isSchoolDay = courses.some(c => hasSchedule(c.id, date));
+      if (!isSchoolDay) return 0;
+      const dayEvents = recentInEvents.filter(e => e.ts.startsWith(date));
       return new Set(dayEvents.map(e => e.student_id)).size;
     });
 
@@ -177,7 +321,10 @@ Views.directorMetrics = function() {
       courseMetrics,
       riskStudents,
       dailyTrend,
-      trendLabels: last30Days.map(d => d.substring(5)) // MM-DD format
+      trendLabels: last30Days.map(d => {
+        const dt = new Date(`${d}T00:00:00`);
+        return `${dt.getDate()}/${dt.getMonth() + 1}`;
+      })
     };
   }
 
@@ -254,7 +401,9 @@ Views.directorMetrics = function() {
       // Sample every 3rd day for readability
       const sampledData = metrics.dailyTrend.filter((_, i) => i % 3 === 0 || i === metrics.dailyTrend.length - 1);
       const sampledLabels = metrics.trendLabels.filter((_, i) => i % 3 === 0 || i === metrics.trendLabels.length - 1);
-      Components.drawLineChart(trendCanvas, sampledData, sampledLabels);
+      Components.drawLineChart(trendCanvas, sampledData, sampledLabels, {
+        yAxisLabel: 'Alumnos presentes'
+      });
     }
   }
 

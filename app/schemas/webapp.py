@@ -72,6 +72,7 @@ class AttendanceEventSummary(BaseModel):
     ts: str
     device_id: str
     photo_ref: str | None = None
+    source: str | None = None
 
 
 class DeviceSummary(BaseModel):
@@ -127,6 +128,7 @@ class DashboardEvent(BaseModel):
     device_id: str
     photo_ref: str | None = None
     photo_url: str | None = None
+    source: str | None = None
 
 
 class DashboardStats(BaseModel):

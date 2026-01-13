@@ -410,6 +410,14 @@ const State = {
       events = events.filter(e => e.ts.startsWith(filters.date));
     }
 
+    // Date range filter (startDate and endDate)
+    if (filters.startDate) {
+      events = events.filter(e => e.ts.split('T')[0] >= filters.startDate);
+    }
+    if (filters.endDate) {
+      events = events.filter(e => e.ts.split('T')[0] <= filters.endDate);
+    }
+
     if (filters.type) {
       events = events.filter(e => e.type === filters.type);
     }
@@ -590,16 +598,48 @@ const State = {
   },
 
   // Stats helpers
+
+  /**
+   * Determine if an IN event is late based on the student's course schedule.
+   * @param {Object} event - Attendance event with student_id and ts
+   * @returns {boolean} - True if the event is after the scheduled in_time
+   */
+  _isEventLate(event) {
+    // Get the student
+    const student = this.getStudent(event.student_id);
+    if (!student || !student.course_id) return false;
+
+    // Get the event's day of week (JS: 0=Sunday, 1=Monday... 6=Saturday)
+    // Schedule weekdays are 1=Monday to 5=Friday
+    const eventDate = new Date(event.ts);
+    const weekday = eventDate.getDay();
+
+    // Skip weekends - no schedule
+    if (weekday === 0 || weekday === 6) return false;
+
+    // Get schedule for this course/weekday
+    const schedule = (this.data.schedules || []).find(
+      s => s.course_id === student.course_id && s.weekday === weekday
+    );
+
+    if (!schedule || !schedule.in_time) return false;
+
+    // Compare times - event time vs schedule in_time
+    // Event time format: "HH:MM:SS" or "HH:MM:SS.ssssss"
+    // Schedule time format: "HH:MM"
+    const eventTime = event.ts.split('T')[1].substring(0, 5); // "HH:MM"
+    const scheduleTime = schedule.in_time.substring(0, 5); // "HH:MM"
+
+    return eventTime > scheduleTime;
+  },
+
   getTodayStats() {
     const events = this.getTodayEvents();
     const inEvents = events.filter(e => e.type === 'IN');
     const outEvents = events.filter(e => e.type === 'OUT');
 
-    // Count late arrivals (after 08:30)
-    const lateEvents = inEvents.filter(e => {
-      const time = e.ts.split('T')[1];
-      return time > '08:30:00';
-    });
+    // Count late arrivals based on each student's course schedule
+    const lateEvents = inEvents.filter(e => this._isEventLate(e));
 
     // Students without IN event
     const studentsWithIn = new Set(inEvents.map(e => e.student_id));
@@ -1004,7 +1044,7 @@ const State = {
       percentage,
       inEvents: events.filter(e => e.type === 'IN').length,
       outEvents: events.filter(e => e.type === 'OUT').length,
-      lateArrivals: events.filter(e => e.type === 'IN' && e.ts.split('T')[1] > '08:30:00').length
+      lateArrivals: events.filter(e => e.type === 'IN' && this._isEventLate(e)).length
     };
   },
 

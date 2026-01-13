@@ -100,8 +100,8 @@ Dirección</textarea>
             <button type="button" class="btn btn-secondary" onclick="Views.directorBroadcast.showPreview()">
               Vista Previa
             </button>
-            <button type="button" class="btn btn-primary" onclick="Views.directorBroadcast.sendBroadcast()">
-              Simular Envío
+            <button type="button" id="btn-send-broadcast" class="btn btn-primary" onclick="Views.directorBroadcast.sendBroadcast()">
+              📤 Enviar Comunicado
             </button>
           </div>
         </form>
@@ -215,7 +215,7 @@ Dirección`
   // TDD-R8-BUG3 fix: Flag to prevent double-click during send
   let isSending = false;
 
-  Views.directorBroadcast.sendBroadcast = function() {
+  Views.directorBroadcast.sendBroadcast = async function() {
     // Prevent double-click during send
     if (isSending) return;
 
@@ -225,84 +225,98 @@ Dirección`
       return;
     }
 
-    isSending = true;
-    const sendBtn = document.querySelector('[onclick*="sendBroadcast"]');
-    if (sendBtn) sendBtn.disabled = true;
-
+    // Get form values
+    const subject = document.getElementById('broadcast-subject').value.trim();
+    const messageRaw = document.getElementById('broadcast-message').value;
     const courseId = document.getElementById('broadcast-course').value;
+    const date = document.getElementById('broadcast-date').value || new Date().toISOString().split('T')[0];
     const whatsapp = document.getElementById('channel-whatsapp').checked;
-    // Email channel to be implemented in future
-    // const email = document.getElementById('channel-email').checked;
+    const email = document.getElementById('channel-email').checked;
 
-    // Simulate sending
-    Components.showToast('Enviando mensajes...', 'info', 1000);
+    // Validate at least one channel selected
+    if (!whatsapp && !email) {
+      Components.showToast('Seleccione al menos un canal (WhatsApp o Email)', 'error');
+      return;
+    }
 
-    setTimeout(() => {
-      // Calculate recipients
-      let guardians = [];
-      if (courseId) {
-        const students = State.getStudentsByCourse(parseInt(courseId));
-        const studentIds = students.map(s => s.id);
-        guardians = State.getGuardians().filter(g =>
-          g.student_ids.some(sid => studentIds.includes(sid))
-        );
-      } else {
-        guardians = State.getGuardians();
-      }
+    // Replace template variables in message
+    const courseName = courseId ? State.getCourse(parseInt(courseId))?.name || 'Curso' : 'Todos los cursos';
+    const message = messageRaw
+      .replace(/\{\{curso\}\}/g, courseName)
+      .replace(/\{\{fecha\}\}/g, Components.formatDate(date))
+      .replace(/\{\{motivo\}\}/g, subject);
 
-      // Simulate results
-      const totalRecipients = guardians.length;
-      const delivered = Math.floor(totalRecipients * 0.85);
-      const pending = Math.floor(totalRecipients * 0.10);
-      const failed = totalRecipients - delivered - pending;
+    // Build audience based on course selection
+    const audience = courseId
+      ? { scope: 'course', course_ids: [parseInt(courseId)] }
+      : { scope: 'global' };
 
+    // Build request payload
+    const payload = {
+      subject,
+      message,
+      template: 'BROADCAST',
+      audience,
+      // channels not sent - backend sends to all configured channels
+    };
+
+    isSending = true;
+    const sendBtn = document.getElementById('btn-send-broadcast');
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = '⏳ Enviando...';
+    }
+
+    Components.showToast('Enviando comunicado...', 'info', 2000);
+
+    try {
+      const result = await API.sendBroadcast(payload);
+
+      // Show success results
       const resultsDiv = document.getElementById('broadcast-results');
       resultsDiv.innerHTML = `
-        <div class="card">
-          <div class="card-header">Resultados del Envío</div>
+        <div class="card" style="border-left: 4px solid var(--color-success);">
+          <div class="card-header" style="color: var(--color-success);">✅ Comunicado Enviado</div>
           <div class="card-body">
-            <div class="cards-grid">
-              ${Components.createStatCard('Entregados', delivered)}
-              ${Components.createStatCard('Pendientes', pending)}
-              ${Components.createStatCard('Fallidos', failed)}
-            </div>
-
-            <table class="mt-3">
-              <thead>
-                <tr>
-                  <th>Apoderado</th>
-                  <th>Canal</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${guardians.slice(0, 10).map(g => {
-                  const statuses = ['delivered', 'delivered', 'delivered', 'pending', 'failed'];
-                  const status = statuses[Math.floor(Math.random() * statuses.length)];
-                  const chipType = status === 'delivered' ? 'success' : status === 'pending' ? 'warning' : 'error';
-                  const statusLabel = status === 'delivered' ? 'Entregado' : status === 'pending' ? 'Pendiente' : 'Fallido';
-
-                  return `
-                    <tr>
-                      <td>${g.full_name}</td>
-                      <td>${whatsapp ? 'WhatsApp' : 'Email'}</td>
-                      <td>${Components.createChip(statusLabel, chipType)}</td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
-
-            ${guardians.length > 10 ? `<p class="mt-2 text-center">... y ${guardians.length - 10} más</p>` : ''}
+            <p><strong>Job ID:</strong> ${result.job_id || 'N/A'}</p>
+            <p><strong>Destinatarios:</strong> ${result.recipients || 'Procesando...'}</p>
+            <p><strong>Estado:</strong> ${Components.createChip('Encolado', 'info')}</p>
+            <p class="mt-2" style="font-size: 0.9rem; color: var(--color-gray-600);">
+              Los mensajes se enviarán en segundo plano. El estado se actualizará en el historial de notificaciones.
+            </p>
           </div>
         </div>
       `;
 
-      Components.showToast(`Envío completado: ${delivered} entregados`, 'success');
+      Components.showToast('Comunicado enviado correctamente', 'success');
 
+      // Clear form after successful send
+      document.getElementById('broadcast-subject').value = '';
+      document.getElementById('broadcast-message').value = '';
+      document.getElementById('broadcast-date').value = '';
+
+    } catch (error) {
+      console.error('Error sending broadcast:', error);
+
+      const resultsDiv = document.getElementById('broadcast-results');
+      resultsDiv.innerHTML = `
+        <div class="card" style="border-left: 4px solid var(--color-error);">
+          <div class="card-header" style="color: var(--color-error);">❌ Error al Enviar</div>
+          <div class="card-body">
+            <p>${error.message || 'Error desconocido al enviar el comunicado'}</p>
+            <p class="mt-2">Por favor intente nuevamente o contacte al administrador.</p>
+          </div>
+        </div>
+      `;
+
+      Components.showToast('Error al enviar comunicado', 'error');
+    } finally {
       // Reset sending state
       isSending = false;
-      if (sendBtn) sendBtn.disabled = false;
-    }, 2000);
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '📤 Enviar Comunicado';
+      }
+    }
   };
 };

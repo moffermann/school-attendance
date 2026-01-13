@@ -386,6 +386,52 @@ const API = Object.assign(createApiClient('webAppConfig'), {
     return response.json();
   },
 
+  /**
+   * Create a schedule exception (holiday, suspension, modified schedule)
+   */
+  async createScheduleException(data) {
+    const response = await this.request('/schedules/exceptions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+
+      if (response.status === 403) {
+        throw new Error('No tienes permisos para crear excepciones');
+      } else if (response.status === 400 || response.status === 422) {
+        throw new Error(error.detail || 'Datos de excepcion invalidos');
+      }
+
+      throw new Error(error.detail || 'No se pudo crear excepcion');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a schedule exception
+   */
+  async deleteScheduleException(exceptionId) {
+    const response = await this.request(`/schedules/exceptions/${exceptionId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+
+      if (response.status === 403) {
+        throw new Error('No tienes permisos para eliminar excepciones');
+      } else if (response.status === 404) {
+        throw new Error('Excepcion no encontrada');
+      }
+
+      throw new Error(error.detail || 'No se pudo eliminar excepcion');
+    }
+    // DELETE returns 204 No Content
+    return true;
+  },
+
   // ==================== Notifications API ====================
 
   /**

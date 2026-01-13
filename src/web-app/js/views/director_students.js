@@ -54,7 +54,7 @@ Views.directorStudents = function() {
                 <th>Nombre</th>
                 <th>Curso</th>
                 <th>Asistencia</th>
-                <th>Foto</th>
+                <th>Aut. Foto</th>
                 <th>Acciones</th>
               </tr>
             </thead>

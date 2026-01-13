@@ -159,7 +159,7 @@ Views.directorExceptions = function() {
     ]);
   };
 
-  Views.directorExceptions.createException = function() {
+  Views.directorExceptions.createException = async function() {
     const form = document.getElementById('exception-form');
     if (!Components.validateForm(form)) {
       Components.showToast('Complete los campos requeridos', 'error');
@@ -175,22 +175,46 @@ Views.directorExceptions = function() {
       reason: document.getElementById('exc-reason').value
     };
 
-    State.addScheduleException(exception);
-    Components.showToast('Excepción creada exitosamente', 'success');
-
+    // Read notify checkbox before closing modal
     const notify = document.getElementById('exc-notify').checked;
-    if (notify) {
-      Components.showToast('Notificaciones enviadas (simulado)', 'info');
-    }
 
-    renderExceptions();
+    try {
+      // Call backend API
+      const created = await API.createScheduleException(exception);
+      // Update local state with the response (includes server-assigned ID)
+      State.data.schedule_exceptions.push(created);
+      State.persist();
+
+      // Close modal by clicking the close button
+      const closeBtn = document.querySelector('.modal-close');
+      if (closeBtn) closeBtn.click();
+
+      Components.showToast('Excepcion creada exitosamente', 'success');
+
+      if (notify) {
+        Components.showToast('Notificaciones enviadas (simulado)', 'info');
+      }
+
+      renderExceptions();
+    } catch (error) {
+      console.error('Error creating exception:', error);
+      Components.showToast(error.message || 'Error al crear excepcion', 'error');
+    }
   };
 
-  Views.directorExceptions.deleteException = function(id) {
-    if (confirm('¿Está seguro de eliminar esta excepción?')) {
-      State.deleteScheduleException(id);
-      Components.showToast('Excepción eliminada', 'success');
-      renderExceptions();
+  Views.directorExceptions.deleteException = async function(id) {
+    if (confirm('¿Esta seguro de eliminar esta excepcion?')) {
+      try {
+        // Call backend API
+        await API.deleteScheduleException(id);
+        // Update local state
+        State.deleteScheduleException(id);
+        Components.showToast('Excepcion eliminada', 'success');
+        renderExceptions();
+      } catch (error) {
+        console.error('Error deleting exception:', error);
+        Components.showToast(error.message || 'Error al eliminar excepcion', 'error');
+      }
     }
   };
 

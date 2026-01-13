@@ -364,6 +364,12 @@ const Components = {
   // Date/time formatters
   formatDate(dateString) {
     if (!dateString) return '-';
+    // Para strings de solo fecha (YYYY-MM-DD), agregar T00:00:00 para evitar shift de timezone
+    // Sin esto, new Date('2025-12-29') se interpreta como UTC y muestra día anterior en Chile
+    if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      const date = new Date(`${dateString}T00:00:00`);
+      return date.toLocaleDateString('es-CL');
+    }
     const date = new Date(dateString);
     return date.toLocaleDateString('es-CL');
   },
@@ -422,42 +428,110 @@ const Components = {
   },
 
   // Simple canvas chart for reports
-  drawBarChart(canvas, data, labels) {
+  // Options: { grouped: [{ data: [], color: '#xxx', label: 'name' }, ...] }
+  drawBarChart(canvas, data, labels, options = {}) {
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
-    const padding = 40;
-    const maxValue = Math.max(...data);
-    const barWidth = (width - padding * 2) / data.length;
+    const padding = 50;
+    const paddingBottom = 60; // Extra space for labels
 
     // Clear canvas
     ctx.clearRect(0, 0, width, height);
 
-    // Draw bars
-    data.forEach((value, index) => {
-      const barHeight = (value / maxValue) * (height - padding * 2);
-      const x = padding + index * barWidth;
-      const y = height - padding - barHeight;
+    // Grouped bars mode
+    if (options.grouped && options.grouped.length > 0) {
+      const groups = options.grouped;
+      const allValues = groups.flatMap(g => g.data);
+      const maxValue = Math.max(...allValues, 1);
+      const groupWidth = (width - padding * 2) / labels.length;
+      const barWidth = (groupWidth - 20) / groups.length;
 
-      ctx.fillStyle = '#3b82f6';
-      ctx.fillRect(x + 5, y, barWidth - 10, barHeight);
+      // Draw bars for each group
+      labels.forEach((label, groupIndex) => {
+        const groupX = padding + groupIndex * groupWidth;
 
-      // Draw value
-      ctx.fillStyle = '#374151';
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(value, x + barWidth / 2, y - 5);
+        groups.forEach((group, barIndex) => {
+          const value = group.data[groupIndex] || 0;
+          const barHeight = (value / maxValue) * (height - padding - paddingBottom);
+          const x = groupX + 10 + barIndex * barWidth;
+          const y = height - paddingBottom - barHeight;
 
-      // Draw label
-      ctx.fillText(labels[index], x + barWidth / 2, height - padding + 20);
-    });
+          // Draw bar
+          ctx.fillStyle = group.color;
+          ctx.fillRect(x, y, barWidth - 4, barHeight);
+
+          // Draw value on top
+          ctx.fillStyle = '#374151';
+          ctx.font = '11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(value, x + (barWidth - 4) / 2, y - 3);
+        });
+
+        // Draw group label (course name)
+        ctx.fillStyle = '#374151';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, groupX + groupWidth / 2, height - paddingBottom + 18);
+      });
+
+      // Draw legend
+      const legendY = 15;
+      let legendX = width - padding - groups.length * 100;
+      groups.forEach((group, i) => {
+        ctx.fillStyle = group.color;
+        ctx.fillRect(legendX, legendY, 14, 14);
+        ctx.fillStyle = '#374151';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(group.label, legendX + 18, legendY + 11);
+        legendX += 100;
+      });
+
+      // Draw Y-axis scale
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'right';
+      const steps = 5;
+      for (let i = 0; i <= steps; i++) {
+        const yVal = Math.round((maxValue / steps) * i);
+        const yPos = height - paddingBottom - (i / steps) * (height - padding - paddingBottom);
+        ctx.fillText(yVal, padding - 5, yPos + 3);
+        // Grid line
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.beginPath();
+        ctx.moveTo(padding, yPos);
+        ctx.lineTo(width - padding, yPos);
+        ctx.stroke();
+      }
+    } else {
+      // Original single-bar mode
+      const maxValue = Math.max(...data, 1);
+      const barWidth = (width - padding * 2) / data.length;
+
+      data.forEach((value, index) => {
+        const barHeight = (value / maxValue) * (height - padding - paddingBottom);
+        const x = padding + index * barWidth;
+        const y = height - paddingBottom - barHeight;
+
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(x + 5, y, barWidth - 10, barHeight);
+
+        ctx.fillStyle = '#374151';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(value, x + barWidth / 2, y - 5);
+        ctx.fillText(labels[index], x + barWidth / 2, height - paddingBottom + 20);
+      });
+    }
 
     // Draw axes
-    ctx.strokeStyle = '#d1d5db';
+    ctx.strokeStyle = '#9ca3af';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(padding, padding);
-    ctx.lineTo(padding, height - padding);
-    ctx.lineTo(width - padding, height - padding);
+    ctx.moveTo(padding, padding - 10);
+    ctx.lineTo(padding, height - paddingBottom);
+    ctx.lineTo(width - padding, height - paddingBottom);
     ctx.stroke();
   },
 
@@ -644,46 +718,87 @@ const Components = {
     `;
   },
 
-  drawLineChart(canvas, data, labels) {
+  // Options: { yAxisLabel: 'Label text' }
+  drawLineChart(canvas, data, labels, options = {}) {
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
-    const padding = 40;
-    const maxValue = Math.max(...data);
-    const stepX = (width - padding * 2) / (data.length - 1);
+    const padding = 60;
+    const paddingBottom = 50;
+    const maxValue = Math.max(...data, 1);
+    const stepX = data.length > 1 ? (width - padding * 2) / (data.length - 1) : 0;
 
     // Clear canvas
     ctx.clearRect(0, 0, width, height);
+
+    // Draw Y-axis label (rotated)
+    if (options.yAxisLabel) {
+      ctx.save();
+      ctx.fillStyle = '#374151';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.translate(15, height / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(options.yAxisLabel, 0, 0);
+      ctx.restore();
+    }
+
+    // Draw Y-axis scale
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'right';
+    const steps = 5;
+    for (let i = 0; i <= steps; i++) {
+      const yVal = Math.round((maxValue / steps) * i);
+      const yPos = height - paddingBottom - (i / steps) * (height - padding - paddingBottom + 20);
+      ctx.fillText(yVal, padding - 8, yPos + 3);
+      // Grid line
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.beginPath();
+      ctx.moveTo(padding, yPos);
+      ctx.lineTo(width - padding + 20, yPos);
+      ctx.stroke();
+    }
 
     // Draw line
     ctx.strokeStyle = '#3b82f6';
     ctx.lineWidth = 2;
     ctx.beginPath();
 
+    const points = [];
     data.forEach((value, index) => {
       const x = padding + index * stepX;
-      const y = height - padding - (value / maxValue) * (height - padding * 2);
+      const y = height - paddingBottom - (value / maxValue) * (height - padding - paddingBottom + 20);
+      points.push({ x, y, value });
 
       if (index === 0) {
         ctx.moveTo(x, y);
       } else {
         ctx.lineTo(x, y);
       }
-
-      // Draw point
-      ctx.fillStyle = '#3b82f6';
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Draw label
-      ctx.fillStyle = '#374151';
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(labels[index], x, height - padding + 20);
     });
 
     ctx.stroke();
+
+    // Draw points and labels after line (so they appear on top)
+    points.forEach((point, index) => {
+      // Draw point
+      ctx.fillStyle = '#3b82f6';
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw value above point
+      ctx.fillStyle = '#374151';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(point.value, point.x, point.y - 10);
+
+      // Draw X-axis label
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '10px sans-serif';
+      ctx.fillText(labels[index], point.x, height - paddingBottom + 18);
+    });
 
     // Draw axes
     ctx.strokeStyle = '#d1d5db';
@@ -696,7 +811,8 @@ const Components = {
   },
 
   // Show student profile modal (reusable from any view)
-  showStudentProfile(studentId) {
+  // Options: { onBack: Function, backLabel: String }
+  showStudentProfile(studentId, options = {}) {
     const student = State.getStudent(studentId);
     if (!student) {
       this.showToast('Estudiante no encontrado', 'error');
@@ -715,6 +831,18 @@ const Components = {
         </span>
       </li>
     `).join('');
+
+    // Build buttons array - add "Back" button if callback provided
+    const buttons = [];
+    if (options.onBack) {
+      buttons.push({
+        label: options.backLabel || '← Volver a la lista',
+        action: 'back',
+        className: 'btn-primary',
+        onClick: options.onBack
+      });
+    }
+    buttons.push({ label: 'Cerrar', action: 'close', className: 'btn-secondary' });
 
     this.showModal(`Perfil - ${student.full_name}`, `
       <div class="card mb-2">
@@ -757,8 +885,6 @@ const Components = {
           </ul>
         </div>
       </div>
-    `, [
-      { label: 'Cerrar', action: 'close', className: 'btn-secondary' }
-    ]);
+    `, buttons);
   }
 };

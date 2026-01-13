@@ -18,6 +18,7 @@ class NotificationType(str, Enum):
     SALIDA_OK = "SALIDA_OK"
     NO_INGRESO_UMBRAL = "NO_INGRESO_UMBRAL"
     CAMBIO_HORARIO = "CAMBIO_HORARIO"
+    BROADCAST = "BROADCAST"  # Comunicados masivos genericos
 
 
 class NotificationDispatchRequest(BaseModel):

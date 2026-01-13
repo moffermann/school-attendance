@@ -21,6 +21,7 @@ TRANSIENT_ERRORS = (ConnectionError, Timeout, TimeoutError, OSError)
 ATTENDANCE_MESSAGES = {
     "INGRESO_OK": "Ingreso registrado: {student_name} ingresó al colegio el {date} a las {time}.",
     "SALIDA_OK": "Salida registrada: {student_name} salió del colegio el {date} a las {time}.",
+    "BROADCAST": "📢 *{subject}*\n\n{message}",
 }
 
 
@@ -118,7 +119,11 @@ async def _send(
             photo_url = variables.get("photo_url")
             has_photo = variables.get("has_photo", False)
 
-            if has_photo and photo_url:
+            # BROADCAST uses plain text messages (not WhatsApp templates)
+            if template == "BROADCAST":
+                text = _build_caption(template, variables)
+                await client.send_text_message(to=to, text=text)
+            elif has_photo and photo_url:
                 # Send image message with caption
                 caption = _build_caption(template, variables)
                 await client.send_image_message(

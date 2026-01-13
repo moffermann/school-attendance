@@ -340,6 +340,7 @@ class DashboardService:
                 device_id=event.device_id,
                 photo_ref=event.photo_ref,
                 photo_url=photo_url,
+                source=event.source,
             )
 
         return await asyncio.gather(*[_map_single(e, s, c) for e, s, c in events])
@@ -358,6 +359,7 @@ class DashboardService:
             device_id=event.device_id,
             photo_ref=event.photo_ref,
             photo_url=None,
+            source=event.source,
         )
 
     @staticmethod

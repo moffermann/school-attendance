@@ -1,8 +1,8 @@
 // Director Dashboard - Live events
 Views.directorDashboard = function() {
   const app = document.getElementById('app');
-  const stats = State.getTodayStats();
-  const todayEvents = State.getTodayEvents();
+  let stats = State.getTodayStats();
+  let todayEvents = State.getTodayEvents();
 
   app.innerHTML = Components.createLayout(State.currentRole);
 
@@ -13,6 +13,147 @@ Views.directorDashboard = function() {
   let currentPage = 1;
   let filteredEvents = [...todayEvents];
   let filters = { course: '', type: '', search: '' };
+  let autoRefreshInterval = null;
+  let autoRefreshPaused = false;
+  const AUTO_REFRESH_INTERVAL_MS = 30000; // 30 seconds
+
+  // Clean up auto-refresh when navigating away
+  Views.directorDashboard.cleanup = function() {
+    if (autoRefreshInterval) {
+      clearInterval(autoRefreshInterval);
+      autoRefreshInterval = null;
+    }
+  };
+
+  // Toggle auto-refresh pause state
+  Views.directorDashboard.toggleAutoRefresh = function() {
+    autoRefreshPaused = !autoRefreshPaused;
+    const indicator = document.getElementById('live-indicator');
+    const toggleBtn = document.getElementById('auto-refresh-toggle');
+
+    if (indicator) {
+      indicator.style.opacity = autoRefreshPaused ? '0.5' : '1';
+      indicator.querySelector('span:last-child').textContent = autoRefreshPaused ? 'Pausado' : 'En vivo';
+    }
+    if (toggleBtn) {
+      toggleBtn.textContent = autoRefreshPaused ? '▶️ Reanudar' : '⏸️ Pausar';
+    }
+
+    Components.showToast(
+      autoRefreshPaused ? 'Auto-refresh pausado' : 'Auto-refresh reanudado',
+      'info'
+    );
+  };
+
+  // Show/hide refresh loading indicator
+  function setRefreshLoading(isLoading) {
+    const indicator = document.getElementById('live-indicator');
+    const refreshIcon = document.getElementById('refresh-loading-icon');
+
+    if (isLoading) {
+      if (indicator) indicator.style.opacity = '0.7';
+      if (refreshIcon) refreshIcon.style.display = 'inline-block';
+    } else {
+      if (indicator) indicator.style.opacity = '1';
+      if (refreshIcon) refreshIcon.style.display = 'none';
+    }
+  }
+
+  // Function to refresh data without full re-render
+  async function refreshData() {
+    if (autoRefreshPaused) return;
+
+    setRefreshLoading(true);
+
+    try {
+      // If API is authenticated, refresh bootstrap data to get latest events
+      if (State.isApiAuthenticated() && typeof API !== 'undefined' && API.getBootstrap) {
+        try {
+          const bootstrap = await API.getBootstrap();
+          if (bootstrap && bootstrap.attendance_events) {
+            State.data.attendance_events = bootstrap.attendance_events;
+            State.persist();
+          }
+        } catch (apiError) {
+          // API call failed - continue with local data
+          console.warn('API refresh failed, using local data:', apiError.message);
+        }
+      }
+
+      // Update local references
+      const newStats = State.getTodayStats();
+      const newEvents = State.getTodayEvents();
+
+      // Check if there are new events
+      const hasNewEvents = newEvents.length !== todayEvents.length;
+
+      // Update state
+      stats = newStats;
+      todayEvents = newEvents;
+
+      // Re-apply filters to new events
+      applyFiltersToEvents();
+
+      // Update stats display without full re-render
+      updateStatsDisplay();
+
+      // Update table if there are new events
+      if (hasNewEvents) {
+        renderEventsTable();
+      }
+
+      // Always update timestamp to show refresh is working
+      const lastUpdate = document.getElementById('last-update-time');
+      if (lastUpdate) {
+        lastUpdate.textContent = new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+      }
+    } catch (error) {
+      console.error('Error refreshing dashboard data:', error);
+    } finally {
+      setRefreshLoading(false);
+    }
+  }
+
+  // Apply current filters to events
+  function applyFiltersToEvents() {
+    filteredEvents = todayEvents.filter(event => {
+      const student = State.getStudent(event.student_id);
+
+      if (filters.course && student?.course_id !== parseInt(filters.course)) {
+        return false;
+      }
+      if (filters.type && event.type !== filters.type) {
+        return false;
+      }
+      if (filters.search && student && !student.full_name.toLowerCase().includes(filters.search)) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  // Update just the stats cards
+  function updateStatsDisplay() {
+    const statsGrid = document.getElementById('stats-grid');
+    if (statsGrid) {
+      statsGrid.innerHTML = `
+        ${createEnhancedStatCard('Ingresos Hoy', stats.totalIn, '📥', 'success')}
+        ${createEnhancedStatCard('Salidas Hoy', stats.totalOut, '📤', 'primary')}
+        ${createEnhancedStatCard('Atrasos', stats.lateCount, '⏰', 'warning')}
+        ${createEnhancedStatCard('Sin Ingreso', stats.noInCount, '❌', 'error')}
+      `;
+    }
+
+    // Update no-ingress alert if needed
+    const alertContainer = document.getElementById('no-ingress-alert');
+    if (alertContainer) {
+      alertContainer.style.display = stats.noInCount > 0 ? 'block' : 'none';
+      const alertCount = alertContainer.querySelector('.alert-count');
+      if (alertCount) {
+        alertCount.textContent = `${stats.noInCount} alumno${stats.noInCount > 1 ? 's' : ''}`;
+      }
+    }
+  }
 
   // Stat card con icono y color personalizado
   function createEnhancedStatCard(label, value, icon, colorClass) {
@@ -38,35 +179,44 @@ Views.directorDashboard = function() {
   function renderDashboard() {
     const courses = State.getCourses();
     const todayFormatted = new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
+    const currentTime = new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
 
     content.innerHTML = `
       <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
         <div>
           <p style="color: var(--color-gray-500); font-size: 0.9rem; text-transform: capitalize;">${todayFormatted}</p>
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-          <span style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--color-success-light); color: #065f46; border-radius: 9999px; font-size: 0.8rem; font-weight: 600;">
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <span style="font-size: 0.75rem; color: var(--color-gray-500);">
+            Actualizado: <span id="last-update-time">${currentTime}</span>
+          </span>
+          <button id="auto-refresh-toggle" class="btn btn-secondary btn-sm" onclick="Views.directorDashboard.toggleAutoRefresh()" title="Pausar/Reanudar actualización automática">
+            ⏸️ Pausar
+          </button>
+          <span id="live-indicator" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--color-success-light); color: #065f46; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; transition: opacity 0.2s;">
+            <span id="refresh-loading-icon" style="display: none; animation: spin 1s linear infinite;">🔄</span>
             <span style="width: 8px; height: 8px; background: var(--color-success); border-radius: 50%; animation: pulse 2s infinite;"></span>
-            En vivo
+            <span>En vivo</span>
           </span>
         </div>
       </div>
 
-      <div class="cards-grid">
+      <div id="stats-grid" class="cards-grid">
         ${createEnhancedStatCard('Ingresos Hoy', stats.totalIn, '📥', 'success')}
         ${createEnhancedStatCard('Salidas Hoy', stats.totalOut, '📤', 'primary')}
         ${createEnhancedStatCard('Atrasos', stats.lateCount, '⏰', 'warning')}
         ${createEnhancedStatCard('Sin Ingreso', stats.noInCount, '❌', 'error')}
       </div>
 
-      ${stats.noInCount > 0 ? `
+      <div id="no-ingress-alert" style="display: ${stats.noInCount > 0 ? 'block' : 'none'};">
       <!-- Alerta destacada de alumnos sin ingreso -->
       <div class="card" style="background: linear-gradient(135deg, var(--color-error-light) 0%, #fff 100%); border-left: 4px solid var(--color-error); margin-bottom: 1.5rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
           <div style="display: flex; align-items: center; gap: 0.75rem;">
             <span style="font-size: 2rem;">🚨</span>
             <div>
-              <strong style="color: var(--color-error-dark); font-size: 1.1rem;">${stats.noInCount} alumno${stats.noInCount > 1 ? 's' : ''} sin registro de entrada</strong>
+              <strong class="alert-count" style="color: var(--color-error-dark); font-size: 1.1rem;">${stats.noInCount} alumno${stats.noInCount > 1 ? 's' : ''}</strong>
+              <span style="color: var(--color-error-dark); font-size: 1.1rem;"> sin registro de entrada</span>
               <p style="margin: 0.25rem 0 0; font-size: 0.9rem; color: var(--color-gray-600);">
                 Estos alumnos no han registrado ingreso hoy.
               </p>
@@ -82,7 +232,7 @@ Views.directorDashboard = function() {
           </div>
         </div>
       </div>
-      ` : ''}
+      </div>
 
       <div class="card">
         <div class="card-header flex justify-between items-center">
@@ -139,6 +289,10 @@ Views.directorDashboard = function() {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
         }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
       </style>
     `;
 
@@ -158,7 +312,20 @@ Views.directorDashboard = function() {
       return;
     }
 
-    const headers = ['Alumno', 'Curso', 'Tipo', 'Puerta', 'Hora', 'Foto'];
+    const headers = ['Alumno', 'Curso', 'Tipo', 'Fuente', 'Puerta', 'Hora', 'Foto'];
+
+    // Helper to create source chip with appropriate styling
+    const createSourceChip = (source) => {
+      const sourceConfig = {
+        'BIOMETRIC': { label: '🔐 Biométrico', color: 'success' },
+        'QR': { label: '📱 QR', color: 'info' },
+        'NFC': { label: '📶 NFC', color: 'warning' },
+        'MANUAL': { label: '✋ Manual', color: 'gray' }
+      };
+      const config = sourceConfig[source] || { label: source || 'Manual', color: 'gray' };
+      return Components.createChip(config.label, config.color);
+    };
+
     const rows = filteredEvents.map(event => {
       const student = State.getStudent(event.student_id);
       const course = State.getCourse(student?.course_id);
@@ -167,12 +334,14 @@ Views.directorDashboard = function() {
         : Components.createChip('Salida', 'info');
       // TDD-BUG5 fix: Check photo_url (presigned URL) with photo_ref fallback
       const photoIcon = (event.photo_url || event.photo_ref) ? '📷' : '-';
+      const sourceChip = createSourceChip(event.source);
 
       return [
         student ? Components.escapeHtml(student.full_name) : '-',
         course ? Components.escapeHtml(course.name) : '-',
         typeChip,
-        event.gate_id,
+        sourceChip,
+        event.gate_id || '-',
         Components.formatTime(event.ts),
         photoIcon
       ];
@@ -220,20 +389,96 @@ Views.directorDashboard = function() {
   };
 
   Views.directorDashboard.exportCSV = function() {
-    Components.showToast('Exportando CSV... (simulado)', 'info');
+    if (filteredEvents.length === 0) {
+      Components.showToast('No hay eventos para exportar', 'warning');
+      return;
+    }
+
+    // CSV helper to escape values properly
+    const escapeCSV = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      // If contains comma, quote, or newline, wrap in quotes and escape internal quotes
+      if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    };
+
+    // Define columns
+    const headers = ['Fecha', 'Hora', 'Alumno', 'Curso', 'Tipo', 'Puerta', 'Fuente'];
+
+    // Build rows
+    const rows = filteredEvents.map(event => {
+      const student = State.getStudent(event.student_id);
+      const course = student ? State.getCourse(student.course_id) : null;
+      const date = event.ts.split('T')[0];
+      const time = Components.formatTime(event.ts);
+      const eventType = event.type === 'IN' ? 'Ingreso' : 'Salida';
+      const source = event.source || 'MANUAL';
+
+      return [
+        date,
+        time,
+        student ? student.full_name : '-',
+        course ? course.name : '-',
+        eventType,
+        event.gate_id || '-',
+        source
+      ].map(escapeCSV).join(',');
+    });
+
+    // Combine headers and rows
+    const csvContent = [headers.join(','), ...rows].join('\r\n');
+
+    // Add BOM for Excel compatibility with UTF-8
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+
+    // Create download link
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    const today = new Date().toISOString().split('T')[0];
+    link.setAttribute('download', `eventos_asistencia_${today}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    Components.showToast(`${filteredEvents.length} eventos exportados a CSV`, 'success');
   };
 
   Views.directorDashboard.showPhotos = function() {
     // TDD-BUG5 fix: Check photo_url (presigned URL) with photo_ref fallback
     const eventsWithPhotos = filteredEvents.filter(e => e.photo_url || e.photo_ref);
-    const photosHTML = eventsWithPhotos.slice(0, 6).map(e => {
+
+    if (eventsWithPhotos.length === 0) {
+      Components.showModal('Fotos de Evidencia', `
+        <p style="text-align: center; color: var(--color-gray-500);">No hay fotos disponibles para los eventos filtrados.</p>
+      `, [
+        { label: 'Cerrar', action: 'close', className: 'btn-secondary' }
+      ]);
+      return;
+    }
+
+    // Build HTML with loading states and unique IDs
+    const photosToShow = eventsWithPhotos.slice(0, 6);
+    const photosHTML = photosToShow.map((e, idx) => {
       const student = State.getStudent(e.student_id);
+      const studentName = student ? Components.escapeHtml(student.full_name) : 'Desconocido';
       return `
         <div class="card" style="margin-bottom: 1rem;">
           <div class="card-body">
-            <strong>${student.full_name}</strong> - ${Components.formatTime(e.ts)}
-            <div style="margin-top: 0.5rem;">
-              <img src="assets/placeholder_photo.svg" alt="Foto" style="max-width: 200px; border-radius: 4px;">
+            <strong>${studentName}</strong> - ${Components.formatTime(e.ts)}
+            <div style="margin-top: 0.5rem; position: relative; min-height: 100px; display: flex; align-items: center; justify-content: center;">
+              <img id="evidence-photo-${idx}"
+                   src="assets/placeholder_photo.svg"
+                   alt="Foto"
+                   style="max-width: 200px; border-radius: 4px; opacity: 0.3; transition: opacity 0.3s;"
+                   data-loading="true">
+              <span id="evidence-loading-${idx}" style="position: absolute; font-size: 1.5rem;">⏳</span>
             </div>
           </div>
         </div>
@@ -241,10 +486,38 @@ Views.directorDashboard = function() {
     }).join('');
 
     Components.showModal('Fotos de Evidencia', `
-      <div>${photosHTML || '<p>No hay fotos disponibles</p>'}</div>
+      <div>${photosHTML}</div>
+      ${eventsWithPhotos.length > 6 ? `<p style="text-align: center; color: var(--color-gray-500); margin-top: 1rem;">Mostrando 6 de ${eventsWithPhotos.length} fotos</p>` : ''}
     `, [
       { label: 'Cerrar', action: 'close', className: 'btn-secondary' }
     ]);
+
+    // Load photos asynchronously after modal is rendered
+    photosToShow.forEach((event, idx) => {
+      const photoUrl = event.photo_url || event.photo_ref;
+      if (!photoUrl) return;
+
+      API.loadAuthenticatedImage(photoUrl).then(blobUrl => {
+        const img = document.getElementById(`evidence-photo-${idx}`);
+        const loading = document.getElementById(`evidence-loading-${idx}`);
+
+        if (img && blobUrl) {
+          img.src = blobUrl;
+          img.style.opacity = '1';
+          img.removeAttribute('data-loading');
+        } else if (img) {
+          // Failed to load - show error state
+          img.src = 'assets/placeholder_photo.svg';
+          img.style.opacity = '0.5';
+        }
+        if (loading) loading.remove();
+      }).catch(() => {
+        const img = document.getElementById(`evidence-photo-${idx}`);
+        const loading = document.getElementById(`evidence-loading-${idx}`);
+        if (loading) loading.textContent = '❌';
+        if (img) img.style.opacity = '0.5';
+      });
+    });
   };
 
   // UX #10: Show list of students without entry today
@@ -279,7 +552,7 @@ Views.directorDashboard = function() {
                   <td>${Components.escapeHtml(s.full_name)}</td>
                   <td>${course ? Components.escapeHtml(course.name) : '-'}</td>
                   <td>
-                    <button class="btn btn-secondary btn-sm" onclick="Router.navigate('/director/students?view=${s.id}')">
+                    <button class="btn btn-secondary btn-sm" onclick="Components.showStudentProfile(${s.id}, { onBack: () => Views.directorDashboard.showNoIngressList() })">
                       Ver Perfil
                     </button>
                   </td>
@@ -304,4 +577,12 @@ Views.directorDashboard = function() {
   };
 
   renderDashboard();
+
+  // Start auto-refresh interval
+  autoRefreshInterval = setInterval(refreshData, AUTO_REFRESH_INTERVAL_MS);
+
+  // Store cleanup function for router to call when navigating away
+  if (typeof Router !== 'undefined' && Router.onViewChange) {
+    Router.onViewChange(Views.directorDashboard.cleanup);
+  }
 };

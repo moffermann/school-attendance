@@ -2,6 +2,7 @@
 const Router = {
   routes: {},
   currentRoute: null,
+  _cleanupCallback: null,
 
   init() {
     // Register all routes
@@ -134,6 +135,16 @@ const Router = {
       return;
     }
 
+    // Call cleanup callback from previous view if exists
+    if (this._cleanupCallback && typeof this._cleanupCallback === 'function') {
+      try {
+        this._cleanupCallback();
+      } catch (e) {
+        console.error('Error in view cleanup:', e);
+      }
+      this._cleanupCallback = null;
+    }
+
     // Show loading
     app.innerHTML = Components.createLoader();
 
@@ -149,6 +160,22 @@ const Router = {
 
   navigate(path) {
     window.location.hash = path;
+  },
+
+  /**
+   * Register a cleanup callback to be called when navigating away from current view.
+   * Only one callback can be registered at a time (previous is replaced).
+   * @param {Function} callback - Function to call on view change
+   */
+  onViewChange(callback) {
+    this._cleanupCallback = callback;
+  },
+
+  /**
+   * Clear the current cleanup callback
+   */
+  clearCleanup() {
+    this._cleanupCallback = null;
   },
 
   updateActiveNavLink(currentPath) {

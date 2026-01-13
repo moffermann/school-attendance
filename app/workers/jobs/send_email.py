@@ -1,21 +1,25 @@
-"""RQ job for SES email send."""
+"""RQ job for email send (SES or SMTP)."""
 
 from __future__ import annotations
 
 import asyncio
 import html
+import smtplib
+
 from loguru import logger
 from requests.exceptions import ConnectionError, Timeout
 
+from app.core.config import settings
 from app.db.repositories.notifications import NotificationRepository
 from app.db.repositories.tenant_configs import TenantConfigRepository
 from app.db.session import async_session
 from app.services.notifications.ses_email import SESEmailClient, TenantSESEmailClient, mask_email
+from app.services.notifications.smtp_email import SMTPEmailClient, TenantSMTPEmailClient
 
 
 # R6-W1 fix: Constants for retry logic (same as send_whatsapp.py)
 MAX_RETRIES = 3
-TRANSIENT_ERRORS = (ConnectionError, Timeout, TimeoutError, OSError)
+TRANSIENT_ERRORS = (ConnectionError, Timeout, TimeoutError, OSError, smtplib.SMTPServerDisconnected)
 
 
 # Email templates for attendance notifications
@@ -84,6 +88,19 @@ EMAIL_TEMPLATES = {
             <p>Si su hijo/a no asistirá hoy, por favor ignore este mensaje o comuníquese con el establecimiento.</p>
             <p style="color: #666; font-size: 12px;">
                 Este es un mensaje automático del Sistema de Control de Asistencia.
+            </p>
+        </div>
+        """,
+    },
+    "BROADCAST": {
+        "subject": "{subject}",
+        "body": """
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #1976d2;">📢 Comunicado</h2>
+            <div style="white-space: pre-wrap; line-height: 1.6;">{message}</div>
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
+            <p style="color: #666; font-size: 12px;">
+                Este es un mensaje del Sistema de Control de Asistencia.
             </p>
         </div>
         """,
@@ -172,18 +189,29 @@ async def _send(
             try:
                 config_repo = TenantConfigRepository(session)
                 config = await config_repo.get_decrypted(tenant_id)
-                if config and config.ses_source_email:
-                    client = TenantSESEmailClient(config)
-                    logger.debug("Using tenant SES client for tenant_id=%s", tenant_id)
+                if config:
+                    # Check tenant's email provider preference
+                    provider = config.email_provider or settings.email_provider
+                    if provider == "smtp" and config.smtp_user:
+                        client = TenantSMTPEmailClient(config)
+                        logger.debug("Using tenant SMTP client for tenant_id=%s", tenant_id)
+                    elif config.ses_source_email:
+                        client = TenantSESEmailClient(config)
+                        logger.debug("Using tenant SES client for tenant_id=%s", tenant_id)
             except Exception as e:
                 logger.warning(
-                    "Failed to load tenant SES config for tenant_id=%s, falling back to default: %s",
+                    "Failed to load tenant email config for tenant_id=%s, falling back to default: %s",
                     tenant_id, e
                 )
 
         # Fall back to global client if no tenant config
         if client is None:
-            client = SESEmailClient()
+            if settings.email_provider == "smtp":
+                client = SMTPEmailClient()
+                logger.debug("Using global SMTP client")
+            else:
+                client = SESEmailClient()
+                logger.debug("Using global SES client")
 
         # Build email content from template
         subject, body_html = _build_email_content(template, variables)
@@ -230,7 +258,11 @@ def send_email_message(
     tenant_id: int | None = None,
 ) -> None:
     """
-    Send an email message.
+    Send an email message via SES or SMTP.
+
+    The email provider is selected based on:
+    1. Tenant's email_provider setting (if tenant_id provided)
+    2. Global EMAIL_PROVIDER setting (ses or smtp)
 
     Args:
         notification_id: The notification record ID
@@ -238,7 +270,7 @@ def send_email_message(
         template: Email template name (INGRESO_OK, SALIDA_OK, etc.)
         variables: Template variables
         tenant_id: Optional tenant ID for multi-tenant deployments.
-                   If provided, uses tenant-specific SES credentials.
+                   If provided, uses tenant-specific email credentials.
     """
     # TDD-R3-BUG2 fix: Handle case when event loop is already running (same as WhatsApp)
     try:

@@ -3,8 +3,14 @@
  * API methods for super admin panel
  */
 const SuperAdminAPI = {
-  _baseUrl: '/api/v1/super-admin',
   _token: null,
+
+  // Get base URL from config (same as regular API) + super-admin path
+  get _baseUrl() {
+    const config = JSON.parse(localStorage.getItem('webAppConfig') || '{}');
+    const apiUrl = config.apiUrl || '/api/v1';
+    return `${apiUrl}/super-admin`;
+  },
 
   // Initialize with stored token
   init() {
