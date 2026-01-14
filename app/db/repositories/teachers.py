@@ -1,6 +1,6 @@
 """Teacher repository."""
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -117,3 +117,99 @@ class TeacherRepository:
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_paginated(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        search: str | None = None,
+    ) -> tuple[list[Teacher], int]:
+        """List teachers with pagination and optional search.
+
+        Returns tuple of (teachers, total_count).
+        """
+        # Base query with courses eagerly loaded
+        base_query = select(Teacher).options(selectinload(Teacher.courses))
+
+        # Apply search filter if provided
+        if search:
+            search_term = f"%{search}%"
+            base_query = base_query.where(
+                or_(
+                    Teacher.full_name.ilike(search_term),
+                    Teacher.email.ilike(search_term),
+                )
+            )
+
+        # Get total count
+        count_query = select(func.count()).select_from(base_query.subquery())
+        total_result = await self.session.execute(count_query)
+        total = total_result.scalar() or 0
+
+        # Apply pagination and ordering
+        paginated_query = (
+            base_query
+            .order_by(Teacher.full_name)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+
+        result = await self.session.execute(paginated_query)
+        teachers = list(result.scalars().all())
+
+        return teachers, total
+
+    async def update(
+        self,
+        teacher_id: int,
+        *,
+        full_name: str | None = None,
+        email: str | None = None,
+        status: str | None = None,
+        can_enroll_biometric: bool | None = None,
+    ) -> Teacher | None:
+        """Update a teacher's information."""
+        teacher = await self.get(teacher_id)
+        if not teacher:
+            return None
+
+        if full_name is not None:
+            teacher.full_name = full_name
+        if email is not None:
+            teacher.email = email
+        if status is not None:
+            teacher.status = status
+        if can_enroll_biometric is not None:
+            teacher.can_enroll_biometric = can_enroll_biometric
+
+        await self.session.flush()
+        return teacher
+
+    async def delete(self, teacher_id: int) -> bool:
+        """Delete a teacher by ID.
+
+        Returns True if deleted, False if not found.
+        """
+        teacher = await self.get(teacher_id)
+        if not teacher:
+            return False
+
+        await self.session.delete(teacher)
+        await self.session.flush()
+        return True
+
+    async def unassign_course(self, teacher_id: int, course_id: int) -> bool:
+        """Remove a course assignment from a teacher."""
+        teacher = await self.get_with_courses(teacher_id)
+        if not teacher:
+            return False
+
+        course = await self.session.get(Course, course_id)
+        if not course:
+            return False
+
+        if course in teacher.courses:
+            teacher.courses.remove(course)
+            await self.session.flush()
+
+        return True

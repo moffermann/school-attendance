@@ -1190,3 +1190,661 @@ Views.directorStudents.registerAttendance = async function(studentId, type) {
 ---
 
 *Módulo de Estudiantes completado el 14 de Enero de 2026*
+
+---
+---
+
+# Módulo Apoderados (Guardians)
+
+## Resumen Ejecutivo
+
+Se completó la integración del módulo de Apoderados con el backend:
+1. **Endpoints API completos** - GET, POST, PATCH, DELETE para guardians
+2. **Integración Frontend-Backend** - CRUD persiste en base de datos
+3. **Fix modelo PushSubscription** - Alineado con schema real de DB
+4. **Asociación estudiantes-apoderados** - Gestión de relaciones many-to-many
+
+---
+
+## 11. Endpoint GET /guardians - Listar Apoderados
+
+### Archivos Creados/Modificados
+
+| Archivo | Tipo | Descripción |
+|---------|------|-------------|
+| `app/api/v1/guardians.py` | Backend | Endpoints CRUD completos |
+| `app/schemas/guardians.py` | Backend | Schemas de request/response |
+| `app/db/repositories/guardians.py` | Backend | Métodos de repositorio |
+| `app/api/v1/router.py` | Backend | Registro del router |
+
+### Endpoint
+
+```
+GET /api/v1/guardians
+```
+
+#### Parámetros de Query
+| Parámetro | Tipo | Default | Descripción |
+|-----------|------|---------|-------------|
+| `q` | string | null | Búsqueda por nombre (min 2 chars) |
+| `skip` | int | 0 | Offset para paginación |
+| `limit` | int | 50 | Máximo de registros (1-200) |
+
+#### Response
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "full_name": "Roberto González Silva",
+      "contacts": {"email": "roberto@example.com", "phone": "+56912345678"},
+      "student_ids": [1, 5, 12],
+      "student_count": 3
+    }
+  ],
+  "total": 100,
+  "skip": 0,
+  "limit": 50,
+  "has_more": true
+}
+```
+
+---
+
+## 12. Endpoint POST /guardians - Crear Apoderado
+
+### Endpoint
+
+```
+POST /api/v1/guardians
+```
+
+#### Request Body
+```json
+{
+  "full_name": "María López Torres",
+  "contacts": {
+    "email": "maria@example.com",
+    "phone": "+56987654321",
+    "whatsapp": "+56987654321"
+  },
+  "student_ids": [1, 2]
+}
+```
+
+#### Response (201 Created)
+```json
+{
+  "id": 104,
+  "full_name": "María López Torres",
+  "contacts": {"email": "maria@example.com", "phone": "+56987654321"},
+  "student_ids": [1, 2]
+}
+```
+
+### Bug Corregido: MissingGreenlet en Create
+
+**Problema**: Error 500 al crear apoderado - `MissingGreenlet: greenlet_spawn has not been called`
+
+**Causa**: Después de `repo.create()` y `session.refresh()`, acceder a `guardian.students` disparaba lazy loading en contexto async.
+
+**Solución**: Siempre recargar con eager loading después de crear:
+```python
+# app/api/v1/guardians.py líneas 99-104
+if payload.student_ids:
+    await repo.set_students(guardian.id, payload.student_ids)
+
+# Always reload with eager loading to avoid lazy load issues
+guardian = await repo.get(guardian.id)
+
+await session.commit()
+```
+
+---
+
+## 13. Endpoint PATCH /guardians/{id} - Actualizar Apoderado
+
+### Endpoint
+
+```
+PATCH /api/v1/guardians/{guardian_id}
+```
+
+#### Request Body (campos opcionales)
+```json
+{
+  "full_name": "Nuevo Nombre",
+  "contacts": {"email": "nuevo@email.com"},
+  "student_ids": [1, 2, 3]
+}
+```
+
+---
+
+## 14. Endpoint DELETE /guardians/{id} - Eliminar Apoderado
+
+### Endpoint
+
+```
+DELETE /api/v1/guardians/{guardian_id}
+```
+
+#### Response
+- **204 No Content** - Eliminado correctamente
+- **404 Not Found** - Apoderado no encontrado
+
+### Bug Corregido: PushSubscription Schema Mismatch
+
+**Problema**: Error 500 al eliminar - `column push_subscriptions.guardian_id does not exist`
+
+**Causa**: El modelo `PushSubscription` tenía `guardian_id` pero la tabla real tiene `user_id`.
+
+**Análisis del Schema Real**:
+```sql
+\d tenant_demo_local.push_subscriptions
+   Columna    |           Tipo
+--------------+--------------------------
+ id           | integer
+ user_id      | integer (FK → users)     -- NO guardian_id
+ endpoint     | character varying(512)
+ p256dh       | character varying(255)
+ auth         | character varying(255)
+ user_agent   | character varying(512)
+ created_at   | timestamp with time zone
+ last_used_at | timestamp with time zone -- NO updated_at
+```
+
+**Solución**: Alinear modelo con DB real:
+
+**Antes** (`app/db/models/push_subscription.py`):
+```python
+guardian_id: Mapped[int] = mapped_column(ForeignKey("guardians.id"))
+is_active: Mapped[bool]       # No existía
+device_name: Mapped[str]      # No existía
+updated_at: Mapped[datetime]  # Era last_used_at
+```
+
+**Después**:
+```python
+user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+# Eliminados: is_active, device_name
+last_used_at: Mapped[datetime | None]  # Nombre correcto
+
+# Relación bidireccional con User
+user = relationship("User", back_populates="push_subscriptions")
+```
+
+**Modelo User actualizado** (`app/db/models/user.py`):
+```python
+push_subscriptions = relationship(
+    "PushSubscription", back_populates="user", cascade="all, delete-orphan"
+)
+```
+
+### Arquitectura de Notificaciones Push
+
+```
+Guardian ←──(puede tener)──→ User ←──(tiene)──→ PushSubscription
+```
+
+- `User` con role `PARENT` tiene `guardian_id` FK a `Guardian`
+- `PushSubscription` pertenece a `User` (para web app login)
+- Los apoderados sin cuenta de usuario reciben notificaciones por email/WhatsApp
+
+---
+
+## 15. Endpoints de Asociación Estudiantes-Apoderados
+
+### PUT /guardians/{id}/students - Reemplazar Asociaciones
+
+```
+PUT /api/v1/guardians/{guardian_id}/students
+```
+
+#### Request Body
+```json
+{
+  "student_ids": [1, 5, 12]
+}
+```
+
+Reemplaza **todas** las asociaciones existentes.
+
+### POST /guardians/{id}/students/{student_id} - Agregar Asociación
+
+```
+POST /api/v1/guardians/{guardian_id}/students/{student_id}
+```
+
+Agrega un estudiante sin afectar los existentes.
+
+### DELETE /guardians/{id}/students/{student_id} - Remover Asociación
+
+```
+DELETE /api/v1/guardians/{guardian_id}/students/{student_id}
+```
+
+Remueve la asociación específica.
+
+---
+
+## 16. Integración Frontend
+
+### Archivos Modificados
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/web-app/js/api.js` | Métodos `getGuardians()`, `createGuardian()`, `updateGuardian()`, `deleteGuardian()`, `setGuardianStudents()` |
+| `src/web-app/js/state.js` | Métodos async `refreshGuardians()`, `addGuardian()`, `updateGuardian()`, `deleteGuardian()`, `setGuardianStudents()` |
+| `src/web-app/js/views/director_guardians.js` | Vista conectada a API en lugar de localStorage |
+
+### API Methods Agregados
+
+```javascript
+// src/web-app/js/api.js
+
+async getGuardians(params = {}) { ... }
+async getGuardian(guardianId) { ... }
+async createGuardian(data) { ... }
+async updateGuardian(guardianId, data) { ... }
+async deleteGuardian(guardianId) { ... }
+async setGuardianStudents(guardianId, studentIds) { ... }
+```
+
+### State Methods Actualizados
+
+```javascript
+// src/web-app/js/state.js
+
+async refreshGuardians() {
+  // Carga desde API si autenticado, localStorage como fallback
+}
+
+async addGuardian(guardian) {
+  // Llama API.createGuardian() + actualiza state local
+}
+
+async updateGuardian(id, data) {
+  // Llama API.updateGuardian() + actualiza state local
+}
+
+async deleteGuardian(id) {
+  // Llama API.deleteGuardian() + remueve de state local
+}
+```
+
+---
+
+## Testing Realizado - Apoderados
+
+| Operación | Método | Endpoint | Estado |
+|-----------|--------|----------|--------|
+| Listar | GET | /guardians | ✅ |
+| Crear | POST | /guardians | ✅ |
+| Editar | PATCH | /guardians/{id} | ✅ |
+| Eliminar | DELETE | /guardians/{id} | ✅ |
+| Asociar estudiantes | PUT | /guardians/{id}/students | ✅ |
+
+### Verificación en Base de Datos
+
+```sql
+-- Apoderado creado desde UI y verificado
+SELECT id, full_name, contacts->>'email' FROM tenant_demo_local.guardians
+WHERE full_name = 'Apoderado Prueba';
+-- Resultado: ID 103, eliminado correctamente después
+
+-- Edición verificada
+SELECT id, full_name FROM tenant_demo_local.guardians WHERE id = 102;
+-- Resultado: "Lorelyn Prada Torres" (actualizado desde "Lorelyn Prada")
+```
+
+---
+
+## Estado Final del Módulo Apoderados
+
+| Funcionalidad | Estado |
+|---------------|--------|
+| LIST apoderados | ✅ Completo |
+| CREATE apoderado | ✅ Completo |
+| UPDATE apoderado | ✅ Completo |
+| DELETE apoderado | ✅ Completo |
+| Búsqueda por nombre | ✅ Completo |
+| Paginación | ✅ Completo |
+| Asociar estudiantes | ✅ Completo |
+| Frontend conectado | ✅ Completo |
+
+---
+
+## Archivos Modificados - Módulo Apoderados
+
+```
+Backend (6 archivos):
+- app/api/v1/guardians.py - Endpoints CRUD
+- app/api/v1/router.py - Registro del router
+- app/schemas/guardians.py - Schemas request/response
+- app/db/repositories/guardians.py - Métodos de repositorio
+- app/db/models/push_subscription.py - Fix schema mismatch
+- app/db/models/user.py - Agregada relación push_subscriptions
+
+Frontend (3 archivos):
+- src/web-app/js/api.js - 6 métodos de apoderados
+- src/web-app/js/state.js - 5 métodos async CRUD
+- src/web-app/js/views/director_guardians.js - Conectado a API
+```
+
+---
+
+*Módulo de Apoderados completado el 14 de Enero de 2026*
+
+---
+---
+
+# Módulo Profesores (Teachers)
+
+## Resumen Ejecutivo
+
+Se completó la integración del módulo de Profesores con el backend:
+1. **Endpoints API completos** - GET, POST, PATCH, DELETE para teachers
+2. **Asignación de cursos** - Endpoints para asignar/desasignar cursos a profesores
+3. **Integración Frontend-Backend** - CRUD persiste en base de datos
+4. **Búsqueda y paginación** - Lista paginada con búsqueda por nombre o email
+
+---
+
+## 17. Endpoint GET /teachers - Listar Profesores
+
+### Archivos Creados/Modificados
+
+| Archivo | Tipo | Descripción |
+|---------|------|-------------|
+| `app/api/v1/teachers.py` | Backend | Endpoints CRUD admin agregados |
+| `app/schemas/teachers.py` | Backend | Schemas TeacherCreate, TeacherUpdate, TeacherListResponse |
+| `app/db/repositories/teachers.py` | Backend | Métodos list_paginated, update, delete, unassign_course |
+
+### Endpoint
+
+```
+GET /api/v1/teachers
+```
+
+#### Parámetros de Query
+| Parámetro | Tipo | Default | Descripción |
+|-----------|------|---------|-------------|
+| `q` | string | null | Búsqueda por nombre o email (min 2 chars) |
+| `page` | int | 1 | Número de página |
+| `page_size` | int | 20 | Registros por página (max 100) |
+
+#### Response
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "full_name": "María González López",
+      "email": "maria.gonzalez@demo.example.com",
+      "status": "ACTIVE",
+      "can_enroll_biometric": false
+    }
+  ],
+  "total": 4,
+  "page": 1,
+  "page_size": 20,
+  "pages": 1
+}
+```
+
+#### Roles Permitidos
+- ADMIN
+- DIRECTOR
+- INSPECTOR
+
+---
+
+## 18. Endpoint POST /teachers - Crear Profesor
+
+### Endpoint
+
+```
+POST /api/v1/teachers
+```
+
+#### Request Body
+```json
+{
+  "full_name": "Juan Pérez García",
+  "email": "juan.perez@example.com",
+  "status": "ACTIVE",
+  "can_enroll_biometric": false
+}
+```
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `full_name` | string | Sí | Nombre completo (2-255 chars) |
+| `email` | string | No | Email único |
+| `status` | string | No | ACTIVE, INACTIVE, ON_LEAVE (default: ACTIVE) |
+| `can_enroll_biometric` | bool | No | Puede enrolar biométrico (default: false) |
+
+#### Response (201 Created)
+```json
+{
+  "id": 15,
+  "full_name": "Juan Pérez García",
+  "email": "juan.perez@example.com",
+  "status": "ACTIVE",
+  "can_enroll_biometric": false
+}
+```
+
+#### Validaciones
+- Email único (409 Conflict si ya existe)
+- Nombre mínimo 2 caracteres
+
+#### Roles Permitidos
+- ADMIN
+- DIRECTOR
+
+---
+
+## 19. Endpoint PATCH /teachers/{id} - Actualizar Profesor
+
+### Endpoint
+
+```
+PATCH /api/v1/teachers/{teacher_id}
+```
+
+#### Request Body (campos opcionales)
+```json
+{
+  "full_name": "Nuevo Nombre",
+  "email": "nuevo@email.com",
+  "status": "INACTIVE",
+  "can_enroll_biometric": true
+}
+```
+
+#### Validaciones
+- 404 si profesor no existe
+- 409 si nuevo email ya está en uso por otro profesor
+
+#### Roles Permitidos
+- ADMIN
+- DIRECTOR
+
+---
+
+## 20. Endpoint DELETE /teachers/{id} - Eliminar Profesor
+
+### Endpoint
+
+```
+DELETE /api/v1/teachers/{teacher_id}
+```
+
+#### Response
+- **204 No Content** - Eliminado correctamente
+- **404 Not Found** - Profesor no encontrado
+
+#### Comportamiento
+- Elimina el profesor de la base de datos
+- Elimina todas las asignaciones de cursos automáticamente
+
+#### Roles Permitidos
+- ADMIN
+- DIRECTOR
+
+---
+
+## 21. Endpoints de Asignación de Cursos
+
+### POST /teachers/{id}/courses/{course_id} - Asignar Curso
+
+```
+POST /api/v1/teachers/{teacher_id}/courses/{course_id}
+```
+
+Asigna un curso a un profesor.
+
+#### Response
+- **204 No Content** - Asignado correctamente
+- **404 Not Found** - Profesor o curso no encontrado
+
+### DELETE /teachers/{id}/courses/{course_id} - Desasignar Curso
+
+```
+DELETE /api/v1/teachers/{teacher_id}/courses/{course_id}
+```
+
+Remueve la asignación de un curso.
+
+#### Response
+- **204 No Content** - Desasignado correctamente
+- **404 Not Found** - Profesor o curso no encontrado
+
+---
+
+## 22. Integración Frontend
+
+### Archivos Modificados
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/web-app/js/api.js` | Métodos `getTeachers()`, `getTeacher()`, `createTeacher()`, `updateTeacher()`, `deleteTeacher()`, `assignCourseToTeacher()`, `unassignCourseFromTeacher()` |
+| `src/web-app/js/state.js` | Métodos async para CRUD de profesores con fallback a localStorage |
+| `src/web-app/js/views/director_teachers.js` | Vista reescrita para usar API |
+
+### API Methods Agregados
+
+```javascript
+// src/web-app/js/api.js
+
+async getTeachers(params = {}) { ... }
+async getTeacher(teacherId) { ... }
+async createTeacher(data) { ... }
+async updateTeacher(teacherId, data) { ... }
+async deleteTeacher(teacherId) { ... }
+async assignCourseToTeacher(teacherId, courseId) { ... }
+async unassignCourseFromTeacher(teacherId, courseId) { ... }
+```
+
+### State Methods Actualizados
+
+```javascript
+// src/web-app/js/state.js
+
+async refreshTeachers() {
+  // Carga desde API si autenticado, localStorage como fallback
+  if (!this.isApiAuthenticated()) return this.data.teachers || [];
+  const response = await API.getTeachers({ page: 1, page_size: 100 });
+  this.data.teachers = response.items || [];
+  // ...
+}
+```
+
+### Bug Corregido: Error 422 en page_size
+
+**Problema**: El frontend pedía `page_size=200` pero el backend limita a 100.
+
+**Solución**: Cambiar en `state.js`:
+```javascript
+// Antes
+const response = await API.getTeachers({ page_size: 200 });
+
+// Después
+const response = await API.getTeachers({ page: 1, page_size: 100 });
+```
+
+---
+
+## Testing Realizado - Profesores
+
+| Operación | Método | Endpoint | Estado |
+|-----------|--------|----------|--------|
+| Listar | GET | /teachers | ✅ |
+| Crear | POST | /teachers | ✅ |
+| Editar | PATCH | /teachers/{id} | ✅ |
+| Eliminar | DELETE | /teachers/{id} | ✅ |
+| Asignar curso | POST | /teachers/{id}/courses/{course_id} | ✅ |
+| Desasignar curso | DELETE | /teachers/{id}/courses/{course_id} | ✅ |
+
+### Verificación en Base de Datos
+
+```sql
+-- Profesor creado y editado desde UI
+SELECT id, full_name, email, status FROM tenant_demo_local.teachers ORDER BY id;
+
+ id |       full_name       |              email              | status
+----+-----------------------+---------------------------------+--------
+  1 | María González López  | maria.gonzalez@demo.example.com | ACTIVE
+  2 | Pedro Ramírez Castro  | pedro.ramirez@demo.example.com  | ACTIVE
+  3 | Carmen Silva Morales  | carmen.silva@demo.example.com   | ACTIVE
+ 14 | Maria Venezuela Perez | venezuela@noemail.com           | ACTIVE
+
+-- Cursos asignados verificados
+SELECT t.full_name, c.name as curso
+FROM tenant_demo_local.teachers t
+JOIN tenant_demo_local.teacher_courses tc ON t.id = tc.teacher_id
+JOIN tenant_demo_local.courses c ON tc.course_id = c.id
+WHERE t.id = 14;
+
+       full_name       |    curso
+-----------------------+-------------
+ Maria Venezuela Perez | 4° Básico A
+```
+
+---
+
+## Estado Final del Módulo Profesores
+
+| Funcionalidad | Estado |
+|---------------|--------|
+| LIST profesores | ✅ Completo |
+| CREATE profesor | ✅ Completo |
+| UPDATE profesor | ✅ Completo |
+| DELETE profesor | ✅ Completo |
+| Búsqueda por nombre/email | ✅ Completo |
+| Paginación | ✅ Completo |
+| Asignar cursos | ✅ Completo |
+| Desasignar cursos | ✅ Completo |
+| Frontend conectado | ✅ Completo |
+
+---
+
+## Archivos Modificados - Módulo Profesores
+
+```
+Backend (3 archivos):
+- app/api/v1/teachers.py - Endpoints CRUD admin
+- app/schemas/teachers.py - Schemas TeacherCreate, TeacherUpdate, TeacherListResponse
+- app/db/repositories/teachers.py - Métodos list_paginated, update, delete, unassign_course
+
+Frontend (3 archivos):
+- src/web-app/js/api.js - 7 métodos de profesores
+- src/web-app/js/state.js - Métodos async CRUD con fallback
+- src/web-app/js/views/director_teachers.js - Reescrito para usar API
+```
+
+---
+
+*Módulo de Profesores completado el 14 de Enero de 2026*

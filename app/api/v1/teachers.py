@@ -1,22 +1,27 @@
-"""Teacher endpoints for PWA."""
+"""Teacher endpoints for PWA and admin CRUD."""
 
+import math
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import deps
 from app.core.auth import AuthUser
 from app.db.repositories.teachers import TeacherRepository
 from app.db.repositories.attendance import AttendanceRepository
 from app.schemas.teachers import (
-    TeacherMeResponse,
-    TeacherRead,
-    TeacherCourseRead,
-    TeacherStudentRead,
     BulkAttendanceRequest,
     BulkAttendanceResponse,
+    TeacherCourseRead,
+    TeacherCreate,
+    TeacherListResponse,
+    TeacherMeResponse,
+    TeacherRead,
+    TeacherStudentRead,
+    TeacherUpdate,
 )
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 router = APIRouter()
@@ -203,3 +208,231 @@ async def submit_bulk_attendance(
     await session.commit()
 
     return BulkAttendanceResponse(processed=processed, errors=errors)
+
+
+# =============================================================================
+# Admin CRUD Endpoints (Director, Admin, Inspector)
+# =============================================================================
+
+
+def _teacher_to_response(teacher) -> TeacherRead:
+    """Convert a Teacher model to response schema."""
+    return TeacherRead(
+        id=teacher.id,
+        full_name=teacher.full_name,
+        email=teacher.email,
+        status=teacher.status,
+        can_enroll_biometric=teacher.can_enroll_biometric,
+    )
+
+
+@router.get("", response_model=TeacherListResponse)
+async def list_teachers(
+    page: int = Query(1, ge=1, description="Número de página"),
+    page_size: int = Query(20, ge=1, le=100, description="Registros por página"),
+    q: str | None = Query(None, min_length=2, description="Buscar por nombre o email"),
+    session: AsyncSession = Depends(deps.get_tenant_db),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
+) -> TeacherListResponse:
+    """List teachers with pagination and search.
+
+    - **page**: Page number (1-indexed)
+    - **page_size**: Records per page (max 100)
+    - **q**: Search by name or email (case-insensitive, min 2 chars)
+    """
+    repo = TeacherRepository(session)
+    teachers, total = await repo.list_paginated(
+        page=page,
+        page_size=page_size,
+        search=q,
+    )
+
+    items = [_teacher_to_response(t) for t in teachers]
+    pages = math.ceil(total / page_size) if total > 0 else 1
+
+    return TeacherListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        pages=pages,
+    )
+
+
+@router.post("", response_model=TeacherRead, status_code=status.HTTP_201_CREATED)
+async def create_teacher(
+    payload: TeacherCreate,
+    session: AsyncSession = Depends(deps.get_tenant_db),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+) -> TeacherRead:
+    """Create a new teacher.
+
+    - **full_name**: Teacher's full name (required, 2-255 chars)
+    - **email**: Email address (optional, must be unique)
+    - **status**: ACTIVE, INACTIVE, or ON_LEAVE (default: ACTIVE)
+    - **can_enroll_biometric**: Whether teacher can enroll biometric (default: false)
+    """
+    repo = TeacherRepository(session)
+
+    # Check email uniqueness if provided
+    if payload.email:
+        existing = await repo.get_by_email(payload.email)
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Ya existe un profesor con este email"
+            )
+
+    teacher = await repo.create(
+        full_name=payload.full_name,
+        email=payload.email,
+    )
+
+    # Update additional fields
+    if payload.status != "ACTIVE" or payload.can_enroll_biometric:
+        teacher = await repo.update(
+            teacher.id,
+            status=payload.status,
+            can_enroll_biometric=payload.can_enroll_biometric,
+        )
+
+    await session.commit()
+
+    logger.info(f"Created teacher {teacher.id}: {teacher.full_name}")
+
+    return _teacher_to_response(teacher)
+
+
+@router.get("/{teacher_id}", response_model=TeacherRead)
+async def get_teacher(
+    teacher_id: int = Path(..., ge=1, description="ID del profesor"),
+    session: AsyncSession = Depends(deps.get_tenant_db),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
+) -> TeacherRead:
+    """Get a teacher by ID."""
+    repo = TeacherRepository(session)
+    teacher = await repo.get(teacher_id)
+
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profesor no encontrado"
+        )
+
+    return _teacher_to_response(teacher)
+
+
+@router.patch("/{teacher_id}", response_model=TeacherRead)
+async def update_teacher(
+    payload: TeacherUpdate,
+    teacher_id: int = Path(..., ge=1, description="ID del profesor"),
+    session: AsyncSession = Depends(deps.get_tenant_db),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+) -> TeacherRead:
+    """Update a teacher's information."""
+    repo = TeacherRepository(session)
+    teacher = await repo.get(teacher_id)
+
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profesor no encontrado"
+        )
+
+    # Check email uniqueness if changing
+    if payload.email is not None and payload.email != teacher.email:
+        existing = await repo.get_by_email(payload.email)
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Ya existe un profesor con este email"
+            )
+
+    # Build update kwargs
+    update_kwargs = {}
+    if payload.full_name is not None:
+        update_kwargs["full_name"] = payload.full_name
+    if payload.email is not None:
+        update_kwargs["email"] = payload.email
+    if payload.status is not None:
+        update_kwargs["status"] = payload.status
+    if payload.can_enroll_biometric is not None:
+        update_kwargs["can_enroll_biometric"] = payload.can_enroll_biometric
+
+    if update_kwargs:
+        teacher = await repo.update(teacher_id, **update_kwargs)
+
+    await session.commit()
+
+    return _teacher_to_response(teacher)
+
+
+@router.delete("/{teacher_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_teacher(
+    teacher_id: int = Path(..., ge=1, description="ID del profesor"),
+    session: AsyncSession = Depends(deps.get_tenant_db),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+) -> None:
+    """Delete a teacher.
+
+    This will also remove all course assignments.
+    """
+    repo = TeacherRepository(session)
+    teacher = await repo.get(teacher_id)
+
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profesor no encontrado"
+        )
+
+    deleted = await repo.delete(teacher_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al eliminar profesor"
+        )
+
+    await session.commit()
+
+    logger.info(f"Deleted teacher {teacher_id}: {teacher.full_name}")
+
+
+@router.post("/{teacher_id}/courses/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def assign_course_to_teacher(
+    teacher_id: int = Path(..., ge=1, description="ID del profesor"),
+    course_id: int = Path(..., ge=1, description="ID del curso"),
+    session: AsyncSession = Depends(deps.get_tenant_db),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+) -> None:
+    """Assign a course to a teacher."""
+    repo = TeacherRepository(session)
+
+    success = await repo.assign_course(teacher_id, course_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profesor o curso no encontrado"
+        )
+
+    await session.commit()
+
+
+@router.delete("/{teacher_id}/courses/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def unassign_course_from_teacher(
+    teacher_id: int = Path(..., ge=1, description="ID del profesor"),
+    course_id: int = Path(..., ge=1, description="ID del curso"),
+    session: AsyncSession = Depends(deps.get_tenant_db),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+) -> None:
+    """Remove a course assignment from a teacher."""
+    repo = TeacherRepository(session)
+
+    success = await repo.unassign_course(teacher_id, course_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profesor o curso no encontrado"
+        )
+
+    await session.commit()

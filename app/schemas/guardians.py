@@ -11,6 +11,64 @@ class ChannelPreference(BaseModel):
     email: bool = False
 
 
+class GuardianContacts(BaseModel):
+    """Contact information for a guardian."""
+    email: str | None = None
+    phone: str | None = None
+    whatsapp: str | None = None
+
+
+class GuardianCreateRequest(BaseModel):
+    """Request schema for creating a guardian."""
+    full_name: str = Field(..., min_length=2, max_length=255, description="Nombre completo del apoderado")
+    contacts: GuardianContacts | None = Field(default=None, description="Información de contacto")
+    student_ids: list[int] | None = Field(default=None, description="IDs de estudiantes asociados")
+
+
+class GuardianUpdateRequest(BaseModel):
+    """Request schema for updating a guardian."""
+    full_name: str | None = Field(None, min_length=2, max_length=255)
+    contacts: GuardianContacts | None = None
+    student_ids: list[int] | None = None
+
+
+class GuardianResponse(BaseModel):
+    """Response schema for guardian data."""
+    id: int
+    full_name: str
+    contacts: dict = Field(default_factory=dict)
+    student_ids: list[int] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True
+
+
+class GuardianListItem(BaseModel):
+    """Minimal guardian info for list views."""
+    id: int
+    full_name: str
+    contacts: dict = Field(default_factory=dict)
+    student_ids: list[int] = Field(default_factory=list)
+    student_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class GuardianListResponse(BaseModel):
+    """Paginated list of guardians."""
+    items: list[GuardianListItem]
+    total: int
+    skip: int
+    limit: int
+    has_more: bool
+
+
+class GuardianStudentsRequest(BaseModel):
+    """Request schema for setting guardian's students."""
+    student_ids: list[int] = Field(..., description="Lista de IDs de estudiantes")
+
+
 class GuardianPreferencesRead(BaseModel):
     """Response schema for guardian preferences."""
     guardian_id: int

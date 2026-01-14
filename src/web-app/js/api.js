@@ -936,4 +936,301 @@ const API = Object.assign(createApiClient('webAppConfig'), {
       },
     });
   },
+
+  // ==================== Guardians API ====================
+
+  /**
+   * List guardians with pagination and search
+   * @param {Object} params - Query parameters
+   * @param {string} [params.q] - Search by name
+   * @param {number} [params.skip=0] - Records to skip
+   * @param {number} [params.limit=50] - Max records to return
+   * @returns {Promise<{items: Array, total: number, skip: number, limit: number, has_more: boolean}>}
+   */
+  async getGuardians(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.q) queryParams.append('q', params.q);
+    if (params.skip) queryParams.append('skip', params.skip);
+    if (params.limit) queryParams.append('limit', params.limit);
+
+    const queryString = queryParams.toString();
+    const response = await this.request(`/guardians${queryString ? '?' + queryString : ''}`);
+
+    if (!response.ok) {
+      throw new Error('No se pudo obtener apoderados');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a guardian by ID
+   * @param {number} guardianId - Guardian ID
+   * @returns {Promise<Object>} Guardian data
+   */
+  async getGuardian(guardianId) {
+    const response = await this.request(`/guardians/${guardianId}`);
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Apoderado no encontrado');
+      }
+      throw new Error('No se pudo obtener el apoderado');
+    }
+    return response.json();
+  },
+
+  /**
+   * Create a new guardian
+   * @param {Object} data - Guardian data
+   * @param {string} data.full_name - Guardian's full name (required)
+   * @param {Object} [data.contacts] - Contact information {email, phone, whatsapp}
+   * @param {number[]} [data.student_ids] - IDs of students to associate
+   * @returns {Promise<Object>} Created guardian
+   */
+  async createGuardian(data) {
+    const response = await this.request('/guardians', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 422) {
+        throw new Error(error.detail || 'Datos de apoderado inválidos');
+      }
+      throw new Error(error.detail || 'Error al crear apoderado');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update a guardian
+   * @param {number} guardianId - Guardian ID
+   * @param {Object} data - Fields to update
+   * @param {string} [data.full_name] - Guardian's full name
+   * @param {Object} [data.contacts] - Contact information {email, phone, whatsapp}
+   * @param {number[]} [data.student_ids] - IDs of students to associate
+   * @returns {Promise<Object>} Updated guardian
+   */
+  async updateGuardian(guardianId, data) {
+    const response = await this.request(`/guardians/${guardianId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Apoderado no encontrado');
+      }
+      if (response.status === 422) {
+        throw new Error(error.detail || 'Datos de apoderado inválidos');
+      }
+      throw new Error(error.detail || 'Error al actualizar apoderado');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a guardian
+   * @param {number} guardianId - Guardian ID
+   * @returns {Promise<boolean>} True if deleted successfully
+   */
+  async deleteGuardian(guardianId) {
+    const response = await this.request(`/guardians/${guardianId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Apoderado no encontrado');
+      }
+      throw new Error(error.detail || 'Error al eliminar apoderado');
+    }
+    return true;
+  },
+
+  /**
+   * Set the complete list of students for a guardian
+   * Replaces all existing associations
+   * @param {number} guardianId - Guardian ID
+   * @param {number[]} studentIds - Array of student IDs
+   * @returns {Promise<Object>} Updated guardian with new student_ids
+   */
+  async setGuardianStudents(guardianId, studentIds) {
+    const response = await this.request(`/guardians/${guardianId}/students`, {
+      method: 'PUT',
+      body: JSON.stringify({ student_ids: studentIds }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Apoderado no encontrado');
+      }
+      throw new Error(error.detail || 'Error al asociar alumnos');
+    }
+    return response.json();
+  },
+
+  // ==================== Teachers API ====================
+
+  /**
+   * List teachers with pagination and search
+   * @param {Object} params - Query parameters
+   * @param {string} [params.q] - Search by name or email
+   * @param {number} [params.page=1] - Page number
+   * @param {number} [params.page_size=20] - Records per page
+   * @returns {Promise<{items: Array, total: number, page: number, page_size: number, pages: number}>}
+   */
+  async getTeachers(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.q) queryParams.append('q', params.q);
+    if (params.page) queryParams.append('page', params.page);
+    if (params.page_size) queryParams.append('page_size', params.page_size);
+
+    const queryString = queryParams.toString();
+    const response = await this.request(`/teachers${queryString ? '?' + queryString : ''}`);
+
+    if (!response.ok) {
+      throw new Error('No se pudo obtener profesores');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a teacher by ID
+   * @param {number} teacherId - Teacher ID
+   * @returns {Promise<Object>} Teacher data
+   */
+  async getTeacher(teacherId) {
+    const response = await this.request(`/teachers/${teacherId}`);
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Profesor no encontrado');
+      }
+      throw new Error('No se pudo obtener el profesor');
+    }
+    return response.json();
+  },
+
+  /**
+   * Create a new teacher
+   * @param {Object} data - Teacher data
+   * @param {string} data.full_name - Teacher's full name (required)
+   * @param {string} [data.email] - Email address (optional)
+   * @param {string} [data.status] - ACTIVE, INACTIVE, or ON_LEAVE
+   * @param {boolean} [data.can_enroll_biometric] - Can enroll biometric
+   * @returns {Promise<Object>} Created teacher
+   */
+  async createTeacher(data) {
+    const response = await this.request('/teachers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 409) {
+        throw new Error('Ya existe un profesor con este email');
+      }
+      if (response.status === 422) {
+        throw new Error(error.detail || 'Datos de profesor inválidos');
+      }
+      throw new Error(error.detail || 'Error al crear profesor');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update a teacher
+   * @param {number} teacherId - Teacher ID
+   * @param {Object} data - Fields to update
+   * @returns {Promise<Object>} Updated teacher
+   */
+  async updateTeacher(teacherId, data) {
+    const response = await this.request(`/teachers/${teacherId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Profesor no encontrado');
+      }
+      if (response.status === 409) {
+        throw new Error('Ya existe un profesor con este email');
+      }
+      if (response.status === 422) {
+        throw new Error(error.detail || 'Datos de profesor inválidos');
+      }
+      throw new Error(error.detail || 'Error al actualizar profesor');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a teacher
+   * @param {number} teacherId - Teacher ID
+   * @returns {Promise<boolean>} True if deleted successfully
+   */
+  async deleteTeacher(teacherId) {
+    const response = await this.request(`/teachers/${teacherId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Profesor no encontrado');
+      }
+      throw new Error(error.detail || 'Error al eliminar profesor');
+    }
+    return true;
+  },
+
+  /**
+   * Assign a course to a teacher
+   * @param {number} teacherId - Teacher ID
+   * @param {number} courseId - Course ID
+   * @returns {Promise<boolean>} True if assigned successfully
+   */
+  async assignCourseToTeacher(teacherId, courseId) {
+    const response = await this.request(`/teachers/${teacherId}/courses/${courseId}`, {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Profesor o curso no encontrado');
+      }
+      throw new Error(error.detail || 'Error al asignar curso');
+    }
+    return true;
+  },
+
+  /**
+   * Unassign a course from a teacher
+   * @param {number} teacherId - Teacher ID
+   * @param {number} courseId - Course ID
+   * @returns {Promise<boolean>} True if unassigned successfully
+   */
+  async unassignCourseFromTeacher(teacherId, courseId) {
+    const response = await this.request(`/teachers/${teacherId}/courses/${courseId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Profesor o curso no encontrado');
+      }
+      throw new Error(error.detail || 'Error al desasignar curso');
+    }
+    return true;
+  },
 });

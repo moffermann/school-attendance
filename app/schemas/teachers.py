@@ -2,7 +2,7 @@
 
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class TeacherRead(BaseModel):
@@ -14,6 +14,35 @@ class TeacherRead(BaseModel):
     full_name: str
     email: str | None = None
     status: str = "ACTIVE"
+    can_enroll_biometric: bool = False
+
+
+class TeacherCreate(BaseModel):
+    """Schema for creating a new teacher."""
+
+    full_name: str = Field(..., min_length=2, max_length=255)
+    email: EmailStr | None = None
+    status: str = Field(default="ACTIVE", pattern="^(ACTIVE|INACTIVE|ON_LEAVE)$")
+    can_enroll_biometric: bool = False
+
+
+class TeacherUpdate(BaseModel):
+    """Schema for updating a teacher."""
+
+    full_name: str | None = Field(default=None, min_length=2, max_length=255)
+    email: EmailStr | None = None
+    status: str | None = Field(default=None, pattern="^(ACTIVE|INACTIVE|ON_LEAVE)$")
+    can_enroll_biometric: bool | None = None
+
+
+class TeacherListResponse(BaseModel):
+    """Paginated list of teachers."""
+
+    items: list[TeacherRead]
+    total: int
+    page: int
+    page_size: int
+    pages: int
 
 
 class TeacherCourseRead(BaseModel):

@@ -1,5 +1,5 @@
 // Director Guardians Management (CRUD Apoderados)
-Views.directorGuardians = function() {
+Views.directorGuardians = async function() {
   const app = document.getElementById('app');
   app.innerHTML = Components.createLayout(State.currentRole);
 
@@ -7,7 +7,11 @@ Views.directorGuardians = function() {
   const pageTitle = document.getElementById('page-title');
   if (pageTitle) pageTitle.textContent = 'Gestión de Apoderados';
 
-  let guardians = State.getGuardians();
+  // Show loading state while fetching from API
+  content.innerHTML = Components.createLoader('Cargando apoderados...');
+
+  // Load fresh data from API (falls back to localStorage if not authenticated)
+  let guardians = await State.refreshGuardians();
   const students = State.getStudents();
   let currentPage = 1;
   let searchTerm = '';
@@ -17,8 +21,8 @@ Views.directorGuardians = function() {
     const term = searchTerm.toLowerCase();
     return guardians.filter(g =>
       g.full_name.toLowerCase().includes(term) ||
-      (g.email && g.email.toLowerCase().includes(term)) ||
-      (g.phone && g.phone.includes(term))
+      (g.contacts?.email && g.contacts.email.toLowerCase().includes(term)) ||
+      (g.contacts?.phone && g.contacts.phone.includes(term))
     );
   }
 
@@ -75,15 +79,62 @@ Views.directorGuardians = function() {
                 <th>Acciones</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="guardians-tbody">
               ${renderTableRows(filtered)}
             </tbody>
           </table>
-          ${renderPagination(filtered)}
+          <div id="guardians-pagination">
+            ${renderPagination(filtered)}
+          </div>
           `}
         </div>
       </div>
     `;
+  }
+
+  // Update only table content (for search without losing focus)
+  function updateTableContent() {
+    const filtered = getFilteredGuardians();
+    const tbody = document.getElementById('guardians-tbody');
+    const pagination = document.getElementById('guardians-pagination');
+    const cardBody = document.querySelector('.card-body');
+
+    if (filtered.length === 0) {
+      // Show empty state
+      cardBody.innerHTML = Components.createEmptyState(
+        'Sin apoderados',
+        searchTerm
+          ? 'No hay apoderados que coincidan con la búsqueda'
+          : 'No hay apoderados registrados. Haga clic en "Nuevo Apoderado" para agregar uno.'
+      );
+    } else if (tbody) {
+      // Update existing table
+      tbody.innerHTML = renderTableRows(filtered);
+      if (pagination) {
+        pagination.innerHTML = renderPagination(filtered);
+      }
+    } else {
+      // Table doesn't exist, need to create it
+      cardBody.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Email</th>
+              <th>Teléfono</th>
+              <th>Alumnos Asociados</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="guardians-tbody">
+            ${renderTableRows(filtered)}
+          </tbody>
+        </table>
+        <div id="guardians-pagination">
+          ${renderPagination(filtered)}
+        </div>
+      `;
+    }
   }
 
   function renderTableRows(filtered) {
@@ -105,8 +156,8 @@ Views.directorGuardians = function() {
       return `
         <tr>
           <td><strong>${Components.escapeHtml(guardian.full_name)}</strong></td>
-          <td>${Components.escapeHtml(guardian.email || '-')}</td>
-          <td>${Components.escapeHtml(guardian.phone || '-')}</td>
+          <td>${Components.escapeHtml(guardian.contacts?.email || '-')}</td>
+          <td>${Components.escapeHtml(guardian.contacts?.phone || '-')}</td>
           <td>${studentsChips}</td>
           <td style="white-space: nowrap;">
             <button class="btn btn-secondary btn-sm" onclick="Views.directorGuardians.viewProfile(${guardian.id})" title="Ver perfil">
@@ -147,12 +198,12 @@ Views.directorGuardians = function() {
   Views.directorGuardians.search = function(term) {
     searchTerm = term;
     currentPage = 1;
-    renderGuardians();
+    updateTableContent();  // Only update table, keep input focused
   };
 
   Views.directorGuardians.changePage = function(page) {
     currentPage = page;
-    renderGuardians();
+    updateTableContent();  // Only update table
   };
 
   Views.directorGuardians.showCreateForm = function() {
@@ -171,16 +222,6 @@ Views.directorGuardians = function() {
           <label class="form-label">Teléfono WhatsApp</label>
           <input type="tel" id="guardian-phone" class="form-input" placeholder="+56 9 1234 5678">
           <small style="color: var(--color-gray-500);">Se usará para enviar notificaciones por WhatsApp</small>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Relación con el alumno</label>
-          <select id="guardian-relation" class="form-select">
-            <option value="padre">Padre</option>
-            <option value="madre">Madre</option>
-            <option value="tutor">Tutor Legal</option>
-            <option value="abuelo">Abuelo/a</option>
-            <option value="otro">Otro</option>
-          </select>
         </div>
       </form>
       <div style="margin-top: 1rem; padding: 0.75rem; background: var(--color-warning-light); border-radius: 8px; font-size: 0.85rem;">
@@ -207,21 +248,11 @@ Views.directorGuardians = function() {
         </div>
         <div class="form-group">
           <label class="form-label">Email *</label>
-          <input type="email" id="guardian-email" class="form-input" required value="${Components.escapeHtml(guardian.email || '')}">
+          <input type="email" id="guardian-email" class="form-input" required value="${Components.escapeHtml(guardian.contacts?.email || '')}">
         </div>
         <div class="form-group">
           <label class="form-label">Teléfono WhatsApp</label>
-          <input type="tel" id="guardian-phone" class="form-input" value="${Components.escapeHtml(guardian.phone || '')}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Relación con el alumno</label>
-          <select id="guardian-relation" class="form-select">
-            <option value="padre" ${guardian.relation === 'padre' ? 'selected' : ''}>Padre</option>
-            <option value="madre" ${guardian.relation === 'madre' ? 'selected' : ''}>Madre</option>
-            <option value="tutor" ${guardian.relation === 'tutor' ? 'selected' : ''}>Tutor Legal</option>
-            <option value="abuelo" ${guardian.relation === 'abuelo' ? 'selected' : ''}>Abuelo/a</option>
-            <option value="otro" ${guardian.relation === 'otro' || !guardian.relation ? 'selected' : ''}>Otro</option>
-          </select>
+          <input type="tel" id="guardian-phone" class="form-input" value="${Components.escapeHtml(guardian.contacts?.phone || '')}">
         </div>
       </form>
     `, [
@@ -230,12 +261,12 @@ Views.directorGuardians = function() {
     ]);
   };
 
-  Views.directorGuardians.saveGuardian = function(guardianId = null) {
+  Views.directorGuardians.saveGuardian = async function(guardianId = null) {
     const name = document.getElementById('guardian-name').value.trim();
     const email = document.getElementById('guardian-email').value.trim();
     const phone = document.getElementById('guardian-phone')?.value.trim() || '';
-    const relation = document.getElementById('guardian-relation')?.value || 'otro';
 
+    // Validation
     if (!name || !email) {
       Components.showToast('Complete los campos requeridos', 'error');
       return;
@@ -248,24 +279,56 @@ Views.directorGuardians = function() {
       return;
     }
 
-    const guardianData = {
-      full_name: name,
-      email: email,
-      phone: phone,
-      relation: relation
-    };
-
-    if (guardianId) {
-      State.updateGuardian(guardianId, guardianData);
-      Components.showToast('Apoderado actualizado correctamente', 'success');
-    } else {
-      State.addGuardian(guardianData);
-      Components.showToast('Apoderado creado correctamente', 'success');
+    // Validate phone format (optional, if provided)
+    if (phone && !/^\+?[0-9\s\-()]+$/.test(phone)) {
+      Components.showToast('Formato de teléfono inválido', 'error');
+      return;
     }
 
-    document.querySelector('.modal-container').click();
-    guardians = State.getGuardians();
-    renderGuardians();
+    // Build guardian data with contacts structure
+    const guardianData = {
+      full_name: name,
+      contacts: {
+        email: email || null,
+        phone: phone || null,
+        whatsapp: phone || null,
+      },
+    };
+
+    // Get save button for loading state
+    const saveBtn = document.querySelector('.modal .btn-primary');
+    const originalText = saveBtn ? saveBtn.textContent : 'Guardar';
+
+    try {
+      // Disable button and show loading
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Guardando...';
+      }
+
+      if (guardianId) {
+        await State.updateGuardian(guardianId, guardianData);
+        Components.showToast('Apoderado actualizado correctamente', 'success');
+      } else {
+        await State.addGuardian(guardianData);
+        Components.showToast('Apoderado creado correctamente', 'success');
+      }
+
+      // Close modal and refresh
+      document.querySelector('.modal-container')?.click();
+      guardians = State.getGuardians();
+      renderGuardians();
+
+    } catch (error) {
+      Components.showToast(error.message || 'Error al guardar', 'error');
+      console.error('Save guardian error:', error);
+
+      // Re-enable button
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = originalText;
+      }
+    }
   };
 
   Views.directorGuardians.viewProfile = function(guardianId) {
@@ -298,9 +361,8 @@ Views.directorGuardians = function() {
       <div class="card" style="margin-bottom: 1rem;">
         <div class="card-header">Información de Contacto</div>
         <div class="card-body">
-          <p><strong>Email:</strong> ${Components.escapeHtml(guardian.email || 'No registrado')}</p>
-          <p><strong>Teléfono:</strong> ${Components.escapeHtml(guardian.phone || 'No registrado')}</p>
-          <p><strong>Relación:</strong> ${Components.escapeHtml(guardian.relation || 'No especificada')}</p>
+          <p><strong>Email:</strong> ${Components.escapeHtml(guardian.contacts?.email || 'No registrado')}</p>
+          <p><strong>Teléfono:</strong> ${Components.escapeHtml(guardian.contacts?.phone || 'No registrado')}</p>
           <p><strong>ID Sistema:</strong> ${guardian.id}</p>
         </div>
       </div>
@@ -359,7 +421,7 @@ Views.directorGuardians = function() {
     ]);
   };
 
-  Views.directorGuardians.saveStudentAssociations = function(guardianId) {
+  Views.directorGuardians.saveStudentAssociations = async function(guardianId) {
     const checkboxes = document.querySelectorAll('.student-checkbox');
     const selectedStudentIds = [];
 
@@ -369,11 +431,35 @@ Views.directorGuardians = function() {
       }
     });
 
-    State.updateGuardian(guardianId, { student_ids: selectedStudentIds });
-    Components.showToast('Alumnos asociados correctamente', 'success');
-    document.querySelector('.modal-container').click();
-    guardians = State.getGuardians();
-    renderGuardians();
+    // Get save button for loading state
+    const saveBtn = document.querySelector('.modal .btn-primary');
+    const originalText = saveBtn ? saveBtn.textContent : 'Guardar';
+
+    try {
+      // Disable button and show loading
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Guardando...';
+      }
+
+      await State.setGuardianStudents(guardianId, selectedStudentIds);
+      Components.showToast('Alumnos asociados correctamente', 'success');
+
+      // Close modal and refresh
+      document.querySelector('.modal-container')?.click();
+      guardians = State.getGuardians();
+      renderGuardians();
+
+    } catch (error) {
+      Components.showToast(error.message || 'Error al asociar alumnos', 'error');
+      console.error('Save student associations error:', error);
+
+      // Re-enable button
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = originalText;
+      }
+    }
   };
 
   Views.directorGuardians.confirmDelete = function(guardianId) {
@@ -394,12 +480,36 @@ Views.directorGuardians = function() {
       <p style="color: var(--color-gray-500); margin-top: 0.5rem; font-size: 0.9rem;">Esta acción no se puede deshacer.</p>
     `, [
       { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
-      { label: 'Eliminar', action: 'delete', className: 'btn-error', onClick: () => {
-        State.deleteGuardian(guardianId);
-        Components.showToast('Apoderado eliminado', 'success');
-        document.querySelector('.modal-container').click();
-        guardians = State.getGuardians();
-        renderGuardians();
+      { label: 'Eliminar', action: 'delete', className: 'btn-error', onClick: async () => {
+        // Get delete button for loading state
+        const deleteBtn = document.querySelector('.modal .btn-error');
+        const originalText = deleteBtn ? deleteBtn.textContent : 'Eliminar';
+
+        try {
+          // Disable button and show loading
+          if (deleteBtn) {
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = 'Eliminando...';
+          }
+
+          await State.deleteGuardian(guardianId);
+          Components.showToast('Apoderado eliminado', 'success');
+
+          // Close modal and refresh
+          document.querySelector('.modal-container')?.click();
+          guardians = State.getGuardians();
+          renderGuardians();
+
+        } catch (error) {
+          Components.showToast(error.message || 'Error al eliminar', 'error');
+          console.error('Delete guardian error:', error);
+
+          // Re-enable button
+          if (deleteBtn) {
+            deleteBtn.disabled = false;
+            deleteBtn.textContent = originalText;
+          }
+        }
       }}
     ]);
   };

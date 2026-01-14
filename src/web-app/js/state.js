@@ -662,33 +662,156 @@ const State = {
   },
 
   // ============================================
-  // CRUD: Guardians
+  // CRUD: Guardians (with API integration)
   // ============================================
-  addGuardian(guardian) {
-    if (!this.data.guardians) this.data.guardians = [];
-    const id = Math.max(0, ...this.data.guardians.map(g => g.id)) + 1;
-    guardian.id = id;
-    guardian.student_ids = guardian.student_ids || [];
-    this.data.guardians.push(guardian);
-    this.persist();
-    return guardian;
-  },
 
-  updateGuardian(id, data) {
-    if (!this.data.guardians) return null;
-    const index = this.data.guardians.findIndex(g => g.id === id);
-    if (index !== -1) {
-      this.data.guardians[index] = { ...this.data.guardians[index], ...data };
-      this.persist();
-      return this.data.guardians[index];
+  /**
+   * Refresh guardians from API
+   * @returns {Promise<Array>} List of guardians
+   */
+  async refreshGuardians() {
+    if (!this.isApiAuthenticated()) {
+      return this.data.guardians || [];
     }
-    return null;
+
+    try {
+      const response = await API.getGuardians({ limit: 200 });
+      this.data.guardians = response.items || [];
+      this.persist();
+      return this.data.guardians;
+    } catch (error) {
+      console.error('Error refreshing guardians:', error);
+      // Return local data as fallback
+      return this.data.guardians || [];
+    }
   },
 
-  deleteGuardian(id) {
-    if (!this.data.guardians) return;
-    this.data.guardians = this.data.guardians.filter(g => g.id !== id);
-    this.persist();
+  /**
+   * Create a new guardian via API
+   * @param {Object} guardian - Guardian data
+   * @param {string} guardian.full_name - Full name (required)
+   * @param {Object} [guardian.contacts] - Contact info {email, phone, whatsapp}
+   * @param {number[]} [guardian.student_ids] - Student IDs to associate
+   * @returns {Promise<Object>} Created guardian
+   */
+  async addGuardian(guardian) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - create locally
+      if (!this.data.guardians) this.data.guardians = [];
+      const id = Math.max(0, ...this.data.guardians.map(g => g.id)) + 1;
+      guardian.id = id;
+      guardian.student_ids = guardian.student_ids || [];
+      this.data.guardians.push(guardian);
+      this.persist();
+      return guardian;
+    }
+
+    try {
+      const created = await API.createGuardian(guardian);
+      // Add to local state
+      if (!this.data.guardians) this.data.guardians = [];
+      this.data.guardians.push(created);
+      this.persist();
+      return created;
+    } catch (error) {
+      console.error('Error adding guardian:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update a guardian via API
+   * @param {number} id - Guardian ID
+   * @param {Object} data - Fields to update
+   * @returns {Promise<Object>} Updated guardian
+   */
+  async updateGuardian(id, data) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - update locally
+      if (!this.data.guardians) return null;
+      const index = this.data.guardians.findIndex(g => g.id === id);
+      if (index !== -1) {
+        this.data.guardians[index] = { ...this.data.guardians[index], ...data };
+        this.persist();
+        return this.data.guardians[index];
+      }
+      throw new Error('Apoderado no encontrado');
+    }
+
+    try {
+      const updated = await API.updateGuardian(id, data);
+      // Update local state
+      const index = this.data.guardians.findIndex(g => g.id === id);
+      if (index !== -1) {
+        this.data.guardians[index] = updated;
+      } else {
+        this.data.guardians.push(updated);
+      }
+      this.persist();
+      return updated;
+    } catch (error) {
+      console.error('Error updating guardian:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a guardian via API
+   * @param {number} id - Guardian ID
+   * @returns {Promise<boolean>} True if deleted
+   */
+  async deleteGuardian(id) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - delete locally
+      if (!this.data.guardians) return;
+      this.data.guardians = this.data.guardians.filter(g => g.id !== id);
+      this.persist();
+      return true;
+    }
+
+    try {
+      await API.deleteGuardian(id);
+      // Remove from local state
+      this.data.guardians = this.data.guardians.filter(g => g.id !== id);
+      this.persist();
+      return true;
+    } catch (error) {
+      console.error('Error deleting guardian:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Set the complete list of students for a guardian
+   * @param {number} guardianId - Guardian ID
+   * @param {number[]} studentIds - Array of student IDs
+   * @returns {Promise<Object>} Updated guardian
+   */
+  async setGuardianStudents(guardianId, studentIds) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - update locally
+      const index = this.data.guardians.findIndex(g => g.id === guardianId);
+      if (index !== -1) {
+        this.data.guardians[index].student_ids = studentIds;
+        this.persist();
+        return this.data.guardians[index];
+      }
+      throw new Error('Apoderado no encontrado');
+    }
+
+    try {
+      const updated = await API.setGuardianStudents(guardianId, studentIds);
+      // Update local state
+      const index = this.data.guardians.findIndex(g => g.id === guardianId);
+      if (index !== -1) {
+        this.data.guardians[index] = updated;
+      }
+      this.persist();
+      return updated;
+    } catch (error) {
+      console.error('Error setting guardian students:', error);
+      throw error;
+    }
   },
 
   // ============================================
@@ -725,8 +848,9 @@ const State = {
   },
 
   // ============================================
-  // CRUD: Teachers
+  // CRUD: Teachers (with API integration)
   // ============================================
+
   getTeachers() {
     return this.data.teachers || [];
   },
@@ -735,39 +859,216 @@ const State = {
     return (this.data.teachers || []).find(t => t.id === id);
   },
 
-  addTeacher(teacher) {
-    if (!this.data.teachers) this.data.teachers = [];
-    const id = Math.max(0, ...this.data.teachers.map(t => t.id)) + 1;
-    teacher.id = id;
-    this.data.teachers.push(teacher);
-    this.persist();
-    return teacher;
-  },
-
-  updateTeacher(id, data) {
-    if (!this.data.teachers) return null;
-    const index = this.data.teachers.findIndex(t => t.id === id);
-    if (index !== -1) {
-      this.data.teachers[index] = { ...this.data.teachers[index], ...data };
-      this.persist();
-      return this.data.teachers[index];
+  /**
+   * Refresh teachers from API
+   * @returns {Promise<Array>} List of teachers
+   */
+  async refreshTeachers() {
+    if (!this.isApiAuthenticated()) {
+      return this.data.teachers || [];
     }
-    return null;
+
+    try {
+      const response = await API.getTeachers({ page: 1, page_size: 100 });
+      this.data.teachers = response.items || [];
+      this.persist();
+      return this.data.teachers;
+    } catch (error) {
+      console.error('Error refreshing teachers:', error);
+      // Return local data as fallback
+      return this.data.teachers || [];
+    }
   },
 
-  deleteTeacher(id) {
-    if (!this.data.teachers) return;
-    this.data.teachers = this.data.teachers.filter(t => t.id !== id);
-    // Remove teacher from courses
-    this.data.courses.forEach(c => {
-      if (c.teacher_ids) {
-        c.teacher_ids = c.teacher_ids.filter(tid => tid !== id);
+  /**
+   * Create a new teacher via API
+   * @param {Object} teacher - Teacher data
+   * @param {string} teacher.full_name - Full name (required)
+   * @param {string} [teacher.email] - Email address
+   * @param {string} [teacher.status] - ACTIVE, INACTIVE, or ON_LEAVE
+   * @param {boolean} [teacher.can_enroll_biometric] - Can enroll biometric
+   * @returns {Promise<Object>} Created teacher
+   */
+  async addTeacher(teacher) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - create locally
+      if (!this.data.teachers) this.data.teachers = [];
+      const id = Math.max(0, ...this.data.teachers.map(t => t.id)) + 1;
+      teacher.id = id;
+      teacher.status = teacher.status || 'ACTIVE';
+      teacher.can_enroll_biometric = teacher.can_enroll_biometric || false;
+      this.data.teachers.push(teacher);
+      this.persist();
+      return teacher;
+    }
+
+    try {
+      const created = await API.createTeacher(teacher);
+      // Add to local state
+      if (!this.data.teachers) this.data.teachers = [];
+      this.data.teachers.push(created);
+      this.persist();
+      return created;
+    } catch (error) {
+      console.error('Error adding teacher:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update a teacher via API
+   * @param {number} id - Teacher ID
+   * @param {Object} data - Fields to update
+   * @returns {Promise<Object>} Updated teacher
+   */
+  async updateTeacher(id, data) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - update locally
+      if (!this.data.teachers) return null;
+      const index = this.data.teachers.findIndex(t => t.id === id);
+      if (index !== -1) {
+        this.data.teachers[index] = { ...this.data.teachers[index], ...data };
+        this.persist();
+        return this.data.teachers[index];
       }
-      if (c.teacher_id === id) {
-        c.teacher_id = null;
+      throw new Error('Profesor no encontrado');
+    }
+
+    try {
+      const updated = await API.updateTeacher(id, data);
+      // Update local state
+      const index = this.data.teachers.findIndex(t => t.id === id);
+      if (index !== -1) {
+        this.data.teachers[index] = updated;
+      } else {
+        this.data.teachers.push(updated);
       }
-    });
-    this.persist();
+      this.persist();
+      return updated;
+    } catch (error) {
+      console.error('Error updating teacher:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a teacher via API
+   * @param {number} id - Teacher ID
+   * @returns {Promise<boolean>} True if deleted
+   */
+  async deleteTeacher(id) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - delete locally
+      if (!this.data.teachers) return;
+      this.data.teachers = this.data.teachers.filter(t => t.id !== id);
+      // Remove teacher from courses
+      this.data.courses.forEach(c => {
+        if (c.teacher_ids) {
+          c.teacher_ids = c.teacher_ids.filter(tid => tid !== id);
+        }
+        if (c.teacher_id === id) {
+          c.teacher_id = null;
+        }
+      });
+      this.persist();
+      return true;
+    }
+
+    try {
+      await API.deleteTeacher(id);
+      // Remove from local state
+      this.data.teachers = this.data.teachers.filter(t => t.id !== id);
+      // Also update courses locally
+      this.data.courses.forEach(c => {
+        if (c.teacher_ids) {
+          c.teacher_ids = c.teacher_ids.filter(tid => tid !== id);
+        }
+        if (c.teacher_id === id) {
+          c.teacher_id = null;
+        }
+      });
+      this.persist();
+      return true;
+    } catch (error) {
+      console.error('Error deleting teacher:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Assign a course to a teacher via API
+   * @param {number} teacherId - Teacher ID
+   * @param {number} courseId - Course ID
+   * @returns {Promise<boolean>} True if assigned
+   */
+  async assignCourseToTeacher(teacherId, courseId) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - update locally
+      const course = this.data.courses.find(c => c.id === courseId);
+      if (course) {
+        if (!course.teacher_ids) course.teacher_ids = [];
+        if (!course.teacher_ids.includes(teacherId)) {
+          course.teacher_ids.push(teacherId);
+        }
+        this.persist();
+      }
+      return true;
+    }
+
+    try {
+      await API.assignCourseToTeacher(teacherId, courseId);
+      // Update local state
+      const course = this.data.courses.find(c => c.id === courseId);
+      if (course) {
+        if (!course.teacher_ids) course.teacher_ids = [];
+        if (!course.teacher_ids.includes(teacherId)) {
+          course.teacher_ids.push(teacherId);
+        }
+      }
+      this.persist();
+      return true;
+    } catch (error) {
+      console.error('Error assigning course:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Unassign a course from a teacher via API
+   * @param {number} teacherId - Teacher ID
+   * @param {number} courseId - Course ID
+   * @returns {Promise<boolean>} True if unassigned
+   */
+  async unassignCourseFromTeacher(teacherId, courseId) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - update locally
+      const course = this.data.courses.find(c => c.id === courseId);
+      if (course && course.teacher_ids) {
+        course.teacher_ids = course.teacher_ids.filter(tid => tid !== teacherId);
+        if (course.teacher_id === teacherId) {
+          course.teacher_id = null;
+        }
+        this.persist();
+      }
+      return true;
+    }
+
+    try {
+      await API.unassignCourseFromTeacher(teacherId, courseId);
+      // Update local state
+      const course = this.data.courses.find(c => c.id === courseId);
+      if (course && course.teacher_ids) {
+        course.teacher_ids = course.teacher_ids.filter(tid => tid !== teacherId);
+        if (course.teacher_id === teacherId) {
+          course.teacher_id = null;
+        }
+      }
+      this.persist();
+      return true;
+    } catch (error) {
+      console.error('Error unassigning course:', error);
+      throw error;
+    }
   },
 
   // ============================================

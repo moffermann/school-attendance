@@ -10,6 +10,7 @@ from app.api.v1 import (
     broadcast,
     courses,
     devices,
+    guardians,
     health,
     kiosk,
     notifications,
@@ -53,6 +54,7 @@ api_router.include_router(absences.router, prefix="/absences", tags=["absences"]
 api_router.include_router(teachers.router, prefix="/teachers", tags=["teachers"])
 api_router.include_router(courses.router, prefix="/courses", tags=["courses"])
 api_router.include_router(students.router, prefix="/students", tags=["students"])
+api_router.include_router(guardians.router, prefix="/guardians", tags=["guardians"])
 api_router.include_router(kiosk.router, prefix="/kiosk", tags=["kiosk"])
 api_router.include_router(photos.router, prefix="/photos", tags=["photos"])
 api_router.include_router(webauthn.router, prefix="/webauthn", tags=["webauthn"])
