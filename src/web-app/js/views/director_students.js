@@ -14,6 +14,7 @@ Views.directorStudents = function() {
   let filteredStudents = State.getStudents();
   let searchTerm = '';
   let selectedCourse = '';
+  let selectedStatus = '';  // '', 'ACTIVE', 'INACTIVE', 'DELETED'
 
   function renderStudents() {
     content.innerHTML = `
@@ -28,6 +29,16 @@ Views.directorStudents = function() {
           <select id="filter-course" class="form-select">
             <option value="">Todos</option>
             ${courses.map(c => `<option value="${c.id}" ${selectedCourse === c.id ? 'selected' : ''}>${Components.escapeHtml(c.name)}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="filter-group" style="flex: 1; min-width: 120px;">
+          <label class="form-label">Estado</label>
+          <select id="filter-status" class="form-select">
+            <option value="" ${selectedStatus === '' ? 'selected' : ''}>Activos</option>
+            <option value="INACTIVE" ${selectedStatus === 'INACTIVE' ? 'selected' : ''}>Inactivos</option>
+            <option value="DELETED" ${selectedStatus === 'DELETED' ? 'selected' : ''}>Eliminados</option>
+            <option value="ALL" ${selectedStatus === 'ALL' ? 'selected' : ''}>Todos</option>
           </select>
         </div>
 
@@ -53,6 +64,7 @@ Views.directorStudents = function() {
               <tr>
                 <th>Nombre</th>
                 <th>Curso</th>
+                <th>Estado</th>
                 <th>Asistencia</th>
                 <th>Aut. Foto</th>
                 <th>Acciones</th>
@@ -71,28 +83,45 @@ Views.directorStudents = function() {
                     ? Components.createChip(stats.percentage + '%', 'warning')
                     : Components.createChip(stats.percentage + '%', 'error');
 
+                // Chip de estado
+                const statusChip = student.status === 'DELETED'
+                  ? Components.createChip('Eliminado', 'error')
+                  : student.status === 'INACTIVE'
+                    ? Components.createChip('Inactivo', 'warning')
+                    : Components.createChip('Activo', 'success');
+
+                // Acciones según estado
+                const isDeleted = student.status === 'DELETED';
+
                 return `
-                  <tr>
+                  <tr ${isDeleted ? 'style="opacity: 0.7;"' : ''}>
                     <td><strong>${Components.escapeHtml(student.full_name)}</strong></td>
                     <td>${course ? Components.escapeHtml(course.name) : '-'}</td>
+                    <td>${statusChip}</td>
                     <td>${attendanceChip}</td>
                     <td>${photoChip}</td>
                     <td style="white-space: nowrap;">
-                      <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.viewProfile(${student.id})" title="Ver perfil">
-                        👁️
-                      </button>
-                      <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.showEnrollMenu(${student.id})" title="Generar credencial QR/NFC">
-                        💳
-                      </button>
-                      <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.viewAttendance(${student.id})" title="Ver asistencia">
-                        📊
-                      </button>
-                      <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.showEditForm(${student.id})" title="Editar">
-                        ✏️
-                      </button>
-                      <button class="btn btn-error btn-sm" onclick="Views.directorStudents.confirmDelete(${student.id})" title="Eliminar">
-                        🗑️
-                      </button>
+                      ${isDeleted ? `
+                        <button class="btn btn-success btn-sm" onclick="Views.directorStudents.restoreStudent(${student.id})" title="Restaurar estudiante">
+                          ♻️ Restaurar
+                        </button>
+                      ` : `
+                        <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.viewProfile(${student.id})" title="Ver perfil">
+                          👁️
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.showEnrollMenu(${student.id})" title="Generar credencial QR/NFC">
+                          💳
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.viewAttendance(${student.id})" title="Ver asistencia">
+                          📊
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.showEditForm(${student.id})" title="Editar">
+                          ✏️
+                        </button>
+                        <button class="btn btn-error btn-sm" onclick="Views.directorStudents.confirmDelete(${student.id})" title="Eliminar">
+                          🗑️
+                        </button>
+                      `}
                     </td>
                   </tr>
                 `;
@@ -105,21 +134,56 @@ Views.directorStudents = function() {
     `;
   }
 
-  Views.directorStudents.applyFilters = function() {
+  Views.directorStudents.applyFilters = async function() {
     searchTerm = document.getElementById('search-student').value.toLowerCase();
     selectedCourse = document.getElementById('filter-course').value;
+    selectedStatus = document.getElementById('filter-status').value;
 
-    filteredStudents = State.getStudents().filter(student => {
-      if (searchTerm && !student.full_name.toLowerCase().includes(searchTerm)) {
-        return false;
+    // Para DELETED o ALL, necesitamos llamar a la API
+    if (selectedStatus === 'DELETED' || selectedStatus === 'ALL') {
+      try {
+        const params = new URLSearchParams();
+        if (searchTerm && searchTerm.length >= 2) params.append('q', searchTerm);
+        if (selectedCourse) params.append('course_id', selectedCourse);
+        if (selectedStatus === 'DELETED') params.append('status', 'DELETED');
+        // Para ALL, no enviamos status para obtener todos (pero la API excluye DELETED por defecto)
+        // Necesitamos un endpoint especial o modificar la API
+
+        const queryString = params.toString();
+        const url = `/students${queryString ? '?' + queryString : ''}`;
+        const response = await API.request(url);
+
+        if (response.ok) {
+          const data = await response.json();
+          filteredStudents = data.items || [];
+        } else {
+          Components.showToast('Error al cargar estudiantes', 'error');
+          filteredStudents = [];
+        }
+      } catch (error) {
+        console.error('Error fetching students:', error);
+        Components.showToast('Error de conexión', 'error');
+        filteredStudents = [];
       }
+    } else {
+      // Filtrado local para ACTIVE e INACTIVE
+      filteredStudents = State.getStudents().filter(student => {
+        if (searchTerm && !student.full_name.toLowerCase().includes(searchTerm)) {
+          return false;
+        }
 
-      if (selectedCourse && student.course_id !== parseInt(selectedCourse)) {
-        return false;
-      }
+        if (selectedCourse && student.course_id !== parseInt(selectedCourse)) {
+          return false;
+        }
 
-      return true;
-    });
+        // Filtrar por estado (los datos locales solo tienen ACTIVE por defecto)
+        if (selectedStatus === 'INACTIVE' && student.status !== 'INACTIVE') {
+          return false;
+        }
+
+        return true;
+      });
+    }
 
     renderStudents();
   };
@@ -216,19 +280,41 @@ Views.directorStudents = function() {
       return;
     }
 
+    // Convert photoOptIn to evidence_preference for new API
+    const evidencePreference = photoOptIn ? 'photo' : 'none';
+
     const studentData = {
       full_name: name,
       course_id: courseId,
-      national_id: nationalId,
-      photo_pref_opt_in: photoOptIn
+      national_id: nationalId || null,
+      evidence_preference: evidencePreference
     };
 
     let newStudentId = studentId;
-    if (studentId) {
-      State.updateStudent(studentId, studentData);
-    } else {
-      const newStudent = State.addStudent(studentData);
-      newStudentId = newStudent.id;
+    try {
+      if (studentId) {
+        // Update existing student
+        if (State.isApiAuthenticated()) {
+          await API.updateStudent(studentId, studentData);
+        }
+        State.updateStudent(studentId, { ...studentData, photo_pref_opt_in: photoOptIn });
+      } else {
+        // Create new student
+        if (State.isApiAuthenticated()) {
+          const createdStudent = await API.createStudent(studentData);
+          newStudentId = createdStudent.id;
+          // Add to local state with the real ID from backend
+          State.addStudent({ ...studentData, id: newStudentId, status: 'ACTIVE', photo_pref_opt_in: photoOptIn });
+        } else {
+          // Demo mode - only localStorage
+          const newStudent = State.addStudent({ ...studentData, photo_pref_opt_in: photoOptIn });
+          newStudentId = newStudent.id;
+        }
+      }
+    } catch (error) {
+      console.error('Error saving student:', error);
+      Components.showToast(error.message || 'Error al guardar estudiante', 'error');
+      return;
     }
 
     // Upload photo if a new one was selected
@@ -457,12 +543,58 @@ Views.directorStudents = function() {
       </div>
     `, [
       { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
-      { label: 'Eliminar', action: 'delete', className: 'btn-error', onClick: () => {
-        State.deleteStudent(studentId);
-        document.querySelector('.modal-container').click();
-        Components.showToast('Alumno eliminado', 'success');
-        filteredStudents = State.getStudents();
-        renderStudents();
+      { label: 'Eliminar', action: 'delete', className: 'btn-error', onClick: async () => {
+        try {
+          // Delete from backend if authenticated
+          if (State.isApiAuthenticated()) {
+            await API.deleteStudent(studentId);
+          }
+          // Delete from local state
+          State.deleteStudent(studentId);
+          document.querySelector('.modal-container').click();
+          Components.showToast('Alumno eliminado', 'success');
+          filteredStudents = State.getStudents();
+          renderStudents();
+        } catch (error) {
+          console.error('Error deleting student:', error);
+          Components.showToast(error.message || 'Error al eliminar estudiante', 'error');
+        }
+      }}
+    ]);
+  };
+
+  Views.directorStudents.restoreStudent = async function(studentId) {
+    Components.showModal('Restaurar Estudiante', `
+      <div style="text-align: center; padding: 1rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">♻️</div>
+        <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">¿Restaurar este estudiante?</p>
+        <p style="font-size: 0.9rem; color: var(--color-gray-500); margin-top: 1rem;">
+          El estudiante volverá a aparecer en las listas normales.
+        </p>
+      </div>
+    `, [
+      { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
+      { label: 'Restaurar', action: 'restore', className: 'btn-success', onClick: async () => {
+        try {
+          // Call API to restore student
+          const response = await API.request(`/students/${studentId}/restore`, {
+            method: 'POST'
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Error al restaurar');
+          }
+
+          document.querySelector('.modal-container').click();
+          Components.showToast('Estudiante restaurado', 'success');
+
+          // Refresh the list
+          await Views.directorStudents.applyFilters();
+        } catch (error) {
+          console.error('Error restoring student:', error);
+          Components.showToast(error.message || 'Error al restaurar estudiante', 'error');
+        }
       }}
     ]);
   };
@@ -678,16 +810,40 @@ Views.directorStudents = function() {
     ]);
   };
 
-  Views.directorStudents.registerAttendance = function(studentId, type) {
-    State.addAttendanceEvent({
-      student_id: studentId,
-      type: type,
-      source: 'MANUAL'
-    });
-    Components.showToast(`${type === 'IN' ? 'Entrada' : 'Salida'} registrada correctamente`, 'success');
-    // Refresh the modal
-    document.querySelector('.modal-container').click();
-    Views.directorStudents.viewAttendance(studentId);
+  Views.directorStudents.registerAttendance = async function(studentId, type) {
+    try {
+      // Call the attendance API endpoint
+      const response = await API.request('/attendance/events', {
+        method: 'POST',
+        body: JSON.stringify({
+          student_id: studentId,
+          type: type,
+          device_id: 'WEB-APP',
+          gate_id: 'MANUAL-ENTRY',
+          source: 'MANUAL'
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Error al registrar asistencia');
+      }
+
+      // Also update local state for immediate UI feedback
+      State.addAttendanceEvent({
+        student_id: studentId,
+        type: type,
+        source: 'MANUAL'
+      });
+
+      Components.showToast(`${type === 'IN' ? 'Entrada' : 'Salida'} registrada correctamente`, 'success');
+      // Refresh the modal
+      document.querySelector('.modal-container').click();
+      Views.directorStudents.viewAttendance(studentId);
+    } catch (error) {
+      console.error('Error registering attendance:', error);
+      Components.showToast(error.message || 'Error al registrar asistencia', 'error');
+    }
   };
 
   Views.directorStudents.showEnrollMenu = function(studentId) {

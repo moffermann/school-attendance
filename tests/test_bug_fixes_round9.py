@@ -84,13 +84,13 @@ class TestR9M7WebAuthnTimezone:
 
 
 # =============================================================================
-# R9-M8: Enrollment should have unique constraint on (student_id, course_id, school_year)
+# R9-M8: Enrollment should have unique constraint on (student_id, course_id, year)
 # =============================================================================
 class TestR9M8EnrollmentUnique:
     """Test that Enrollment has unique constraint to prevent duplicates."""
 
     def test_enrollment_has_unique_constraint(self):
-        """R9-M8: Should have unique constraint on (student_id, course_id, school_year)."""
+        """R9-M8: Should have unique constraint on (student_id, course_id, year)."""
         from app.db.models.enrollment import Enrollment
 
         # Check for __table_args__ with UniqueConstraint
@@ -103,7 +103,7 @@ class TestR9M8EnrollmentUnique:
         has_unique_constraint = "UniqueConstraint" in source
 
         # Should reference the three fields
-        has_student_id = "student_id" in source and "course_id" in source and "school_year" in source
+        has_student_id = "student_id" in source and "course_id" in source and "year" in source
 
         assert has_table_args, "Enrollment should have __table_args__ for constraints"
         assert has_unique_constraint, (

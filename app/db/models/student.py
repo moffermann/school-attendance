@@ -37,7 +37,7 @@ class Student(Base):
     evidence_preference: Mapped[str] = mapped_column(String(16), default="none")
 
     course = relationship("Course", back_populates="students")
-    enrollments = relationship("Enrollment", back_populates="student")
+    enrollments = relationship("Enrollment", back_populates="student", cascade="all, delete-orphan")
     guardians = relationship("Guardian", secondary=student_guardian_table, back_populates="students")
     webauthn_credentials = relationship(
         "WebAuthnCredential", back_populates="student", cascade="all, delete-orphan"

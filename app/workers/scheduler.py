@@ -11,6 +11,7 @@ from loguru import logger
 
 from app.workers.jobs.detect_no_ingreso import _detect_and_notify
 from app.workers.jobs.cleanup_photos import _cleanup
+from app.workers.jobs.mark_devices_offline import _mark_devices_offline
 
 
 async def run_scheduler() -> None:
@@ -30,6 +31,14 @@ async def run_scheduler() -> None:
         _cleanup,
         CronTrigger(hour="2", minute=0),
         name="cleanup_photos",
+        max_instances=1,
+        coalesce=True,
+    )
+    # Mark devices offline if no heartbeat in 5 minutes
+    scheduler.add_job(
+        _mark_devices_offline,
+        CronTrigger(minute="*/2"),  # Run every 2 minutes
+        name="mark_devices_offline",
         max_instances=1,
         coalesce=True,
     )

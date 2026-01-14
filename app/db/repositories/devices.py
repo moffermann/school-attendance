@@ -100,3 +100,40 @@ class DeviceRepository:
         device.online = True
         await self.session.flush()
         return device
+
+    async def create(
+        self,
+        *,
+        device_id: str,
+        gate_id: str,
+        firmware_version: str = "1.0.0",
+        battery_pct: int = 100,
+        pending_events: int = 0,
+        online: bool = False,
+    ) -> Device:
+        """Create a new device from admin UI."""
+        device = Device(
+            device_id=device_id,
+            gate_id=gate_id,
+            firmware_version=firmware_version,
+            battery_pct=battery_pct,
+            pending_events=pending_events,
+            online=online,
+            last_sync=None,  # No sync yet - device created manually
+        )
+        self.session.add(device)
+        await self.session.flush()
+        return device
+
+    async def update(self, device: Device, **kwargs) -> Device:
+        """Update device fields."""
+        for key, value in kwargs.items():
+            if value is not None and hasattr(device, key):
+                setattr(device, key, value)
+        await self.session.flush()
+        return device
+
+    async def delete(self, device: Device) -> None:
+        """Delete a device."""
+        await self.session.delete(device)
+        await self.session.flush()

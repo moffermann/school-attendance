@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core import deps
 from app.core.auth import AuthUser
-from app.schemas.devices import DeviceHeartbeatRequest, DeviceRead
+from app.schemas.devices import DeviceCreate, DeviceHeartbeatRequest, DeviceRead, DeviceUpdate
 from app.services.device_service import DeviceService
 
 
@@ -17,6 +17,48 @@ async def list_devices(
     _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
 ) -> list[DeviceRead]:
     return await service.list_devices()
+
+
+@router.post("", response_model=DeviceRead, status_code=status.HTTP_201_CREATED)
+async def create_device(
+    payload: DeviceCreate,
+    service: DeviceService = Depends(deps.get_device_service),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+) -> DeviceRead:
+    """Create a new device/kiosk."""
+    try:
+        return await service.create_device(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@router.patch("/{device_id}", response_model=DeviceRead)
+async def update_device(
+    device_id: int,
+    payload: DeviceUpdate,
+    service: DeviceService = Depends(deps.get_device_service),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+) -> DeviceRead:
+    """Update an existing device."""
+    try:
+        return await service.update_device(device_id, payload)
+    except ValueError as exc:
+        if "no encontrado" in str(exc).lower():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_device(
+    device_id: int,
+    service: DeviceService = Depends(deps.get_device_service),
+    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+) -> None:
+    """Delete a device."""
+    try:
+        await service.delete_device(device_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.post("/heartbeat", response_model=DeviceRead)

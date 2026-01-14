@@ -245,6 +245,108 @@ const API = Object.assign(createApiClient('webAppConfig'), {
     return response.json();
   },
 
+  /**
+   * Create a new device
+   * @param {Object} data - Device data
+   * @param {string} data.device_id - Unique device identifier
+   * @param {string} data.gate_id - Gate/door identifier
+   * @param {string} [data.firmware_version] - Firmware version
+   * @returns {Promise<Object>} Created device
+   */
+  async createDevice(data) {
+    const response = await this.request('/devices', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 409) {
+        throw new Error(error.detail || 'Ya existe un dispositivo con ese ID');
+      }
+      throw new Error(error.detail || 'No se pudo crear el dispositivo');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update an existing device
+   * @param {number} deviceId - Device ID (numeric)
+   * @param {Object} data - Fields to update
+   * @returns {Promise<Object>} Updated device
+   */
+  async updateDevice(deviceId, data) {
+    const response = await this.request(`/devices/${deviceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Dispositivo no encontrado');
+      }
+      if (response.status === 409) {
+        throw new Error(error.detail || 'Ya existe un dispositivo con ese ID');
+      }
+      throw new Error(error.detail || 'No se pudo actualizar el dispositivo');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a device
+   * @param {number} deviceId - Device ID (numeric)
+   * @returns {Promise<boolean>} True if deleted
+   */
+  async deleteDevice(deviceId) {
+    const response = await this.request(`/devices/${deviceId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Dispositivo no encontrado');
+      }
+      throw new Error(error.detail || 'No se pudo eliminar el dispositivo');
+    }
+    return true;
+  },
+
+  /**
+   * Ping a device to check connectivity
+   * @param {number} deviceId - Device ID (numeric)
+   * @returns {Promise<Object>} Device with updated last_sync
+   */
+  async pingDevice(deviceId) {
+    const response = await this.request(`/devices/${deviceId}/ping`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Dispositivo no encontrado');
+      }
+      throw new Error(error.detail || 'No se pudo hacer ping al dispositivo');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get device logs
+   * @param {number} deviceId - Device ID (numeric)
+   * @returns {Promise<string[]>} Array of log entries
+   */
+  async getDeviceLogs(deviceId) {
+    const response = await this.request(`/devices/${deviceId}/logs`);
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Dispositivo no encontrado');
+      }
+      throw new Error(error.detail || 'No se pudo obtener los logs');
+    }
+    return response.json();
+  },
+
   // ==================== Tags API ====================
 
   /**
@@ -710,6 +812,31 @@ const API = Object.assign(createApiClient('webAppConfig'), {
   },
 
   /**
+   * Create a new student
+   * @param {Object} data - Student data
+   * @param {string} data.full_name - Student's full name (required)
+   * @param {number} data.course_id - Course ID (required)
+   * @param {string} [data.national_id] - National ID/RUT (optional)
+   * @param {string} [data.evidence_preference] - Evidence preference: "photo", "audio", or "none"
+   * @returns {Promise<Object>} Created student
+   */
+  async createStudent(data) {
+    const response = await this.request('/students', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al crear estudiante' }));
+      if (response.status === 422) {
+        throw new Error(error.detail || 'Datos inválidos');
+      }
+      throw new Error(error.detail || 'Error al crear estudiante');
+    }
+    return response.json();
+  },
+
+  /**
    * Update student
    */
   async updateStudent(studentId, data) {
@@ -723,6 +850,26 @@ const API = Object.assign(createApiClient('webAppConfig'), {
       throw new Error(error.detail || 'Error al actualizar estudiante');
     }
     return response.json();
+  },
+
+  /**
+   * Delete a student
+   * @param {number} studentId - Student ID
+   * @returns {Promise<boolean>} True if deleted successfully
+   */
+  async deleteStudent(studentId) {
+    const response = await this.request(`/students/${studentId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Estudiante no encontrado');
+      }
+      const error = await response.json().catch(() => ({ detail: 'Error al eliminar estudiante' }));
+      throw new Error(error.detail || 'Error al eliminar estudiante');
+    }
+    return true;
   },
 
   /**

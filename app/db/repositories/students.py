@@ -1,6 +1,6 @@
 """Student repository stub."""
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -90,3 +90,136 @@ class StudentRepository:
                 setattr(student, key, value)
         await self.session.flush()
         return student
+
+    async def delete(self, student_id: int) -> bool:
+        """Hard delete a student by ID (use soft_delete instead for production).
+
+        Args:
+            student_id: The student's ID
+
+        Returns:
+            True if deleted, False if not found
+        """
+        student = await self.get(student_id)
+        if not student:
+            return False
+        await self.session.delete(student)
+        await self.session.flush()
+        return True
+
+    async def soft_delete(self, student_id: int) -> bool:
+        """Soft delete a student by marking status as DELETED.
+
+        Args:
+            student_id: The student's ID
+
+        Returns:
+            True if soft deleted, False if not found
+        """
+        student = await self.get(student_id)
+        if not student:
+            return False
+        student.status = "DELETED"
+        await self.session.flush()
+        return True
+
+    async def create(
+        self,
+        full_name: str,
+        course_id: int,
+        national_id: str | None = None,
+        evidence_preference: str = "none",
+        status: str = "ACTIVE",
+    ) -> Student:
+        """Create a new student.
+
+        Args:
+            full_name: Student's full name
+            course_id: ID of the course/class
+            national_id: Optional national ID (RUT)
+            evidence_preference: Evidence type preference (photo/audio/none)
+            status: Student status (default: ACTIVE)
+
+        Returns:
+            The created Student instance
+        """
+        student = Student(
+            full_name=full_name,
+            course_id=course_id,
+            national_id=national_id,
+            evidence_preference=evidence_preference,
+            status=status,
+        )
+        self.session.add(student)
+        await self.session.flush()
+        await self.session.refresh(student)
+        return student
+
+    async def list_paginated(
+        self,
+        *,
+        skip: int = 0,
+        limit: int = 50,
+        search: str | None = None,
+        course_id: int | None = None,
+        status: str | None = None,
+        include_deleted: bool = False,
+    ) -> tuple[list[Student], int]:
+        """List students with pagination, search, and filters.
+
+        Args:
+            skip: Number of records to skip (offset)
+            limit: Maximum number of records to return
+            search: Search term for full_name or national_id (case-insensitive)
+            course_id: Filter by course ID
+            status: Filter by specific status (ACTIVE, INACTIVE, DELETED)
+            include_deleted: If False (default), excludes DELETED students
+
+        Returns:
+            Tuple of (students list, total count)
+        """
+        # Base query
+        base_query = select(Student)
+
+        # Apply filters
+        if course_id is not None:
+            base_query = base_query.where(Student.course_id == course_id)
+
+        # Exclude DELETED by default unless explicitly requested
+        if not include_deleted:
+            base_query = base_query.where(Student.status != "DELETED")
+
+        if status is not None:
+            base_query = base_query.where(Student.status == status)
+
+        if search:
+            search_term = f"%{search}%"
+            base_query = base_query.where(
+                func.lower(Student.full_name).like(func.lower(search_term))
+                | (Student.national_id.ilike(search_term))
+            )
+
+        # Get total count
+        count_query = select(func.count()).select_from(base_query.subquery())
+        total_result = await self.session.execute(count_query)
+        total = total_result.scalar() or 0
+
+        # Get paginated results
+        paginated_query = (
+            base_query
+            .order_by(Student.full_name)
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await self.session.execute(paginated_query)
+        students = list(result.scalars().all())
+
+        return students, total
+
+    async def count_all(self, status: str | None = "ACTIVE") -> int:
+        """Count all students, optionally filtered by status."""
+        query = select(func.count(Student.id))
+        if status:
+            query = query.where(Student.status == status)
+        result = await self.session.execute(query)
+        return result.scalar() or 0

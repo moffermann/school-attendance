@@ -471,6 +471,110 @@ const Sync = {
   }
 };
 
+// ==================== Device Heartbeat ====================
+
+/**
+ * Send heartbeat to backend to report device status
+ * Includes battery level if available (resolves "simulated ping" issue)
+ * @returns {Promise<boolean>} - True if heartbeat sent successfully
+ */
+Sync.sendHeartbeat = async function() {
+  const config = this.getApiConfig();
+
+  if (!config.deviceKey) {
+    console.log('[Heartbeat] No device API key configured, skipping');
+    return false;
+  }
+
+  try {
+    // Get battery level if available (mobile devices)
+    let batteryPct = State.device.battery_pct || 100;
+    if ('getBattery' in navigator) {
+      try {
+        const battery = await navigator.getBattery();
+        batteryPct = Math.round(battery.level * 100);
+        // Update local state with real battery level
+        State.device.battery_pct = batteryPct;
+      } catch (e) {
+        console.warn('[Heartbeat] Battery API not available:', e.message);
+      }
+    }
+
+    // Prepare heartbeat payload
+    const payload = {
+      device_id: config.deviceId,
+      gate_id: config.gateId,
+      firmware_version: State.device.version || '1.0.0',
+      battery_pct: batteryPct,
+      pending_events: State.getPendingCount(),
+      online: true
+    };
+
+    const headers = this.getHeaders();
+    if (config.tenantId) {
+      headers['X-Tenant-ID'] = config.tenantId;
+    }
+
+    const response = await fetch(`${config.baseUrl}/devices/heartbeat`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('[Heartbeat] Sent successfully:', {
+        device: config.deviceId,
+        battery: batteryPct,
+        pending: payload.pending_events
+      });
+      // Update local state
+      State.device.online = true;
+      return true;
+    } else {
+      console.error('[Heartbeat] Failed:', response.status);
+      return false;
+    }
+  } catch (err) {
+    console.error('[Heartbeat] Network error:', err.message);
+    return false;
+  }
+};
+
+/**
+ * Start automatic heartbeat interval
+ * Sends heartbeat every 2 minutes to keep device marked as online
+ */
+Sync.startHeartbeat = function() {
+  // Clear existing interval if any
+  if (this._heartbeatIntervalId) {
+    clearInterval(this._heartbeatIntervalId);
+  }
+
+  // Send initial heartbeat immediately
+  this.sendHeartbeat();
+
+  // Then send every 2 minutes (offline detection runs every 5 min with 5 min threshold)
+  this._heartbeatIntervalId = setInterval(() => {
+    if (State.device.online && this.isRealApiMode()) {
+      this.sendHeartbeat();
+    }
+  }, 2 * 60 * 1000); // 2 minutes
+
+  console.log('[Heartbeat] Automatic heartbeat started (every 2 min)');
+};
+
+/**
+ * Stop automatic heartbeat interval
+ */
+Sync.stopHeartbeat = function() {
+  if (this._heartbeatIntervalId) {
+    clearInterval(this._heartbeatIntervalId);
+    this._heartbeatIntervalId = null;
+    console.log('[Heartbeat] Automatic heartbeat stopped');
+  }
+};
+
 // R3-R3 fix: Store interval references for potential cleanup
 // Auto-sync every 30 seconds
 // TDD-BUG4 fix: Check isSyncing to prevent concurrent queue processing
@@ -498,6 +602,8 @@ Sync.stopIntervals = function() {
     clearInterval(this._studentsIntervalId);
     this._studentsIntervalId = null;
   }
+  // Also stop heartbeat when stopping all intervals
+  this.stopHeartbeat();
 };
 
 // R4-F2 fix: Cleanup intervals on page unload to prevent memory leaks

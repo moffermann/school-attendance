@@ -37,7 +37,9 @@ dependencies = [
   "apscheduler>=3.10",
   "aiosqlite>=0.20.0",
   "webauthn>=2.0.0",
-  "pywebpush>=1.15.0"
+  "pywebpush>=1.15.0",
+  "Pillow>=10.0",
+  "pillow-heif>=0.15"
 ]
 
 [project.optional-dependencies]

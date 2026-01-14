@@ -135,6 +135,10 @@
           } catch (err) {
             console.warn('[INIT] syncBootstrap failed or timed out:', err.message);
           }
+
+          // Start automatic heartbeat to keep device marked as online
+          // and report battery level to backend
+          Sync.startHeartbeat();
         }
 
         console.log('[INIT] Calling Router.init()...');
