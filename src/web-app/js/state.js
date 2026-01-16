@@ -667,15 +667,22 @@ const State = {
 
   /**
    * Refresh guardians from API
+   * @param {Object} filters - Optional filters
+   * @param {string} [filters.status] - Filter by status (ACTIVE, DELETED)
    * @returns {Promise<Array>} List of guardians
    */
-  async refreshGuardians() {
+  async refreshGuardians(filters = {}) {
     if (!this.isApiAuthenticated()) {
-      return this.data.guardians || [];
+      // Demo mode: filter locally if status provided
+      let guardians = this.data.guardians || [];
+      if (filters.status) {
+        guardians = guardians.filter(g => (g.status || 'ACTIVE') === filters.status);
+      }
+      return guardians;
     }
 
     try {
-      const response = await API.getGuardians({ limit: 200 });
+      const response = await API.getGuardians({ limit: 100, status: filters.status });
       this.data.guardians = response.items || [];
       this.persist();
       return this.data.guardians;
@@ -756,27 +763,68 @@ const State = {
   },
 
   /**
-   * Delete a guardian via API
+   * Delete a guardian via API (soft delete)
    * @param {number} id - Guardian ID
    * @returns {Promise<boolean>} True if deleted
    */
   async deleteGuardian(id) {
     if (!this.isApiAuthenticated()) {
-      // Demo mode - delete locally
+      // Demo mode - soft delete locally
       if (!this.data.guardians) return;
-      this.data.guardians = this.data.guardians.filter(g => g.id !== id);
+      const index = this.data.guardians.findIndex(g => g.id === id);
+      if (index !== -1) {
+        this.data.guardians[index].status = 'DELETED';
+      }
       this.persist();
       return true;
     }
 
     try {
       await API.deleteGuardian(id);
-      // Remove from local state
-      this.data.guardians = this.data.guardians.filter(g => g.id !== id);
+      // Update local state - mark as deleted instead of removing
+      const index = this.data.guardians.findIndex(g => g.id === id);
+      if (index !== -1) {
+        this.data.guardians[index].status = 'DELETED';
+      }
       this.persist();
       return true;
     } catch (error) {
       console.error('Error deleting guardian:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Restore a deleted guardian via API
+   * @param {number} id - Guardian ID
+   * @returns {Promise<Object>} Restored guardian
+   */
+  async restoreGuardian(id) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - restore locally
+      if (!this.data.guardians) return null;
+      const index = this.data.guardians.findIndex(g => g.id === id);
+      if (index !== -1) {
+        this.data.guardians[index].status = 'ACTIVE';
+        this.persist();
+        return this.data.guardians[index];
+      }
+      throw new Error('Apoderado no encontrado');
+    }
+
+    try {
+      const restored = await API.restoreGuardian(id);
+      // Update local state
+      const index = this.data.guardians.findIndex(g => g.id === id);
+      if (index !== -1) {
+        this.data.guardians[index] = restored;
+      } else {
+        this.data.guardians.push(restored);
+      }
+      this.persist();
+      return restored;
+    } catch (error) {
+      console.error('Error restoring guardian:', error);
       throw error;
     }
   },
@@ -861,15 +909,22 @@ const State = {
 
   /**
    * Refresh teachers from API
+   * @param {Object} filters - Optional filters
+   * @param {string} [filters.status] - Filter by status (ACTIVE, INACTIVE, ON_LEAVE, DELETED)
    * @returns {Promise<Array>} List of teachers
    */
-  async refreshTeachers() {
+  async refreshTeachers(filters = {}) {
     if (!this.isApiAuthenticated()) {
-      return this.data.teachers || [];
+      // Demo mode: filter locally if status provided
+      let teachers = this.data.teachers || [];
+      if (filters.status) {
+        teachers = teachers.filter(t => (t.status || 'ACTIVE') === filters.status);
+      }
+      return teachers;
     }
 
     try {
-      const response = await API.getTeachers({ page: 1, page_size: 100 });
+      const response = await API.getTeachers({ limit: 100, status: filters.status });
       this.data.teachers = response.items || [];
       this.persist();
       return this.data.teachers;
@@ -952,45 +1007,68 @@ const State = {
   },
 
   /**
-   * Delete a teacher via API
+   * Delete a teacher via API (soft delete)
    * @param {number} id - Teacher ID
    * @returns {Promise<boolean>} True if deleted
    */
   async deleteTeacher(id) {
     if (!this.isApiAuthenticated()) {
-      // Demo mode - delete locally
+      // Demo mode - soft delete locally
       if (!this.data.teachers) return;
-      this.data.teachers = this.data.teachers.filter(t => t.id !== id);
-      // Remove teacher from courses
-      this.data.courses.forEach(c => {
-        if (c.teacher_ids) {
-          c.teacher_ids = c.teacher_ids.filter(tid => tid !== id);
-        }
-        if (c.teacher_id === id) {
-          c.teacher_id = null;
-        }
-      });
+      const index = this.data.teachers.findIndex(t => t.id === id);
+      if (index !== -1) {
+        this.data.teachers[index].status = 'DELETED';
+      }
       this.persist();
       return true;
     }
 
     try {
       await API.deleteTeacher(id);
-      // Remove from local state
-      this.data.teachers = this.data.teachers.filter(t => t.id !== id);
-      // Also update courses locally
-      this.data.courses.forEach(c => {
-        if (c.teacher_ids) {
-          c.teacher_ids = c.teacher_ids.filter(tid => tid !== id);
-        }
-        if (c.teacher_id === id) {
-          c.teacher_id = null;
-        }
-      });
+      // Update local state - mark as deleted instead of removing
+      const index = this.data.teachers.findIndex(t => t.id === id);
+      if (index !== -1) {
+        this.data.teachers[index].status = 'DELETED';
+      }
       this.persist();
       return true;
     } catch (error) {
       console.error('Error deleting teacher:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Restore a deleted teacher via API
+   * @param {number} id - Teacher ID
+   * @returns {Promise<Object>} Restored teacher
+   */
+  async restoreTeacher(id) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - restore locally
+      if (!this.data.teachers) return null;
+      const index = this.data.teachers.findIndex(t => t.id === id);
+      if (index !== -1) {
+        this.data.teachers[index].status = 'ACTIVE';
+        this.persist();
+        return this.data.teachers[index];
+      }
+      throw new Error('Profesor no encontrado');
+    }
+
+    try {
+      const restored = await API.restoreTeacher(id);
+      // Update local state
+      const index = this.data.teachers.findIndex(t => t.id === id);
+      if (index !== -1) {
+        this.data.teachers[index] = restored;
+      } else {
+        this.data.teachers.push(restored);
+      }
+      this.persist();
+      return restored;
+    } catch (error) {
+      console.error('Error restoring teacher:', error);
       throw error;
     }
   },
@@ -1257,6 +1335,58 @@ const State = {
       return await API.exportCoursesCSV(filters);
     } catch (error) {
       console.error('Error exporting courses:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Export teachers to CSV
+   */
+  async exportTeachersCSV(filters = {}) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - generate CSV locally
+      let teachers = this.data.teachers;
+      if (filters.status) {
+        teachers = teachers.filter(t => t.status === filters.status);
+      }
+
+      const headers = ['ID', 'Nombre', 'Email', 'Estado', 'Creado'];
+      const rows = teachers.map(t => [t.id, t.full_name, t.email || '', t.status || 'ACTIVE', t.created_at || '']);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+      return new Blob([csv], { type: 'text/csv' });
+    }
+
+    try {
+      return await API.exportTeachersCSV(filters);
+    } catch (error) {
+      console.error('Error exporting teachers:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Export guardians to CSV
+   */
+  async exportGuardiansCSV(filters = {}) {
+    if (!this.isApiAuthenticated()) {
+      // Demo mode - generate CSV locally
+      let guardians = this.data.guardians;
+      if (filters.status) {
+        guardians = guardians.filter(g => g.status === filters.status);
+      }
+
+      const headers = ['ID', 'Nombre', 'Estado', 'Creado'];
+      const rows = guardians.map(g => [g.id, g.full_name, g.status || 'ACTIVE', g.created_at || '']);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+      return new Blob([csv], { type: 'text/csv' });
+    }
+
+    try {
+      return await API.exportGuardiansCSV(filters);
+    } catch (error) {
+      console.error('Error exporting guardians:', error);
       throw error;
     }
   },

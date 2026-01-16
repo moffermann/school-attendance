@@ -16,25 +16,131 @@ Views.directorStudents = function() {
   let selectedCourse = '';
   let selectedStatus = '';  // '', 'ACTIVE', 'INACTIVE', 'DELETED'
 
+  // Helper to render table rows
+  function renderTableRows() {
+    return filteredStudents.map(student => {
+      const course = State.getCourse(student.course_id);
+      const photoChip = student.photo_pref_opt_in
+        ? Components.createChip('Sí', 'success')
+        : Components.createChip('No', 'gray');
+      const stats = State.getStudentAttendanceStats(student.id);
+      const attendanceChip = stats.percentage >= 90
+        ? Components.createChip(stats.percentage + '%', 'success')
+        : stats.percentage >= 75
+          ? Components.createChip(stats.percentage + '%', 'warning')
+          : Components.createChip(stats.percentage + '%', 'error');
+
+      // Chip de estado
+      const statusChip = student.status === 'DELETED'
+        ? Components.createChip('Eliminado', 'error')
+        : student.status === 'INACTIVE'
+          ? Components.createChip('Inactivo', 'warning')
+          : Components.createChip('Activo', 'success');
+
+      // Acciones según estado
+      const isDeleted = student.status === 'DELETED';
+
+      return `
+        <tr ${isDeleted ? 'style="opacity: 0.7;"' : ''}>
+          <td><strong>${Components.escapeHtml(student.full_name)}</strong></td>
+          <td>${course ? Components.escapeHtml(course.name) : '-'}</td>
+          <td>${statusChip}</td>
+          <td>${attendanceChip}</td>
+          <td>${photoChip}</td>
+          <td style="white-space: nowrap;">
+            ${isDeleted ? `
+              <button class="btn btn-success btn-sm" onclick="Views.directorStudents.restoreStudent(${student.id})" title="Restaurar estudiante">
+                ♻️ Restaurar
+              </button>
+            ` : `
+              <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.viewProfile(${student.id})" title="Ver perfil">
+                👁️
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.showEnrollMenu(${student.id})" title="Generar credencial QR/NFC">
+                💳
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.viewAttendance(${student.id})" title="Ver asistencia">
+                📊
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.showEditForm(${student.id})" title="Editar">
+                ✏️
+              </button>
+              <button class="btn btn-error btn-sm" onclick="Views.directorStudents.confirmDelete(${student.id})" title="Eliminar">
+                🗑️
+              </button>
+            `}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // Update only table content without re-rendering filters (keeps input focus)
+  function updateTableContent() {
+    const cardBody = document.querySelector('.card-body');
+    const cardHeader = document.querySelector('.card-header span');
+
+    if (cardHeader) {
+      cardHeader.textContent = `Lista de Alumnos (${filteredStudents.length})`;
+    }
+
+    if (!cardBody) return;
+
+    if (filteredStudents.length === 0) {
+      cardBody.innerHTML = Components.createEmptyState(
+        'Sin alumnos',
+        searchTerm || selectedCourse
+          ? 'No hay alumnos que coincidan con los filtros seleccionados'
+          : 'No hay alumnos registrados en el sistema'
+      );
+    } else {
+      const tbody = cardBody.querySelector('tbody');
+      if (tbody) {
+        // Table exists, just update rows
+        tbody.innerHTML = renderTableRows();
+      } else {
+        // Table doesn't exist, create it
+        cardBody.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Curso</th>
+                <th>Estado</th>
+                <th>Asistencia</th>
+                <th>Aut. Foto</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${renderTableRows()}
+            </tbody>
+          </table>
+        `;
+      }
+    }
+  }
+
   function renderStudents() {
     content.innerHTML = `
       <div class="filters" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1.5rem;">
         <div class="filter-group" style="flex: 1; min-width: 200px;">
           <label class="form-label">Buscar alumno</label>
-          <input type="text" id="search-student" class="form-input" placeholder="Nombre..." value="${searchTerm}">
+          <input type="text" id="search-student" class="form-input" placeholder="Nombre..." value="${Components.escapeHtml(searchTerm)}"
+            onkeyup="Views.directorStudents.search(this.value)">
         </div>
 
         <div class="filter-group" style="flex: 1; min-width: 150px;">
           <label class="form-label">Curso</label>
-          <select id="filter-course" class="form-select">
-            <option value="">Todos</option>
-            ${courses.map(c => `<option value="${c.id}" ${selectedCourse === c.id ? 'selected' : ''}>${Components.escapeHtml(c.name)}</option>`).join('')}
+          <select id="filter-course" class="form-select" onchange="Views.directorStudents.filterByCourse(this.value)">
+            <option value="">Todos los cursos</option>
+            ${courses.map(c => `<option value="${c.id}" ${selectedCourse === String(c.id) ? 'selected' : ''}>${Components.escapeHtml(c.name)}</option>`).join('')}
           </select>
         </div>
 
         <div class="filter-group" style="flex: 1; min-width: 120px;">
           <label class="form-label">Estado</label>
-          <select id="filter-status" class="form-select">
+          <select id="filter-status" class="form-select" onchange="Views.directorStudents.filterByStatus(this.value)">
             <option value="" ${selectedStatus === '' ? 'selected' : ''}>Activos</option>
             <option value="INACTIVE" ${selectedStatus === 'INACTIVE' ? 'selected' : ''}>Inactivos</option>
             <option value="DELETED" ${selectedStatus === 'DELETED' ? 'selected' : ''}>Eliminados</option>
@@ -43,7 +149,7 @@ Views.directorStudents = function() {
         </div>
 
         <div class="filter-group" style="display: flex; gap: 0.5rem;">
-          <button class="btn btn-secondary" onclick="Views.directorStudents.applyFilters()">Filtrar</button>
+          <button class="btn btn-outline" onclick="Views.directorStudents.clearFilters()" title="Limpiar filtros">✕ Limpiar</button>
           <button class="btn btn-primary" onclick="Views.directorStudents.showCreateForm()">+ Nuevo Alumno</button>
         </div>
       </div>
@@ -71,61 +177,7 @@ Views.directorStudents = function() {
               </tr>
             </thead>
             <tbody>
-              ${filteredStudents.map(student => {
-                const course = State.getCourse(student.course_id);
-                const photoChip = student.photo_pref_opt_in
-                  ? Components.createChip('Sí', 'success')
-                  : Components.createChip('No', 'gray');
-                const stats = State.getStudentAttendanceStats(student.id);
-                const attendanceChip = stats.percentage >= 90
-                  ? Components.createChip(stats.percentage + '%', 'success')
-                  : stats.percentage >= 75
-                    ? Components.createChip(stats.percentage + '%', 'warning')
-                    : Components.createChip(stats.percentage + '%', 'error');
-
-                // Chip de estado
-                const statusChip = student.status === 'DELETED'
-                  ? Components.createChip('Eliminado', 'error')
-                  : student.status === 'INACTIVE'
-                    ? Components.createChip('Inactivo', 'warning')
-                    : Components.createChip('Activo', 'success');
-
-                // Acciones según estado
-                const isDeleted = student.status === 'DELETED';
-
-                return `
-                  <tr ${isDeleted ? 'style="opacity: 0.7;"' : ''}>
-                    <td><strong>${Components.escapeHtml(student.full_name)}</strong></td>
-                    <td>${course ? Components.escapeHtml(course.name) : '-'}</td>
-                    <td>${statusChip}</td>
-                    <td>${attendanceChip}</td>
-                    <td>${photoChip}</td>
-                    <td style="white-space: nowrap;">
-                      ${isDeleted ? `
-                        <button class="btn btn-success btn-sm" onclick="Views.directorStudents.restoreStudent(${student.id})" title="Restaurar estudiante">
-                          ♻️ Restaurar
-                        </button>
-                      ` : `
-                        <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.viewProfile(${student.id})" title="Ver perfil">
-                          👁️
-                        </button>
-                        <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.showEnrollMenu(${student.id})" title="Generar credencial QR/NFC">
-                          💳
-                        </button>
-                        <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.viewAttendance(${student.id})" title="Ver asistencia">
-                          📊
-                        </button>
-                        <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.showEditForm(${student.id})" title="Editar">
-                          ✏️
-                        </button>
-                        <button class="btn btn-error btn-sm" onclick="Views.directorStudents.confirmDelete(${student.id})" title="Eliminar">
-                          🗑️
-                        </button>
-                      `}
-                    </td>
-                  </tr>
-                `;
-              }).join('')}
+              ${renderTableRows()}
             </tbody>
           </table>
           `}
@@ -134,11 +186,8 @@ Views.directorStudents = function() {
     `;
   }
 
-  Views.directorStudents.applyFilters = async function() {
-    searchTerm = document.getElementById('search-student').value.toLowerCase();
-    selectedCourse = document.getElementById('filter-course').value;
-    selectedStatus = document.getElementById('filter-status').value;
-
+  // Helper function to apply all current filters
+  async function applyCurrentFilters() {
     // Para DELETED o ALL, necesitamos llamar a la API
     if (selectedStatus === 'DELETED' || selectedStatus === 'ALL') {
       try {
@@ -146,8 +195,6 @@ Views.directorStudents = function() {
         if (searchTerm && searchTerm.length >= 2) params.append('q', searchTerm);
         if (selectedCourse) params.append('course_id', selectedCourse);
         if (selectedStatus === 'DELETED') params.append('status', 'DELETED');
-        // Para ALL, no enviamos status para obtener todos (pero la API excluye DELETED por defecto)
-        // Necesitamos un endpoint especial o modificar la API
 
         const queryString = params.toString();
         const url = `/students${queryString ? '?' + queryString : ''}`;
@@ -168,7 +215,8 @@ Views.directorStudents = function() {
     } else {
       // Filtrado local para ACTIVE e INACTIVE
       filteredStudents = State.getStudents().filter(student => {
-        if (searchTerm && !student.full_name.toLowerCase().includes(searchTerm)) {
+        const term = searchTerm.toLowerCase();
+        if (term && !student.full_name.toLowerCase().includes(term)) {
           return false;
         }
 
@@ -184,7 +232,39 @@ Views.directorStudents = function() {
         return true;
       });
     }
+  }
 
+  // Reactive filter methods
+  Views.directorStudents.search = function(term) {
+    searchTerm = term;
+    applyCurrentFilters().then(() => updateTableContent());
+  };
+
+  Views.directorStudents.filterByCourse = function(course) {
+    selectedCourse = course;
+    applyCurrentFilters().then(() => updateTableContent());
+  };
+
+  Views.directorStudents.filterByStatus = async function(status) {
+    selectedStatus = status;
+    await applyCurrentFilters();
+    renderStudents();
+  };
+
+  Views.directorStudents.clearFilters = async function() {
+    searchTerm = '';
+    selectedCourse = '';
+    selectedStatus = '';
+    filteredStudents = State.getStudents();
+    renderStudents();
+  };
+
+  // Legacy method for compatibility
+  Views.directorStudents.applyFilters = async function() {
+    searchTerm = document.getElementById('search-student')?.value || '';
+    selectedCourse = document.getElementById('filter-course')?.value || '';
+    selectedStatus = document.getElementById('filter-status')?.value || '';
+    await applyCurrentFilters();
     renderStudents();
   };
 

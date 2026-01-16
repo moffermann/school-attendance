@@ -1,27 +1,38 @@
 """Teacher endpoints for PWA and admin CRUD."""
 
+import csv
 import math
 from datetime import datetime, timezone
+from io import StringIO
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response, status
 from loguru import logger
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import deps
 from app.core.auth import AuthUser
+from app.core.deps import TenantAuthUser
 from app.db.repositories.teachers import TeacherRepository
 from app.db.repositories.attendance import AttendanceRepository
+from app.services.teacher_service import TeacherService
 from app.schemas.teachers import (
     BulkAttendanceRequest,
     BulkAttendanceResponse,
+    PaginatedTeachers,
     TeacherCourseRead,
     TeacherCreate,
+    TeacherFilters,
     TeacherListResponse,
     TeacherMeResponse,
     TeacherRead,
     TeacherStudentRead,
     TeacherUpdate,
+    TeacherWithStats,
 )
+
+limiter = Limiter(key_func=get_remote_address)
 
 
 router = APIRouter()
@@ -215,224 +226,167 @@ async def submit_bulk_attendance(
 # =============================================================================
 
 
-def _teacher_to_response(teacher) -> TeacherRead:
-    """Convert a Teacher model to response schema."""
-    return TeacherRead(
-        id=teacher.id,
-        full_name=teacher.full_name,
-        email=teacher.email,
-        status=teacher.status,
-        can_enroll_biometric=teacher.can_enroll_biometric,
+def _sanitize_csv_value(val: str | None) -> str:
+    """Sanitize value for CSV to prevent formula injection."""
+    if not val:
+        return ""
+    val = str(val)
+    stripped = val.lstrip()
+    if stripped and stripped[0] in "=+-@|":
+        return "'" + val
+    return val
+
+
+# NOTE: Export and search endpoints MUST be defined BEFORE /{teacher_id}
+# to avoid route conflicts with FastAPI
+
+
+@router.get("/export", response_class=Response)
+@limiter.limit("10/minute")
+async def export_teachers(
+    request: Request,
+    status_filter: str | None = Query(default=None, alias="status"),
+    service: TeacherService = Depends(deps.get_teacher_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> Response:
+    """Export teachers to CSV file."""
+    filters = TeacherFilters(status=status_filter)
+    teachers = await service.list_teachers_for_export(user, filters, request)
+
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["ID", "Nombre", "Email", "Estado", "Cursos", "Puede Inscribir Biom.", "Creado"])
+
+    for t in teachers:
+        writer.writerow([
+            t.id,
+            _sanitize_csv_value(t.full_name),
+            _sanitize_csv_value(t.email) if t.email else "",
+            t.status,
+            t.courses_count,
+            "Sí" if t.can_enroll_biometric else "No",
+            t.created_at.isoformat() if t.created_at else "",
+        ])
+
+    return Response(
+        content=buffer.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=profesores.csv"},
     )
 
 
-@router.get("", response_model=TeacherListResponse)
+@router.get("/search", response_model=list[TeacherRead])
+@limiter.limit("60/minute")
+async def search_teachers(
+    request: Request,
+    q: str = Query(..., min_length=2, description="Término de búsqueda"),
+    limit: int = Query(20, ge=1, le=50, description="Máximo de resultados"),
+    fuzzy: bool = Query(False, description="Usar búsqueda difusa"),
+    service: TeacherService = Depends(deps.get_teacher_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> list[TeacherRead]:
+    """Search teachers by name or email."""
+    return await service.search_teachers(user, q, limit=limit, fuzzy=fuzzy)
+
+
+@router.get("", response_model=PaginatedTeachers)
+@limiter.limit("60/minute")
 async def list_teachers(
-    page: int = Query(1, ge=1, description="Número de página"),
-    page_size: int = Query(20, ge=1, le=100, description="Registros por página"),
-    q: str | None = Query(None, min_length=2, description="Buscar por nombre o email"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
-) -> TeacherListResponse:
-    """List teachers with pagination and search.
-
-    - **page**: Page number (1-indexed)
-    - **page_size**: Records per page (max 100)
-    - **q**: Search by name or email (case-insensitive, min 2 chars)
-    """
-    repo = TeacherRepository(session)
-    teachers, total = await repo.list_paginated(
-        page=page,
-        page_size=page_size,
-        search=q,
-    )
-
-    items = [_teacher_to_response(t) for t in teachers]
-    pages = math.ceil(total / page_size) if total > 0 else 1
-
-    return TeacherListResponse(
-        items=items,
-        total=total,
-        page=page,
-        page_size=page_size,
-        pages=pages,
-    )
+    request: Request,
+    limit: int = Query(50, ge=1, le=100, description="Registros por página"),
+    offset: int = Query(0, ge=0, description="Registros a saltar"),
+    status_filter: str | None = Query(default=None, alias="status"),
+    search: str | None = Query(None, min_length=2, description="Buscar por nombre o email"),
+    service: TeacherService = Depends(deps.get_teacher_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> PaginatedTeachers:
+    """List teachers with pagination and filters."""
+    filters = TeacherFilters(status=status_filter, search=search)
+    return await service.list_teachers(user, filters, limit=limit, offset=offset)
 
 
 @router.post("", response_model=TeacherRead, status_code=status.HTTP_201_CREATED)
+@limiter.limit("30/minute")
 async def create_teacher(
+    request: Request,
     payload: TeacherCreate,
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+    service: TeacherService = Depends(deps.get_teacher_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> TeacherRead:
-    """Create a new teacher.
-
-    - **full_name**: Teacher's full name (required, 2-255 chars)
-    - **email**: Email address (optional, must be unique)
-    - **status**: ACTIVE, INACTIVE, or ON_LEAVE (default: ACTIVE)
-    - **can_enroll_biometric**: Whether teacher can enroll biometric (default: false)
-    """
-    repo = TeacherRepository(session)
-
-    # Check email uniqueness if provided
-    if payload.email:
-        existing = await repo.get_by_email(payload.email)
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Ya existe un profesor con este email"
-            )
-
-    teacher = await repo.create(
-        full_name=payload.full_name,
-        email=payload.email,
-    )
-
-    # Update additional fields
-    if payload.status != "ACTIVE" or payload.can_enroll_biometric:
-        teacher = await repo.update(
-            teacher.id,
-            status=payload.status,
-            can_enroll_biometric=payload.can_enroll_biometric,
-        )
-
-    await session.commit()
-
-    logger.info(f"Created teacher {teacher.id}: {teacher.full_name}")
-
-    return _teacher_to_response(teacher)
+    """Create a new teacher."""
+    return await service.create_teacher(user, payload, request)
 
 
-@router.get("/{teacher_id}", response_model=TeacherRead)
+@router.get("/{teacher_id}", response_model=TeacherWithStats)
+@limiter.limit("60/minute")
 async def get_teacher(
+    request: Request,
     teacher_id: int = Path(..., ge=1, description="ID del profesor"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
-) -> TeacherRead:
-    """Get a teacher by ID."""
-    repo = TeacherRepository(session)
-    teacher = await repo.get(teacher_id)
-
-    if not teacher:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profesor no encontrado"
-        )
-
-    return _teacher_to_response(teacher)
+    service: TeacherService = Depends(deps.get_teacher_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> TeacherWithStats:
+    """Get a teacher by ID with statistics."""
+    return await service.get_teacher_detail(user, teacher_id, request)
 
 
 @router.patch("/{teacher_id}", response_model=TeacherRead)
+@limiter.limit("30/minute")
 async def update_teacher(
+    request: Request,
     payload: TeacherUpdate,
     teacher_id: int = Path(..., ge=1, description="ID del profesor"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+    service: TeacherService = Depends(deps.get_teacher_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> TeacherRead:
     """Update a teacher's information."""
-    repo = TeacherRepository(session)
-    teacher = await repo.get(teacher_id)
-
-    if not teacher:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profesor no encontrado"
-        )
-
-    # Check email uniqueness if changing
-    if payload.email is not None and payload.email != teacher.email:
-        existing = await repo.get_by_email(payload.email)
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Ya existe un profesor con este email"
-            )
-
-    # Build update kwargs
-    update_kwargs = {}
-    if payload.full_name is not None:
-        update_kwargs["full_name"] = payload.full_name
-    if payload.email is not None:
-        update_kwargs["email"] = payload.email
-    if payload.status is not None:
-        update_kwargs["status"] = payload.status
-    if payload.can_enroll_biometric is not None:
-        update_kwargs["can_enroll_biometric"] = payload.can_enroll_biometric
-
-    if update_kwargs:
-        teacher = await repo.update(teacher_id, **update_kwargs)
-
-    await session.commit()
-
-    return _teacher_to_response(teacher)
+    return await service.update_teacher(user, teacher_id, payload, request)
 
 
 @router.delete("/{teacher_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("10/minute")
 async def delete_teacher(
+    request: Request,
     teacher_id: int = Path(..., ge=1, description="ID del profesor"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+    service: TeacherService = Depends(deps.get_teacher_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> None:
-    """Delete a teacher.
+    """Soft delete a teacher (marks as DELETED)."""
+    await service.delete_teacher(user, teacher_id, request)
 
-    This will also remove all course assignments.
-    """
-    repo = TeacherRepository(session)
-    teacher = await repo.get(teacher_id)
 
-    if not teacher:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profesor no encontrado"
-        )
-
-    deleted = await repo.delete(teacher_id)
-    if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al eliminar profesor"
-        )
-
-    await session.commit()
-
-    logger.info(f"Deleted teacher {teacher_id}: {teacher.full_name}")
+@router.patch("/{teacher_id}/restore", response_model=TeacherRead)
+@limiter.limit("10/minute")
+async def restore_teacher(
+    request: Request,
+    teacher_id: int = Path(..., ge=1, description="ID del profesor"),
+    service: TeacherService = Depends(deps.get_teacher_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> TeacherRead:
+    """Restore a deleted teacher."""
+    return await service.restore_teacher(user, teacher_id, request)
 
 
 @router.post("/{teacher_id}/courses/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("30/minute")
 async def assign_course_to_teacher(
+    request: Request,
     teacher_id: int = Path(..., ge=1, description="ID del profesor"),
     course_id: int = Path(..., ge=1, description="ID del curso"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+    service: TeacherService = Depends(deps.get_teacher_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> None:
     """Assign a course to a teacher."""
-    repo = TeacherRepository(session)
-
-    success = await repo.assign_course(teacher_id, course_id)
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profesor o curso no encontrado"
-        )
-
-    await session.commit()
+    await service.assign_course(user, teacher_id, course_id, request)
 
 
 @router.delete("/{teacher_id}/courses/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("30/minute")
 async def unassign_course_from_teacher(
+    request: Request,
     teacher_id: int = Path(..., ge=1, description="ID del profesor"),
     course_id: int = Path(..., ge=1, description="ID del curso"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+    service: TeacherService = Depends(deps.get_teacher_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> None:
     """Remove a course assignment from a teacher."""
-    repo = TeacherRepository(session)
-
-    success = await repo.unassign_course(teacher_id, course_id)
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profesor o curso no encontrado"
-        )
-
-    await session.commit()
+    await service.unassign_course(user, teacher_id, course_id, request)

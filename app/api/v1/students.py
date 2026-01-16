@@ -1,21 +1,29 @@
 """Student management endpoints."""
 
+import csv
 import io
-import uuid
-from typing import Literal
+from io import StringIO
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, UploadFile, File, status
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, Request, Response, UploadFile, status
 from loguru import logger
 from PIL import Image
-from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import deps
-from app.core.auth import AuthUser
 from app.core.config import settings
+from app.core.deps import TenantAuthUser
 from app.core.rate_limiter import limiter
-from app.db.repositories.students import StudentRepository
-from app.services.photo_service import PhotoService
+from app.schemas.students import (
+    PaginatedStudents,
+    StudentCreate,
+    StudentDeleteResponse,
+    StudentFilters,
+    StudentPhotoResponse,
+    StudentRead,
+    StudentUpdate,
+    StudentWithStats,
+)
+from app.services.student_service import StudentService
+
 
 # Register HEIC support with Pillow
 try:
@@ -34,8 +42,19 @@ def _build_photo_proxy_url(photo_key: str | None) -> str | None:
     """Build a proxy URL for accessing photos through the API."""
     if not photo_key:
         return None
-    base_url = str(settings.public_base_url).rstrip('/')
+    base_url = str(settings.public_base_url).rstrip("/")
     return f"{base_url}/api/v1/photos/{photo_key}"
+
+
+def _sanitize_csv_value(val: str | None) -> str:
+    """Sanitize value for CSV to prevent formula injection."""
+    if not val:
+        return ""
+    val = str(val)
+    stripped = val.lstrip()
+    if stripped and stripped[0] in "=+-@|":
+        return "'" + val
+    return val
 
 
 # Allowed image MIME types
@@ -61,121 +80,121 @@ def _convert_heic_to_jpeg(content: bytes) -> tuple[bytes, str]:
     return output.read(), "image/jpeg"
 
 
-class StudentPhotoResponse(BaseModel):
-    """Response schema for student photo upload."""
-    id: int
-    full_name: str
-    photo_url: str | None
-    photo_presigned_url: str | None
+# =============================================================================
+# STATIC ROUTES FIRST (before path parameter routes)
+# =============================================================================
 
 
-class StudentCreateRequest(BaseModel):
-    """Request schema for creating a student."""
-    full_name: str = Field(..., min_length=2, max_length=255, description="Nombre completo del estudiante")
-    course_id: int = Field(..., ge=1, description="ID del curso")
-    national_id: str | None = Field(None, max_length=20, description="RUT o documento de identidad")
-    evidence_preference: Literal["photo", "audio", "none"] = Field("none", description="Preferencia de evidencia")
+@router.get("/export", response_class=Response)
+@limiter.limit("10/minute")
+async def export_students(
+    request: Request,
+    status_filter: str | None = Query(default=None, alias="status"),
+    course_filter: int | None = Query(default=None, alias="course_id", ge=1),
+    include_deleted: bool = Query(default=False),
+    service: StudentService = Depends(deps.get_student_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> Response:
+    """Export students to CSV.
 
-
-class StudentUpdateRequest(BaseModel):
-    """Request schema for updating a student."""
-    full_name: str | None = None
-    national_id: str | None = None
-    course_id: int | None = Field(None, ge=1, description="ID del curso")
-    evidence_preference: Literal["photo", "audio", "none"] | None = None
-
-
-class StudentResponse(BaseModel):
-    """Response schema for student data."""
-    id: int
-    full_name: str
-    national_id: str | None
-    course_id: int
-    status: str
-    photo_url: str | None
-    photo_presigned_url: str | None
-    evidence_preference: str
-
-
-class StudentListItem(BaseModel):
-    """Schema for student in list response."""
-    id: int
-    full_name: str
-    national_id: str | None
-    course_id: int
-    status: str
-    photo_url: str | None
-    photo_presigned_url: str | None
-    evidence_preference: str
-
-
-class StudentListResponse(BaseModel):
-    """Paginated response for student list."""
-    items: list[StudentListItem] = Field(default_factory=list)
-    total: int = Field(..., ge=0, description="Total de estudiantes que coinciden con los filtros")
-    skip: int = Field(..., ge=0, description="Registros omitidos")
-    limit: int = Field(..., ge=1, description="Limite de registros por pagina")
-    has_more: bool = Field(..., description="Indica si hay mas registros disponibles")
-
-
-@router.get("", response_model=StudentListResponse)
-async def list_students(
-    skip: int = Query(0, ge=0, description="Registros a omitir (offset)"),
-    limit: int = Query(50, ge=1, le=200, description="Maximo de registros (1-200)"),
-    q: str | None = Query(None, min_length=2, max_length=100, description="Buscar por nombre o RUT"),
-    course_id: int | None = Query(None, ge=1, description="Filtrar por curso"),
-    status: str | None = Query(None, description="Filtrar por estado (ACTIVE, INACTIVE)"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
-) -> StudentListResponse:
-    """List students with pagination and search.
-
-    - **q**: Search by name or national ID (case-insensitive, min 2 chars)
+    - **status**: Filter by status (ACTIVE, INACTIVE, DELETED)
     - **course_id**: Filter by course
-    - **status**: Filter by status (default: all)
-    - **skip/limit**: Pagination controls
+    - **include_deleted**: Include deleted students
     """
-    repo = StudentRepository(session)
-    # Si se solicita DELETED explícitamente, incluir eliminados
-    include_deleted = status == "DELETED"
-    students, total = await repo.list_paginated(
-        skip=skip,
-        limit=limit,
-        search=q,
-        course_id=course_id,
-        status=status,
+    filters = StudentFilters(
+        status=status_filter,
+        course_id=course_filter,
         include_deleted=include_deleted,
     )
+    students = await service.list_students_for_export(user, filters, request)
 
-    items = [
-        StudentListItem(
-            id=s.id,
-            full_name=s.full_name,
-            national_id=s.national_id,
-            course_id=s.course_id,
-            status=s.status,
-            photo_url=s.photo_url,
-            photo_presigned_url=_build_photo_proxy_url(s.photo_url),
-            evidence_preference=s.evidence_preference or "none",
-        )
-        for s in students
-    ]
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow([
+        "ID", "Nombre", "RUT/ID Nacional", "Curso",
+        "Estado", "Apoderados", "Eventos Asistencia", "Creado"
+    ])
 
-    return StudentListResponse(
-        items=items,
-        total=total,
-        skip=skip,
-        limit=limit,
-        has_more=(skip + len(items)) < total,
+    for s in students:
+        writer.writerow([
+            s.id,
+            _sanitize_csv_value(s.full_name),
+            _sanitize_csv_value(s.national_id) if s.national_id else "",
+            _sanitize_csv_value(s.course_name) if s.course_name else "",
+            s.status,
+            s.guardians_count,
+            s.attendance_events_count,
+            s.created_at.isoformat() if s.created_at else "",
+        ])
+
+    return Response(
+        content=buffer.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=estudiantes.csv"},
     )
 
 
-@router.post("", response_model=StudentResponse, status_code=status.HTTP_201_CREATED)
+@router.get("/search")
+@limiter.limit("60/minute")
+async def search_students(
+    request: Request,
+    q: str = Query(..., min_length=2, max_length=100, description="Search query"),
+    limit: int = Query(20, ge=1, le=50, description="Max results"),
+    fuzzy: bool = Query(False, description="Use fuzzy matching with ranking"),
+    service: StudentService = Depends(deps.get_student_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> list[StudentRead]:
+    """Search students by name or national ID.
+
+    - **q**: Search query (min 2 chars)
+    - **limit**: Maximum results (default 20)
+    - **fuzzy**: Enable fuzzy search with relevance ranking
+    """
+    return await service.search_students(user, q, limit=limit, fuzzy=fuzzy)
+
+
+# =============================================================================
+# MAIN CRUD ROUTES
+# =============================================================================
+
+
+@router.get("", response_model=PaginatedStudents)
+@limiter.limit("60/minute")
+async def list_students(
+    request: Request,
+    skip: int = Query(0, ge=0, alias="offset", description="Registros a omitir (offset)"),
+    limit: int = Query(50, ge=1, le=200, description="Maximo de registros (1-200)"),
+    q: str | None = Query(None, min_length=2, max_length=100, alias="search", description="Buscar por nombre o RUT"),
+    course_id: int | None = Query(None, ge=1, description="Filtrar por curso"),
+    status_filter: str | None = Query(None, alias="status", description="Filtrar por estado (ACTIVE, INACTIVE, DELETED)"),
+    include_deleted: bool = Query(False, description="Incluir eliminados"),
+    service: StudentService = Depends(deps.get_student_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> PaginatedStudents:
+    """List students with pagination and search.
+
+    - **search**: Search by name or national ID (case-insensitive, min 2 chars)
+    - **course_id**: Filter by course
+    - **status**: Filter by status (default: all except DELETED)
+    - **offset/limit**: Pagination controls
+    """
+    filters = StudentFilters(
+        search=q,
+        course_id=course_id,
+        status=status_filter,
+        include_deleted=include_deleted,
+    )
+    return await service.list_students(user, filters, limit=limit, offset=skip)
+
+
+@router.post("", response_model=StudentRead, status_code=status.HTTP_201_CREATED)
+@limiter.limit("30/minute")
 async def create_student(
-    payload: StudentCreateRequest,
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
-) -> StudentResponse:
+    request: Request,
+    payload: StudentCreate,
+    service: StudentService = Depends(deps.get_student_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> StudentRead:
     """Create a new student.
 
     - **full_name**: Student's full name (required, 2-255 chars)
@@ -183,185 +202,73 @@ async def create_student(
     - **national_id**: National ID/RUT (optional)
     - **evidence_preference**: Evidence type preference (photo/audio/none)
     """
-    repo = StudentRepository(session)
-
-    # Create the student
-    student = await repo.create(
-        full_name=payload.full_name,
-        course_id=payload.course_id,
-        national_id=payload.national_id,
-        evidence_preference=payload.evidence_preference,
-    )
-    await session.commit()
-
-    logger.info(f"Created student {student.id}: {student.full_name}")
-
-    return StudentResponse(
-        id=student.id,
-        full_name=student.full_name,
-        national_id=student.national_id,
-        course_id=student.course_id,
-        status=student.status,
-        photo_url=student.photo_url,
-        photo_presigned_url=None,
-        evidence_preference=student.evidence_preference or "none",
-    )
+    return await service.create_student(user, payload, request)
 
 
-@router.get("/{student_id}", response_model=StudentResponse)
+@router.get("/{student_id}", response_model=StudentWithStats)
+@limiter.limit("60/minute")
 async def get_student(
+    request: Request,
     student_id: int = Path(..., ge=1, description="ID del estudiante"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
-) -> StudentResponse:
-    """Get a student by ID."""
-    repo = StudentRepository(session)
-    student = await repo.get(student_id)
-
-    if not student or student.status == "DELETED":
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Estudiante no encontrado"
-        )
-
-    # Build proxy URL for photo access (works through tunnel)
-    photo_presigned_url = _build_photo_proxy_url(student.photo_url)
-
-    return StudentResponse(
-        id=student.id,
-        full_name=student.full_name,
-        national_id=student.national_id,
-        course_id=student.course_id,
-        status=student.status,
-        photo_url=student.photo_url,
-        photo_presigned_url=photo_presigned_url,
-        evidence_preference=student.evidence_preference or "none",
-    )
+    service: StudentService = Depends(deps.get_student_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> StudentWithStats:
+    """Get a student by ID with statistics."""
+    student = await service.get_student_detail(user, student_id, request)
+    # Add presigned URL for photo
+    student.photo_presigned_url = _build_photo_proxy_url(student.photo_url)
+    return student
 
 
-@router.patch("/{student_id}", response_model=StudentResponse)
+@router.patch("/{student_id}", response_model=StudentRead)
+@limiter.limit("30/minute")
 async def update_student(
-    payload: StudentUpdateRequest,
+    request: Request,
+    payload: StudentUpdate,
     student_id: int = Path(..., ge=1, description="ID del estudiante"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
-) -> StudentResponse:
+    service: StudentService = Depends(deps.get_student_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> StudentRead:
     """Update a student's information."""
-    repo = StudentRepository(session)
-    student = await repo.get(student_id)
-
-    if not student or student.status == "DELETED":
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Estudiante no encontrado"
-        )
-
-    # Build update dict with only provided fields
-    update_data = {}
-    if payload.full_name is not None:
-        update_data["full_name"] = payload.full_name
-    if payload.national_id is not None:
-        update_data["national_id"] = payload.national_id
-    if payload.course_id is not None:
-        update_data["course_id"] = payload.course_id
-    if payload.evidence_preference is not None:
-        update_data["evidence_preference"] = payload.evidence_preference
-
-    if update_data:
-        student = await repo.update(student_id, **update_data)
-        await session.commit()
-
-    # Build proxy URL for photo access (works through tunnel)
-    photo_presigned_url = _build_photo_proxy_url(student.photo_url)
-
-    return StudentResponse(
-        id=student.id,
-        full_name=student.full_name,
-        national_id=student.national_id,
-        course_id=student.course_id,
-        status=student.status,
-        photo_url=student.photo_url,
-        photo_presigned_url=photo_presigned_url,
-        evidence_preference=student.evidence_preference or "none",
-    )
+    return await service.update_student(user, student_id, payload, request)
 
 
-@router.delete("/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{student_id}", response_model=StudentDeleteResponse)
+@limiter.limit("10/minute")
 async def delete_student(
+    request: Request,
     student_id: int = Path(..., ge=1, description="ID del estudiante"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
-) -> None:
+    service: StudentService = Depends(deps.get_student_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> StudentDeleteResponse:
     """Soft delete a student (marks as DELETED).
 
     The student record is preserved for historical queries and auditing.
     The student will no longer appear in normal listings.
+
+    Returns warnings if the student has attendance records or linked guardians.
     """
-    repo = StudentRepository(session)
-    student = await repo.get(student_id)
-
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Estudiante no encontrado"
-        )
-
-    if student.status == "DELETED":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El estudiante ya fue eliminado"
-        )
-
-    # Soft delete - mark as DELETED
-    await repo.soft_delete(student_id)
-    await session.commit()
-
-    logger.info(f"Soft deleted student {student_id}: {student.full_name}")
+    return await service.delete_student(user, student_id, request)
 
 
-@router.post("/{student_id}/restore", response_model=StudentResponse)
+@router.post("/{student_id}/restore", response_model=StudentRead)
+@limiter.limit("10/minute")
 async def restore_student(
+    request: Request,
     student_id: int = Path(..., ge=1, description="ID del estudiante"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
-) -> StudentResponse:
+    service: StudentService = Depends(deps.get_student_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> StudentRead:
     """Restore a soft-deleted student.
 
     Changes the student status from DELETED back to ACTIVE.
     """
-    repo = StudentRepository(session)
-    student = await repo.get(student_id)
+    return await service.restore_student(user, student_id, request)
 
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Estudiante no encontrado"
-        )
 
-    if student.status != "DELETED":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El estudiante no está eliminado"
-        )
-
-    # Restore - mark as ACTIVE
-    student = await repo.update(student_id, status="ACTIVE")
-    await session.commit()
-
-    logger.info(f"Restored student {student_id}: {student.full_name}")
-
-    photo_presigned_url = _build_photo_proxy_url(student.photo_url)
-
-    return StudentResponse(
-        id=student.id,
-        full_name=student.full_name,
-        national_id=student.national_id,
-        course_id=student.course_id,
-        status=student.status,
-        photo_url=student.photo_url,
-        photo_presigned_url=photo_presigned_url,
-        evidence_preference=student.evidence_preference or "none",
-    )
+# =============================================================================
+# PHOTO ROUTES
+# =============================================================================
 
 
 @router.post("/{student_id}/photo", response_model=StudentPhotoResponse)
@@ -370,8 +277,8 @@ async def upload_student_photo(
     request: Request,
     student_id: int = Path(..., ge=1, description="ID del estudiante"),
     file: UploadFile = File(...),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+    service: StudentService = Depends(deps.get_student_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> StudentPhotoResponse:
     """Upload or update a student's profile photo.
 
@@ -419,87 +326,30 @@ async def upload_student_photo(
                 detail="Error al convertir imagen HEIC. Por favor use otro formato."
             ) from e
 
-    repo = StudentRepository(session)
-    student = await repo.get(student_id)
-
-    if not student or student.status == "DELETED":
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Estudiante no encontrado"
-        )
-
-    # Generate unique key for S3 (always jpg for converted HEIC)
-    extension = content_type.split("/")[-1]
-    if extension == "jpeg":
-        extension = "jpg"
-    photo_key = f"students/{student_id}/profile_{uuid.uuid4().hex[:8]}.{extension}"
-
-    photo_service = PhotoService()
+    # Delegate to service
     try:
-        # Delete old photo if exists
-        if student.photo_url:
-            try:
-                await photo_service.delete_photo(student.photo_url)
-                logger.info(f"Deleted old photo for student {student_id}: {student.photo_url}")
-            except Exception as e:
-                logger.warning(f"Failed to delete old photo for student {student_id}: {e}")
+        student = await service.upload_photo(user, student_id, content, content_type, request)
 
-        # Store new photo (content_type may be changed if converted from HEIC)
-        await photo_service.store_photo(photo_key, content, content_type)
-
-        # Update student record
-        await repo.update_photo_url(student_id, photo_key)
-        await session.commit()
-
-        logger.info(f"Uploaded photo for student {student_id}: {photo_key}")
-
-        # Build proxy URL for immediate access (works through tunnel)
         return StudentPhotoResponse(
             id=student.id,
             full_name=student.full_name,
-            photo_url=photo_key,
-            photo_presigned_url=_build_photo_proxy_url(photo_key),
+            photo_url=student.photo_url,
+            photo_presigned_url=_build_photo_proxy_url(student.photo_url),
         )
-    except Exception as e:
-        logger.error(f"Failed to upload photo for student {student_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al subir la foto"
-        ) from e
     finally:
-        photo_service.close()
+        service.close()
 
 
 @router.delete("/{student_id}/photo", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("30/minute")
 async def delete_student_photo(
+    request: Request,
     student_id: int = Path(..., ge=1, description="ID del estudiante"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+    service: StudentService = Depends(deps.get_student_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> None:
     """Delete a student's profile photo."""
-    repo = StudentRepository(session)
-    student = await repo.get(student_id)
-
-    if not student or student.status == "DELETED":
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Estudiante no encontrado"
-        )
-
-    if not student.photo_url:
-        return  # No photo to delete
-
-    photo_service = PhotoService()
     try:
-        await photo_service.delete_photo(student.photo_url)
-        await repo.update_photo_url(student_id, None)
-        await session.commit()
-        logger.info(f"Deleted photo for student {student_id}")
-    except Exception as e:
-        logger.error(f"Failed to delete photo for student {student_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al eliminar la foto"
-        ) from e
+        await service.delete_photo(user, student_id, request)
     finally:
-        photo_service.close()
+        service.close()

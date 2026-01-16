@@ -1,6 +1,6 @@
 """Student repository stub."""
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -222,4 +222,135 @@ class StudentRepository:
         if status:
             query = query.where(Student.status == status)
         result = await self.session.execute(query)
+        return result.scalar() or 0
+
+    async def restore(self, student_id: int) -> bool:
+        """Restore a soft-deleted student.
+
+        Args:
+            student_id: The student's ID
+
+        Returns:
+            True if restored, False if not found or not deleted
+        """
+        student = await self.get(student_id)
+        if not student or student.status != "DELETED":
+            return False
+        student.status = "ACTIVE"
+        await self.session.flush()
+        return True
+
+    async def get_active(self, student_id: int) -> Student | None:
+        """Get a student only if not DELETED.
+
+        Args:
+            student_id: The student's ID
+
+        Returns:
+            Student if found and not deleted, None otherwise
+        """
+        student = await self.get(student_id)
+        if student and student.status != "DELETED":
+            return student
+        return None
+
+    async def fuzzy_search(self, query: str, *, limit: int = 20) -> list[Student]:
+        """Fuzzy search students with ranking by relevance.
+
+        Searches by name (case-insensitive) and national_id.
+        Results are ranked with exact prefix matches first.
+
+        Args:
+            query: Search term
+            limit: Maximum results (default 20)
+
+        Returns:
+            List of matching students, ordered by relevance
+        """
+        query_lower = query.lower()
+        stmt = (
+            select(Student)
+            .where(
+                or_(
+                    func.lower(Student.full_name).contains(query_lower),
+                    Student.national_id.ilike(f"%{query}%"),
+                ),
+                Student.status != "DELETED",
+            )
+            .order_by(
+                # Prioridad 1: Match exacto al inicio
+                case((func.lower(Student.full_name).startswith(query_lower), 1), else_=2),
+                # Prioridad 2: Ordenar alfabéticamente
+                Student.full_name,
+            )
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_for_export(
+        self,
+        *,
+        status: str | None = None,
+        course_id: int | None = None,
+        include_deleted: bool = False,
+    ) -> list[Student]:
+        """List all students for export (no pagination).
+
+        Args:
+            status: Filter by specific status
+            course_id: Filter by course ID
+            include_deleted: If True, includes DELETED students
+
+        Returns:
+            List of students with course and guardians loaded
+        """
+        stmt = select(Student).options(
+            selectinload(Student.course),
+            selectinload(Student.guardians),
+        )
+
+        if course_id is not None:
+            stmt = stmt.where(Student.course_id == course_id)
+        if not include_deleted:
+            stmt = stmt.where(Student.status != "DELETED")
+        if status is not None:
+            stmt = stmt.where(Student.status == status)
+
+        stmt = stmt.order_by(Student.full_name)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def count_guardians(self, student_id: int) -> int:
+        """Count guardians linked to a student.
+
+        Args:
+            student_id: The student's ID
+
+        Returns:
+            Number of guardians linked to the student
+        """
+        from app.db.models.associations import student_guardian_table
+
+        stmt = select(func.count()).select_from(student_guardian_table).where(
+            student_guardian_table.c.student_id == student_id
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar() or 0
+
+    async def count_attendance_events(self, student_id: int) -> int:
+        """Count attendance events for a student.
+
+        Args:
+            student_id: The student's ID
+
+        Returns:
+            Number of attendance events for the student
+        """
+        from app.db.models.attendance_event import AttendanceEvent
+
+        stmt = select(func.count()).select_from(AttendanceEvent).where(
+            AttendanceEvent.student_id == student_id
+        )
+        result = await self.session.execute(stmt)
         return result.scalar() or 0

@@ -1,8 +1,9 @@
 """Student model."""
 
+from datetime import datetime, timezone
 from enum import Enum as PyEnum
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -35,6 +36,16 @@ class Student(Base):
     photo_pref_opt_in: Mapped[bool] = mapped_column(Boolean, default=False)
     # New evidence preference: "photo", "audio", or "none"
     evidence_preference: Mapped[str] = mapped_column(String(16), default="none")
+
+    # Timestamps for audit trail
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
     course = relationship("Course", back_populates="students")
     enrollments = relationship("Enrollment", back_populates="student", cascade="all, delete-orphan")

@@ -15,15 +15,43 @@ Views.directorGuardians = async function() {
   const students = State.getStudents();
   let currentPage = 1;
   let searchTerm = '';
+  let statusFilter = ''; // Empty = all, or ACTIVE, DELETED
+  let studentFilter = ''; // Empty = all, or student ID
+
+  // Helper to get students associated with a guardian
+  function getGuardianStudents(guardianId) {
+    const guardian = guardians.find(g => g.id === guardianId);
+    if (!guardian || !guardian.student_ids) return [];
+    return guardian.student_ids.map(id => students.find(s => s.id === id)).filter(Boolean);
+  }
 
   function getFilteredGuardians() {
-    if (!searchTerm) return guardians;
-    const term = searchTerm.toLowerCase();
-    return guardians.filter(g =>
-      g.full_name.toLowerCase().includes(term) ||
-      (g.contacts?.email && g.contacts.email.toLowerCase().includes(term)) ||
-      (g.contacts?.phone && g.contacts.phone.includes(term))
-    );
+    let filtered = guardians;
+
+    // Filter by status if set
+    if (statusFilter) {
+      filtered = filtered.filter(g => (g.status || 'ACTIVE') === statusFilter);
+    }
+
+    // Filter by student if set
+    if (studentFilter) {
+      const studentId = parseInt(studentFilter);
+      filtered = filtered.filter(g =>
+        g.student_ids && g.student_ids.includes(studentId)
+      );
+    }
+
+    // Filter by search term
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(g =>
+        g.full_name.toLowerCase().includes(term) ||
+        (g.contacts?.email && g.contacts.email.toLowerCase().includes(term)) ||
+        (g.contacts?.phone && g.contacts.phone.includes(term))
+      );
+    }
+
+    return filtered;
   }
 
   function renderGuardians() {
@@ -43,25 +71,44 @@ Views.directorGuardians = async function() {
         </div>
       </div>
 
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
         <div>
           <h2 style="margin: 0; font-size: 1.25rem; color: var(--color-gray-900);">Apoderados del Establecimiento</h2>
           <p style="margin: 0.25rem 0 0 0; color: var(--color-gray-500); font-size: 0.9rem;">${guardians.length} apoderado${guardians.length !== 1 ? 's' : ''} registrado${guardians.length !== 1 ? 's' : ''}</p>
         </div>
-        <button class="btn btn-primary" onclick="Views.directorGuardians.showCreateForm()">
-          + Nuevo Apoderado
-        </button>
+      </div>
+
+      <!-- Filtros con estilo unificado -->
+      <div class="filters" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1.5rem;">
+        <div class="filter-group" style="flex: 1; min-width: 200px;">
+          <label class="form-label">Buscar apoderado</label>
+          <input type="text" id="search-guardian" class="form-input" placeholder="Nombre, email, teléfono..." value="${Components.escapeHtml(searchTerm)}"
+            onkeyup="Views.directorGuardians.search(this.value)">
+        </div>
+        <div class="filter-group" style="flex: 1; min-width: 150px;">
+          <label class="form-label">Alumno</label>
+          <select id="filter-student" class="form-select" onchange="Views.directorGuardians.filterByStudent(this.value)">
+            <option value="">Todos los alumnos</option>
+            ${students.map(s => `<option value="${s.id}" ${studentFilter === String(s.id) ? 'selected' : ''}>${Components.escapeHtml(s.full_name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-group" style="flex: 1; min-width: 120px;">
+          <label class="form-label">Estado</label>
+          <select id="filter-status" class="form-select" onchange="Views.directorGuardians.filterByStatus(this.value)">
+            <option value="" ${!statusFilter ? 'selected' : ''}>Todos</option>
+            <option value="ACTIVE" ${statusFilter === 'ACTIVE' ? 'selected' : ''}>Activos</option>
+            <option value="DELETED" ${statusFilter === 'DELETED' ? 'selected' : ''}>Eliminados</option>
+          </select>
+        </div>
+        <div class="filter-group" style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-outline" onclick="Views.directorGuardians.clearFilters()" title="Limpiar filtros">✕ Limpiar</button>
+          <button class="btn btn-secondary" onclick="Views.directorGuardians.exportCSV()" title="Exportar a CSV">Exportar</button>
+          <button class="btn btn-primary" onclick="Views.directorGuardians.showCreateForm()">+ Nuevo Apoderado</button>
+        </div>
       </div>
 
       <div class="card">
-        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-          <span>Lista de Apoderados</span>
-          <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <input type="text" id="search-guardian" class="form-input" placeholder="Buscar por nombre, email..."
-              style="width: 200px;" value="${Components.escapeHtml(searchTerm)}"
-              onkeyup="Views.directorGuardians.search(this.value)">
-          </div>
-        </div>
+        <div class="card-header">Lista de Apoderados (${filtered.length})</div>
         <div class="card-body">
           ${filtered.length === 0 ? Components.createEmptyState(
             'Sin apoderados',
@@ -76,6 +123,7 @@ Views.directorGuardians = async function() {
                 <th>Email</th>
                 <th>Teléfono</th>
                 <th>Alumnos Asociados</th>
+                <th>Estado</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -123,6 +171,7 @@ Views.directorGuardians = async function() {
               <th>Email</th>
               <th>Teléfono</th>
               <th>Alumnos Asociados</th>
+              <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -153,13 +202,20 @@ Views.directorGuardians = async function() {
           (associatedStudents.length > 3 ? ` <span style="color: var(--color-gray-500);">+${associatedStudents.length - 3} más</span>` : '')
         : Components.createChip('Sin alumnos', 'gray');
 
-      return `
-        <tr>
-          <td><strong>${Components.escapeHtml(guardian.full_name)}</strong></td>
-          <td>${Components.escapeHtml(guardian.contacts?.email || '-')}</td>
-          <td>${Components.escapeHtml(guardian.contacts?.phone || '-')}</td>
-          <td>${studentsChips}</td>
-          <td style="white-space: nowrap;">
+      // Status chip
+      const isDeleted = guardian.status === 'DELETED';
+      const statusChip = isDeleted
+        ? Components.createChip('Eliminado', 'error')
+        : Components.createChip('Activo', 'success');
+
+      // Actions: different buttons for deleted vs active guardians
+      const actionButtons = isDeleted
+        ? `
+            <button class="btn btn-success btn-sm" onclick="Views.directorGuardians.confirmRestore(${guardian.id})" title="Restaurar">
+              ↩ Restaurar
+            </button>
+          `
+        : `
             <button class="btn btn-secondary btn-sm" onclick="Views.directorGuardians.viewProfile(${guardian.id})" title="Ver perfil">
               👁️
             </button>
@@ -172,6 +228,17 @@ Views.directorGuardians = async function() {
             <button class="btn btn-error btn-sm" onclick="Views.directorGuardians.confirmDelete(${guardian.id})" title="Eliminar">
               🗑️
             </button>
+          `;
+
+      return `
+        <tr${isDeleted ? ' style="opacity: 0.7;"' : ''}>
+          <td><strong>${Components.escapeHtml(guardian.full_name)}</strong></td>
+          <td>${Components.escapeHtml(guardian.contacts?.email || '-')}</td>
+          <td>${Components.escapeHtml(guardian.contacts?.phone || '-')}</td>
+          <td>${studentsChips}</td>
+          <td>${statusChip}</td>
+          <td style="white-space: nowrap;">
+            ${actionButtons}
           </td>
         </tr>
       `;
@@ -199,6 +266,34 @@ Views.directorGuardians = async function() {
     searchTerm = term;
     currentPage = 1;
     updateTableContent();  // Only update table, keep input focused
+  };
+
+  Views.directorGuardians.filterByStatus = async function(status) {
+    statusFilter = status;
+    currentPage = 1;
+    // Reload guardians from API with filter
+    guardians = await State.refreshGuardians({ status: status || undefined });
+    renderGuardians();
+  };
+
+  Views.directorGuardians.filterByStudent = function(student) {
+    studentFilter = student;
+    currentPage = 1;
+    updateTableContent();
+  };
+
+  Views.directorGuardians.clearFilters = async function() {
+    searchTerm = '';
+    studentFilter = '';
+    currentPage = 1;
+    // If status filter is active, we need to reload all guardians
+    if (statusFilter) {
+      statusFilter = '';
+      guardians = await State.refreshGuardians();
+      renderGuardians();
+    } else {
+      renderGuardians();
+    }
   };
 
   Views.directorGuardians.changePage = function(page) {
@@ -512,6 +607,72 @@ Views.directorGuardians = async function() {
         }
       }}
     ]);
+  };
+
+  Views.directorGuardians.confirmRestore = function(guardianId) {
+    const guardian = State.getGuardian(guardianId);
+    if (!guardian) {
+      Components.showToast('Apoderado no encontrado', 'error');
+      return;
+    }
+
+    Components.showModal('Confirmar Restauración', `
+      <div style="text-align: center; padding: 1rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">↩</div>
+        <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">¿Restaurar este apoderado?</p>
+        <p style="font-weight: 600; color: var(--color-success);">${Components.escapeHtml(guardian.full_name)}</p>
+        <p style="font-size: 0.9rem; color: var(--color-gray-500); margin-top: 1rem;">
+          El apoderado volverá a estar activo en el sistema.
+        </p>
+      </div>
+    `, [
+      { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
+      { label: 'Restaurar', action: 'restore', className: 'btn-success', onClick: async () => {
+        const restoreBtn = document.querySelector('.modal .btn-success');
+        const originalText = restoreBtn ? restoreBtn.textContent : 'Restaurar';
+
+        try {
+          if (restoreBtn) {
+            restoreBtn.disabled = true;
+            restoreBtn.textContent = 'Restaurando...';
+          }
+
+          await State.restoreGuardian(guardianId);
+          Components.showToast('Apoderado restaurado', 'success');
+
+          document.querySelector('.modal-container')?.click();
+          guardians = await State.refreshGuardians({ status: statusFilter || undefined });
+          renderGuardians();
+
+        } catch (error) {
+          Components.showToast(error.message || 'Error al restaurar', 'error');
+          console.error('Restore guardian error:', error);
+
+          if (restoreBtn) {
+            restoreBtn.disabled = false;
+            restoreBtn.textContent = originalText;
+          }
+        }
+      }}
+    ]);
+  };
+
+  Views.directorGuardians.exportCSV = async function() {
+    try {
+      const blob = await State.exportGuardiansCSV({ status: statusFilter || undefined });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `apoderados_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      Components.showToast('Exportacion completada', 'success');
+    } catch (error) {
+      Components.showToast(error.message || 'Error al exportar', 'error');
+      console.error('Export guardians error:', error);
+    }
   };
 
   renderGuardians();

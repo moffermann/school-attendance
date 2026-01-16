@@ -1,273 +1,228 @@
-"""Guardian endpoints."""
+"""Guardian endpoints for admin CRUD."""
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
-from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
+import csv
+from io import StringIO
+
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.core import deps
-from app.core.auth import AuthUser
-from app.db.repositories.guardians import GuardianRepository
+from app.core.deps import TenantAuthUser
+from app.services.guardian_service import GuardianService
 from app.schemas.guardians import (
     GuardianCreateRequest,
+    GuardianFilters,
     GuardianListItem,
-    GuardianListResponse,
     GuardianResponse,
     GuardianStudentsRequest,
     GuardianUpdateRequest,
+    GuardianWithStats,
+    PaginatedGuardians,
 )
+
+limiter = Limiter(key_func=get_remote_address)
 
 
 router = APIRouter()
 
 
-def _guardian_to_response(guardian) -> GuardianResponse:
-    """Convert a Guardian model to response schema."""
-    return GuardianResponse(
-        id=guardian.id,
-        full_name=guardian.full_name,
-        contacts=guardian.contacts or {},
-        student_ids=[s.id for s in guardian.students] if guardian.students else [],
+def _sanitize_csv_value(val: str | None) -> str:
+    """Sanitize value for CSV to prevent formula injection."""
+    if not val:
+        return ""
+    val = str(val)
+    stripped = val.lstrip()
+    if stripped and stripped[0] in "=+-@|":
+        return "'" + val
+    return val
+
+
+# NOTE: Export and search endpoints MUST be defined BEFORE /{guardian_id}
+# to avoid route conflicts with FastAPI
+
+
+@router.get("/export", response_class=Response)
+@limiter.limit("10/minute")
+async def export_guardians(
+    request: Request,
+    status_filter: str | None = Query(default=None, alias="status"),
+    service: GuardianService = Depends(deps.get_guardian_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> Response:
+    """Export guardians to CSV file."""
+    filters = GuardianFilters(status=status_filter)
+    guardians = await service.list_guardians_for_export(user, filters, request)
+
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["ID", "Nombre", "Email", "Teléfono", "WhatsApp", "Estado", "Estudiantes", "Creado"])
+
+    for g in guardians:
+        contacts = g.contacts or {}
+        writer.writerow([
+            g.id,
+            _sanitize_csv_value(g.full_name),
+            _sanitize_csv_value(contacts.get("email")) if contacts.get("email") else "",
+            _sanitize_csv_value(contacts.get("phone")) if contacts.get("phone") else "",
+            _sanitize_csv_value(contacts.get("whatsapp")) if contacts.get("whatsapp") else "",
+            g.status,
+            g.students_count,
+            g.created_at.isoformat() if g.created_at else "",
+        ])
+
+    return Response(
+        content=buffer.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=apoderados.csv"},
     )
 
 
-def _guardian_to_list_item(guardian) -> GuardianListItem:
-    """Convert a Guardian model to list item schema."""
-    student_ids = [s.id for s in guardian.students] if guardian.students else []
-    return GuardianListItem(
-        id=guardian.id,
-        full_name=guardian.full_name,
-        contacts=guardian.contacts or {},
-        student_ids=student_ids,
-        student_count=len(student_ids),
-    )
+@router.get("/search", response_model=list[GuardianListItem])
+@limiter.limit("60/minute")
+async def search_guardians(
+    request: Request,
+    q: str = Query(..., min_length=2, description="Término de búsqueda"),
+    limit: int = Query(20, ge=1, le=50, description="Máximo de resultados"),
+    fuzzy: bool = Query(False, description="Usar búsqueda difusa"),
+    service: GuardianService = Depends(deps.get_guardian_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> list[GuardianListItem]:
+    """Search guardians by name."""
+    return await service.search_guardians(user, q, limit=limit, fuzzy=fuzzy)
 
 
-@router.get("", response_model=GuardianListResponse)
+@router.get("", response_model=PaginatedGuardians)
+@limiter.limit("60/minute")
 async def list_guardians(
-    q: str | None = Query(None, min_length=2, description="Buscar por nombre"),
-    skip: int = Query(0, ge=0, description="Registros a saltar"),
-    limit: int = Query(50, ge=1, le=200, description="Límite de registros"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
-) -> GuardianListResponse:
-    """List guardians with pagination and search.
-
-    - **q**: Search by name (case-insensitive, min 2 chars)
-    - **skip/limit**: Pagination controls
-    """
-    repo = GuardianRepository(session)
-    guardians, total = await repo.list_paginated(
-        skip=skip,
-        limit=limit,
-        search=q,
-    )
-
-    items = [_guardian_to_list_item(g) for g in guardians]
-
-    return GuardianListResponse(
-        items=items,
-        total=total,
-        skip=skip,
-        limit=limit,
-        has_more=(skip + len(items)) < total,
-    )
+    request: Request,
+    limit: int = Query(50, ge=1, le=100, description="Registros por página"),
+    offset: int = Query(0, ge=0, description="Registros a saltar"),
+    status_filter: str | None = Query(default=None, alias="status"),
+    search: str | None = Query(None, min_length=2, description="Buscar por nombre"),
+    service: GuardianService = Depends(deps.get_guardian_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> PaginatedGuardians:
+    """List guardians with pagination and filters."""
+    filters = GuardianFilters(status=status_filter, search=search)
+    return await service.list_guardians(user, filters, limit=limit, offset=offset)
 
 
 @router.post("", response_model=GuardianResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("30/minute")
 async def create_guardian(
+    request: Request,
     payload: GuardianCreateRequest,
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+    service: GuardianService = Depends(deps.get_guardian_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> GuardianResponse:
-    """Create a new guardian.
-
-    - **full_name**: Guardian's full name (required, 2-255 chars)
-    - **contacts**: Contact information (email, phone, whatsapp)
-    - **student_ids**: Optional list of student IDs to associate
-    """
-    repo = GuardianRepository(session)
-
-    # Convert contacts to dict if provided
-    contacts = payload.contacts.model_dump() if payload.contacts else {}
-
-    # Create the guardian
-    guardian = await repo.create(
-        full_name=payload.full_name,
-        contacts=contacts,
-    )
-
-    # Associate students if provided
-    if payload.student_ids:
-        await repo.set_students(guardian.id, payload.student_ids)
-
-    # Always reload with eager loading to avoid lazy load issues
-    guardian = await repo.get(guardian.id)
-
-    await session.commit()
-
-    logger.info(f"Created guardian {guardian.id}: {guardian.full_name}")
-
-    return _guardian_to_response(guardian)
+    """Create a new guardian."""
+    return await service.create_guardian(user, payload, request)
 
 
-@router.get("/{guardian_id}", response_model=GuardianResponse)
+@router.get("/{guardian_id}", response_model=GuardianWithStats)
+@limiter.limit("60/minute")
 async def get_guardian(
+    request: Request,
     guardian_id: int = Path(..., ge=1, description="ID del apoderado"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR")),
-) -> GuardianResponse:
-    """Get a guardian by ID."""
-    repo = GuardianRepository(session)
-    guardian = await repo.get(guardian_id)
-
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Apoderado no encontrado"
-        )
-
-    return _guardian_to_response(guardian)
+    service: GuardianService = Depends(deps.get_guardian_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> GuardianWithStats:
+    """Get a guardian by ID with statistics."""
+    return await service.get_guardian_detail(user, guardian_id, request)
 
 
 @router.patch("/{guardian_id}", response_model=GuardianResponse)
+@limiter.limit("30/minute")
 async def update_guardian(
+    request: Request,
     payload: GuardianUpdateRequest,
     guardian_id: int = Path(..., ge=1, description="ID del apoderado"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+    service: GuardianService = Depends(deps.get_guardian_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> GuardianResponse:
     """Update a guardian's information."""
-    repo = GuardianRepository(session)
-    guardian = await repo.get(guardian_id)
-
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Apoderado no encontrado"
-        )
-
-    # Build update dict with only provided fields
-    update_data = {}
-    if payload.full_name is not None:
-        update_data["full_name"] = payload.full_name
-    if payload.contacts is not None:
-        update_data["contacts"] = payload.contacts.model_dump()
-
-    if update_data:
-        guardian = await repo.update(guardian_id, **update_data)
-
-    # Update student associations if provided
-    if payload.student_ids is not None:
-        await repo.set_students(guardian_id, payload.student_ids)
-        # Refresh to get updated students list
-        guardian = await repo.get(guardian_id)
-
-    await session.commit()
-
-    return _guardian_to_response(guardian)
+    return await service.update_guardian(user, guardian_id, payload, request)
 
 
 @router.delete("/{guardian_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("10/minute")
 async def delete_guardian(
+    request: Request,
     guardian_id: int = Path(..., ge=1, description="ID del apoderado"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+    service: GuardianService = Depends(deps.get_guardian_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> None:
-    """Delete a guardian.
+    """Soft delete a guardian (marks as DELETED)."""
+    await service.delete_guardian(user, guardian_id, request)
 
-    This will also remove all student associations.
-    """
-    repo = GuardianRepository(session)
-    guardian = await repo.get(guardian_id)
 
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Apoderado no encontrado"
-        )
-
-    deleted = await repo.delete(guardian_id)
-    if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al eliminar apoderado"
-        )
-
-    await session.commit()
-
-    logger.info(f"Deleted guardian {guardian_id}: {guardian.full_name}")
+@router.patch("/{guardian_id}/restore", response_model=GuardianResponse)
+@limiter.limit("10/minute")
+async def restore_guardian(
+    request: Request,
+    guardian_id: int = Path(..., ge=1, description="ID del apoderado"),
+    service: GuardianService = Depends(deps.get_guardian_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> GuardianResponse:
+    """Restore a deleted guardian."""
+    return await service.restore_guardian(user, guardian_id, request)
 
 
 @router.put("/{guardian_id}/students", response_model=GuardianResponse)
+@limiter.limit("30/minute")
 async def set_guardian_students(
+    request: Request,
     payload: GuardianStudentsRequest,
     guardian_id: int = Path(..., ge=1, description="ID del apoderado"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+    service: GuardianService = Depends(deps.get_guardian_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> GuardianResponse:
     """Set the complete list of students for a guardian.
 
     Replaces all existing student associations.
     """
-    repo = GuardianRepository(session)
-    guardian = await repo.get(guardian_id)
-
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Apoderado no encontrado"
-        )
-
-    success = await repo.set_students(guardian_id, payload.student_ids)
+    success = await service.set_students(user, guardian_id, payload.student_ids, request)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al actualizar estudiantes"
+            detail="Error al actualizar estudiantes",
         )
-
-    await session.commit()
-
-    # Refresh to get updated data
-    guardian = await repo.get(guardian_id)
-
-    return _guardian_to_response(guardian)
+    # Return updated guardian
+    return await service.get_guardian_detail(user, guardian_id, request)
 
 
 @router.post("/{guardian_id}/students/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("30/minute")
 async def add_student_to_guardian(
+    request: Request,
     guardian_id: int = Path(..., ge=1, description="ID del apoderado"),
     student_id: int = Path(..., ge=1, description="ID del estudiante"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+    service: GuardianService = Depends(deps.get_guardian_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> None:
     """Add a student to a guardian."""
-    repo = GuardianRepository(session)
-
-    success = await repo.add_student(guardian_id, student_id)
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Apoderado o estudiante no encontrado"
-        )
-
-    await session.commit()
+    # Get current students and add the new one
+    detail = await service.get_guardian_detail(user, guardian_id, request)
+    current_ids = detail.student_ids or []
+    if student_id not in current_ids:
+        new_ids = current_ids + [student_id]
+        await service.set_students(user, guardian_id, new_ids, request)
 
 
 @router.delete("/{guardian_id}/students/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("30/minute")
 async def remove_student_from_guardian(
+    request: Request,
     guardian_id: int = Path(..., ge=1, description="ID del apoderado"),
     student_id: int = Path(..., ge=1, description="ID del estudiante"),
-    session: AsyncSession = Depends(deps.get_tenant_db),
-    _: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR")),
+    service: GuardianService = Depends(deps.get_guardian_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> None:
     """Remove a student from a guardian."""
-    repo = GuardianRepository(session)
-
-    success = await repo.remove_student(guardian_id, student_id)
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Asociación no encontrada"
-        )
-
-    await session.commit()
+    # Get current students and remove the specified one
+    detail = await service.get_guardian_detail(user, guardian_id, request)
+    current_ids = detail.student_ids or []
+    if student_id in current_ids:
+        new_ids = [sid for sid in current_ids if sid != student_id]
+        await service.set_students(user, guardian_id, new_ids, request)

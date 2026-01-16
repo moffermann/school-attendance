@@ -1,6 +1,6 @@
 """Guardian repository."""
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import case, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -18,6 +18,19 @@ class GuardianRepository:
             select(Guardian)
             .options(selectinload(Guardian.students))
             .where(Guardian.id == guardian_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().unique().one_or_none()
+
+    async def get_active(self, guardian_id: int) -> Guardian | None:
+        """Get guardian by ID only if not DELETED."""
+        stmt = (
+            select(Guardian)
+            .options(selectinload(Guardian.students))
+            .where(
+                Guardian.id == guardian_id,
+                Guardian.status != "DELETED",
+            )
         )
         result = await self.session.execute(stmt)
         return result.scalars().unique().one_or_none()
@@ -41,13 +54,13 @@ class GuardianRepository:
         guardians = result.scalars().unique().all()
         return list(guardians)
 
-    async def list_all(self, limit: int = 5000) -> list[Guardian]:
+    async def list_all(self, limit: int = 5000, *, include_deleted: bool = False) -> list[Guardian]:
         """R7-B8 fix: Add limit parameter to prevent OOM on large deployments."""
-        result = await self.session.execute(
-            select(Guardian)
-            .options(selectinload(Guardian.students))
-            .limit(limit)
-        )
+        stmt = select(Guardian).options(selectinload(Guardian.students))
+        if not include_deleted:
+            stmt = stmt.where(Guardian.status != "DELETED")
+        stmt = stmt.limit(limit)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def create(
@@ -118,6 +131,8 @@ class GuardianRepository:
         skip: int = 0,
         limit: int = 50,
         search: str | None = None,
+        status: str | None = None,
+        include_deleted: bool = False,
     ) -> tuple[list[Guardian], int]:
         """List guardians with pagination and search.
 
@@ -125,12 +140,20 @@ class GuardianRepository:
             skip: Number of records to skip (offset)
             limit: Maximum number of records to return
             search: Search term for full_name (case-insensitive)
+            status: Filter by specific status
+            include_deleted: Include DELETED guardians
 
         Returns:
             Tuple of (guardians list, total count)
         """
         # Base query
         base_query = select(Guardian)
+
+        # Apply status filter
+        if status:
+            base_query = base_query.where(Guardian.status == status)
+        elif not include_deleted:
+            base_query = base_query.where(Guardian.status != "DELETED")
 
         # Apply search filter
         if search:
@@ -235,3 +258,132 @@ class GuardianRepository:
         guardian.students = students
         await self.session.flush()
         return True
+
+    # -------------------------------------------------------------------------
+    # Soft delete operations
+    # -------------------------------------------------------------------------
+
+    async def soft_delete(self, guardian_id: int) -> Guardian | None:
+        """Mark guardian as DELETED (soft delete)."""
+        guardian = await self.get(guardian_id)
+        if not guardian:
+            return None
+
+        guardian.status = "DELETED"
+        await self.session.flush()
+        return guardian
+
+    async def restore(self, guardian_id: int) -> Guardian | None:
+        """Restore a DELETED guardian to ACTIVE status."""
+        guardian = await self.get(guardian_id)
+        if not guardian:
+            return None
+
+        guardian.status = "ACTIVE"
+        await self.session.flush()
+        return guardian
+
+    # -------------------------------------------------------------------------
+    # Count operations
+    # -------------------------------------------------------------------------
+
+    async def count(
+        self,
+        *,
+        status: str | None = None,
+        include_deleted: bool = False,
+        search: str | None = None,
+    ) -> int:
+        """Count guardians for pagination."""
+        stmt = select(func.count(Guardian.id))
+
+        if status:
+            stmt = stmt.where(Guardian.status == status)
+        elif not include_deleted:
+            stmt = stmt.where(Guardian.status != "DELETED")
+
+        if search:
+            search_term = f"%{search}%"
+            stmt = stmt.where(
+                func.lower(Guardian.full_name).like(func.lower(search_term))
+            )
+
+        result = await self.session.execute(stmt)
+        return result.scalar() or 0
+
+    async def count_students(self, guardian_id: int) -> int:
+        """Count students associated with this guardian."""
+        guardian = await self.get(guardian_id)
+        if not guardian:
+            return 0
+        return len(guardian.students)
+
+    # -------------------------------------------------------------------------
+    # Search operations
+    # -------------------------------------------------------------------------
+
+    async def search(self, query: str, *, limit: int = 20) -> list[Guardian]:
+        """Basic search by name (exact contains)."""
+        stmt = (
+            select(Guardian)
+            .options(selectinload(Guardian.students))
+            .where(
+                Guardian.full_name.ilike(f"%{query}%"),
+                Guardian.status != "DELETED",
+            )
+            .order_by(Guardian.full_name)
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().unique().all())
+
+    async def fuzzy_search(self, query: str, *, limit: int = 20) -> list[Guardian]:
+        """Fuzzy search with ILIKE and ranking.
+
+        Searches in full_name field, prioritizing matches
+        where the name starts with the query.
+        """
+        query_lower = query.lower()
+        stmt = (
+            select(Guardian)
+            .options(selectinload(Guardian.students))
+            .where(
+                func.lower(Guardian.full_name).contains(query_lower),
+                Guardian.status != "DELETED",
+            )
+            .order_by(
+                # Prioritize exact matches at start
+                case(
+                    (func.lower(Guardian.full_name).startswith(query_lower), 1),
+                    else_=2,
+                ),
+                Guardian.full_name,
+            )
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().unique().all())
+
+    # -------------------------------------------------------------------------
+    # Export operations
+    # -------------------------------------------------------------------------
+
+    async def list_for_export(
+        self,
+        *,
+        status: str | None = None,
+    ) -> list[Guardian]:
+        """List all guardians for CSV export (no pagination)."""
+        stmt = (
+            select(Guardian)
+            .options(selectinload(Guardian.students))
+            .order_by(Guardian.full_name)
+        )
+
+        if status:
+            stmt = stmt.where(Guardian.status == status)
+        else:
+            stmt = stmt.where(Guardian.status != "DELETED")
+
+        result = await self.session.execute(stmt)
+        return list(result.scalars().unique().all())

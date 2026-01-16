@@ -1,8 +1,17 @@
 """Guardian schemas."""
 
+from datetime import datetime
+from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+class GuardianStatus(str, Enum):
+    """Status enum for guardians."""
+
+    ACTIVE = "ACTIVE"
+    DELETED = "DELETED"
 
 
 class ChannelPreference(BaseModel):
@@ -24,12 +33,26 @@ class GuardianCreateRequest(BaseModel):
     contacts: GuardianContacts | None = Field(default=None, description="Información de contacto")
     student_ids: list[int] | None = Field(default=None, description="IDs de estudiantes asociados")
 
+    @field_validator("full_name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("El nombre no puede estar vacío")
+        return v.strip()
+
 
 class GuardianUpdateRequest(BaseModel):
     """Request schema for updating a guardian."""
     full_name: str | None = Field(None, min_length=2, max_length=255)
     contacts: GuardianContacts | None = None
     student_ids: list[int] | None = None
+
+    @field_validator("full_name", mode="before")
+    @classmethod
+    def validate_name(cls, v: str | None) -> str | None:
+        if v is not None and not v.strip():
+            raise ValueError("El nombre no puede estar vacío")
+        return v.strip() if v else v
 
 
 class GuardianResponse(BaseModel):
@@ -38,9 +61,11 @@ class GuardianResponse(BaseModel):
     full_name: str
     contacts: dict = Field(default_factory=dict)
     student_ids: list[int] = Field(default_factory=list)
+    status: str = "ACTIVE"
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GuardianListItem(BaseModel):
@@ -50,13 +75,49 @@ class GuardianListItem(BaseModel):
     contacts: dict = Field(default_factory=dict)
     student_ids: list[int] = Field(default_factory=list)
     student_count: int = 0
+    status: str = "ACTIVE"
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GuardianFilters(BaseModel):
+    """Filters for listing guardians."""
+
+    status: str | None = Field(default=None)
+    search: str | None = Field(None, max_length=100)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class GuardianWithStats(GuardianResponse):
+    """Guardian with statistics."""
+
+    students_count: int = 0
+
+
+class PaginatedGuardians(BaseModel):
+    """Paginated response for guardians."""
+
+    items: list[GuardianListItem]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+    @classmethod
+    def create(cls, items: list, total: int, limit: int, offset: int) -> "PaginatedGuardians":
+        """Factory method with correct has_more calculation."""
+        return cls(
+            items=items,
+            total=total,
+            limit=limit,
+            offset=offset,
+            has_more=(offset + len(items)) < total,
+        )
 
 
 class GuardianListResponse(BaseModel):
-    """Paginated list of guardians."""
+    """Paginated list of guardians (legacy format)."""
     items: list[GuardianListItem]
     total: int
     skip: int

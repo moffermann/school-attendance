@@ -15,14 +15,44 @@ Views.directorTeachers = async function() {
   const courses = State.getCourses();
   let searchTerm = '';
   let currentPage = 1;
+  let statusFilter = ''; // Empty = all, or ACTIVE, INACTIVE, ON_LEAVE, DELETED
+  let courseFilter = ''; // Empty = all, or course ID
+
+  // Helper to get courses assigned to a teacher
+  function getTeacherCourses(teacherId) {
+    return courses.filter(c =>
+      (c.teacher_ids && c.teacher_ids.includes(teacherId)) ||
+      c.teacher_id === teacherId
+    );
+  }
 
   function getFilteredTeachers() {
-    if (!searchTerm) return teachers;
-    const term = searchTerm.toLowerCase();
-    return teachers.filter(t =>
-      t.full_name.toLowerCase().includes(term) ||
-      (t.email && t.email.toLowerCase().includes(term))
-    );
+    let filtered = teachers;
+
+    // Filter by status if set
+    if (statusFilter) {
+      filtered = filtered.filter(t => (t.status || 'ACTIVE') === statusFilter);
+    }
+
+    // Filter by course if set
+    if (courseFilter) {
+      const courseId = parseInt(courseFilter);
+      filtered = filtered.filter(t => {
+        const teacherCourses = getTeacherCourses(t.id);
+        return teacherCourses.some(c => c.id === courseId);
+      });
+    }
+
+    // Filter by search term
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(t =>
+        t.full_name.toLowerCase().includes(term) ||
+        (t.email && t.email.toLowerCase().includes(term))
+      );
+    }
+
+    return filtered;
   }
 
   function renderTeachers() {
@@ -42,25 +72,46 @@ Views.directorTeachers = async function() {
         </div>
       </div>
 
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
         <div>
           <h2 style="margin: 0; font-size: 1.25rem; color: var(--color-gray-900);">Profesores del Establecimiento</h2>
           <p style="margin: 0.25rem 0 0 0; color: var(--color-gray-500); font-size: 0.9rem;">${teachers.length} profesor${teachers.length !== 1 ? 'es' : ''} registrado${teachers.length !== 1 ? 's' : ''}</p>
         </div>
-        <button class="btn btn-primary" onclick="Views.directorTeachers.showCreateForm()">
-          + Nuevo Profesor
-        </button>
+      </div>
+
+      <!-- Filtros con estilo unificado -->
+      <div class="filters" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1.5rem;">
+        <div class="filter-group" style="flex: 1; min-width: 200px;">
+          <label class="form-label">Buscar profesor</label>
+          <input type="text" id="search-teacher" class="form-input" placeholder="Nombre, email..." value="${Components.escapeHtml(searchTerm)}"
+            onkeyup="Views.directorTeachers.search(this.value)">
+        </div>
+        <div class="filter-group" style="flex: 1; min-width: 150px;">
+          <label class="form-label">Curso</label>
+          <select id="filter-course" class="form-select" onchange="Views.directorTeachers.filterByCourse(this.value)">
+            <option value="">Todos los cursos</option>
+            ${courses.map(c => `<option value="${c.id}" ${courseFilter === String(c.id) ? 'selected' : ''}>${Components.escapeHtml(c.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-group" style="flex: 1; min-width: 120px;">
+          <label class="form-label">Estado</label>
+          <select id="filter-status" class="form-select" onchange="Views.directorTeachers.filterByStatus(this.value)">
+            <option value="" ${!statusFilter ? 'selected' : ''}>Todos</option>
+            <option value="ACTIVE" ${statusFilter === 'ACTIVE' ? 'selected' : ''}>Activos</option>
+            <option value="INACTIVE" ${statusFilter === 'INACTIVE' ? 'selected' : ''}>Inactivos</option>
+            <option value="ON_LEAVE" ${statusFilter === 'ON_LEAVE' ? 'selected' : ''}>Con licencia</option>
+            <option value="DELETED" ${statusFilter === 'DELETED' ? 'selected' : ''}>Eliminados</option>
+          </select>
+        </div>
+        <div class="filter-group" style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-outline" onclick="Views.directorTeachers.clearFilters()" title="Limpiar filtros">✕ Limpiar</button>
+          <button class="btn btn-secondary" onclick="Views.directorTeachers.exportCSV()" title="Exportar a CSV">Exportar</button>
+          <button class="btn btn-primary" onclick="Views.directorTeachers.showCreateForm()">+ Nuevo Profesor</button>
+        </div>
       </div>
 
       <div class="card">
-        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-          <span>Lista de Profesores</span>
-          <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <input type="text" id="search-teacher" class="form-input" placeholder="Buscar por nombre, email..."
-              style="width: 200px;" value="${Components.escapeHtml(searchTerm)}"
-              onkeyup="Views.directorTeachers.search(this.value)">
-          </div>
-        </div>
+        <div class="card-header">Lista de Profesores (${filtered.length})</div>
         <div class="card-body">
           ${filtered.length === 0 ? Components.createEmptyState(
             'Sin profesores',
@@ -138,30 +189,31 @@ Views.directorTeachers = async function() {
     const paginated = filtered.slice(start, start + perPage);
 
     return paginated.map(teacher => {
-      // Get courses assigned to this teacher
-      const teacherCourses = courses.filter(c =>
-        (c.teacher_ids && c.teacher_ids.includes(teacher.id)) ||
-        c.teacher_id === teacher.id
-      );
+      // Get courses assigned to this teacher using helper
+      const teacherCourses = getTeacherCourses(teacher.id);
 
       const coursesChips = teacherCourses.length > 0
         ? teacherCourses.slice(0, 3).map(c => Components.createChip(c.name, 'info')).join(' ') +
           (teacherCourses.length > 3 ? ` <span style="color: var(--color-gray-500);">+${teacherCourses.length - 3} mas</span>` : '')
         : Components.createChip('Sin cursos', 'gray');
 
+      const isDeleted = teacher.status === 'DELETED';
       const statusChip = teacher.status === 'ACTIVE'
         ? Components.createChip('Activo', 'success')
         : teacher.status === 'ON_LEAVE'
         ? Components.createChip('Con licencia', 'warning')
+        : teacher.status === 'DELETED'
+        ? Components.createChip('Eliminado', 'error')
         : Components.createChip('Inactivo', 'gray');
 
-      return `
-        <tr>
-          <td><strong>${Components.escapeHtml(teacher.full_name)}</strong></td>
-          <td>${Components.escapeHtml(teacher.email || '-')}</td>
-          <td>${coursesChips}</td>
-          <td>${statusChip}</td>
-          <td style="white-space: nowrap;">
+      // Actions: different buttons for deleted vs active teachers
+      const actionButtons = isDeleted
+        ? `
+            <button class="btn btn-success btn-sm" onclick="Views.directorTeachers.confirmRestore(${teacher.id})" title="Restaurar">
+              ↩ Restaurar
+            </button>
+          `
+        : `
             <button class="btn btn-secondary btn-sm" onclick="Views.directorTeachers.viewProfile(${teacher.id})" title="Ver perfil">
               👁
             </button>
@@ -174,6 +226,16 @@ Views.directorTeachers = async function() {
             <button class="btn btn-error btn-sm" onclick="Views.directorTeachers.confirmDelete(${teacher.id})" title="Eliminar">
               🗑
             </button>
+          `;
+
+      return `
+        <tr${isDeleted ? ' style="opacity: 0.7;"' : ''}>
+          <td><strong>${Components.escapeHtml(teacher.full_name)}</strong></td>
+          <td>${Components.escapeHtml(teacher.email || '-')}</td>
+          <td>${coursesChips}</td>
+          <td>${statusChip}</td>
+          <td style="white-space: nowrap;">
+            ${actionButtons}
           </td>
         </tr>
       `;
@@ -201,6 +263,37 @@ Views.directorTeachers = async function() {
     searchTerm = term;
     currentPage = 1;
     updateTableContent();
+  };
+
+  Views.directorTeachers.filterByCourse = function(course) {
+    courseFilter = course;
+    currentPage = 1;
+    updateTableContent();
+  };
+
+  Views.directorTeachers.filterByStatus = async function(status) {
+    statusFilter = status;
+    currentPage = 1;
+    // Reload teachers from API with filter
+    teachers = await State.refreshTeachers({ status: status || undefined });
+    renderTeachers();
+  };
+
+  Views.directorTeachers.clearFilters = async function() {
+    // Reset all filters
+    searchTerm = '';
+    courseFilter = '';
+    currentPage = 1;
+
+    // If status filter was set, need to reload all teachers
+    if (statusFilter) {
+      statusFilter = '';
+      teachers = await State.refreshTeachers();
+      renderTeachers();
+    } else {
+      // Just re-render with cleared local filters
+      renderTeachers();
+    }
   };
 
   Views.directorTeachers.changePage = function(page) {
@@ -356,10 +449,8 @@ Views.directorTeachers = async function() {
       return;
     }
 
-    // Get currently assigned courses
-    const assignedCourseIds = courses
-      .filter(c => (c.teacher_ids && c.teacher_ids.includes(teacherId)) || c.teacher_id === teacherId)
-      .map(c => c.id);
+    // Get currently assigned courses using helper
+    const assignedCourseIds = getTeacherCourses(teacherId).map(c => c.id);
 
     const coursesCheckboxes = courses.map(c => `
       <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; border: 1px solid var(--color-gray-200); border-radius: 8px; cursor: pointer; margin-bottom: 0.5rem;">
@@ -439,11 +530,8 @@ Views.directorTeachers = async function() {
       return;
     }
 
-    // Get courses assigned to this teacher
-    const teacherCourses = courses.filter(c =>
-      (c.teacher_ids && c.teacher_ids.includes(teacherId)) ||
-      c.teacher_id === teacherId
-    );
+    // Get courses assigned to this teacher using helper
+    const teacherCourses = getTeacherCourses(teacherId);
 
     const coursesHTML = teacherCourses.length > 0
       ? teacherCourses.map(c => `
@@ -518,11 +606,8 @@ Views.directorTeachers = async function() {
       return;
     }
 
-    // Count assigned courses
-    const assignedCourses = courses.filter(c =>
-      (c.teacher_ids && c.teacher_ids.includes(teacherId)) ||
-      c.teacher_id === teacherId
-    );
+    // Count assigned courses using helper
+    const assignedCourses = getTeacherCourses(teacherId);
 
     const warningMsg = assignedCourses.length > 0
       ? `<p style="color: var(--color-warning); margin-top: 0.5rem;"><strong>Advertencia:</strong> Este profesor tiene ${assignedCourses.length} curso${assignedCourses.length !== 1 ? 's' : ''} asignado${assignedCourses.length !== 1 ? 's' : ''}. Al eliminarlo, se desvinculara de todos los cursos.</p>`
@@ -572,6 +657,72 @@ Views.directorTeachers = async function() {
         }
       }}
     ]);
+  };
+
+  Views.directorTeachers.confirmRestore = function(teacherId) {
+    const teacher = State.getTeacher(teacherId);
+    if (!teacher) {
+      Components.showToast('Profesor no encontrado', 'error');
+      return;
+    }
+
+    Components.showModal('Confirmar Restauracion', `
+      <div style="text-align: center; padding: 1rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">↩</div>
+        <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">¿Restaurar este profesor?</p>
+        <p style="font-weight: 600; color: var(--color-success);">${Components.escapeHtml(teacher.full_name)}</p>
+        <p style="font-size: 0.9rem; color: var(--color-gray-500); margin-top: 1rem;">
+          El profesor volvera a estar activo en el sistema.
+        </p>
+      </div>
+    `, [
+      { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
+      { label: 'Restaurar', action: 'restore', className: 'btn-success', onClick: async () => {
+        const restoreBtn = document.querySelector('.modal .btn-success');
+        const originalText = restoreBtn ? restoreBtn.textContent : 'Restaurar';
+
+        try {
+          if (restoreBtn) {
+            restoreBtn.disabled = true;
+            restoreBtn.textContent = 'Restaurando...';
+          }
+
+          await State.restoreTeacher(teacherId);
+          Components.showToast('Profesor restaurado', 'success');
+
+          document.querySelector('.modal-container')?.click();
+          teachers = await State.refreshTeachers({ status: statusFilter || undefined });
+          renderTeachers();
+
+        } catch (error) {
+          Components.showToast(error.message || 'Error al restaurar', 'error');
+          console.error('Restore teacher error:', error);
+
+          if (restoreBtn) {
+            restoreBtn.disabled = false;
+            restoreBtn.textContent = originalText;
+          }
+        }
+      }}
+    ]);
+  };
+
+  Views.directorTeachers.exportCSV = async function() {
+    try {
+      const blob = await State.exportTeachersCSV({ status: statusFilter || undefined });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `profesores_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      Components.showToast('Exportacion completada', 'success');
+    } catch (error) {
+      Components.showToast(error.message || 'Error al exportar', 'error');
+      console.error('Export teachers error:', error);
+    }
   };
 
   renderTeachers();

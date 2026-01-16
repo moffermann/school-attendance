@@ -31,6 +31,9 @@ from app.services.dashboard_service import DashboardService
 from app.services.notification_service import NotificationService
 from app.services.webauthn_service import WebAuthnService
 from app.services.course_service import CourseService
+from app.services.teacher_service import TeacherService
+from app.services.guardian_service import GuardianService
+from app.services.student_service import StudentService
 
 if TYPE_CHECKING:
     from app.db.models.tenant import Tenant
@@ -328,6 +331,27 @@ async def get_course_service(
     session: AsyncSession = Depends(get_tenant_db),
 ) -> CourseService:
     return CourseService(session)
+
+
+async def get_teacher_service(
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
+) -> TeacherService:
+    return TeacherService(session)
+
+
+async def get_guardian_service(
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
+) -> GuardianService:
+    return GuardianService(session)
+
+
+async def get_student_service(
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
+) -> StudentService:
+    return StudentService(session)
 
 
 # ==================== Super Admin Authentication ====================

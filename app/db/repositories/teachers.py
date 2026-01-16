@@ -1,6 +1,6 @@
 """Teacher repository."""
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -87,9 +87,20 @@ class TeacherRepository:
 
         return True
 
-    async def list_all(self) -> list[Teacher]:
+    async def get_active(self, teacher_id: int) -> Teacher | None:
+        """Get teacher by ID only if not DELETED."""
+        stmt = select(Teacher).where(
+            Teacher.id == teacher_id,
+            Teacher.status != "DELETED",
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_all(self, *, include_deleted: bool = False) -> list[Teacher]:
         """List all teachers for kiosk provisioning."""
         stmt = select(Teacher).order_by(Teacher.full_name)
+        if not include_deleted:
+            stmt = stmt.where(Teacher.status != "DELETED")
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -123,6 +134,8 @@ class TeacherRepository:
         page: int = 1,
         page_size: int = 20,
         search: str | None = None,
+        status: str | None = None,
+        include_deleted: bool = False,
     ) -> tuple[list[Teacher], int]:
         """List teachers with pagination and optional search.
 
@@ -130,6 +143,12 @@ class TeacherRepository:
         """
         # Base query with courses eagerly loaded
         base_query = select(Teacher).options(selectinload(Teacher.courses))
+
+        # Apply status filter
+        if status:
+            base_query = base_query.where(Teacher.status == status)
+        elif not include_deleted:
+            base_query = base_query.where(Teacher.status != "DELETED")
 
         # Apply search filter if provided
         if search:
@@ -213,3 +232,139 @@ class TeacherRepository:
             await self.session.flush()
 
         return True
+
+    # -------------------------------------------------------------------------
+    # Soft delete operations
+    # -------------------------------------------------------------------------
+
+    async def soft_delete(self, teacher_id: int) -> Teacher | None:
+        """Mark teacher as DELETED (soft delete)."""
+        teacher = await self.get(teacher_id)
+        if not teacher:
+            return None
+
+        teacher.status = "DELETED"
+        await self.session.flush()
+        return teacher
+
+    async def restore(self, teacher_id: int) -> Teacher | None:
+        """Restore a DELETED teacher to ACTIVE status."""
+        teacher = await self.get(teacher_id)
+        if not teacher:
+            return None
+
+        teacher.status = "ACTIVE"
+        await self.session.flush()
+        return teacher
+
+    # -------------------------------------------------------------------------
+    # Count operations
+    # -------------------------------------------------------------------------
+
+    async def count(
+        self,
+        *,
+        status: str | None = None,
+        include_deleted: bool = False,
+        search: str | None = None,
+    ) -> int:
+        """Count teachers for pagination."""
+        stmt = select(func.count(Teacher.id))
+
+        if status:
+            stmt = stmt.where(Teacher.status == status)
+        elif not include_deleted:
+            stmt = stmt.where(Teacher.status != "DELETED")
+
+        if search:
+            search_term = f"%{search}%"
+            stmt = stmt.where(
+                or_(
+                    Teacher.full_name.ilike(search_term),
+                    Teacher.email.ilike(search_term),
+                )
+            )
+
+        result = await self.session.execute(stmt)
+        return result.scalar() or 0
+
+    async def count_courses(self, teacher_id: int) -> int:
+        """Count courses assigned to this teacher."""
+        teacher = await self.get_with_courses(teacher_id)
+        if not teacher:
+            return 0
+        return len(teacher.courses)
+
+    # -------------------------------------------------------------------------
+    # Search operations
+    # -------------------------------------------------------------------------
+
+    async def search(self, query: str, *, limit: int = 20) -> list[Teacher]:
+        """Basic search by name or email (exact contains)."""
+        stmt = (
+            select(Teacher)
+            .where(
+                or_(
+                    Teacher.full_name.ilike(f"%{query}%"),
+                    Teacher.email.ilike(f"%{query}%"),
+                ),
+                Teacher.status != "DELETED",
+            )
+            .order_by(Teacher.full_name)
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def fuzzy_search(self, query: str, *, limit: int = 20) -> list[Teacher]:
+        """Fuzzy search with ILIKE and ranking.
+
+        Searches in both full_name and email fields, prioritizing matches
+        where the name starts with the query.
+        """
+        query_lower = query.lower()
+        stmt = (
+            select(Teacher)
+            .where(
+                or_(
+                    func.lower(Teacher.full_name).contains(query_lower),
+                    func.lower(Teacher.email).contains(query_lower),
+                ),
+                Teacher.status != "DELETED",
+            )
+            .order_by(
+                # Prioritize exact matches at start
+                case(
+                    (func.lower(Teacher.full_name).startswith(query_lower), 1),
+                    else_=2,
+                ),
+                Teacher.full_name,
+            )
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    # -------------------------------------------------------------------------
+    # Export operations
+    # -------------------------------------------------------------------------
+
+    async def list_for_export(
+        self,
+        *,
+        status: str | None = None,
+    ) -> list[Teacher]:
+        """List all teachers for CSV export (no pagination)."""
+        stmt = (
+            select(Teacher)
+            .options(selectinload(Teacher.courses))
+            .order_by(Teacher.full_name)
+        )
+
+        if status:
+            stmt = stmt.where(Teacher.status == status)
+        else:
+            stmt = stmt.where(Teacher.status != "DELETED")
+
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
