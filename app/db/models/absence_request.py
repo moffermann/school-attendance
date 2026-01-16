@@ -1,9 +1,9 @@
 """Absence request model."""
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -22,3 +22,33 @@ class AbsenceRequest(Base):
     approver_id: Mapped[int | None] = mapped_column(ForeignKey("guardians.id"), index=True)
     ts_submitted: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ts_resolved: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Nuevos campos agregados en migracion 0018
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resolved_by_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+    # Soft delete fields
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    deleted_by_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Relationships
+    student = relationship("Student", backref="absence_requests")
+    resolved_by = relationship("User", foreign_keys=[resolved_by_id])
+    deleted_by = relationship("User", foreign_keys=[deleted_by_id])

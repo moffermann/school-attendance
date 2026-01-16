@@ -26,6 +26,7 @@ class AuditEvent(str, Enum):
     STUDENT_CREATED = "data.student.created"
     STUDENT_UPDATED = "data.student.updated"
     STUDENT_DELETED = "data.student.deleted"
+    STUDENT_EXPORTED = "data.student.exported"
     GUARDIAN_LINKED = "data.guardian.linked"
 
     # Course events
@@ -34,6 +35,26 @@ class AuditEvent(str, Enum):
     COURSE_DELETED = "data.course.deleted"
     COURSE_VIEWED = "data.course.viewed"
     COURSE_EXPORTED = "data.course.exported"
+
+    # Teacher events
+    TEACHER_CREATED = "data.teacher.created"
+    TEACHER_UPDATED = "data.teacher.updated"
+    TEACHER_DELETED = "data.teacher.deleted"
+    TEACHER_EXPORTED = "data.teacher.exported"
+
+    # Guardian events
+    GUARDIAN_CREATED = "data.guardian.created"
+    GUARDIAN_UPDATED = "data.guardian.updated"
+    GUARDIAN_DELETED = "data.guardian.deleted"
+    GUARDIAN_EXPORTED = "data.guardian.exported"
+
+    # Absence events
+    ABSENCE_CREATED = "data.absence.created"
+    ABSENCE_UPDATED = "data.absence.updated"
+    ABSENCE_APPROVED = "data.absence.approved"
+    ABSENCE_REJECTED = "data.absence.rejected"
+    ABSENCE_DELETED = "data.absence.deleted"
+    ABSENCE_EXPORTED = "data.absence.exported"
 
     # Attendance events
     ATTENDANCE_REGISTERED = "attendance.registered"

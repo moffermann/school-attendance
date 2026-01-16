@@ -155,7 +155,7 @@ const API = Object.assign(createApiClient('webAppConfig'), {
   // ==================== Absences API ====================
 
   /**
-   * List absence requests
+   * List absence requests (legacy endpoint)
    */
   async getAbsences(filters = {}) {
     const params = new URLSearchParams();
@@ -172,7 +172,69 @@ const API = Object.assign(createApiClient('webAppConfig'), {
   },
 
   /**
-   * Submit absence request
+   * List absences with pagination (new enterprise endpoint)
+   * @param {Object} filters - status, type, course_id, start_date, end_date
+   * @param {number} offset - pagination offset
+   * @param {number} limit - max results per page
+   */
+  async getAbsencesPaginated(filters = {}, offset = 0, limit = 50) {
+    const params = new URLSearchParams();
+    params.append('offset', offset);
+    params.append('limit', limit);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.type) params.append('type', filters.type);
+    if (filters.course_id) params.append('course_id', filters.course_id);
+    if (filters.start_date) params.append('start_date', filters.start_date);
+    if (filters.end_date) params.append('end_date', filters.end_date);
+
+    const response = await this.request(`/absences/paginated?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error('No se pudo obtener las ausencias');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get absence statistics (counts by status)
+   */
+  async getAbsenceStats() {
+    const response = await this.request('/absences/stats');
+    if (!response.ok) {
+      throw new Error('No se pudo obtener estadisticas');
+    }
+    return response.json();
+  },
+
+  /**
+   * Search absences by student name or comment
+   */
+  async searchAbsences(query, limit = 20) {
+    const params = new URLSearchParams({ q: query, limit: limit });
+    const response = await this.request(`/absences/search?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error('Error en la busqueda');
+    }
+    return response.json();
+  },
+
+  /**
+   * Export absences to CSV
+   */
+  async exportAbsencesCSV(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.status) params.append('status', filters.status);
+    if (filters.start_date) params.append('start_date', filters.start_date);
+    if (filters.end_date) params.append('end_date', filters.end_date);
+
+    const response = await this.request(`/absences/export?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error('Error al exportar');
+    }
+    return response.blob();
+  },
+
+  /**
+   * Submit absence request (legacy)
    */
   async submitAbsence(data) {
     const response = await this.request('/absences', {
@@ -188,7 +250,7 @@ const API = Object.assign(createApiClient('webAppConfig'), {
   },
 
   /**
-   * Update absence status (approve/reject)
+   * Update absence status (legacy - approve/reject)
    */
   async updateAbsenceStatus(absenceId, status) {
     const response = await this.request(`/absences/${absenceId}/status`, {
@@ -199,6 +261,52 @@ const API = Object.assign(createApiClient('webAppConfig'), {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Error al actualizar estado' }));
       throw new Error(error.detail || 'Error al actualizar estado');
+    }
+    return response.json();
+  },
+
+  /**
+   * Approve an absence request
+   */
+  async approveAbsence(absenceId) {
+    const response = await this.request(`/absences/${absenceId}/approve`, {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al aprobar' }));
+      throw new Error(error.detail || 'Error al aprobar solicitud');
+    }
+    return response.json();
+  },
+
+  /**
+   * Reject an absence request with optional reason
+   */
+  async rejectAbsence(absenceId, rejectionReason = null) {
+    const response = await this.request(`/absences/${absenceId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ rejection_reason: rejectionReason }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al rechazar' }));
+      throw new Error(error.detail || 'Error al rechazar solicitud');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a pending absence request
+   */
+  async deleteAbsence(absenceId) {
+    const response = await this.request(`/absences/${absenceId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al eliminar' }));
+      throw new Error(error.detail || 'Error al eliminar solicitud');
     }
     return response.json();
   },
@@ -945,6 +1053,7 @@ const API = Object.assign(createApiClient('webAppConfig'), {
    * @param {string} [params.q] - Search by name
    * @param {number} [params.skip=0] - Records to skip
    * @param {number} [params.limit=50] - Max records to return
+   * @param {string} [params.status] - Filter by status (ACTIVE, DELETED)
    * @returns {Promise<{items: Array, total: number, skip: number, limit: number, has_more: boolean}>}
    */
   async getGuardians(params = {}) {
@@ -952,12 +1061,76 @@ const API = Object.assign(createApiClient('webAppConfig'), {
     if (params.q) queryParams.append('q', params.q);
     if (params.skip) queryParams.append('skip', params.skip);
     if (params.limit) queryParams.append('limit', params.limit);
+    if (params.offset) queryParams.append('offset', params.offset);
+    if (params.status) queryParams.append('status', params.status);
 
     const queryString = queryParams.toString();
     const response = await this.request(`/guardians${queryString ? '?' + queryString : ''}`);
 
     if (!response.ok) {
       throw new Error('No se pudo obtener apoderados');
+    }
+    return response.json();
+  },
+
+  /**
+   * Search guardians by name
+   * @param {string} query - Search term
+   * @param {Object} options - Search options
+   * @param {number} [options.limit=20] - Max results
+   * @param {boolean} [options.fuzzy=false] - Use fuzzy search
+   * @returns {Promise<Array>} List of matching guardians
+   */
+  async searchGuardians(query, options = {}) {
+    const params = new URLSearchParams();
+    params.append('q', query);
+    if (options.limit) params.append('limit', options.limit);
+    if (options.fuzzy) params.append('fuzzy', options.fuzzy);
+
+    const response = await this.request(`/guardians/search?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error('No se pudo buscar apoderados');
+    }
+    return response.json();
+  },
+
+  /**
+   * Export guardians to CSV
+   * @param {Object} filters - Export filters
+   * @param {string} [filters.status] - Filter by status
+   * @returns {Promise<Blob>} CSV file blob
+   */
+  async exportGuardiansCSV(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.status) params.append('status', filters.status);
+
+    const queryString = params.toString();
+    const response = await this.request(`/guardians/export${queryString ? '?' + queryString : ''}`);
+    if (!response.ok) {
+      throw new Error('No se pudo exportar apoderados');
+    }
+    return response.blob();
+  },
+
+  /**
+   * Restore a deleted guardian
+   * @param {number} guardianId - Guardian ID
+   * @returns {Promise<Object>} Restored guardian
+   */
+  async restoreGuardian(guardianId) {
+    const response = await this.request(`/guardians/${guardianId}/restore`, {
+      method: 'PATCH',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Apoderado no encontrado');
+      }
+      if (response.status === 400) {
+        throw new Error(error.detail || 'El apoderado no esta eliminado');
+      }
+      throw new Error(error.detail || 'Error al restaurar apoderado');
     }
     return response.json();
   },
@@ -1082,6 +1255,7 @@ const API = Object.assign(createApiClient('webAppConfig'), {
    * @param {string} [params.q] - Search by name or email
    * @param {number} [params.page=1] - Page number
    * @param {number} [params.page_size=20] - Records per page
+   * @param {string} [params.status] - Filter by status (ACTIVE, INACTIVE, ON_LEAVE, DELETED)
    * @returns {Promise<{items: Array, total: number, page: number, page_size: number, pages: number}>}
    */
   async getTeachers(params = {}) {
@@ -1089,12 +1263,77 @@ const API = Object.assign(createApiClient('webAppConfig'), {
     if (params.q) queryParams.append('q', params.q);
     if (params.page) queryParams.append('page', params.page);
     if (params.page_size) queryParams.append('page_size', params.page_size);
+    if (params.status) queryParams.append('status', params.status);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.offset) queryParams.append('offset', params.offset);
 
     const queryString = queryParams.toString();
     const response = await this.request(`/teachers${queryString ? '?' + queryString : ''}`);
 
     if (!response.ok) {
       throw new Error('No se pudo obtener profesores');
+    }
+    return response.json();
+  },
+
+  /**
+   * Search teachers by name or email
+   * @param {string} query - Search term
+   * @param {Object} options - Search options
+   * @param {number} [options.limit=20] - Max results
+   * @param {boolean} [options.fuzzy=false] - Use fuzzy search
+   * @returns {Promise<Array>} List of matching teachers
+   */
+  async searchTeachers(query, options = {}) {
+    const params = new URLSearchParams();
+    params.append('q', query);
+    if (options.limit) params.append('limit', options.limit);
+    if (options.fuzzy) params.append('fuzzy', options.fuzzy);
+
+    const response = await this.request(`/teachers/search?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error('No se pudo buscar profesores');
+    }
+    return response.json();
+  },
+
+  /**
+   * Export teachers to CSV
+   * @param {Object} filters - Export filters
+   * @param {string} [filters.status] - Filter by status
+   * @returns {Promise<Blob>} CSV file blob
+   */
+  async exportTeachersCSV(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.status) params.append('status', filters.status);
+
+    const queryString = params.toString();
+    const response = await this.request(`/teachers/export${queryString ? '?' + queryString : ''}`);
+    if (!response.ok) {
+      throw new Error('No se pudo exportar profesores');
+    }
+    return response.blob();
+  },
+
+  /**
+   * Restore a deleted teacher
+   * @param {number} teacherId - Teacher ID
+   * @returns {Promise<Object>} Restored teacher
+   */
+  async restoreTeacher(teacherId) {
+    const response = await this.request(`/teachers/${teacherId}/restore`, {
+      method: 'PATCH',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Profesor no encontrado');
+      }
+      if (response.status === 400) {
+        throw new Error(error.detail || 'El profesor no esta eliminado');
+      }
+      throw new Error(error.detail || 'Error al restaurar profesor');
     }
     return response.json();
   },
