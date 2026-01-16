@@ -201,11 +201,11 @@ class GuardianService:
             # 3. Associate students if provided
             if payload.student_ids:
                 await self.guardian_repo.set_students(guardian.id, payload.student_ids)
-                await self.session.refresh(guardian)
 
-            # 4. Commit
+            # 4. Commit and get fresh instance
             await self.session.commit()
-            await self.session.refresh(guardian)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            guardian = await self.guardian_repo.get(guardian.id)
 
             # 5. Audit log with IP
             client_ip = request.client.host if request and request.client else None
@@ -296,9 +296,10 @@ class GuardianService:
                 if set(old_student_ids) != set(payload.student_ids):
                     changes["students"] = {"old": old_student_ids, "new": payload.student_ids}
 
-            # 6. Commit
+            # 6. Commit and get fresh instance
             await self.session.commit()
-            await self.session.refresh(guardian)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            guardian = await self.guardian_repo.get(guardian_id)
 
             # 7. Audit log with IP
             client_ip = request.client.host if request and request.client else None
@@ -425,9 +426,10 @@ class GuardianService:
             # 3. Restore
             await self.guardian_repo.restore(guardian_id)
 
-            # 4. Commit
+            # 4. Commit and get fresh instance
             await self.session.commit()
-            await self.session.refresh(guardian)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            guardian = await self.guardian_repo.get(guardian_id)
 
             # 5. Audit log with IP
             client_ip = request.client.host if request and request.client else None

@@ -27,6 +27,8 @@ class KioskStudentRead(BaseModel):
     photo_pref_opt_in: bool = False
     # New field: "photo", "audio", or "none"
     evidence_preference: str = "none"
+    # Guardian name for display on scan result
+    guardian_name: str | None = None
 
 
 class KioskTagRead(BaseModel):
@@ -94,8 +96,8 @@ async def get_kiosk_bootstrap(
     teacher_repo = TeacherRepository(session)
     attendance_repo = AttendanceRepository(session)
 
-    # Get all students
-    students_raw = await student_repo.list_all()
+    # Get all students with guardians for kiosk display
+    students_raw = await student_repo.list_all(include_guardians=True)
 
     # Build photo proxy URLs for students with photos
     # Uses /api/v1/photos/{key} endpoint which proxies through the API server
@@ -110,6 +112,11 @@ async def get_kiosk_bootstrap(
             # Use proxy URL instead of presigned URL
             photo_url = f"{base_url}/api/v1/photos/{s.photo_url}"
 
+        # Get first guardian name for display
+        guardian_name = None
+        if s.guardians:
+            guardian_name = s.guardians[0].full_name
+
         students.append(KioskStudentRead(
             id=s.id,
             full_name=s.full_name,
@@ -117,6 +124,7 @@ async def get_kiosk_bootstrap(
             photo_url=photo_url,
             photo_pref_opt_in=s.photo_pref_opt_in,
             evidence_preference=getattr(s, "effective_evidence_preference", "none"),
+            guardian_name=guardian_name,
         ))
 
     # Get all tags - map DB fields to kiosk format
@@ -179,7 +187,7 @@ async def get_kiosk_students(
         )
 
     student_repo = StudentRepository(session)
-    students_raw = await student_repo.list_all()
+    students_raw = await student_repo.list_all(include_guardians=True)
 
     # Build photo proxy URLs for students with photos
     from app.core.config import settings
@@ -191,6 +199,11 @@ async def get_kiosk_students(
         if s.photo_url:
             photo_url = f"{base_url}/api/v1/photos/{s.photo_url}"
 
+        # Get first guardian name for display
+        guardian_name = None
+        if s.guardians:
+            guardian_name = s.guardians[0].full_name
+
         students.append(KioskStudentRead(
             id=s.id,
             full_name=s.full_name,
@@ -198,6 +211,7 @@ async def get_kiosk_students(
             photo_url=photo_url,
             photo_pref_opt_in=s.photo_pref_opt_in,
             evidence_preference=getattr(s, "effective_evidence_preference", "none"),
+            guardian_name=guardian_name,
         ))
 
     return students

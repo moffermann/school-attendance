@@ -315,10 +315,9 @@ Views.directorAbsences = async function() {
               <th>Tipo</th>
               <th>Fechas</th>
               <th>Dias</th>
-              <th>Comentario</th>
-              ${activeTab === 'REJECTED' ? '<th>Razon Rechazo</th>' : ''}
+              <th>Adjunto</th>
               <th>Fecha Solicitud</th>
-              ${activeTab === 'PENDING' ? '<th>Acciones</th>' : ''}
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -352,6 +351,12 @@ Views.directorAbsences = async function() {
     const studentName = absence.student_name || (State.getStudent(absence.student_id)?.full_name) || 'Alumno #' + absence.student_id;
     const courseName = absence.course_name || '-';
 
+    // Check for attachment
+    const hasAttachment = absence.attachment_ref || absence.attachment_url;
+    const attachmentIcon = hasAttachment
+      ? '<span style="color: var(--color-success); cursor: pointer;" title="Ver adjunto">📎</span>'
+      : '<span style="color: var(--color-gray-300);">-</span>';
+
     return `
       <tr>
         <td><strong>${Components.escapeHtml(studentName)}</strong></td>
@@ -359,28 +364,24 @@ Views.directorAbsences = async function() {
         <td>${typeChip}</td>
         <td>${Components.formatDate(startDate)} - ${Components.formatDate(endDate)}</td>
         <td>${days} dia${days !== 1 ? 's' : ''}</td>
-        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${Components.escapeHtml(absence.comment || '')}">
-          ${Components.escapeHtml(absence.comment) || '-'}
-        </td>
-        ${activeTab === 'REJECTED' ? `
-          <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${Components.escapeHtml(absence.rejection_reason || '')}">
-            ${Components.escapeHtml(absence.rejection_reason) || '-'}
-          </td>
-        ` : ''}
+        <td style="text-align: center;">${attachmentIcon}</td>
         <td>${submittedDate}</td>
-        ${activeTab === 'PENDING' ? `
-          <td style="white-space: nowrap;">
+        <td style="white-space: nowrap;">
+          <button class="btn btn-secondary btn-sm" onclick="Views.directorAbsences.showDetail(${absence.id})" title="Ver detalles">
+            👁 Ver
+          </button>
+          ${activeTab === 'PENDING' ? `
             <button class="btn btn-success btn-sm" onclick="Views.directorAbsences.approve(${absence.id})" title="Aprobar">
-              ✓ Aprobar
+              ✓
             </button>
             <button class="btn btn-sm" style="background-color: #f59e0b; color: white; border: none;" onclick="Views.directorAbsences.showRejectModal(${absence.id})" title="Rechazar">
-              ✕ Rechazar
+              ✕
             </button>
             <button class="btn btn-error btn-sm" onclick="Views.directorAbsences.confirmDelete(${absence.id})" title="Eliminar">
               🗑
             </button>
-          </td>
-        ` : ''}
+          ` : ''}
+        </td>
       </tr>
     `;
   }
@@ -666,6 +667,209 @@ Views.directorAbsences = async function() {
   Views.directorAbsences.refresh = async function() {
     await loadStats();
     await loadAbsences();
+  };
+
+  Views.directorAbsences.showDetail = function(absenceId) {
+    const absence = absences.find(a => a.id === absenceId);
+    if (!absence) {
+      Components.showToast('Solicitud no encontrada', 'error');
+      return;
+    }
+
+    const typeLabels = {
+      'MEDICAL': { label: 'Médica', icon: '🏥' },
+      'FAMILY': { label: 'Familiar', icon: '👨‍👩‍👧' },
+      'VACATION': { label: 'Vacaciones', icon: '🏖️' },
+      'OTHER': { label: 'Otro', icon: '📋' },
+    };
+    const typeInfo = typeLabels[absence.type] || { label: absence.type || 'Otro', icon: '📋' };
+
+    const statusLabels = {
+      'PENDING': { label: 'Pendiente', color: 'warning', icon: '⏳' },
+      'APPROVED': { label: 'Aprobada', color: 'success', icon: '✅' },
+      'REJECTED': { label: 'Rechazada', color: 'error', icon: '❌' },
+    };
+    const statusInfo = statusLabels[absence.status] || statusLabels.PENDING;
+
+    const startDate = absence.start_date || absence.start;
+    const endDate = absence.end_date || absence.end;
+    const days = startDate && endDate
+      ? Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1
+      : 0;
+
+    const studentName = absence.student_name || (State.getStudent(absence.student_id)?.full_name) || 'Alumno #' + absence.student_id;
+    const courseName = absence.course_name || '-';
+
+    // Build attachment section
+    let attachmentHtml = '<span style="color: var(--color-gray-400);">Sin adjunto</span>';
+    if (absence.attachment_url || absence.attachment_ref) {
+      const attachmentRef = absence.attachment_ref || '';
+      const fileName = attachmentRef ? attachmentRef.split('/').pop() : 'archivo';
+      attachmentHtml = `
+        <button type="button" onclick="Views.directorAbsences.downloadAttachment('${attachmentRef}', '${Components.escapeHtml(fileName)}')"
+           style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; background: var(--color-primary-light); border-radius: 8px; border: none; cursor: pointer; color: var(--color-primary);">
+          <span style="font-size: 1.5rem;">📎</span>
+          <span style="text-align: left;">
+            <strong style="display: block;">Ver/Descargar Adjunto</strong>
+            <span style="font-size: 0.85rem; color: var(--color-gray-600);">${Components.escapeHtml(fileName)}</span>
+          </span>
+        </button>
+      `;
+    }
+
+    const modalContent = `
+      <div style="display: grid; gap: 1.25rem;">
+        <!-- Student & Course -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div>
+            <label style="font-size: 0.85rem; color: var(--color-gray-500); display: block; margin-bottom: 0.25rem;">Alumno</label>
+            <strong style="font-size: 1.1rem;">${Components.escapeHtml(studentName)}</strong>
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; color: var(--color-gray-500); display: block; margin-bottom: 0.25rem;">Curso</label>
+            <span>${Components.escapeHtml(courseName)}</span>
+          </div>
+        </div>
+
+        <!-- Type & Status -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div>
+            <label style="font-size: 0.85rem; color: var(--color-gray-500); display: block; margin-bottom: 0.25rem;">Tipo de Ausencia</label>
+            <span style="font-size: 1.1rem;">${typeInfo.icon} ${typeInfo.label}</span>
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; color: var(--color-gray-500); display: block; margin-bottom: 0.25rem;">Estado</label>
+            <span class="chip chip-${statusInfo.color}">${statusInfo.icon} ${statusInfo.label}</span>
+          </div>
+        </div>
+
+        <!-- Dates -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+          <div>
+            <label style="font-size: 0.85rem; color: var(--color-gray-500); display: block; margin-bottom: 0.25rem;">Fecha Inicio</label>
+            <span>${Components.formatDate(startDate)}</span>
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; color: var(--color-gray-500); display: block; margin-bottom: 0.25rem;">Fecha Fin</label>
+            <span>${Components.formatDate(endDate)}</span>
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; color: var(--color-gray-500); display: block; margin-bottom: 0.25rem;">Total Días</label>
+            <span style="font-weight: 600;">${days} día${days !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+
+        <!-- Comment -->
+        <div>
+          <label style="font-size: 0.85rem; color: var(--color-gray-500); display: block; margin-bottom: 0.25rem;">Comentario / Motivo</label>
+          <div style="background: var(--color-gray-50); padding: 0.75rem; border-radius: 8px; min-height: 60px;">
+            ${absence.comment ? Components.escapeHtml(absence.comment) : '<span style="color: var(--color-gray-400);">Sin comentario</span>'}
+          </div>
+        </div>
+
+        ${absence.status === 'REJECTED' && absence.rejection_reason ? `
+          <!-- Rejection Reason -->
+          <div>
+            <label style="font-size: 0.85rem; color: var(--color-error); display: block; margin-bottom: 0.25rem;">Razón del Rechazo</label>
+            <div style="background: var(--color-error-light); padding: 0.75rem; border-radius: 8px; color: var(--color-error-dark);">
+              ${Components.escapeHtml(absence.rejection_reason)}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Attachment -->
+        <div>
+          <label style="font-size: 0.85rem; color: var(--color-gray-500); display: block; margin-bottom: 0.5rem;">Archivo Adjunto</label>
+          ${attachmentHtml}
+        </div>
+
+        <!-- Timestamps -->
+        <div style="border-top: 1px solid var(--color-gray-200); padding-top: 1rem; margin-top: 0.5rem;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--color-gray-500);">
+            <span>Fecha de solicitud: ${absence.ts_submitted ? Components.formatDate(absence.ts_submitted) : '-'}</span>
+            ${absence.ts_resolved ? `<span>Fecha de resolución: ${Components.formatDate(absence.ts_resolved)}</span>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Build action buttons based on status
+    const buttons = [{ label: 'Cerrar', action: 'close', className: 'btn-secondary' }];
+
+    if (absence.status === 'PENDING') {
+      buttons.unshift(
+        { label: '✓ Aprobar', action: 'approve', className: 'btn-success', onClick: () => {
+          document.querySelector('.modal-container')?.click();
+          Views.directorAbsences.approve(absenceId);
+        }},
+        { label: '✕ Rechazar', action: 'reject', className: 'btn-warning', onClick: () => {
+          document.querySelector('.modal-container')?.click();
+          Views.directorAbsences.showRejectModal(absenceId);
+        }}
+      );
+    }
+
+    Components.showModal(`Detalle de Solicitud #${absenceId}`, modalContent, buttons);
+  };
+
+  // Download attachment with authentication
+  Views.directorAbsences.downloadAttachment = async function(attachmentRef, fileName) {
+    if (!attachmentRef) {
+      Components.showToast('No hay archivo adjunto', 'error');
+      return;
+    }
+
+    try {
+      Components.showToast('Descargando archivo...', 'info');
+
+      // Build the URL for the photo endpoint
+      // Note: API.baseUrl already includes /api/v1, so we just add /photos/
+      const photoUrl = `/photos/${attachmentRef}`;
+
+      // Make authenticated request using API's access token
+      const response = await fetch(API.baseUrl + photoUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${API.accessToken}`,
+          'X-Tenant': State.tenant || 'demo_local',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Error ${response.status}: ${errorText}`);
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob();
+
+      // Create a temporary URL for the blob
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Determine content type for proper handling
+      const contentType = response.headers.get('content-type') || '';
+
+      // For PDFs and images, try to open in new tab
+      if (contentType.includes('pdf') || contentType.includes('image')) {
+        window.open(blobUrl, '_blank');
+      } else {
+        // For other files, trigger download
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = fileName || 'archivo';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+
+      // Clean up the blob URL after a delay
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+
+      Components.showToast('Archivo descargado', 'success');
+    } catch (error) {
+      console.error('Error downloading attachment:', error);
+      Components.showToast('Error al descargar: ' + error.message, 'error');
+    }
   };
 
   // Initial load

@@ -157,7 +157,7 @@ const WebAuthn = {
     }
 
     // Step 1: Get registration options from server
-    const startResponse = await API.fetch('/webauthn/users/register/start', {
+    const startResponse = await API.request('/webauthn/users/register/start', {
       method: 'POST',
       body: JSON.stringify({ device_name: deviceName }),
     });
@@ -190,7 +190,7 @@ const WebAuthn = {
     // Step 3: Send credential to server for verification
     const credentialForServer = this.prepareRegistrationCredential(credential);
 
-    const completeResponse = await API.fetch('/webauthn/users/register/complete', {
+    const completeResponse = await API.request('/webauthn/users/register/complete', {
       method: 'POST',
       body: JSON.stringify({
         challenge_id,
@@ -273,23 +273,25 @@ const WebAuthn = {
    * List registered passkeys for current user
    */
   async listPasskeys() {
-    const response = await API.fetch('/webauthn/users/credentials');
+    const response = await API.request('/webauthn/users/me/credentials');
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({}));
       throw new Error(error.detail || 'Error al listar passkeys');
     }
-    return await response.json();
+    const data = await response.json();
+    // API returns { credentials: [], count: N }
+    return data.credentials || [];
   },
 
   /**
    * Delete a passkey
    */
   async deletePasskey(credentialId) {
-    const response = await API.fetch(`/webauthn/users/credentials/${encodeURIComponent(credentialId)}`, {
+    const response = await API.request(`/webauthn/users/me/credentials/${encodeURIComponent(credentialId)}`, {
       method: 'DELETE',
     });
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({}));
       throw new Error(error.detail || 'Error al eliminar passkey');
     }
     return true;

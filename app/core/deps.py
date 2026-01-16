@@ -242,7 +242,11 @@ async def get_notification_dispatcher(
     request: Request,
     session: AsyncSession = Depends(get_tenant_db),
 ) -> NotificationDispatcher:
-    return NotificationDispatcher(session)
+    # MT-WORKER-FIX: Pass tenant context for background job processing
+    tenant = getattr(request.state, "tenant", None)
+    tenant_id = tenant.id if tenant else None
+    tenant_schema = getattr(request.state, "tenant_schema", None)
+    return NotificationDispatcher(session, tenant_id=tenant_id, tenant_schema=tenant_schema)
 
 
 async def get_schedule_service(
@@ -256,7 +260,11 @@ async def get_broadcast_service(
     request: Request,
     session: AsyncSession = Depends(get_tenant_db),
 ) -> BroadcastService:
-    return BroadcastService(session)
+    # MT-WORKER-FIX: Pass tenant context for background job processing
+    tenant = getattr(request.state, "tenant", None)
+    tenant_id = tenant.id if tenant else None
+    tenant_schema = getattr(request.state, "tenant_schema", None)
+    return BroadcastService(session, tenant_id=tenant_id, tenant_schema=tenant_schema)
 
 
 async def get_consent_service(

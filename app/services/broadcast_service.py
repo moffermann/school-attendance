@@ -14,8 +14,10 @@ from app.schemas.notifications import BroadcastCreate, BroadcastPreview
 
 
 class BroadcastService:
-    def __init__(self, session):
+    def __init__(self, session, tenant_id: int | None = None, tenant_schema: str | None = None):
         self.session = session
+        self.tenant_id = tenant_id
+        self.tenant_schema = tenant_schema
         self.guardian_repo = GuardianRepository(session)
         self.student_repo = StudentRepository(session)
         self.redis = Redis.from_url(settings.redis_url)
@@ -67,6 +69,8 @@ class BroadcastService:
                     "job_id": job_id,
                     "payload": payload.model_dump(),
                     "guardian_ids": guardian_ids,
+                    "tenant_id": self.tenant_id,
+                    "tenant_schema": self.tenant_schema,
                 },
                 job_id=job_id,
             )

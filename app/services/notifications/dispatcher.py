@@ -13,8 +13,10 @@ from app.schemas.notifications import NotificationDispatchRequest, NotificationR
 
 
 class NotificationDispatcher:
-    def __init__(self, session):
+    def __init__(self, session, tenant_id: int | None = None, tenant_schema: str | None = None):
         self.session = session
+        self.tenant_id = tenant_id
+        self.tenant_schema = tenant_schema
         self.repository = NotificationRepository(session)
         self.guardian_repo = GuardianRepository(session)
         self._redis = Redis.from_url(settings.redis_url)
@@ -57,7 +59,15 @@ class NotificationDispatcher:
             NotificationChannel.EMAIL: "app.workers.jobs.send_email.send_email_message",
         }[payload.channel]
 
-        job_args = (notification.id, recipient, payload.template.value, payload.variables)
+        # MT-WORKER-FIX: Pass tenant context so worker can find notification in correct schema
+        job_args = (
+            notification.id,
+            recipient,
+            payload.template.value,
+            payload.variables,
+            self.tenant_id,
+            self.tenant_schema,
+        )
         self._queue.enqueue(job_func, *job_args)
 
         return NotificationRead.model_validate(notification, from_attributes=True)

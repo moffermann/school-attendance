@@ -224,9 +224,10 @@ class StudentService:
                 status=payload.status,
             )
 
-            # 4. Commit
+            # 4. Commit and get fresh instance
             await self.session.commit()
-            await self.session.refresh(student)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            student = await self.student_repo.get(student.id)
 
             # 5. Audit log with IP
             client_ip = request.client.host if request and request.client else None
@@ -327,9 +328,10 @@ class StudentService:
             else:
                 updated = student
 
-            # 6. Commit
+            # 6. Commit and get fresh instance
             await self.session.commit()
-            await self.session.refresh(updated)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            updated = await self.student_repo.get(student_id)
 
             # 7. Audit log with IP (only if there were changes)
             if changes:
@@ -458,9 +460,10 @@ class StudentService:
             # 3. Restore
             await self.student_repo.restore(student_id)
 
-            # 4. Commit
+            # 4. Commit and get fresh instance
             await self.session.commit()
-            await self.session.refresh(student)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            student = await self.student_repo.get(student_id)
 
             # 5. Audit log with IP
             client_ip = request.client.host if request and request.client else None
@@ -560,7 +563,8 @@ class StudentService:
             await self.photo_service.store_photo(photo_key, content, content_type)
             await self.student_repo.update_photo_url(student_id, photo_key)
             await self.session.commit()
-            await self.session.refresh(student)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            student = await self.student_repo.get(student_id)
 
             # Audit log
             client_ip = request.client.host if request and request.client else None
@@ -619,7 +623,8 @@ class StudentService:
             await self.photo_service.delete_photo(old_photo)
             await self.student_repo.update_photo_url(student_id, None)
             await self.session.commit()
-            await self.session.refresh(student)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            student = await self.student_repo.get(student_id)
 
             # Audit log
             client_ip = request.client.host if request and request.client else None

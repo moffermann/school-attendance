@@ -234,12 +234,13 @@ class CourseService:
                 course.teachers = teachers
                 await self.session.flush()
 
-            # 6. Commit
+            # 6. Commit and get fresh instance
             await self.session.commit()
-            await self.session.refresh(course)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            course = await self.course_repo.get_with_details(course.id)
 
             # 7. Build teacher_ids for response
-            teacher_ids = [t.id for t in teachers]
+            teacher_ids = [t.id for t in (course.teachers or [])]
 
             # 8. Audit log with IP
             client_ip = request.client.host if request and request.client else None
@@ -350,12 +351,13 @@ class CourseService:
 
             await self.session.flush()
 
-            # 7. Commit
+            # 7. Commit and get fresh instance
             await self.session.commit()
-            await self.session.refresh(course)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            course = await self.course_repo.get_with_details(course_id)
 
             # 8. Build response teacher_ids
-            teacher_ids = [t.id for t in new_teachers] if new_teachers is not None else old_teacher_ids
+            teacher_ids = [t.id for t in (course.teachers or [])]
 
             # 9. Audit log with IP
             client_ip = request.client.host if request and request.client else None

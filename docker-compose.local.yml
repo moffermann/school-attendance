@@ -85,7 +85,15 @@ services:
       VAPID_PUBLIC_KEY: BG20KqGfbFlLuZQPdz1ya3ZJEwJ8wO1UWC_O4hcdHM5gw5dQ-1zM5qKOOsTn40906Zs2UVD2ax0wCh21d9I0krM
       VAPID_PRIVATE_KEY: 0DrMeX3Wadu9eEAGH8YgC-l9nIZg0qj6QRe4-dI9nMI
       VAPID_SUBJECT: mailto:admin@school.cl
-      ENABLE_REAL_NOTIFICATIONS: "false"
+      # Email configuration (SMTP with Gmail)
+      EMAIL_PROVIDER: smtp
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: "587"
+      SMTP_USER: contacto@gocode.homes
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_USE_TLS: "true"
+      SMTP_FROM_NAME: Sistema de Asistencia
+      ENABLE_REAL_NOTIFICATIONS: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

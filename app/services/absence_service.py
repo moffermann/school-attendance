@@ -119,7 +119,8 @@ class AbsenceService:
         )
 
         await self.session.commit()
-        await self.session.refresh(record)
+        # Re-fetch instead of refresh to avoid detached instance issues
+        record = await self.absence_repo.get(record.id)
         return record
 
     async def update_status(self, absence_id: int, status: AbsenceStatus) -> object:
@@ -316,7 +317,8 @@ class AbsenceService:
                 submitted_at=submitted_at,
             )
             await self.session.commit()
-            await self.session.refresh(absence)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            absence = await self.absence_repo.get(absence.id)
 
             ip_address = request.client.host if request and request.client else None
             audit_log(
@@ -429,7 +431,8 @@ class AbsenceService:
                 resolved_by_id=user.id,
             )
             await self.session.commit()
-            await self.session.refresh(absence)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            absence = await self.absence_repo.get(absence_id)
 
             ip_address = request.client.host if request and request.client else None
             audit_log(
@@ -491,7 +494,8 @@ class AbsenceService:
                 rejection_reason=payload.rejection_reason,
             )
             await self.session.commit()
-            await self.session.refresh(absence)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            absence = await self.absence_repo.get(absence_id)
 
             ip_address = request.client.host if request and request.client else None
             audit_log(
@@ -627,6 +631,110 @@ class AbsenceService:
             )
             for item in items
         ]
+
+    # -------------------------------------------------------------------------
+    # Attachment upload
+    # -------------------------------------------------------------------------
+
+    async def upload_attachment(
+        self,
+        user: "AuthUser | TenantAuthUser",
+        absence_id: int,
+        file: UploadFile,
+        request: Request | None = None,
+    ) -> AbsenceRead:
+        """Upload attachment for an absence request.
+
+        Only the absence owner or admin roles can upload attachments.
+        Only PENDING absences can have attachments uploaded.
+        """
+        from app.services.photo_service import PhotoService
+
+        # Validar que la ausencia existe
+        absence = await self.absence_repo.get(absence_id)
+        if not absence:
+            raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+
+        # Verificar acceso - solo el dueño o admin puede subir
+        student_ids = await self._get_student_ids_for_user(user)
+        if student_ids is not None and absence.student_id not in student_ids:
+            raise HTTPException(status_code=403, detail="Sin acceso a esta solicitud")
+
+        # Solo se puede subir attachment a solicitudes pendientes
+        if absence.status != "PENDING":
+            raise HTTPException(
+                status_code=400,
+                detail="Solo se pueden adjuntar archivos a solicitudes pendientes",
+            )
+
+        # Validar tipo de archivo
+        allowed_types = {"application/pdf", "image/jpeg", "image/png", "image/jpg"}
+        content_type = file.content_type or "application/octet-stream"
+        if content_type not in allowed_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Tipo de archivo no permitido. Permitidos: PDF, JPG, PNG",
+            )
+
+        # Validar tamaño (max 5MB)
+        max_size = 5 * 1024 * 1024  # 5MB
+        content = await file.read()
+        if len(content) > max_size:
+            raise HTTPException(
+                status_code=400,
+                detail="El archivo excede el tamaño máximo de 5MB",
+            )
+
+        # Generar key unico para MinIO
+        ext = file.filename.split(".")[-1] if file.filename and "." in file.filename else "bin"
+        key = f"absences/{absence_id}/{uuid.uuid4()}.{ext}"
+
+        # Subir a MinIO
+        photo_service = PhotoService()
+        try:
+            await photo_service.store_photo(key, content, content_type)
+
+            # Actualizar registro con el attachment_ref
+            absence.attachment_ref = key
+            await self.session.commit()
+            # Re-fetch instead of refresh to avoid detached instance issues
+            absence = await self.absence_repo.get(absence_id)
+
+            ip_address = request.client.host if request and request.client else None
+            audit_log(
+                AuditEvent.ABSENCE_UPDATED,
+                user_id=user.id,
+                ip_address=ip_address,
+                resource_type="absence",
+                resource_id=absence_id,
+                details={
+                    "action": "attachment_uploaded",
+                    "filename": file.filename,
+                    "content_type": content_type,
+                    "size_bytes": len(content),
+                },
+            )
+
+            return AbsenceRead(
+                id=absence.id,
+                student_id=absence.student_id,
+                student_name=absence.student.full_name if absence.student else None,
+                type=absence.type,
+                start_date=absence.start_date,
+                end_date=absence.end_date,
+                comment=absence.comment,
+                attachment_ref=absence.attachment_ref,
+                attachment_url=self._build_attachment_url(absence.attachment_ref),
+                status=absence.status,
+                ts_submitted=absence.ts_submitted,
+            )
+
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Error uploading attachment: {e}")
+            raise HTTPException(status_code=500, detail="Error al subir archivo")
+        finally:
+            photo_service.close()
 
     # -------------------------------------------------------------------------
     # Helpers

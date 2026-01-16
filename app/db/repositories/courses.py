@@ -116,6 +116,10 @@ class CourseRepository:
             grade=grade.strip(),
             status=CourseStatus.ACTIVE.value,
         )
+        # Initialize relationships to avoid lazy-load issues in async context
+        course.teachers = []
+        course.students = []
+        course.schedules = []
         self.session.add(course)
         await self.session.flush()
         return course

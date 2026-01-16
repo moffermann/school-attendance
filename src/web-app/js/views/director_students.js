@@ -697,11 +697,22 @@ Views.directorStudents = function() {
     // Generate unique ID for this photo load (race condition protection)
     const currentPhotoLoadId = ++photoLoadCounter;
 
+    // Helper to format contact type labels
+    const contactLabels = { email: 'Email', phone: 'Teléfono', whatsapp: 'WhatsApp' };
+    const formatContacts = (contacts) => {
+      if (!contacts || typeof contacts !== 'object') return 'Sin contactos';
+      const entries = Object.entries(contacts).filter(([_, v]) => v);
+      if (entries.length === 0) return 'Sin contactos';
+      return entries.map(([type, value]) =>
+        `${contactLabels[type] || type}: ${Components.escapeHtml(String(value))}`
+      ).join(' | ');
+    };
+
     const guardiansHTML = guardians.map(g => `
       <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--color-gray-100);">
         <strong>${Components.escapeHtml(g.full_name)}</strong><br>
         <span style="font-size: 0.85rem; color: var(--color-gray-500);">
-          ${g.contacts.map(c => `${c.type}: ${c.value} ${c.verified ? '✅' : '⏳'}`).join(' | ')}
+          ${formatContacts(g.contacts)}
         </span>
       </li>
     `).join('');

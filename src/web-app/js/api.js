@@ -311,6 +311,35 @@ const API = Object.assign(createApiClient('webAppConfig'), {
     return response.json();
   },
 
+  /**
+   * Upload attachment for an absence request
+   * @param {number} absenceId - Absence request ID
+   * @param {File} file - File to upload (PDF, JPG, PNG, max 5MB)
+   * @returns {Promise<Object>} Updated absence with attachment_url
+   */
+  async uploadAbsenceAttachment(absenceId, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await this.requestMultipart(`/absences/${absenceId}/attachment`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al subir archivo' }));
+      if (response.status === 400) {
+        throw new Error(error.detail || 'Archivo no válido');
+      } else if (response.status === 404) {
+        throw new Error('Solicitud no encontrada');
+      } else if (response.status === 403) {
+        throw new Error('Sin permisos para adjuntar archivo');
+      }
+      throw new Error(error.detail || 'Error al subir archivo');
+    }
+    return response.json();
+  },
+
   // ==================== Parent API ====================
 
   /**

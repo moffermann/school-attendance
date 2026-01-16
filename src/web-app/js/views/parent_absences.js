@@ -51,8 +51,10 @@ Views.parentAbsences = function() {
             <div class="form-group" style="margin-bottom: 0;">
               <label class="form-label">Tipo de Ausencia *</label>
               <select id="absence-type" class="form-select" required>
-                <option value="SICK">🏥 Enfermedad</option>
-                <option value="PERSONAL">📋 Personal / Familiar</option>
+                <option value="MEDICAL">🏥 Médica</option>
+                <option value="FAMILY">👨‍👩‍👧 Familiar</option>
+                <option value="VACATION">🏖️ Vacaciones</option>
+                <option value="OTHER">📋 Otro</option>
               </select>
             </div>
           </div>
@@ -86,7 +88,7 @@ Views.parentAbsences = function() {
               <div id="file-name" style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--color-primary); display: none;"></div>
             </div>
             <div style="font-size: 0.8rem; color: var(--color-gray-400); margin-top: 0.5rem;">
-              ℹ️ En modo demo, el archivo no se subirá realmente
+              ℹ️ El archivo se subirá de forma segura al servidor
             </div>
           </div>
 
@@ -123,10 +125,12 @@ Views.parentAbsences = function() {
               const isLast = index === absences.length - 1;
 
               const typeConfig = {
-                SICK: { icon: '🏥', label: 'Enfermedad', color: 'warning' },
-                PERSONAL: { icon: '📋', label: 'Personal', color: 'info' }
+                MEDICAL: { icon: '🏥', label: 'Médica', color: 'warning' },
+                FAMILY: { icon: '👨‍👩‍👧', label: 'Familiar', color: 'info' },
+                VACATION: { icon: '🏖️', label: 'Vacaciones', color: 'primary' },
+                OTHER: { icon: '📋', label: 'Otro', color: 'secondary' }
               };
-              const type = typeConfig[absence.type] || typeConfig.PERSONAL;
+              const type = typeConfig[absence.type] || typeConfig.OTHER;
 
               const statusConfig = {
                 PENDING: { label: 'Pendiente', color: 'warning', icon: '⏳' },
@@ -181,7 +185,7 @@ Views.parentAbsences = function() {
     }
   });
 
-  Views.parentAbsences.submitRequest = function() {
+  Views.parentAbsences.submitRequest = async function() {
     const form = document.getElementById('absence-form');
     if (!Components.validateForm(form)) {
       Components.showToast('Complete los campos requeridos', 'error');
@@ -197,7 +201,13 @@ Views.parentAbsences = function() {
     }
 
     const fileInput = document.getElementById('absence-attachment');
-    const fileName = fileInput.files[0]?.name || null;
+    const file = fileInput.files[0] || null;
+
+    // Validate file size (max 5MB)
+    if (file && file.size > 5 * 1024 * 1024) {
+      Components.showToast('El archivo excede el tamaño máximo de 5MB', 'error');
+      return;
+    }
 
     const absence = {
       student_id: parseInt(document.getElementById('absence-student').value),
@@ -205,17 +215,62 @@ Views.parentAbsences = function() {
       start: startDate,
       end: endDate,
       comment: document.getElementById('absence-comment').value,
-      attachment_name: fileName
+      attachment_name: null  // Will be set after upload
     };
 
-    State.addAbsence(absence);
-    Components.showToast('Solicitud enviada exitosamente', 'success');
+    // Disable submit button while processing
+    const submitBtn = form.querySelector('button[type="button"]');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `${Components.icons.spinner || '⏳'} Enviando...`;
+    }
 
-    // Reset form
-    form.reset();
-    document.getElementById('file-name').style.display = 'none';
+    try {
+      let created;
 
-    // Refresh view
-    setTimeout(() => Views.parentAbsences(), 500);
+      // Call API to submit absence request
+      if (State.isApiAuthenticated()) {
+        created = await API.submitAbsence(absence);
+
+        // If there's a file, upload it
+        if (file) {
+          if (submitBtn) {
+            submitBtn.innerHTML = `${Components.icons.spinner || '⏳'} Subiendo archivo...`;
+          }
+          try {
+            const updated = await API.uploadAbsenceAttachment(created.id, file);
+            created = updated;  // Update with attachment info
+          } catch (uploadError) {
+            console.error('Error uploading attachment:', uploadError);
+            Components.showToast('Solicitud creada, pero error al subir archivo: ' + uploadError.message, 'warning');
+          }
+        }
+
+        // Add to local state for immediate UI update
+        State.data.absences.push(created);
+        State.persist();
+      } else {
+        // Demo mode - save locally only (no real upload)
+        State.addAbsence(absence);
+      }
+
+      Components.showToast('Solicitud enviada exitosamente', 'success');
+
+      // Reset form
+      form.reset();
+      document.getElementById('file-name').style.display = 'none';
+
+      // Refresh view
+      setTimeout(() => Views.parentAbsences(), 500);
+    } catch (error) {
+      console.error('Error submitting absence:', error);
+      Components.showToast('Error al enviar solicitud: ' + (error.message || 'Intente nuevamente'), 'error');
+    } finally {
+      // Re-enable submit button
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `${Components.icons.calendar} Enviar Solicitud`;
+      }
+    }
   };
 };

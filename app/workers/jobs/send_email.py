@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import html
 import smtplib
+from contextlib import asynccontextmanager
 
 from loguru import logger
 from requests.exceptions import ConnectionError, Timeout
@@ -12,9 +13,20 @@ from requests.exceptions import ConnectionError, Timeout
 from app.core.config import settings
 from app.db.repositories.notifications import NotificationRepository
 from app.db.repositories.tenant_configs import TenantConfigRepository
-from app.db.session import async_session
+from app.db.session import async_session, get_tenant_session
 from app.services.notifications.ses_email import SESEmailClient, TenantSESEmailClient, mask_email
 from app.services.notifications.smtp_email import SMTPEmailClient, TenantSMTPEmailClient
+
+
+@asynccontextmanager
+async def _get_session(tenant_schema: str | None):
+    """MT-WORKER-FIX: Get session with proper tenant context for worker jobs."""
+    if tenant_schema:
+        async for session in get_tenant_session(tenant_schema):
+            yield session
+            return
+    async with async_session() as session:
+        yield session
 
 
 # R6-W1 fix: Constants for retry logic (same as send_whatsapp.py)
@@ -175,8 +187,10 @@ async def _send(
     template: str,
     variables: dict,
     tenant_id: int | None = None,
+    tenant_schema: str | None = None,
 ) -> None:
-    async with async_session() as session:
+    # MT-WORKER-FIX: Use tenant session to find notification in correct schema
+    async with _get_session(tenant_schema) as session:
         repo = NotificationRepository(session)
         notification = await repo.get(notification_id)
         if notification is None:
@@ -256,6 +270,7 @@ def send_email_message(
     template: str,
     variables: dict,
     tenant_id: int | None = None,
+    tenant_schema: str | None = None,
 ) -> None:
     """
     Send an email message via SES or SMTP.
@@ -271,18 +286,20 @@ def send_email_message(
         variables: Template variables
         tenant_id: Optional tenant ID for multi-tenant deployments.
                    If provided, uses tenant-specific email credentials.
+        tenant_schema: Optional tenant schema name for multi-tenant deployments.
+                      If provided, queries notification from tenant's schema.
     """
     # TDD-R3-BUG2 fix: Handle case when event loop is already running (same as WhatsApp)
     try:
         asyncio.get_running_loop()
     except RuntimeError:
         # No running loop - use asyncio.run() normally
-        asyncio.run(_send(notification_id, to, template, variables, tenant_id))
+        asyncio.run(_send(notification_id, to, template, variables, tenant_id, tenant_schema))
     else:
         # Loop is already running - run in separate thread with new event loop
         import concurrent.futures
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(
-                lambda: asyncio.run(_send(notification_id, to, template, variables, tenant_id))
+                lambda: asyncio.run(_send(notification_id, to, template, variables, tenant_id, tenant_schema))
             )
             future.result()  # Wait for completion

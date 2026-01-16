@@ -385,10 +385,21 @@ Views.home = function() {
     } else if (result.type === 'student') {
       // Student detected - provide feedback and show welcome
       provideScanFeedback();
-      scanningState = 'showing_result';
       stopCamera();
       stopNFC();
-      renderResult(result.data, source);
+
+      // Check if student has evidence capture enabled (photo or audio)
+      const evidencePref = State.getEvidencePreference(result.data.id);
+      const hasEvidenceCapture = State.config.photoEnabled && evidencePref !== 'none';
+
+      if (hasEvidenceCapture) {
+        // Navigate to scan-result for evidence capture
+        Router.navigate(`/scan-result?student_id=${result.data.id}&source=${source.toUpperCase()}`);
+      } else {
+        // Quick confirmation flow (no evidence capture needed)
+        scanningState = 'showing_result';
+        renderResult(result.data, source);
+      }
     }
   }
 

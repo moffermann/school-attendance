@@ -333,7 +333,10 @@ Views.directorDashboard = function() {
         ? Components.createChip('Ingreso', 'success')
         : Components.createChip('Salida', 'info');
       // TDD-BUG5 fix: Check photo_url (presigned URL) with photo_ref fallback
-      const photoIcon = (event.photo_url || event.photo_ref) ? '📷' : '-';
+      const hasPhoto = event.photo_url || event.photo_ref;
+      const photoCell = hasPhoto
+        ? `<button class="btn btn-link" style="padding: 0; font-size: 1.2rem;" onclick="Views.directorDashboard.showEventPhoto(${event.id})" title="Ver foto">📷</button>`
+        : '-';
       const sourceChip = createSourceChip(event.source);
 
       return [
@@ -343,7 +346,7 @@ Views.directorDashboard = function() {
         sourceChip,
         event.gate_id || '-',
         Components.formatTime(event.ts),
-        photoIcon
+        photoCell
       ];
     });
 
@@ -494,7 +497,13 @@ Views.directorDashboard = function() {
 
     // Load photos asynchronously after modal is rendered
     photosToShow.forEach((event, idx) => {
-      const photoUrl = event.photo_url || event.photo_ref;
+      // Build full photo URL - photo_url may be presigned URL, photo_ref is storage key
+      let photoUrl = event.photo_url;
+      if (!photoUrl && event.photo_ref) {
+        // photo_ref is just the key (e.g., "events/123/abc.jpg")
+        // Need to use the photos proxy endpoint /api/v1/photos/{key}
+        photoUrl = `${API.baseUrl}/photos/${event.photo_ref}`;
+      }
       if (!photoUrl) return;
 
       API.loadAuthenticatedImage(photoUrl).then(blobUrl => {
@@ -520,10 +529,71 @@ Views.directorDashboard = function() {
     });
   };
 
+  // Show photo for a specific event by clicking on the photo icon
+  Views.directorDashboard.showEventPhoto = function(eventId) {
+    const event = filteredEvents.find(e => e.id === eventId) || todayEvents.find(e => e.id === eventId);
+    if (!event) {
+      Components.showToast('Evento no encontrado', 'error');
+      return;
+    }
+
+    // Build full photo URL - photo_url may be presigned URL, photo_ref is storage key
+    let photoUrl = event.photo_url;
+    if (!photoUrl && event.photo_ref) {
+      // photo_ref is just the key (e.g., "events/123/abc.jpg")
+      // Need to use the photos proxy endpoint /api/v1/photos/{key}
+      photoUrl = `${API.baseUrl}/photos/${event.photo_ref}`;
+    }
+
+    if (!photoUrl) {
+      Components.showToast('Este evento no tiene foto', 'warning');
+      return;
+    }
+
+    const student = State.getStudent(event.student_id);
+    const studentName = student ? Components.escapeHtml(student.full_name) : 'Desconocido';
+    const eventType = event.type === 'IN' ? 'Ingreso' : 'Salida';
+    const eventTime = Components.formatTime(event.ts);
+
+    Components.showModal(`📷 Foto de ${studentName}`, `
+      <div style="text-align: center;">
+        <p style="margin-bottom: 1rem; color: var(--color-gray-600);">
+          ${eventType} - ${eventTime}
+        </p>
+        <div style="position: relative; min-height: 200px; display: flex; align-items: center; justify-content: center;">
+          <img id="single-event-photo"
+               src="assets/placeholder_photo.svg"
+               alt="Foto de evidencia"
+               style="max-width: 100%; max-height: 400px; border-radius: 8px; opacity: 0.3; transition: opacity 0.3s;">
+          <span id="single-photo-loading" style="position: absolute; font-size: 2rem;">⏳ Cargando...</span>
+        </div>
+      </div>
+    `, [
+      { label: 'Cerrar', action: 'close', className: 'btn-secondary' }
+    ]);
+
+    // Load photo asynchronously
+    API.loadAuthenticatedImage(photoUrl).then(blobUrl => {
+      const img = document.getElementById('single-event-photo');
+      const loading = document.getElementById('single-photo-loading');
+
+      if (img && blobUrl) {
+        img.src = blobUrl;
+        img.style.opacity = '1';
+      } else if (img) {
+        img.style.opacity = '0.5';
+      }
+      if (loading) loading.remove();
+    }).catch((err) => {
+      console.error('Error loading photo:', err);
+      const loading = document.getElementById('single-photo-loading');
+      if (loading) loading.textContent = '❌ Error al cargar la foto';
+    });
+  };
+
   // UX #10: Show list of students without entry today
   Views.directorDashboard.showNoIngressList = function() {
     const students = State.getStudents();
-    const todayStr = new Date().toISOString().split('T')[0];
 
     // Get students who have NOT registered IN today
     const studentsWithIN = new Set(
@@ -534,36 +604,50 @@ Views.directorDashboard = function() {
 
     const noIngressStudents = students.filter(s => !studentsWithIN.has(s.id));
 
+    // Sort by course then by name for better organization
+    noIngressStudents.sort((a, b) => {
+      const courseA = State.getCourse(a.course_id);
+      const courseB = State.getCourse(b.course_id);
+      const courseNameA = courseA ? courseA.name : 'ZZZ';
+      const courseNameB = courseB ? courseB.name : 'ZZZ';
+      if (courseNameA !== courseNameB) return courseNameA.localeCompare(courseNameB);
+      return a.full_name.localeCompare(b.full_name);
+    });
+
     const listHTML = noIngressStudents.length > 0
       ? `
-        <table style="width: 100%;">
-          <thead>
-            <tr>
-              <th>Alumno</th>
-              <th>Curso</th>
-              <th>Acción</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${noIngressStudents.slice(0, 20).map(s => {
-              const course = State.getCourse(s.course_id);
-              return `
-                <tr>
-                  <td>${Components.escapeHtml(s.full_name)}</td>
-                  <td>${course ? Components.escapeHtml(course.name) : '-'}</td>
-                  <td>
-                    <button class="btn btn-secondary btn-sm" onclick="Components.showStudentProfile(${s.id}, { onBack: () => Views.directorDashboard.showNoIngressList() })">
-                      Ver Perfil
-                    </button>
-                  </td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-        ${noIngressStudents.length > 20 ? `<p style="margin-top: 1rem; text-align: center; color: var(--color-gray-500);">... y ${noIngressStudents.length - 20} más. <a href="#" onclick="Router.navigate('/director/reports?filter=no-ingress'); return false;">Ver todos en Reportes</a></p>` : ''}
+        <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--color-gray-200); border-radius: 8px;">
+          <table style="width: 100%;">
+            <thead style="position: sticky; top: 0; background: var(--color-gray-50); z-index: 1;">
+              <tr>
+                <th style="padding: 0.75rem; text-align: left;">Alumno</th>
+                <th style="padding: 0.75rem; text-align: left;">Curso</th>
+                <th style="padding: 0.75rem; text-align: center;">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${noIngressStudents.map(s => {
+                const course = State.getCourse(s.course_id);
+                return `
+                  <tr style="border-bottom: 1px solid var(--color-gray-100);">
+                    <td style="padding: 0.5rem 0.75rem;">${Components.escapeHtml(s.full_name)}</td>
+                    <td style="padding: 0.5rem 0.75rem;">${course ? Components.escapeHtml(course.name) : '-'}</td>
+                    <td style="padding: 0.5rem 0.75rem; text-align: center;">
+                      <button class="btn btn-secondary btn-sm" onclick="Components.showStudentProfile(${s.id}, { onBack: () => Views.directorDashboard.showNoIngressList() })">
+                        Ver Perfil
+                      </button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        <p style="margin-top: 0.75rem; text-align: center; color: var(--color-gray-500); font-size: 0.85rem;">
+          Mostrando ${noIngressStudents.length} alumno${noIngressStudents.length !== 1 ? 's' : ''} sin ingreso
+        </p>
       `
-      : '<p>Todos los alumnos han registrado entrada hoy. ✅</p>';
+      : '<p style="text-align: center; padding: 2rem;">Todos los alumnos han registrado entrada hoy. ✅</p>';
 
     Components.showModal(`🚨 Alumnos Sin Ingreso (${noIngressStudents.length})`, `
       <div style="margin-bottom: 1rem; padding: 0.75rem; background: var(--color-warning-light); border-radius: 8px; font-size: 0.9rem;">
@@ -571,7 +655,6 @@ Views.directorDashboard = function() {
       </div>
       ${listHTML}
     `, [
-      { label: 'Ir a Reportes', action: () => Router.navigate('/director/reports?filter=no-ingress'), className: 'btn-primary' },
       { label: 'Cerrar', action: 'close', className: 'btn-secondary' }
     ]);
   };

@@ -41,13 +41,21 @@ class StudentRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_all(self, limit: int = 5000) -> list[Student]:
+    async def list_all(
+        self, limit: int = 5000, *, include_guardians: bool = False
+    ) -> list[Student]:
         """List all students for kiosk provisioning.
 
         R7-B7 fix: Add limit parameter to prevent OOM on large deployments.
         Default is 5000 which should cover most schools.
+
+        Args:
+            limit: Maximum number of students to return
+            include_guardians: If True, eagerly load guardians for each student
         """
         stmt = select(Student).order_by(Student.full_name).limit(limit)
+        if include_guardians:
+            stmt = stmt.options(selectinload(Student.guardians))
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 

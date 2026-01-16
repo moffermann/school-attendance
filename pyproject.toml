@@ -27,6 +27,7 @@ dependencies = [
   "jinja2>=3.1",
   "itsdangerous>=2.2",
   "passlib[bcrypt]>=1.7",
+  "bcrypt>=4.0,<4.1",  # Pin bcrypt version for passlib compatibility
   "pyjwt[crypto]>=2.8",
   "slowapi>=0.1.9",
   "loguru>=0.7",

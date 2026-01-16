@@ -206,9 +206,10 @@ class TeacherService:
 
             await self.session.flush()
 
-            # 5. Commit
+            # 5. Commit and get fresh instance
             await self.session.commit()
-            await self.session.refresh(teacher)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            teacher = await self.teacher_repo.get(teacher.id)
 
             # 6. Audit log with IP
             client_ip = request.client.host if request and request.client else None
@@ -297,9 +298,10 @@ class TeacherService:
                 can_enroll_biometric=payload.can_enroll_biometric,
             )
 
-            # 6. Commit
+            # 6. Commit and get fresh instance
             await self.session.commit()
-            await self.session.refresh(updated)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            updated = await self.teacher_repo.get(teacher_id)
 
             # 7. Audit log with IP
             client_ip = request.client.host if request and request.client else None
@@ -418,9 +420,10 @@ class TeacherService:
             # 3. Restore
             await self.teacher_repo.restore(teacher_id)
 
-            # 4. Commit
+            # 4. Commit and get fresh instance
             await self.session.commit()
-            await self.session.refresh(teacher)
+            # Re-fetch instead of refresh to avoid detached instance issues
+            teacher = await self.teacher_repo.get(teacher_id)
 
             # 5. Audit log with IP
             client_ip = request.client.host if request and request.client else None

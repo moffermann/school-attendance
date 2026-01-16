@@ -2,27 +2,27 @@
   {
     "id": 1,
     "student_id": 10,
-    "type": "SICK",
+    "type": "MEDICAL",
     "start": "2025-10-10",
     "end": "2025-10-11",
-    "comment": "Gripe - reposo médico",
+    "comment": "Gripe - reposo medico",
     "attachment_name": "certificado_medico.pdf",
     "status": "PENDING"
   },
   {
     "id": 2,
     "student_id": 14,
-    "type": "PERSONAL",
+    "type": "FAMILY",
     "start": "2025-10-12",
     "end": "2025-10-12",
-    "comment": "Trámite familiar",
+    "comment": "Tramite familiar",
     "attachment_name": null,
     "status": "APPROVED"
   },
   {
     "id": 3,
     "student_id": 20,
-    "type": "SICK",
+    "type": "MEDICAL",
     "start": "2025-10-09",
     "end": "2025-10-10",
     "comment": "Dolor estomacal",

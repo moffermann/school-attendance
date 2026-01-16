@@ -11,7 +11,7 @@ import csv
 from datetime import date
 from io import StringIO
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response, status
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, Request, Response, UploadFile, status
 
 from app.core import deps
 from app.core.auth import AuthUser
@@ -359,3 +359,21 @@ async def delete_absence(
     """
     result = await service.delete_absence(user, absence_id, request)
     return AbsenceDeleteResponse(**result)
+
+
+@router.post("/{absence_id}/attachment", response_model=AbsenceRead)
+@limiter.limit("10/minute")
+async def upload_absence_attachment(
+    request: Request,
+    absence_id: int = Path(..., ge=1),
+    file: UploadFile = File(...),
+    service: AbsenceService = Depends(deps.get_absence_service),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+) -> AbsenceRead:
+    """Upload attachment for an absence request.
+
+    Accepts PDF, JPG, or PNG files up to 5MB.
+    Only the absence owner or admin roles can upload.
+    Only PENDING requests can have attachments uploaded.
+    """
+    return await service.upload_attachment(user, absence_id, file, request)

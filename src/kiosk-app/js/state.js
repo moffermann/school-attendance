@@ -298,6 +298,7 @@ const State = {
         existing.photo_url = serverStudent.photo_url;  // Presigned URL from server
         existing.photo_opt_in = serverStudent.photo_pref_opt_in ?? false;
         existing.evidence_preference = serverStudent.evidence_preference ?? 'none';
+        existing.guardian_name = serverStudent.guardian_name || null;
       } else {
         // Add new student
         this.students.push({
@@ -307,7 +308,7 @@ const State = {
           photo_url: serverStudent.photo_url,  // Presigned URL from server
           photo_opt_in: serverStudent.photo_pref_opt_in ?? false,
           evidence_preference: serverStudent.evidence_preference ?? 'none',
-          guardian_name: null // Not provided by kiosk endpoint
+          guardian_name: serverStudent.guardian_name || null
         });
       }
     }
@@ -405,6 +406,10 @@ const State = {
       existing.full_name = studentData.full_name || existing.full_name;
       existing.photo_url = studentData.photo_url || existing.photo_url;
       existing.photo_opt_in = studentData.has_photo_consent ?? existing.photo_opt_in;
+      // Sync evidence_preference with photo consent for consistency
+      if (studentData.has_photo_consent && (!existing.evidence_preference || existing.evidence_preference === 'none')) {
+        existing.evidence_preference = 'photo';
+      }
     } else {
       // Add new student from biometric response
       this.students.push({
@@ -414,6 +419,7 @@ const State = {
         course_id: null,
         photo_url: studentData.photo_url,
         photo_opt_in: studentData.has_photo_consent ?? false,
+        evidence_preference: studentData.has_photo_consent ? 'photo' : 'none',
         guardian_name: null
       });
     }

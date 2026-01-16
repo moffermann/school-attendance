@@ -3,23 +3,37 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 from loguru import logger
 
-from app.db.session import async_session
+from app.db.session import async_session, get_tenant_session
 from app.schemas.notifications import NotificationChannel, NotificationDispatchRequest, NotificationType
 from app.services.notifications.dispatcher import NotificationDispatcher
+
+
+@asynccontextmanager
+async def _get_session(tenant_schema: str | None):
+    """Get session with proper tenant context for worker jobs."""
+    if tenant_schema:
+        async for session in get_tenant_session(tenant_schema):
+            yield session
+            return
+    async with async_session() as session:
+        yield session
 
 
 async def _process(job_payload: dict) -> None:
     job_id = job_payload.get("job_id")
     guardian_ids = job_payload.get("guardian_ids", [])
     payload = job_payload.get("payload", {})
+    tenant_id = job_payload.get("tenant_id")
+    tenant_schema = job_payload.get("tenant_schema")
     message = payload.get("message", "")
     subject = payload.get("subject", "")
     variables_base = {"message": message, "subject": subject}
 
-    async with async_session() as session:
-        dispatcher = NotificationDispatcher(session)
+    async with _get_session(tenant_schema) as session:
+        dispatcher = NotificationDispatcher(session, tenant_id=tenant_id, tenant_schema=tenant_schema)
         notification_template = payload.get("template", NotificationType.CAMBIO_HORARIO.value)
         template_enum = (
             notification_template
