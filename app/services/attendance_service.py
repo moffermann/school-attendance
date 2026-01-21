@@ -59,8 +59,13 @@ class AttendanceService:
 
     async def _send_attendance_notifications(self, event, student=None) -> None:
         """Send notifications to guardians after attendance event is registered."""
+        # DEBUG: Trace notification flow
+        logger.info(f"[DEBUG-NOTIF] Starting notification flow for event {event.id}")
+        logger.info(f"[DEBUG-NOTIF] notification_service is: {type(self._notification_service)}")
+
         if not self._notification_service:
             logger.debug("Notification service not configured, skipping notifications")
+            logger.warning(f"[DEBUG-NOTIF] SKIPPED: notification_service is None!")
             return
 
         try:
@@ -82,19 +87,25 @@ class AttendanceService:
                             expires=24 * 3600,  # 24 hours
                         )
 
+            logger.info(f"[DEBUG-NOTIF] Calling notify_attendance_event for event {event.id}, photo_url: {bool(photo_url)}")
             notification_ids = await self._notification_service.notify_attendance_event(
                 event=event,
                 photo_url=photo_url,
             )
+            logger.info(f"[DEBUG-NOTIF] notify_attendance_event returned: {notification_ids}")
             await self.session.commit()
+            logger.info(f"[DEBUG-NOTIF] Session committed after notifications")
 
             if notification_ids:
                 logger.info(
                     f"Queued {len(notification_ids)} notifications for event {event.id}"
                 )
+            else:
+                logger.warning(f"[DEBUG-NOTIF] NO notifications created for event {event.id}")
         except Exception as e:
             # Don't fail the attendance registration if notifications fail
             logger.error(f"Failed to send notifications for event {event.id}: {e}")
+            logger.exception(f"[DEBUG-NOTIF] Full exception trace:")
 
     async def list_events_by_student(self, student_id: int) -> List[AttendanceEventRead]:
         events = await self.attendance_repo.list_by_student(student_id)

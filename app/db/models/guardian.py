@@ -33,3 +33,6 @@ class Guardian(Base):
     )
 
     students = relationship("Student", secondary=student_guardian_table, back_populates="guardians")
+    push_subscriptions = relationship(
+        "PushSubscription", back_populates="guardian", cascade="all, delete-orphan"
+    )

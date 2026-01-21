@@ -1,0 +1,272 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Clases responsive que evitan conflicto con .hidden de styles.css */
+  .mobile-hidden {
+    display: none;
+  }
+  @media (min-width: 768px) {
+    .mobile-hidden {
+      display: flex;
+    }
+  }
+  .desktop-hidden {
+    display: block;
+  }
+  @media (min-width: 768px) {
+    .desktop-hidden {
+      display: none !important;
+    }
+  }
+
+  /* Texto responsive para botones - evita conflicto con .hidden de styles.css */
+  /* sm breakpoint = 640px (Tailwind default) */
+  .sm-show-text {
+    display: none;
+  }
+  @media (min-width: 640px) {
+    .sm-show-text {
+      display: inline;
+    }
+  }
+  .sm-hide-text {
+    display: inline;
+  }
+  @media (min-width: 640px) {
+    .sm-hide-text {
+      display: none;
+    }
+  }
+  /* Block version para contenedores */
+  .sm-show-block {
+    display: none;
+  }
+  @media (min-width: 640px) {
+    .sm-show-block {
+      display: block;
+    }
+  }
+
+  /* Flex responsive - column en mobile, row en sm+ */
+  .sm-flex-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  @media (min-width: 640px) {
+    .sm-flex-row {
+      flex-direction: row;
+      align-items: center;
+    }
+  }
+
+  /* Layout horizontal responsive para alert banner y secciones similares */
+  /* Usa lg: (1024px) porque a 768px el sidebar ocupa 256px dejando poco espacio */
+  .flex-responsive {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  @media (min-width: 1024px) {
+    .flex-responsive {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  /* Botones que ocupan todo el ancho en móvil/tablet */
+  .btn-responsive {
+    flex: 1;
+    width: 100%;
+  }
+  @media (min-width: 1024px) {
+    .btn-responsive {
+      flex: none;
+      width: auto;
+    }
+  }
+}
+
+@layer components {
+  /* Estilo exacto del nav-item activo del diseño */
+  .nav-item.active {
+    background: rgba(99, 102, 241, 0.1);
+    color: #818cf8;
+    border-left: 3px solid #818cf8;
+  }
+
+  /* Contenedor de gráficos */
+  .chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+  }
+
+  /* Gráfico de barras - del diseño aprobado Reportes */
+  .bar-chart-grid {
+    display: flex;
+    align-items: flex-end;
+    gap: 2rem;
+    height: 240px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #e5e7eb;
+    position: relative;
+  }
+
+  .bar-group {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 4px;
+    height: 100%;
+    position: relative;
+  }
+
+  .bar-present {
+    width: 16px;
+    background: #10b981;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.3s ease;
+  }
+
+  .bar-absent {
+    width: 16px;
+    background: #f43f5e;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.3s ease;
+  }
+
+  .line-chart-svg {
+    width: 100%;
+    height: 240px;
+  }
+
+  .dark .bar-chart-grid {
+    border-bottom-color: #334155;
+  }
+
+  /* ===== MÉTRICAS MODULE STYLES ===== */
+
+  /* KPI Card - CON hover transition */
+  .kpi-card {
+    @apply bg-white p-6 rounded-xl border border-gray-100 shadow-sm relative overflow-hidden;
+    @apply transition-all duration-200 hover:shadow-md;
+  }
+
+  .kpi-card-border {
+    @apply absolute top-0 left-0 w-1 h-full;
+  }
+
+  .kpi-card-label {
+    @apply text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1;
+  }
+
+  .kpi-card-value {
+    @apply text-3xl font-bold;
+  }
+
+  /* Dark mode KPI */
+  .dark .kpi-card {
+    @apply bg-slate-800 border-slate-700;
+  }
+
+  .dark .kpi-card-label {
+    @apply text-gray-500;
+  }
+
+  /* Chips Top 10 - Atrasos */
+  .chip-delay-high {    /* ≥5 atrasos */
+    @apply bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+
+  .chip-delay-medium {  /* 3-4 atrasos */
+    @apply bg-indigo-100 text-indigo-700 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+
+  .chip-delay-low {     /* 1-2 atrasos */
+    @apply bg-gray-100 text-gray-600 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+
+  /* Chips % Asistencia */
+  .chip-attendance-high {   /* ≥90% */
+    @apply bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5 text-[10px] font-bold;
+  }
+
+  .chip-attendance-medium { /* 70-89% */
+    @apply bg-amber-100 text-amber-600 rounded-full px-2 py-0.5 text-[10px] font-bold;
+  }
+
+  .chip-attendance-low {    /* <70% - USA RED, NO ROSE */
+    @apply bg-red-100 text-red-600 rounded-full px-2 py-0.5 text-[10px] font-bold;
+  }
+
+  /* Dark mode chips - atrasos */
+  .dark .chip-delay-high {
+    @apply bg-amber-900/30 text-amber-400;
+  }
+
+  .dark .chip-delay-medium {
+    @apply bg-indigo-900/30 text-indigo-400;
+  }
+
+  .dark .chip-delay-low {
+    @apply bg-gray-700 text-gray-400;
+  }
+
+  /* Dark mode chips - asistencia */
+  .dark .chip-attendance-high {
+    @apply bg-emerald-900/30 text-emerald-400;
+  }
+
+  .dark .chip-attendance-medium {
+    @apply bg-amber-900/30 text-amber-400;
+  }
+
+  .dark .chip-attendance-low {
+    @apply bg-red-900/30 text-red-400;
+  }
+
+  /* Badge de curso */
+  .badge-course {
+    @apply bg-indigo-50 text-indigo-600 rounded-full px-3 py-0.5 text-xs font-medium;
+  }
+
+  .dark .badge-course {
+    @apply bg-indigo-900/30 text-indigo-400;
+  }
+
+  /* ===== HORARIOS MODULE STYLES ===== */
+
+  /* Day Card Vacío - Con imagen de fondo dashed (del HTML aprobado) */
+  .dashed-card {
+    @apply rounded-xl;
+    /* SVG dashed border como imagen de fondo - light mode */
+    background-image: url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%23e5e7eb' stroke-width='2' stroke-dasharray='8%2C 8' stroke-dashoffset='0' stroke-linecap='square'/%3E%3C/svg%3E");
+  }
+
+  .dark .dashed-card {
+    /* SVG para dark mode */
+    background-image: url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%23334155' stroke-width='2' stroke-dasharray='8%2C 8' stroke-dashoffset='0' stroke-linecap='square'/%3E%3C/svg%3E");
+  }
+
+  /* Placeholder de hora vacía */
+  .time-placeholder {
+    @apply h-9 border-b border-gray-100 flex items-center justify-center;
+  }
+
+  .dark .time-placeholder {
+    @apply border-slate-700;
+  }
+}

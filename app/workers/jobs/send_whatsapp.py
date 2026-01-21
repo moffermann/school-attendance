@@ -10,7 +10,7 @@ from requests.exceptions import ConnectionError, Timeout
 
 from app.db.repositories.notifications import NotificationRepository
 from app.db.repositories.tenant_configs import TenantConfigRepository
-from app.db.session import async_session, get_tenant_session
+from app.db.session import get_worker_session
 from app.services.notifications.whatsapp import WhatsAppClient, TenantWhatsAppClient, mask_phone
 
 
@@ -21,12 +21,12 @@ TRANSIENT_ERRORS = (ConnectionError, Timeout, TimeoutError, OSError)
 
 @asynccontextmanager
 async def _get_session(tenant_schema: str | None):
-    """MT-WORKER-FIX: Get session with proper tenant context for worker jobs."""
-    if tenant_schema:
-        async for session in get_tenant_session(tenant_schema):
-            yield session
-            return
-    async with async_session() as session:
+    """MT-WORKER-FIX: Get session with proper tenant context for worker jobs.
+
+    Uses get_worker_session which creates a fresh engine for each invocation,
+    avoiding connection pool issues in RQ worker processes.
+    """
+    async with get_worker_session(tenant_schema) as session:
         yield session
 
 

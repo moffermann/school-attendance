@@ -177,13 +177,16 @@ Views.biometricEnroll = function() {
     // Check if student already has biometric
     const biometricStatus = await WebAuthn.checkStudentBiometric(studentId);
 
+    // Store photo URL for async loading
+    const studentPhotoUrl = selectedStudent.photo_url;
+
     areaEl.innerHTML = `
       <div class="selected-student">
-        <div class="student-avatar">
-          ${selectedStudent.photo_url
-            ? `<img src="${selectedStudent.photo_url}" alt="Foto" onerror="this.parentElement.innerHTML='<span class=\\'avatar-placeholder\\'>👤</span>'">`
-            : '<span class="avatar-placeholder">👤</span>'
-          }
+        <div class="student-avatar" id="student-avatar-container">
+          <img id="student-avatar-img" src="assets/placeholder_photo.jpg" alt="Foto"
+               style="${studentPhotoUrl ? '' : 'display:none;'}"
+               onerror="this.style.display='none'; document.getElementById('avatar-placeholder').style.display='flex';">
+          <span id="avatar-placeholder" class="avatar-placeholder" style="${studentPhotoUrl ? 'display:none;' : 'display:flex;'}">👤</span>
         </div>
         <div class="student-info">
           <div class="student-name-large">${selectedStudent.full_name}</div>
@@ -218,6 +221,26 @@ Views.biometricEnroll = function() {
         <p class="guide-text" id="guide-text">Preparando sensor...</p>
       </div>
     `;
+
+    // Load student photo with device key authentication (if URL available)
+    if (studentPhotoUrl) {
+      Sync.loadImageWithDeviceKey(studentPhotoUrl).then(blobUrl => {
+        const img = document.getElementById('student-avatar-img');
+        const placeholder = document.getElementById('avatar-placeholder');
+        if (img && blobUrl) {
+          img.src = blobUrl;
+          img.style.display = '';
+          if (placeholder) placeholder.style.display = 'none';
+        }
+      }).catch(err => {
+        console.error('Error loading student photo:', err);
+        // Keep placeholder on error
+        const img = document.getElementById('student-avatar-img');
+        const placeholder = document.getElementById('avatar-placeholder');
+        if (img) img.style.display = 'none';
+        if (placeholder) placeholder.style.display = 'flex';
+      });
+    }
   };
 
   Views.biometricEnroll.startEnrollment = async function() {

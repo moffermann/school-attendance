@@ -80,6 +80,9 @@ class WebAppDataService:
         notifications = await self._load_notifications(student_ids, guardians, is_staff)
         teachers = await self._load_teachers(is_staff)
 
+        # Build course lookup for denormalized course_name in StudentSummary
+        course_lookup = {course.id: course.name for course in courses}
+
         session_user = SessionUser(
             id=user.id,
             full_name=user.full_name,
@@ -89,7 +92,7 @@ class WebAppDataService:
 
         return WebAppBootstrap(
             current_user=session_user,
-            students=[self._map_student(student) for student in students],
+            students=[self._map_student(student, course_lookup) for student in students],
             guardians=[self._map_guardian(g) for g in guardians],
             courses=[self._map_course(course) for course in courses],
             schedules=[self._map_schedule(schedule) for schedule in schedules],
@@ -219,11 +222,15 @@ class WebAppDataService:
         return value.replace(microsecond=0).isoformat()
 
     @staticmethod
-    def _map_student(student: Student) -> StudentSummary:
+    def _map_student(student: Student, course_lookup: dict[int, str] | None = None) -> StudentSummary:
+        course_name = None
+        if course_lookup and student.course_id in course_lookup:
+            course_name = course_lookup[student.course_id]
         return StudentSummary(
             id=student.id,
             full_name=student.full_name,
             course_id=student.course_id,
+            course_name=course_name,
             photo_pref_opt_in=bool(student.photo_pref_opt_in),
         )
 
@@ -322,6 +329,8 @@ class WebAppDataService:
             channel=notification.channel,
             sent_at=self._format_time(sent_at),
             status=notification.status,
+            template=notification.template,  # e.g., INGRESO_OK, SALIDA_OK
+            payload=notification.payload,  # Full payload with student_name, time, etc.
         )
 
     @staticmethod

@@ -214,12 +214,54 @@ async def get_current_user_optional(
     )
 
 
-async def verify_device_key(x_device_key: str | None = Header(default=None)) -> bool:
-    # R17-AUTH1 fix: Use timing-safe comparison to prevent timing attacks
-    # Direct == comparison leaks information about the key via response time
-    import secrets
-    if x_device_key and secrets.compare_digest(x_device_key, settings.device_api_key):
+async def verify_device_key(
+    request: Request,
+    x_device_key: str | None = Header(default=None),
+    session: AsyncSession = Depends(get_public_db),
+) -> bool:
+    """
+    Verify device API key against tenant-specific key or global fallback.
+
+    R17-AUTH1 fix: Use timing-safe comparison to prevent timing attacks.
+
+    Order of validation:
+    1. If X-Tenant-ID header present → validate against tenant's key
+    2. If tenant resolved from domain/subdomain → validate against tenant's key
+    3. Fallback to global settings.device_api_key (for migration)
+    """
+    import secrets as secrets_module
+    from app.db.repositories.tenant_configs import TenantConfigRepository
+
+    if not x_device_key:
+        return False
+
+    # Try to get tenant_id from header or request state
+    tenant_id = None
+    tenant_id_header = request.headers.get("X-Tenant-ID")
+    if tenant_id_header:
+        try:
+            tenant_id = int(tenant_id_header)
+        except ValueError:
+            pass
+
+    # If no header, try from request state (set by middleware)
+    if not tenant_id:
+        tenant = getattr(request.state, "tenant", None)
+        if tenant:
+            tenant_id = tenant.id
+
+    # If we have a tenant_id, try tenant-specific key first
+    if tenant_id:
+        config_repo = TenantConfigRepository(session)
+        decrypted_config = await config_repo.get_decrypted(tenant_id)
+        if decrypted_config and decrypted_config.device_api_key:
+            if secrets_module.compare_digest(x_device_key, decrypted_config.device_api_key):
+                return True
+
+    # Fallback to global key (for backwards compatibility during migration)
+    if secrets_module.compare_digest(x_device_key, settings.device_api_key):
         return True
+
     return False
 
 
@@ -233,8 +275,19 @@ async def get_attendance_notification_service(
 async def get_attendance_service(
     request: Request,
     session: AsyncSession = Depends(get_tenant_db),
-    notification_service: AttendanceNotificationService = Depends(get_attendance_notification_service),
 ) -> AttendanceService:
+    # FIX: Create notification_service with the SAME session as attendance_service.
+    # Previously, Depends(get_attendance_notification_service) created a separate session
+    # with potentially different search_path, causing notification_service to not find
+    # the student in the tenant schema.
+    #
+    # MT-WORKER-FIX: Pass tenant context so notification jobs can find records in correct schema
+    tenant = getattr(request.state, "tenant", None)
+    tenant_id = tenant.id if tenant else None
+    tenant_schema = getattr(request.state, "tenant_schema", None)
+    notification_service = AttendanceNotificationService(
+        session, tenant_id=tenant_id, tenant_schema=tenant_schema
+    )
     return AttendanceService(session, notification_service=notification_service)
 
 

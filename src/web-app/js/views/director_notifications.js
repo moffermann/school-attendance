@@ -95,6 +95,45 @@ Views.directorNotifications = function() {
     `;
   }
 
+  function parsePayload(payload) {
+    // Parse payload if it's a JSON string
+    if (!payload) return {};
+    if (typeof payload === 'string') {
+      try {
+        return JSON.parse(payload);
+      } catch (e) {
+        return {};
+      }
+    }
+    return payload;
+  }
+
+  function buildMessagePreview(payload, template) {
+    // Ensure payload is an object
+    const data = parsePayload(payload);
+
+    // Build a readable message preview from payload data
+    const studentName = data.student_name || '';
+    const time = data.time || '';
+    const date = data.date || '';
+
+    if (template === 'INGRESO_OK') {
+      return `${studentName} ingreso a las ${time}`;
+    } else if (template === 'SALIDA_OK') {
+      return `${studentName} salio a las ${time}`;
+    } else if (template === 'NO_INGRESO_UMBRAL') {
+      return `${studentName} no registro ingreso`;
+    } else if (template === 'BROADCAST' && data.subject) {
+      return data.subject.substring(0, 40);
+    }
+
+    // Fallback: show student name and time if available
+    if (studentName && time) {
+      return `${studentName} - ${time}`;
+    }
+    return studentName || '-';
+  }
+
   function renderNotificationsList(notifications) {
     if (notifications.length === 0) {
       return Components.createEmptyState(
@@ -109,11 +148,14 @@ Views.directorNotifications = function() {
       const student = State.getStudent(n.student_id);
       const guardian = State.getGuardian(n.guardian_id);
 
-      const statusChip = n.status === 'delivered'
+      // Fix: Backend uses 'sent' not 'delivered' for successful notifications
+      const statusChip = (n.status === 'delivered' || n.status === 'sent')
         ? Components.createChip('Entregada', 'success')
         : n.status === 'failed'
           ? Components.createChip('Fallida', 'error')
-          : Components.createChip('Pendiente', 'warning');
+          : n.status === 'queued'
+            ? Components.createChip('En Cola', 'info')
+            : Components.createChip('Pendiente', 'warning');
 
       const channelChip = n.channel === 'whatsapp'
         ? Components.createChip('WhatsApp', 'success')
@@ -127,9 +169,12 @@ Views.directorNotifications = function() {
           ? Components.createChip('En cola', 'gray')
           : '-';
 
+      // Fix: 'message' field doesn't exist - build preview from payload
       const messagePreview = n.message
         ? (n.message.length > 40 ? Components.escapeHtml(n.message.substring(0, 40)) + '...' : Components.escapeHtml(n.message))
-        : '-';
+        : n.payload
+          ? buildMessagePreview(n.payload, n.template)
+          : '-';
 
       return [
         Components.formatDateTime(n.sent_at),
@@ -259,7 +304,7 @@ Views.directorNotifications = function() {
         <div><strong>Tipo:</strong> ${getTypeLabel(notification.type)}</div>
         <div><strong>Canal:</strong> ${notification.channel}</div>
         <div><strong>Estado:</strong> ${notification.status}</div>
-        <div><strong>Mensaje:</strong><br><div style="background: var(--color-gray-100); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">${Components.escapeHtml(notification.message || '-')}</div></div>
+        <div><strong>Mensaje:</strong><br><div style="background: var(--color-gray-100); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">${Components.escapeHtml(notification.message || buildMessagePreview(notification.payload || {}, notification.template))}</div></div>
         ${notification.error ? `<div><strong>Error:</strong> <span style="color: var(--color-error);">${Components.escapeHtml(notification.error)}</span></div>` : ''}
       </div>
     `;

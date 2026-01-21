@@ -69,7 +69,7 @@ Views.scanResult = function() {
           <!-- Header con nombre del colegio -->
           <div class="result-header">
             <div class="school-name">${UI.escapeHtml(State.config.schoolName) || 'Colegio'}</div>
-            <div class="student-course">${UI.escapeHtml(student.course_id)}° Básico</div>
+            <div class="student-course">${UI.escapeHtml(student.course_name || '')}</div>
           </div>
 
           <!-- Layout de 2 columnas para tablet -->

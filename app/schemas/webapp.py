@@ -13,6 +13,7 @@ class StudentSummary(BaseModel):
     id: int
     full_name: str
     course_id: int
+    course_name: str | None = None  # Denormalized for kiosk display
     photo_pref_opt_in: bool = False
 
 
@@ -106,6 +107,8 @@ class NotificationSummary(BaseModel):
     channel: str
     sent_at: str | None = None
     status: str
+    template: str | None = None  # e.g., INGRESO_OK, SALIDA_OK
+    payload: dict | None = None  # Contains student_name, time, date, etc.
 
 
 class TeacherSummary(BaseModel):

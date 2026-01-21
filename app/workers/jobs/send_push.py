@@ -68,6 +68,7 @@ def send_push_notification(
     subscription_info: dict[str, Any],
     payload: dict[str, Any],
     tenant_id: int | None = None,
+    tenant_schema: str | None = None,
 ) -> bool:
     """Worker job to send a push notification.
 
@@ -76,6 +77,7 @@ def send_push_notification(
         subscription_info: Push subscription (endpoint, keys.p256dh, keys.auth)
         payload: Notification content (title, body, icon, url, tag, etc.)
         tenant_id: Optional tenant ID for multi-tenant support
+        tenant_schema: Optional tenant schema for multi-tenant support (not used yet)
 
     Returns:
         True if successful, False otherwise

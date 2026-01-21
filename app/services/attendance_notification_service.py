@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from loguru import logger
 from redis import Redis
 from rq import Queue
+from sqlalchemy import text
 
 from app.core.config import settings
 from app.db.repositories.guardians import GuardianRepository
@@ -24,7 +25,12 @@ if TYPE_CHECKING:
 class AttendanceNotificationService:
     """Handles notification dispatch when attendance events occur."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        tenant_id: int | None = None,
+        tenant_schema: str | None = None,
+    ) -> None:
         self.session = session
         self.notification_repo = NotificationRepository(session)
         self.guardian_repo = GuardianRepository(session)
@@ -32,6 +38,9 @@ class AttendanceNotificationService:
         self.push_repo = PushSubscriptionRepository(session)
         self._redis: Redis | None = None
         self._queue: Queue | None = None
+        # MT-WORKER-FIX: Store tenant context for job enqueueing
+        self.tenant_id = tenant_id
+        self.tenant_schema = tenant_schema
 
     def __del__(self):
         """Close Redis connection on cleanup (B8 fix)."""
@@ -70,12 +79,22 @@ class AttendanceNotificationService:
         Returns:
             List of notification IDs created
         """
+        # MT-POOL-FIX: Re-set search_path in case connection was released and re-acquired after commit
+        # This can happen when register_event commits and the connection returns to pool.
+        # The next query may get a different connection without search_path set.
+        if self.tenant_schema:
+            await self.session.execute(text(f"SET search_path TO {self.tenant_schema}, public"))
+            logger.debug(f"[DEBUG-NOTIF-SVC] Re-set search_path to {self.tenant_schema}")
+
+        logger.info(f"[DEBUG-NOTIF-SVC] notify_attendance_event called for event {event.id}, student {event.student_id}")
+
         student = await self.student_repo.get_with_guardians(event.student_id)
         if not student:
             logger.warning(f"Student {event.student_id} not found for notification")
             return []
 
         guardians = getattr(student, "guardians", [])
+        logger.info(f"[DEBUG-NOTIF-SVC] Found {len(guardians)} guardians for student {event.student_id}")
         if not guardians:
             logger.info(f"No guardians found for student {event.student_id}")
             return []
@@ -98,6 +117,7 @@ class AttendanceNotificationService:
             # Check guardian notification preferences
             prefs = guardian.notification_prefs or {}
             event_prefs = prefs.get(notification_type.value, {})
+            logger.info(f"[DEBUG-NOTIF-SVC] Guardian {guardian.id}: prefs={prefs}, event_prefs={event_prefs}")
 
             # Build payload with event details
             payload = self._build_payload(
@@ -108,7 +128,9 @@ class AttendanceNotificationService:
 
             # Process each enabled channel
             for channel in NotificationChannel:
-                if not self._is_channel_enabled(event_prefs, channel):
+                is_enabled = self._is_channel_enabled(event_prefs, channel)
+                logger.debug(f"[DEBUG-NOTIF-SVC] Channel {channel.value}: enabled={is_enabled}")
+                if not is_enabled:
                     continue
 
                 # PUSH channel is handled separately - uses subscriptions, not contacts
@@ -123,12 +145,14 @@ class AttendanceNotificationService:
                     continue
 
                 recipient = self._get_recipient(guardian, channel)
+                logger.info(f"[DEBUG-NOTIF-SVC] Channel {channel.value}: recipient={recipient}")
                 if not recipient:
                     logger.debug(
                         f"Guardian {guardian.id} has no {channel.value} contact"
                     )
                     continue
 
+                logger.info(f"[DEBUG-NOTIF-SVC] Creating notification for guardian {guardian.id}, channel {channel.value}")
                 # Create notification record
                 notification = await self.notification_repo.create(
                     guardian_id=guardian.id,
@@ -137,7 +161,9 @@ class AttendanceNotificationService:
                     payload=payload,
                     event_id=event.id,
                 )
+                logger.info(f"[DEBUG-NOTIF-SVC] Created notification {notification.id} for guardian {guardian.id}")
                 await self.session.flush()
+                logger.info(f"[DEBUG-NOTIF-SVC] Session flushed")
 
                 # Enqueue for async delivery
                 self._enqueue_notification(
@@ -154,6 +180,7 @@ class AttendanceNotificationService:
                     f"for guardian {guardian.id} (event {event.id})"
                 )
 
+        logger.info(f"[DEBUG-NOTIF-SVC] Returning {len(notification_ids)} notification IDs: {notification_ids}")
         return notification_ids
 
     def _build_payload(
@@ -227,13 +254,15 @@ class AttendanceNotificationService:
             logger.error(f"Unknown notification channel: {channel}")
             return False
 
-        # Pass notification_id, recipient, template name, and variables
+        # MT-WORKER-FIX: Pass tenant context so worker can find notification in correct schema
         queue.enqueue(
             job_func,
             notification_id,
             recipient,
             template,
             payload,
+            self.tenant_id,
+            self.tenant_schema,
         )
         return True
 
@@ -360,10 +389,13 @@ class AttendanceNotificationService:
             },
         }
 
+        # MT-WORKER-FIX: Pass tenant context so worker can find notification in correct schema
         queue.enqueue(
             "app.workers.jobs.send_push.send_push_notification",
             notification_id,
             subscription_info,
             push_payload,
+            self.tenant_id,
+            self.tenant_schema,
         )
         return True

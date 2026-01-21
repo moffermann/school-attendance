@@ -9,7 +9,6 @@ from loguru import logger
 from PIL import Image
 
 from app.core import deps
-from app.core.config import settings
 from app.core.deps import TenantAuthUser
 from app.core.rate_limiter import limiter
 from app.schemas.students import (
@@ -39,11 +38,15 @@ router = APIRouter()
 
 
 def _build_photo_proxy_url(photo_key: str | None) -> str | None:
-    """Build a proxy URL for accessing photos through the API."""
+    """Build a proxy URL for accessing photos through the API.
+
+    Uses a relative URL to avoid cross-origin issues when accessing from
+    different origins (localhost vs external IP vs domain).
+    """
     if not photo_key:
         return None
-    base_url = str(settings.public_base_url).rstrip("/")
-    return f"{base_url}/api/v1/photos/{photo_key}"
+    # Use relative URL - works regardless of how user accesses the server
+    return f"/api/v1/photos/{photo_key}"
 
 
 def _sanitize_csv_value(val: str | None) -> str:

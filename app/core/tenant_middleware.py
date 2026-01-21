@@ -60,6 +60,8 @@ STATIC_PREFIXES = [
     "/login-assets",
     "/kiosk/",
     "/kiosk",
+    "/kiosk-preview/",
+    "/kiosk-preview",
     "/teacher/",
     "/teacher",
     "/app/",
@@ -225,7 +227,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
         tenant_id_header = request.headers.get("X-Tenant-ID")
         if tenant_id_header:
             # Validate that the request has super_admin token OR valid device key
-            has_auth = self._has_super_admin_token(request) or self._has_valid_device_key(request)
+            has_auth = self._has_super_admin_token(request) or await self._has_valid_device_key(request)
             if has_auth:
                 try:
                     tenant_id = int(tenant_id_header)
@@ -325,20 +327,39 @@ class TenantMiddleware(BaseHTTPMiddleware):
         except Exception:
             return False
 
-    def _has_valid_device_key(self, request: Request) -> bool:
+    async def _has_valid_device_key(self, request: Request) -> bool:
         """
         Check if the request has a valid device API key.
 
         This allows kiosk devices to specify X-Tenant-ID header when authenticated
         with X-Device-Key. Essential for multi-tenant kiosk deployments.
+
+        Validates against tenant-specific key if X-Tenant-ID is provided,
+        with fallback to global key for backwards compatibility.
         """
         import secrets as secrets_module
+        from app.db.repositories.tenant_configs import TenantConfigRepository
+        from app.db.session import async_session
 
         device_key = request.headers.get("X-Device-Key", "")
         if not device_key:
             return False
 
-        # Use timing-safe comparison to prevent timing attacks
+        # Try tenant-specific key if X-Tenant-ID header is present
+        tenant_id_header = request.headers.get("X-Tenant-ID")
+        if tenant_id_header:
+            try:
+                tenant_id = int(tenant_id_header)
+                async with async_session() as session:
+                    config_repo = TenantConfigRepository(session)
+                    decrypted_config = await config_repo.get_decrypted(tenant_id)
+                    if decrypted_config and decrypted_config.device_api_key:
+                        if secrets_module.compare_digest(device_key, decrypted_config.device_api_key):
+                            return True
+            except (ValueError, Exception):
+                pass  # Continue to fallback
+
+        # Fallback to global key (for backwards compatibility during migration)
         return secrets_module.compare_digest(device_key, settings.device_api_key)
 
 

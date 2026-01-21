@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from app.core import deps
 from app.core.rate_limiter import limiter
 from app.db.repositories.attendance import AttendanceRepository
+from app.db.repositories.courses import CourseRepository
 from app.db.repositories.students import StudentRepository
 from app.db.repositories.tags import TagRepository
 from app.db.repositories.teachers import TeacherRepository
@@ -23,6 +24,7 @@ class KioskStudentRead(BaseModel):
     id: int
     full_name: str
     course_id: int | None = None
+    course_name: str | None = None  # Denormalized for kiosk display
     photo_url: str | None = None  # Presigned URL for immediate display
     photo_pref_opt_in: bool = False
     # New field: "photo", "audio", or "none"
@@ -95,32 +97,41 @@ async def get_kiosk_bootstrap(
     tag_repo = TagRepository(session)
     teacher_repo = TeacherRepository(session)
     attendance_repo = AttendanceRepository(session)
+    course_repo = CourseRepository(session)
 
     # Get all students with guardians for kiosk display
     students_raw = await student_repo.list_all(include_guardians=True)
 
+    # Get all courses for course_name lookup
+    courses_raw = await course_repo.list_all()
+    course_lookup = {c.id: c.name for c in courses_raw}
+
     # Build photo proxy URLs for students with photos
     # Uses /api/v1/photos/{key} endpoint which proxies through the API server
     # This allows kiosk devices to access photos through the tunnel
-    from app.core.config import settings
-    base_url = str(settings.public_base_url).rstrip('/')
+    # IMPORTANT: Use relative URLs so they work regardless of how user accesses the server
+    # (localhost, ngrok, production domain, etc.)
 
     students = []
     for s in students_raw:
         photo_url = None
         if s.photo_url:
-            # Use proxy URL instead of presigned URL
-            photo_url = f"{base_url}/api/v1/photos/{s.photo_url}"
+            # Use relative URL - works regardless of access method (ngrok, localhost, etc.)
+            photo_url = f"/api/v1/photos/{s.photo_url}"
 
         # Get first guardian name for display
         guardian_name = None
         if s.guardians:
             guardian_name = s.guardians[0].full_name
 
+        # Get course name from lookup
+        course_name = course_lookup.get(s.course_id) if s.course_id else None
+
         students.append(KioskStudentRead(
             id=s.id,
             full_name=s.full_name,
             course_id=s.course_id,
+            course_name=course_name,
             photo_url=photo_url,
             photo_pref_opt_in=s.photo_pref_opt_in,
             evidence_preference=getattr(s, "effective_evidence_preference", "none"),
@@ -187,27 +198,34 @@ async def get_kiosk_students(
         )
 
     student_repo = StudentRepository(session)
+    course_repo = CourseRepository(session)
     students_raw = await student_repo.list_all(include_guardians=True)
 
-    # Build photo proxy URLs for students with photos
-    from app.core.config import settings
-    base_url = str(settings.public_base_url).rstrip('/')
+    # Get all courses for course_name lookup
+    courses_raw = await course_repo.list_all()
+    course_lookup = {c.id: c.name for c in courses_raw}
 
+    # Build photo proxy URLs using relative URLs (works with ngrok, localhost, etc.)
     students = []
     for s in students_raw:
         photo_url = None
         if s.photo_url:
-            photo_url = f"{base_url}/api/v1/photos/{s.photo_url}"
+            # Use relative URL - works regardless of access method
+            photo_url = f"/api/v1/photos/{s.photo_url}"
 
         # Get first guardian name for display
         guardian_name = None
         if s.guardians:
             guardian_name = s.guardians[0].full_name
 
+        # Get course name from lookup
+        course_name = course_lookup.get(s.course_id) if s.course_id else None
+
         students.append(KioskStudentRead(
             id=s.id,
             full_name=s.full_name,
             course_id=s.course_id,
+            course_name=course_name,
             photo_url=photo_url,
             photo_pref_opt_in=s.photo_pref_opt_in,
             evidence_preference=getattr(s, "effective_evidence_preference", "none"),

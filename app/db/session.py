@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from sqlalchemy import text
@@ -166,3 +167,58 @@ async def schema_exists(schema_name: str) -> bool:
         )
         row = result.scalar()
         return bool(row)
+
+
+# ============================================================================
+# WORKER SESSION FACTORY
+# ============================================================================
+# RQ workers run in separate processes with their own event loops.
+# The main async engine is tied to FastAPI's event loop and doesn't work
+# correctly when called from asyncio.run() in workers.
+# These functions create fresh engines for each worker job.
+
+
+def create_worker_engine():
+    """
+    Create a fresh async engine for worker jobs.
+
+    This creates a new engine independent of the FastAPI application's
+    connection pool, suitable for use in RQ worker processes.
+    """
+    return create_async_engine(
+        settings.database_url,
+        echo=False,
+        future=True,
+        pool_size=5,           # Smaller pool for workers
+        max_overflow=5,
+        pool_pre_ping=True,
+        pool_recycle=300,      # Shorter recycle for workers
+    )
+
+
+@asynccontextmanager
+async def get_worker_session(schema_name: str | None = None) -> AsyncGenerator[AsyncSession, None]:
+    """
+    Get a database session for worker jobs.
+
+    Creates a fresh engine and session for each invocation, avoiding
+    connection pool issues when running in RQ worker processes.
+
+    Args:
+        schema_name: Optional tenant schema name. If provided, sets search_path.
+
+    Yields:
+        AsyncSession configured for the worker job
+    """
+    worker_engine = create_worker_engine()
+    WorkerSession = async_sessionmaker(worker_engine, expire_on_commit=False, class_=AsyncSession)
+
+    async with WorkerSession() as session:
+        try:
+            if schema_name:
+                validate_schema_name(schema_name)
+                await session.execute(text(f"SET search_path TO {schema_name}, public"))
+            yield session
+        finally:
+            # Clean up the engine after use
+            await worker_engine.dispose()

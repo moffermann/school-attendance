@@ -86,6 +86,12 @@ def create_app() -> FastAPI:
     if (FRONTEND_BASE / "web-app").exists():
         app.mount("/app", StaticFiles(directory=str(FRONTEND_BASE / "web-app"), html=True), name="webapp")
 
+    # Mount preview versions for design testing (isolated from production)
+    if (FRONTEND_BASE / "web-app-preview").exists():
+        app.mount("/app-preview", StaticFiles(directory=str(FRONTEND_BASE / "web-app-preview"), html=True), name="webapp-preview")
+    if (FRONTEND_BASE / "kiosk-app-preview").exists():
+        app.mount("/kiosk-preview", StaticFiles(directory=str(FRONTEND_BASE / "kiosk-app-preview"), html=True), name="kiosk-preview")
+
     # Mount login-app assets (served under /login-assets)
     if (FRONTEND_BASE / "login-app").exists():
         app.mount("/login-assets", StaticFiles(directory=str(FRONTEND_BASE / "login-app")), name="login-assets")

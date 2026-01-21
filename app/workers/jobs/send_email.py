@@ -13,19 +13,19 @@ from requests.exceptions import ConnectionError, Timeout
 from app.core.config import settings
 from app.db.repositories.notifications import NotificationRepository
 from app.db.repositories.tenant_configs import TenantConfigRepository
-from app.db.session import async_session, get_tenant_session
+from app.db.session import get_worker_session
 from app.services.notifications.ses_email import SESEmailClient, TenantSESEmailClient, mask_email
 from app.services.notifications.smtp_email import SMTPEmailClient, TenantSMTPEmailClient
 
 
 @asynccontextmanager
 async def _get_session(tenant_schema: str | None):
-    """MT-WORKER-FIX: Get session with proper tenant context for worker jobs."""
-    if tenant_schema:
-        async for session in get_tenant_session(tenant_schema):
-            yield session
-            return
-    async with async_session() as session:
+    """MT-WORKER-FIX: Get session with proper tenant context for worker jobs.
+
+    Uses get_worker_session which creates a fresh engine for each invocation,
+    avoiding connection pool issues in RQ worker processes.
+    """
+    async with get_worker_session(tenant_schema) as session:
         yield session
 
 
