@@ -590,6 +590,71 @@ class EndImpersonationResponse(BaseModel):
     duration_seconds: int | None = None
 
 
+# ==================== Tenant Config Schemas ====================
+
+
+class TenantConfigUpdate(BaseModel):
+    """Schema for updating tenant configuration (timezone, SMTP, etc.)."""
+
+    # Timezone (IANA format: America/Santiago, America/Bogota, etc.)
+    timezone: str | None = Field(None, max_length=64, examples=["America/Santiago"])
+
+    # Email provider selection
+    email_provider: str | None = Field(None, pattern=r"^(ses|smtp)$")
+
+    # SMTP Configuration
+    smtp_host: str | None = Field(None, max_length=255)
+    smtp_port: int | None = Field(None, ge=1, le=65535)
+    smtp_user: str | None = Field(None, max_length=255)
+    smtp_password: str | None = Field(None, max_length=255)
+    smtp_use_tls: bool | None = None
+    smtp_from_name: str | None = Field(None, max_length=255)
+
+    # SES Configuration (optional, for AWS SES users)
+    ses_region: str | None = Field(None, max_length=32)
+    ses_source_email: str | None = Field(None, max_length=255)
+    ses_access_key: str | None = Field(None, max_length=128)
+    ses_secret_key: str | None = Field(None, max_length=128)
+
+    # WhatsApp Configuration
+    whatsapp_phone_number_id: str | None = Field(None, max_length=64)
+    whatsapp_access_token: str | None = Field(None, max_length=512)
+
+
+class TenantConfigResponse(BaseModel):
+    """Response schema for tenant configuration (without sensitive data)."""
+
+    tenant_id: int
+    timezone: str | None
+    email_provider: str | None
+
+    # SMTP (without password)
+    smtp_host: str | None
+    smtp_port: int | None
+    smtp_user: str | None
+    smtp_use_tls: bool | None
+    smtp_from_name: str | None
+    smtp_configured: bool  # True if password is set
+
+    # SES (without secrets)
+    ses_region: str | None
+    ses_source_email: str | None
+    ses_configured: bool  # True if credentials are set
+
+    # WhatsApp (without token)
+    whatsapp_phone_number_id: str | None
+    whatsapp_configured: bool  # True if token is set
+
+    # S3
+    s3_bucket: str | None
+    s3_prefix: str | None
+
+    # Device
+    device_api_key_configured: bool
+
+    updated_at: datetime | None
+
+
 @router.post("/{tenant_id}/end-impersonation", response_model=EndImpersonationResponse)
 async def end_impersonation(
     request: Request,
@@ -666,4 +731,160 @@ async def end_impersonation(
     return EndImpersonationResponse(
         message="Sesión de impersonation finalizada",
         duration_seconds=duration_seconds,
+    )
+
+
+# ==================== Tenant Configuration ====================
+
+
+@router.get("/{tenant_id}/config", response_model=TenantConfigResponse)
+async def get_tenant_config(
+    tenant_id: int = Path(..., ge=1, description="Tenant ID"),
+    admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
+    session: AsyncSession = Depends(deps.get_public_db),
+) -> TenantConfigResponse:
+    """
+    Get tenant configuration (timezone, email settings, etc.).
+
+    Sensitive credentials are masked - only shows if they are configured.
+    """
+    from app.db.repositories.tenant_configs import TenantConfigRepository
+
+    tenant_repo = TenantRepository(session)
+    config_repo = TenantConfigRepository(session)
+
+    tenant = await tenant_repo.get(tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant no encontrado")
+
+    config = await config_repo.get(tenant_id)
+    if not config:
+        # Create default config if it doesn't exist
+        config = await config_repo.create(tenant_id)
+        await session.commit()
+
+    return TenantConfigResponse(
+        tenant_id=config.tenant_id,
+        timezone=config.timezone,
+        email_provider=config.email_provider,
+        smtp_host=config.smtp_host,
+        smtp_port=config.smtp_port,
+        smtp_user=config.smtp_user,
+        smtp_use_tls=config.smtp_use_tls,
+        smtp_from_name=config.smtp_from_name,
+        smtp_configured=config.smtp_password_encrypted is not None,
+        ses_region=config.ses_region,
+        ses_source_email=config.ses_source_email,
+        ses_configured=(
+            config.ses_access_key_encrypted is not None
+            and config.ses_secret_key_encrypted is not None
+        ),
+        whatsapp_phone_number_id=config.whatsapp_phone_number_id,
+        whatsapp_configured=config.whatsapp_access_token_encrypted is not None,
+        s3_bucket=config.s3_bucket,
+        s3_prefix=config.s3_prefix,
+        device_api_key_configured=config.device_api_key_encrypted is not None,
+        updated_at=config.updated_at,
+    )
+
+
+@router.patch("/{tenant_id}/config", response_model=TenantConfigResponse)
+async def update_tenant_config(
+    tenant_id: int,
+    payload: TenantConfigUpdate,
+    admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
+    session: AsyncSession = Depends(deps.get_public_db),
+) -> TenantConfigResponse:
+    """
+    Update tenant configuration (timezone, SMTP, SES, WhatsApp settings).
+
+    Only fields provided in the request body will be updated.
+    Credentials (passwords, tokens, keys) are encrypted before storage.
+    """
+    from zoneinfo import ZoneInfo
+    from app.db.repositories.tenant_configs import TenantConfigRepository
+
+    tenant_repo = TenantRepository(session)
+    config_repo = TenantConfigRepository(session)
+
+    tenant = await tenant_repo.get(tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant no encontrado")
+
+    config = await config_repo.get(tenant_id)
+    if not config:
+        config = await config_repo.create(tenant_id)
+
+    # Validate timezone if provided
+    if payload.timezone is not None:
+        try:
+            ZoneInfo(payload.timezone)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Zona horaria inválida: {payload.timezone}. Use formato IANA (ej: America/Santiago)",
+            )
+        await config_repo.update_timezone(tenant_id, payload.timezone)
+
+    # Update email provider
+    if payload.email_provider is not None:
+        await config_repo.update_email_provider(tenant_id, payload.email_provider)
+
+    # Update SMTP config if any field provided
+    smtp_fields = {
+        "host": payload.smtp_host,
+        "port": payload.smtp_port,
+        "user": payload.smtp_user,
+        "password": payload.smtp_password,
+        "use_tls": payload.smtp_use_tls,
+        "from_name": payload.smtp_from_name,
+    }
+    if any(v is not None for v in smtp_fields.values()):
+        await config_repo.update_smtp_config(tenant_id, **{k: v for k, v in smtp_fields.items() if v is not None})
+
+    # Update SES config if any field provided
+    ses_fields = {
+        "region": payload.ses_region,
+        "source_email": payload.ses_source_email,
+        "access_key": payload.ses_access_key,
+        "secret_key": payload.ses_secret_key,
+    }
+    if any(v is not None for v in ses_fields.values()):
+        await config_repo.update_ses_config(tenant_id, **{k: v for k, v in ses_fields.items() if v is not None})
+
+    # Update WhatsApp config if any field provided
+    if payload.whatsapp_phone_number_id is not None or payload.whatsapp_access_token is not None:
+        await config_repo.update_whatsapp_config(
+            tenant_id,
+            phone_number_id=payload.whatsapp_phone_number_id,
+            access_token=payload.whatsapp_access_token,
+        )
+
+    await session.commit()
+
+    # Fetch updated config for response
+    config = await config_repo.get(tenant_id)
+
+    return TenantConfigResponse(
+        tenant_id=config.tenant_id,
+        timezone=config.timezone,
+        email_provider=config.email_provider,
+        smtp_host=config.smtp_host,
+        smtp_port=config.smtp_port,
+        smtp_user=config.smtp_user,
+        smtp_use_tls=config.smtp_use_tls,
+        smtp_from_name=config.smtp_from_name,
+        smtp_configured=config.smtp_password_encrypted is not None,
+        ses_region=config.ses_region,
+        ses_source_email=config.ses_source_email,
+        ses_configured=(
+            config.ses_access_key_encrypted is not None
+            and config.ses_secret_key_encrypted is not None
+        ),
+        whatsapp_phone_number_id=config.whatsapp_phone_number_id,
+        whatsapp_configured=config.whatsapp_access_token_encrypted is not None,
+        s3_bucket=config.s3_bucket,
+        s3_prefix=config.s3_prefix,
+        device_api_key_configured=config.device_api_key_encrypted is not None,
+        updated_at=config.updated_at,
     )

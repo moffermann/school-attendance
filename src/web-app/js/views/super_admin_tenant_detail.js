@@ -138,46 +138,19 @@ Views.superAdminTenantDetail = async function(tenantId) {
           </div>
         </div>
 
-        <!-- Config Card -->
+        <!-- General Config Card -->
         <div class="card">
           <div class="card-header">
-            <h3>Configuración</h3>
+            <h3>Configuración General</h3>
           </div>
           <div class="card-body">
             <div class="config-section">
-              <h4>WhatsApp</h4>
+              <h4>Zona Horaria</h4>
               <div class="info-row">
-                <span class="info-label">Estado:</span>
-                <span class="info-value">${config.whatsapp_configured
-                  ? Components.createChip('Configurado', 'green')
-                  : Components.createChip('No configurado', 'gray')
-                }</span>
+                <span class="info-label">Timezone:</span>
+                <span class="info-value">${Components.escapeHtml(config.timezone || 'America/Santiago')}</span>
               </div>
-              ${config.whatsapp_phone_number_id ? `
-              <div class="info-row">
-                <span class="info-label">Phone ID:</span>
-                <span class="info-value"><code>${Components.escapeHtml(config.whatsapp_phone_number_id)}</code></span>
-              </div>
-              ` : ''}
-              <button class="btn btn-sm btn-secondary" onclick="showWhatsAppConfigModal()">Configurar</button>
-            </div>
-
-            <div class="config-section">
-              <h4>Email (SES)</h4>
-              <div class="info-row">
-                <span class="info-label">Estado:</span>
-                <span class="info-value">${config.ses_configured
-                  ? Components.createChip('Configurado', 'green')
-                  : Components.createChip('No configurado', 'gray')
-                }</span>
-              </div>
-              ${config.ses_source_email ? `
-              <div class="info-row">
-                <span class="info-label">Remitente:</span>
-                <span class="info-value">${Components.escapeHtml(config.ses_source_email)}</span>
-              </div>
-              ` : ''}
-              <button class="btn btn-sm btn-secondary" onclick="showEmailConfigModal()">Configurar</button>
+              <button class="btn btn-sm btn-secondary" onclick="showTimezoneModal()">Cambiar</button>
             </div>
 
             <div class="config-section">
@@ -199,6 +172,97 @@ Views.superAdminTenantDetail = async function(tenantId) {
                 }</span>
               </div>
               <button class="btn btn-sm btn-secondary" onclick="generateDeviceKey()">Generar Nueva Clave</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Email Config Card -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Configuración Email</h3>
+          </div>
+          <div class="card-body">
+            <div class="config-section">
+              <h4>Proveedor de Email</h4>
+              <div class="provider-toggle">
+                <button class="toggle-btn ${(config.email_provider || 'ses') === 'ses' ? 'active' : ''}"
+                        onclick="setEmailProvider('ses')">
+                  AWS SES
+                </button>
+                <button class="toggle-btn ${config.email_provider === 'smtp' ? 'active' : ''}"
+                        onclick="setEmailProvider('smtp')">
+                  SMTP
+                </button>
+              </div>
+            </div>
+
+            ${(config.email_provider || 'ses') === 'smtp' ? `
+            <div class="config-section">
+              <h4>SMTP</h4>
+              <div class="info-row">
+                <span class="info-label">Estado:</span>
+                <span class="info-value">${config.smtp_configured
+                  ? Components.createChip('Configurado', 'green')
+                  : Components.createChip('No configurado', 'gray')
+                }</span>
+              </div>
+              ${config.smtp_host ? `
+              <div class="info-row">
+                <span class="info-label">Servidor:</span>
+                <span class="info-value">${Components.escapeHtml(config.smtp_host)}:${config.smtp_port || 587}</span>
+              </div>
+              ` : ''}
+              ${config.smtp_user ? `
+              <div class="info-row">
+                <span class="info-label">Usuario:</span>
+                <span class="info-value">${Components.escapeHtml(config.smtp_user)}</span>
+              </div>
+              ` : ''}
+              <button class="btn btn-sm btn-secondary" onclick="showSmtpConfigModal()">Configurar SMTP</button>
+            </div>
+            ` : `
+            <div class="config-section">
+              <h4>AWS SES</h4>
+              <div class="info-row">
+                <span class="info-label">Estado:</span>
+                <span class="info-value">${config.ses_configured
+                  ? Components.createChip('Configurado', 'green')
+                  : Components.createChip('No configurado', 'gray')
+                }</span>
+              </div>
+              ${config.ses_source_email ? `
+              <div class="info-row">
+                <span class="info-label">Remitente:</span>
+                <span class="info-value">${Components.escapeHtml(config.ses_source_email)}</span>
+              </div>
+              ` : ''}
+              <button class="btn btn-sm btn-secondary" onclick="showEmailConfigModal()">Configurar SES</button>
+            </div>
+            `}
+          </div>
+        </div>
+
+        <!-- WhatsApp Config Card -->
+        <div class="card">
+          <div class="card-header">
+            <h3>WhatsApp</h3>
+          </div>
+          <div class="card-body">
+            <div class="config-section">
+              <div class="info-row">
+                <span class="info-label">Estado:</span>
+                <span class="info-value">${config.whatsapp_configured
+                  ? Components.createChip('Configurado', 'green')
+                  : Components.createChip('No configurado', 'gray')
+                }</span>
+              </div>
+              ${config.whatsapp_phone_number_id ? `
+              <div class="info-row">
+                <span class="info-label">Phone ID:</span>
+                <span class="info-value"><code>${Components.escapeHtml(config.whatsapp_phone_number_id)}</code></span>
+              </div>
+              ` : ''}
+              <button class="btn btn-sm btn-secondary" onclick="showWhatsAppConfigModal()">Configurar</button>
             </div>
           </div>
         </div>
@@ -297,6 +361,29 @@ Views.superAdminTenantDetail = async function(tenantId) {
           padding: 0.25rem 0.5rem;
           border-radius: 4px;
           font-size: 0.875rem;
+        }
+        .provider-toggle {
+          display: flex;
+          gap: 0.5rem;
+          margin-top: 0.5rem;
+        }
+        .toggle-btn {
+          flex: 1;
+          padding: 0.5rem 1rem;
+          border: 2px solid var(--border-color, #e5e7eb);
+          background: var(--bg-primary, white);
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 500;
+          transition: all 0.2s;
+        }
+        .toggle-btn:hover {
+          border-color: var(--primary, #3b82f6);
+        }
+        .toggle-btn.active {
+          border-color: var(--primary, #3b82f6);
+          background: var(--primary-light, #eff6ff);
+          color: var(--primary, #3b82f6);
         }
       </style>
     `;
@@ -545,6 +632,144 @@ Views.superAdminTenantDetail = async function(tenantId) {
         }
       }
     ]);
+  };
+
+  window.showTimezoneModal = () => {
+    const commonTimezones = [
+      { value: 'America/Santiago', label: 'Chile (Santiago)' },
+      { value: 'America/Bogota', label: 'Colombia (Bogotá)' },
+      { value: 'America/Lima', label: 'Perú (Lima)' },
+      { value: 'America/Mexico_City', label: 'México (Ciudad de México)' },
+      { value: 'America/Buenos_Aires', label: 'Argentina (Buenos Aires)' },
+      { value: 'America/Sao_Paulo', label: 'Brasil (São Paulo)' },
+      { value: 'America/New_York', label: 'Estados Unidos (Nueva York)' },
+      { value: 'America/Los_Angeles', label: 'Estados Unidos (Los Ángeles)' },
+      { value: 'Europe/Madrid', label: 'España (Madrid)' },
+      { value: 'UTC', label: 'UTC' },
+    ];
+    const currentTimezone = config.timezone || 'America/Santiago';
+
+    Components.showModal('Configurar Zona Horaria', `
+      <form id="timezoneForm">
+        <div class="form-group">
+          <label for="timezoneSelect">Zona Horaria</label>
+          <select id="timezoneSelect">
+            ${commonTimezones.map(tz => `
+              <option value="${tz.value}" ${currentTimezone === tz.value ? 'selected' : ''}>
+                ${tz.label}
+              </option>
+            `).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="timezoneCustom">O ingrese manualmente (IANA)</label>
+          <input type="text" id="timezoneCustom" placeholder="Ej: America/Montevideo"
+                 value="${!commonTimezones.find(tz => tz.value === currentTimezone) ? currentTimezone : ''}">
+          <small class="form-hint">Dejar vacío para usar la selección de arriba</small>
+        </div>
+      </form>
+      <style>
+        .form-hint { color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block; }
+      </style>
+    `, [
+      { label: 'Cancelar', action: 'close' },
+      {
+        label: 'Guardar',
+        className: 'btn-primary',
+        onClick: async () => {
+          try {
+            const customTz = document.getElementById('timezoneCustom').value.trim();
+            const selectedTz = document.getElementById('timezoneSelect').value;
+            const timezone = customTz || selectedTz;
+
+            await SuperAdminAPI.updateTimezone(tenantId, timezone);
+            Components.showToast('Zona horaria actualizada', 'success');
+            loadData();
+          } catch (error) {
+            Components.showToast(error.message, 'error');
+          }
+        }
+      }
+    ]);
+  };
+
+  window.showSmtpConfigModal = () => {
+    Components.showModal('Configurar SMTP', `
+      <form id="smtpForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="smtpHost">Servidor SMTP</label>
+            <input type="text" id="smtpHost" value="${Components.escapeHtml(config.smtp_host || '')}"
+                   placeholder="smtp.gmail.com">
+          </div>
+          <div class="form-group" style="max-width: 120px;">
+            <label for="smtpPort">Puerto</label>
+            <input type="number" id="smtpPort" value="${config.smtp_port || 587}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="smtpUser">Usuario</label>
+          <input type="text" id="smtpUser" value="${Components.escapeHtml(config.smtp_user || '')}"
+                 placeholder="usuario@gmail.com">
+        </div>
+        <div class="form-group">
+          <label for="smtpPassword">Contraseña / App Password</label>
+          <input type="password" id="smtpPassword" placeholder="Ingrese nuevo valor para cambiar">
+          <small class="form-hint">Para Gmail, use una "App Password" en lugar de su contraseña normal</small>
+        </div>
+        <div class="form-group">
+          <label for="smtpFromName">Nombre del Remitente</label>
+          <input type="text" id="smtpFromName" value="${Components.escapeHtml(config.smtp_from_name || '')}"
+                 placeholder="Mi Colegio">
+        </div>
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="smtpUseTls" ${config.smtp_use_tls !== false ? 'checked' : ''}>
+            <span>Usar TLS (recomendado)</span>
+          </label>
+        </div>
+      </form>
+      <style>
+        .form-hint { color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block; }
+        .checkbox-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+        .checkbox-label input { width: 18px; height: 18px; }
+      </style>
+    `, [
+      { label: 'Cancelar', action: 'close' },
+      {
+        label: 'Guardar',
+        className: 'btn-primary',
+        onClick: async () => {
+          try {
+            const data = {
+              host: document.getElementById('smtpHost').value || null,
+              port: parseInt(document.getElementById('smtpPort').value) || 587,
+              user: document.getElementById('smtpUser').value || null,
+              from_name: document.getElementById('smtpFromName').value || null,
+              use_tls: document.getElementById('smtpUseTls').checked,
+            };
+            const password = document.getElementById('smtpPassword').value;
+            if (password) data.password = password;
+
+            await SuperAdminAPI.updateSmtpConfig(tenantId, data);
+            Components.showToast('Configuración SMTP guardada', 'success');
+            loadData();
+          } catch (error) {
+            Components.showToast(error.message, 'error');
+          }
+        }
+      }
+    ]);
+  };
+
+  window.setEmailProvider = async (provider) => {
+    try {
+      await SuperAdminAPI.updateEmailProvider(tenantId, provider);
+      Components.showToast(`Proveedor de email cambiado a ${provider.toUpperCase()}`, 'success');
+      loadData();
+    } catch (error) {
+      Components.showToast(error.message, 'error');
+    }
   };
 
   window.showS3ConfigModal = () => {
