@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+from typing import Any
 
 from loguru import logger
-from requests.exceptions import ConnectionError, Timeout
+from requests.exceptions import ConnectionError, Timeout  # type: ignore[import-untyped]
 
 from app.db.repositories.notifications import NotificationRepository
 from app.db.repositories.tenant_configs import TenantConfigRepository
@@ -67,7 +68,7 @@ def _escape_whatsapp_formatting(value: str) -> str:
     return value
 
 
-def _build_caption(template: str, variables: dict) -> str:
+def _build_caption(template: str, variables: dict[str, Any]) -> str:
     """Build message caption from template and variables.
 
     Sanitizes all variable values to prevent format string injection.
@@ -100,7 +101,7 @@ async def _send(
     notification_id: int,
     to: str,
     template: str,
-    variables: dict,
+    variables: dict[str, Any],
     tenant_id: int | None = None,
     tenant_schema: str | None = None,
 ) -> None:
@@ -113,7 +114,7 @@ async def _send(
             return
 
         # Use tenant-specific client if tenant_id is provided
-        client = None
+        client: WhatsAppClient | TenantWhatsAppClient | None = None
         if tenant_id:
             try:
                 config_repo = TenantConfigRepository(session)
@@ -206,7 +207,7 @@ def send_whatsapp_message(
     notification_id: int,
     to: str,
     template: str,
-    variables: dict,
+    variables: dict[str, Any],
     tenant_id: int | None = None,
     tenant_schema: str | None = None,
 ) -> None:

@@ -6,9 +6,10 @@ import asyncio
 import html
 import smtplib
 from contextlib import asynccontextmanager
+from typing import Any
 
 from loguru import logger
-from requests.exceptions import ConnectionError, Timeout
+from requests.exceptions import ConnectionError, Timeout  # type: ignore[import-untyped]
 
 from app.core.config import settings
 from app.db.repositories.notifications import NotificationRepository
@@ -194,7 +195,7 @@ def _escape_html_value(value: str) -> str:
     return html.escape(value)
 
 
-def _build_email_content(template: str, variables: dict) -> tuple[str, str]:
+def _build_email_content(template: str, variables: dict[str, Any]) -> tuple[str, str]:
     """Build email subject and HTML body from template and variables.
 
     Returns:
@@ -252,7 +253,7 @@ async def _send(
     notification_id: int | None,
     to: str,
     template: str,
-    variables: dict,
+    variables: dict[str, Any],
     tenant_id: int | None = None,
     tenant_schema: str | None = None,
 ) -> None:
@@ -267,7 +268,7 @@ async def _send(
                 return
 
         # Use tenant-specific client if tenant_id is provided
-        client = None
+        client: SESEmailClient | TenantSESEmailClient | SMTPEmailClient | TenantSMTPEmailClient | None = None
         if tenant_id:
             try:
                 config_repo = TenantConfigRepository(session)
@@ -299,6 +300,7 @@ async def _send(
         # Build email content from template
         subject, body_html = _build_email_content(template, variables)
 
+        assert client is not None, "Email client must be initialized"
         try:
             await client.send_email(to=to, subject=subject, body_html=body_html)
             if notification:
@@ -343,7 +345,7 @@ def send_email_message(
     notification_id: int | None,
     to: str,
     template: str,
-    variables: dict,
+    variables: dict[str, Any],
     tenant_id: int | None = None,
     tenant_schema: str | None = None,
 ) -> None:

@@ -104,7 +104,7 @@ class PaginatedTeachers(BaseModel):
     has_more: bool
 
     @classmethod
-    def create(cls, items: list, total: int, limit: int, offset: int) -> "PaginatedTeachers":
+    def create(cls, items: list[TeacherRead], total: int, limit: int, offset: int) -> "PaginatedTeachers":
         """Factory method with correct has_more calculation."""
         return cls(
             items=items,

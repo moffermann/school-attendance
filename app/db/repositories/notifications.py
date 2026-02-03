@@ -1,6 +1,7 @@
 """Notification repository stub."""
 
 from datetime import date, datetime, timezone
+from typing import Any
 
 from loguru import logger
 from sqlalchemy import select
@@ -20,7 +21,7 @@ class NotificationRepository:
         guardian_id: int,
         channel: str,
         template: str,
-        payload: dict,
+        payload: dict[str, Any],
         event_id: int | None = None,
     ) -> Notification:
         notification = Notification(
@@ -91,7 +92,7 @@ class NotificationRepository:
         guardian_id: int,
         channel: str,
         template: str,
-        payload: dict,
+        payload: dict[str, Any],
         event_id: int | None = None,
         context_id: int | None = None,
     ) -> tuple[Notification, bool]:
@@ -165,7 +166,7 @@ class NotificationRepository:
         guardian_id: int,
         channel: str,
         template: str,
-        context_id: int,
+        context_id: int | None,
         notification_date: date,
     ) -> Notification | None:
         """Find existing notification matching dedup criteria."""

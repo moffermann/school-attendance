@@ -7,6 +7,6 @@ class NotificationTemplating:
         return template.format_map(DefaultDict(safe_vars))
 
 
-class DefaultDict(dict):
-    def __missing__(self, key):  # type: ignore[override]
+class DefaultDict(dict[str, str]):
+    def __missing__(self, key: str) -> str:
         return f"{{{key}}}"

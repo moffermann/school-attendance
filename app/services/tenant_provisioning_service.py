@@ -7,6 +7,7 @@ import logging
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -337,7 +338,7 @@ class TenantProvisioningService:
         token: str,
         password: str,
         full_name: str,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Complete admin activation:
 
@@ -364,7 +365,7 @@ class TenantProvisioningService:
         # Create admin user in tenant schema
         hashed = hash_password(password)
 
-        async for tenant_session in get_tenant_session(schema_name):
+        async with get_tenant_session(schema_name) as tenant_session:
             # Create user
             await tenant_session.execute(
                 text("""

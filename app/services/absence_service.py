@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, Request, UploadFile
 from loguru import logger
@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import AuditEvent, audit_log
 from app.core.auth import AuthUser
+from app.db.models.absence_request import AbsenceRequest
 from app.db.repositories.absences import AbsenceRepository
 from app.db.repositories.guardians import GuardianRepository
 from app.db.repositories.students import StudentRepository
@@ -86,7 +87,7 @@ class AbsenceService:
 
     async def submit_absence(
         self, user: AuthUser, payload: AbsenceRequestCreate
-    ) -> object:
+    ) -> AbsenceRequest:
         """Legacy method: Submit absence request (backward compatible)."""
         student = await self.student_repo.get(payload.student_id)
         if not student:
@@ -120,10 +121,11 @@ class AbsenceService:
 
         await self.session.commit()
         # Re-fetch instead of refresh to avoid detached instance issues
-        record = await self.absence_repo.get(record.id)
-        return record
+        refreshed_record = await self.absence_repo.get(record.id)
+        assert refreshed_record is not None, "Record should exist after creation"
+        return refreshed_record
 
-    async def update_status(self, absence_id: int, status: AbsenceStatus) -> object:
+    async def update_status(self, absence_id: int, status: AbsenceStatus) -> AbsenceRequest:
         """Legacy method: Update status (backward compatible)."""
         record = await self.absence_repo.update_status(absence_id, status.value)
         await self.session.commit()
@@ -140,7 +142,7 @@ class AbsenceService:
         start_date: date | None = None,
         end_date: date | None = None,
         status: str | None = None,
-    ) -> list:
+    ) -> list[Any]:
         """Legacy list method with in-memory filtering (backward compatible).
 
         NOTE: Para nuevo codigo usar list_absences_paginated() que usa filtrado SQL.
@@ -318,7 +320,8 @@ class AbsenceService:
             )
             await self.session.commit()
             # Re-fetch instead of refresh to avoid detached instance issues
-            absence = await self.absence_repo.get(absence.id)
+            refreshed_absence = await self.absence_repo.get(absence.id)
+            assert refreshed_absence is not None, "Absence should exist after creation"
 
             ip_address = request.client.host if request and request.client else None
             audit_log(
@@ -326,7 +329,7 @@ class AbsenceService:
                 user_id=user.id,
                 ip_address=ip_address,
                 resource_type="absence",
-                resource_id=absence.id,
+                resource_id=refreshed_absence.id,
                 details={
                     "student_id": payload.student_id,
                     "type": payload.type,
@@ -336,16 +339,16 @@ class AbsenceService:
             )
 
             return AbsenceRead(
-                id=absence.id,
-                student_id=absence.student_id,
+                id=refreshed_absence.id,
+                student_id=refreshed_absence.student_id,
                 student_name=student.full_name,
-                type=absence.type,
-                start_date=absence.start_date,
-                end_date=absence.end_date,
-                comment=absence.comment,
-                attachment_ref=absence.attachment_ref,
-                status=absence.status,
-                ts_submitted=absence.ts_submitted,
+                type=refreshed_absence.type,
+                start_date=refreshed_absence.start_date,
+                end_date=refreshed_absence.end_date,
+                comment=refreshed_absence.comment,
+                attachment_ref=refreshed_absence.attachment_ref,
+                status=refreshed_absence.status,
+                ts_submitted=refreshed_absence.ts_submitted,
             )
 
         except Exception as e:
@@ -358,7 +361,7 @@ class AbsenceService:
         user: "AuthUser | TenantAuthUser",
         absence_id: int,
         request: Request | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Delete an absence request (only PENDING can be deleted)."""
         if user.role not in self.DELETE_ROLES:
             raise HTTPException(status_code=403, detail="Sin permisos para eliminar")
@@ -433,6 +436,7 @@ class AbsenceService:
             await self.session.commit()
             # Re-fetch instead of refresh to avoid detached instance issues
             absence = await self.absence_repo.get(absence_id)
+            assert absence is not None, "Absence should exist after approval"
 
             ip_address = request.client.host if request and request.client else None
             audit_log(
@@ -496,6 +500,7 @@ class AbsenceService:
             await self.session.commit()
             # Re-fetch instead of refresh to avoid detached instance issues
             absence = await self.absence_repo.get(absence_id)
+            assert absence is not None, "Absence should exist after rejection"
 
             ip_address = request.client.host if request and request.client else None
             audit_log(
@@ -699,6 +704,7 @@ class AbsenceService:
             await self.session.commit()
             # Re-fetch instead of refresh to avoid detached instance issues
             absence = await self.absence_repo.get(absence_id)
+            assert absence is not None, "Absence should exist after attachment update"
 
             ip_address = request.client.host if request and request.client else None
             audit_log(

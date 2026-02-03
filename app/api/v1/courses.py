@@ -159,8 +159,8 @@ async def create_course(
 @limiter.limit("30/minute")
 async def update_course(
     request: Request,
+    payload: CourseUpdate,
     course_id: int = Path(..., ge=1, description="Course ID"),
-    payload: CourseUpdate = ...,
     service: CourseService = Depends(deps.get_course_service),
     user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> CourseRead:

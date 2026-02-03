@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+from typing import Any
+
 from loguru import logger
 
 from app.db.session import async_session, get_tenant_session
@@ -15,14 +17,14 @@ from app.services.notifications.dispatcher import NotificationDispatcher
 async def _get_session(tenant_schema: str | None):
     """Get session with proper tenant context for worker jobs."""
     if tenant_schema:
-        async for session in get_tenant_session(tenant_schema):
+        async with get_tenant_session(tenant_schema) as session:
             yield session
             return
     async with async_session() as session:
         yield session
 
 
-async def _process(job_payload: dict) -> None:
+async def _process(job_payload: dict[str, Any]) -> None:
     job_id = job_payload.get("job_id")
     guardian_ids = job_payload.get("guardian_ids", [])
     payload = job_payload.get("payload", {})
@@ -62,5 +64,5 @@ async def _process(job_payload: dict) -> None:
                     )
 
 
-def process_broadcast_job(job_payload: dict) -> None:
+def process_broadcast_job(job_payload: dict[str, Any]) -> None:
     asyncio.run(_process(job_payload))

@@ -59,7 +59,7 @@ class GuardianResponse(BaseModel):
     """Response schema for guardian data."""
     id: int
     full_name: str
-    contacts: dict = Field(default_factory=dict)
+    contacts: dict[str, Any] = Field(default_factory=dict)
     student_ids: list[int] = Field(default_factory=list)
     status: str = "ACTIVE"
     created_at: datetime | None = None
@@ -72,7 +72,7 @@ class GuardianListItem(BaseModel):
     """Minimal guardian info for list views."""
     id: int
     full_name: str
-    contacts: dict = Field(default_factory=dict)
+    contacts: dict[str, Any] = Field(default_factory=dict)
     student_ids: list[int] = Field(default_factory=list)
     student_count: int = 0
     status: str = "ACTIVE"
@@ -105,7 +105,7 @@ class PaginatedGuardians(BaseModel):
     has_more: bool
 
     @classmethod
-    def create(cls, items: list, total: int, limit: int, offset: int) -> "PaginatedGuardians":
+    def create(cls, items: list[GuardianListItem], total: int, limit: int, offset: int) -> "PaginatedGuardians":
         """Factory method with correct has_more calculation."""
         return cls(
             items=items,

@@ -1,6 +1,7 @@
 """Guardian model."""
 
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import DateTime, Integer, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,8 +17,8 @@ class Guardian(Base):
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     # R15-MDL1 fix: Use lambda factory instead of mutable default dict
     # Mutable defaults are shared across all instances, causing data leaks
-    contacts: Mapped[dict] = mapped_column(JSON, default=lambda: {})
-    notification_prefs: Mapped[dict] = mapped_column(JSON, default=lambda: {})
+    contacts: Mapped[dict[str, Any]] = mapped_column(JSON, default=lambda: {})
+    notification_prefs: Mapped[dict[str, Any]] = mapped_column(JSON, default=lambda: {})
 
     # Status for soft delete
     status: Mapped[str] = mapped_column(String(32), default="ACTIVE", index=True)

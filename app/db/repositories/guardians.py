@@ -1,5 +1,7 @@
 """Guardian repository."""
 
+from typing import Any
+
 from sqlalchemy import case, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -66,8 +68,8 @@ class GuardianRepository:
     async def create(
         self,
         full_name: str,
-        contacts: dict | None = None,
-        notification_prefs: dict | None = None,
+        contacts: dict[str, Any] | None = None,
+        notification_prefs: dict[str, Any] | None = None,
     ) -> Guardian:
         """Create a new guardian.
 

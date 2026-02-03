@@ -6,7 +6,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool, create_engine
-from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy.ext.asyncio import AsyncEngine, async_engine_from_config
 
 from app.core.config import settings
 from app.db.base import Base
@@ -41,14 +41,14 @@ def run_migrations_online() -> None:
                 context.run_migrations()
         return
 
-    connectable = async_engine_from_config(
+    async_connectable: AsyncEngine = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
     async def do_run_migrations() -> None:
-        async with connectable.connect() as connection:
+        async with async_connectable.connect() as connection:
             await connection.run_sync(run_sync_migrations)
 
     def run_sync_migrations(connection):

@@ -192,14 +192,14 @@ class AbsenceRepository:
         """Count absences grouped by status (excludes soft-deleted)."""
         stmt = select(
             AbsenceRequest.status,
-            func.count().label("count"),
+            func.count().label("total"),
         ).where(AbsenceRequest.deleted_at.is_(None)).group_by(AbsenceRequest.status)
 
         if student_ids is not None:
             stmt = stmt.where(AbsenceRequest.student_id.in_(student_ids))
 
         result = await self.session.execute(stmt)
-        return {row.status: row.count for row in result.all()}
+        return {row.status: row.total for row in result.all()}
 
     # -------------------------------------------------------------------------
     # Busqueda

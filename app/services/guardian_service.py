@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, Request, status
 
@@ -243,7 +243,8 @@ class GuardianService:
             # 5. Commit and get fresh instance
             await self.session.commit()
             # Re-fetch instead of refresh to avoid detached instance issues
-            guardian = await self.guardian_repo.get(guardian.id)
+            refreshed_guardian = await self.guardian_repo.get(guardian.id)
+            assert refreshed_guardian is not None, "Guardian should exist after creation"
 
             # 6. Audit log with IP
             client_ip = request.client.host if request and request.client else None
@@ -252,21 +253,21 @@ class GuardianService:
                 user_id=user.id,
                 ip_address=client_ip,
                 resource_type="guardian",
-                resource_id=guardian.id,
+                resource_id=refreshed_guardian.id,
                 details={
-                    "full_name": guardian.full_name,
+                    "full_name": refreshed_guardian.full_name,
                     "student_count": len(payload.student_ids or []),
                 },
             )
 
             return GuardianResponse(
-                id=guardian.id,
-                full_name=guardian.full_name,
-                contacts=guardian.contacts or {},
-                student_ids=[s.id for s in (guardian.students or [])],
-                status=guardian.status,
-                created_at=guardian.created_at,
-                updated_at=guardian.updated_at,
+                id=refreshed_guardian.id,
+                full_name=refreshed_guardian.full_name,
+                contacts=refreshed_guardian.contacts or {},
+                student_ids=[s.id for s in (refreshed_guardian.students or [])],
+                status=refreshed_guardian.status,
+                created_at=refreshed_guardian.created_at,
+                updated_at=refreshed_guardian.updated_at,
             )
 
         except HTTPException:
@@ -312,12 +313,12 @@ class GuardianService:
 
         try:
             # 3. Track changes for audit
-            changes = {}
+            changes: dict[str, Any] = {}
             if payload.full_name and payload.full_name != guardian.full_name:
                 changes["full_name"] = {"old": guardian.full_name, "new": payload.full_name}
 
             # 4. Update guardian fields
-            update_kwargs = {}
+            update_kwargs: dict[str, Any] = {}
             if payload.full_name is not None:
                 update_kwargs["full_name"] = payload.full_name
             if payload.contacts is not None:
@@ -337,7 +338,8 @@ class GuardianService:
             # 6. Commit and get fresh instance
             await self.session.commit()
             # Re-fetch instead of refresh to avoid detached instance issues
-            guardian = await self.guardian_repo.get(guardian_id)
+            updated_guardian = await self.guardian_repo.get(guardian_id)
+            assert updated_guardian is not None, "Guardian should exist after update"
 
             # 7. Audit log with IP
             client_ip = request.client.host if request and request.client else None
@@ -351,13 +353,13 @@ class GuardianService:
             )
 
             return GuardianResponse(
-                id=guardian.id,
-                full_name=guardian.full_name,
-                contacts=guardian.contacts or {},
-                student_ids=[s.id for s in (guardian.students or [])],
-                status=guardian.status,
-                created_at=guardian.created_at,
-                updated_at=guardian.updated_at,
+                id=updated_guardian.id,
+                full_name=updated_guardian.full_name,
+                contacts=updated_guardian.contacts or {},
+                student_ids=[s.id for s in (updated_guardian.students or [])],
+                status=updated_guardian.status,
+                created_at=updated_guardian.created_at,
+                updated_at=updated_guardian.updated_at,
             )
 
         except HTTPException:
@@ -467,7 +469,8 @@ class GuardianService:
             # 4. Commit and get fresh instance
             await self.session.commit()
             # Re-fetch instead of refresh to avoid detached instance issues
-            guardian = await self.guardian_repo.get(guardian_id)
+            restored_guardian = await self.guardian_repo.get(guardian_id)
+            assert restored_guardian is not None, "Guardian should exist after restore"
 
             # 5. Audit log with IP
             client_ip = request.client.host if request and request.client else None
@@ -481,13 +484,13 @@ class GuardianService:
             )
 
             return GuardianResponse(
-                id=guardian.id,
-                full_name=guardian.full_name,
-                contacts=guardian.contacts or {},
-                student_ids=[s.id for s in (guardian.students or [])],
-                status=guardian.status,
-                created_at=guardian.created_at,
-                updated_at=guardian.updated_at,
+                id=restored_guardian.id,
+                full_name=restored_guardian.full_name,
+                contacts=restored_guardian.contacts or {},
+                student_ids=[s.id for s in (restored_guardian.students or [])],
+                status=restored_guardian.status,
+                created_at=restored_guardian.created_at,
+                updated_at=restored_guardian.updated_at,
             )
 
         except Exception as e:

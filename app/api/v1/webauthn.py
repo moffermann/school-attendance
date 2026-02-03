@@ -220,9 +220,9 @@ async def kiosk_check_biometric_status(
     dependencies=[Depends(deps.require_feature(FEATURE_WEBAUTHN))],
 )
 async def admin_start_student_registration(
+    request: StartRegistrationRequest,
     # TDD-R6-BUG1 fix: Validate student_id path parameter
     student_id: int = Path(..., ge=1),
-    request: StartRegistrationRequest = None,
     current_user: AuthUser = Depends(deps.require_roles("DIRECTOR", "INSPECTOR")),
     webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
 ):
@@ -249,9 +249,9 @@ async def admin_start_student_registration(
     dependencies=[Depends(deps.require_feature(FEATURE_WEBAUTHN))],
 )
 async def admin_complete_student_registration(
+    request: CompleteRegistrationRequest,
     # TDD-R6-BUG1 fix: Validate student_id path parameter
     student_id: int = Path(..., ge=1),
-    request: CompleteRegistrationRequest = None,
     current_user: AuthUser = Depends(deps.require_roles("DIRECTOR", "INSPECTOR")),
     webauthn_service: WebAuthnService = Depends(deps.get_webauthn_service),
 ):

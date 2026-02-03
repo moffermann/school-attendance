@@ -72,7 +72,7 @@ def _convert_heic_to_jpeg(content: bytes) -> tuple[bytes, str]:
 
     Returns tuple of (jpeg_bytes, content_type).
     """
-    img = Image.open(io.BytesIO(content))
+    img: Image.Image = Image.open(io.BytesIO(content))
     # Convert to RGB if necessary (HEIC may have alpha)
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")

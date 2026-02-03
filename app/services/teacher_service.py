@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, Request, status
 
@@ -209,7 +209,8 @@ class TeacherService:
             # 5. Commit and get fresh instance
             await self.session.commit()
             # Re-fetch instead of refresh to avoid detached instance issues
-            teacher = await self.teacher_repo.get(teacher.id)
+            created_teacher = await self.teacher_repo.get(teacher.id)
+            assert created_teacher is not None, "Teacher should exist after creation"
 
             # 6. Audit log with IP
             client_ip = request.client.host if request and request.client else None
@@ -218,14 +219,14 @@ class TeacherService:
                 user_id=user.id,
                 ip_address=client_ip,
                 resource_type="teacher",
-                resource_id=teacher.id,
+                resource_id=created_teacher.id,
                 details={
-                    "full_name": teacher.full_name,
-                    "email": teacher.email,
+                    "full_name": created_teacher.full_name,
+                    "email": created_teacher.email,
                 },
             )
 
-            return TeacherRead.model_validate(teacher)
+            return TeacherRead.model_validate(created_teacher)
 
         except HTTPException:
             await self.session.rollback()
@@ -279,7 +280,7 @@ class TeacherService:
 
         try:
             # 4. Track changes for audit
-            changes = {}
+            changes: dict[str, Any] = {}
             if payload.full_name and payload.full_name != teacher.full_name:
                 changes["full_name"] = {"old": teacher.full_name, "new": payload.full_name}
             if payload.email is not None and payload.email != teacher.email:
@@ -301,7 +302,8 @@ class TeacherService:
             # 6. Commit and get fresh instance
             await self.session.commit()
             # Re-fetch instead of refresh to avoid detached instance issues
-            updated = await self.teacher_repo.get(teacher_id)
+            updated_teacher = await self.teacher_repo.get(teacher_id)
+            assert updated_teacher is not None, "Teacher should exist after update"
 
             # 7. Audit log with IP
             client_ip = request.client.host if request and request.client else None
@@ -314,7 +316,7 @@ class TeacherService:
                 details={"changes": changes},
             )
 
-            return TeacherRead.model_validate(updated)
+            return TeacherRead.model_validate(updated_teacher)
 
         except HTTPException:
             await self.session.rollback()

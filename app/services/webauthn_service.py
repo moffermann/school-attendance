@@ -4,6 +4,7 @@ import json
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from fastapi import HTTPException, status
 from loguru import logger
@@ -36,7 +37,7 @@ from app.db.repositories.users import UserRepository
 
 # In-memory challenge store (for production, use Redis)
 # Key: challenge_id (random), Value: {challenge: bytes, entity_type: str, entity_id: int, expires: datetime}
-_challenge_store: dict[str, dict] = {}
+_challenge_store: dict[str, dict[str, Any]] = {}
 
 
 def _cleanup_expired_challenges():
@@ -81,7 +82,7 @@ class WebAuthnService:
         self,
         student_id: int,
         device_name: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Generate registration options for enrolling a student's biometric.
 
@@ -147,7 +148,7 @@ class WebAuthnService:
     async def complete_student_registration(
         self,
         challenge_id: str,
-        credential_response: dict,
+        credential_response: dict[str, Any],
     ) -> WebAuthnCredential:
         """
         Verify and store a student's WebAuthn credential after registration.
@@ -222,7 +223,7 @@ class WebAuthnService:
     # Student Authentication (Kiosk Fingerprint Verification)
     # =========================================================================
 
-    async def start_student_authentication(self) -> dict:
+    async def start_student_authentication(self) -> dict[str, Any]:
         """
         Generate authentication options for verifying a student's biometric.
 
@@ -267,7 +268,7 @@ class WebAuthnService:
     async def verify_student_authentication(
         self,
         challenge_id: str,
-        credential_response: dict,
+        credential_response: dict[str, Any],
     ) -> Student:
         """
         Verify a student's WebAuthn authentication assertion.
@@ -351,7 +352,7 @@ class WebAuthnService:
         self,
         user_id: int,
         device_name: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Generate registration options for a user's passkey."""
         user = await self.user_repo.get(user_id)
         if not user:
@@ -408,7 +409,7 @@ class WebAuthnService:
     async def complete_user_registration(
         self,
         challenge_id: str,
-        credential_response: dict,
+        credential_response: dict[str, Any],
     ) -> WebAuthnCredential:
         """Verify and store a user's WebAuthn credential after registration."""
         # Clean up expired challenges to prevent memory leak (B1 fix)
@@ -474,7 +475,7 @@ class WebAuthnService:
     # User Authentication (Web-app Passkey Login)
     # =========================================================================
 
-    async def start_user_authentication(self) -> dict:
+    async def start_user_authentication(self) -> dict[str, Any]:
         """
         Generate authentication options for a user's passkey login.
 
@@ -515,7 +516,7 @@ class WebAuthnService:
     async def verify_user_authentication(
         self,
         challenge_id: str,
-        credential_response: dict,
+        credential_response: dict[str, Any],
     ) -> User:
         """
         Verify a user's WebAuthn authentication assertion.
@@ -594,7 +595,7 @@ class WebAuthnService:
     # Credential Management
     # =========================================================================
 
-    async def list_student_credentials(self, student_id: int) -> list[dict]:
+    async def list_student_credentials(self, student_id: int) -> list[dict[str, Any]]:
         """List all credentials for a student (for admin UI)."""
         credentials = await self.credential_repo.list_by_student(student_id)
         return [
@@ -607,7 +608,7 @@ class WebAuthnService:
             for cred in credentials
         ]
 
-    async def list_user_credentials(self, user_id: int) -> list[dict]:
+    async def list_user_credentials(self, user_id: int) -> list[dict[str, Any]]:
         """List all credentials for a user (for user profile)."""
         credentials = await self.credential_repo.list_by_user(user_id)
         return [

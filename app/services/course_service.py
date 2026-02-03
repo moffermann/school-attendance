@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, Request, status
 
@@ -237,10 +237,11 @@ class CourseService:
             # 6. Commit and get fresh instance
             await self.session.commit()
             # Re-fetch instead of refresh to avoid detached instance issues
-            course = await self.course_repo.get_with_details(course.id)
+            created_course = await self.course_repo.get_with_details(course.id)
+            assert created_course is not None, "Course should exist after creation"
 
             # 7. Build teacher_ids for response
-            teacher_ids = [t.id for t in (course.teachers or [])]
+            teacher_ids = [t.id for t in (created_course.teachers or [])]
 
             # 8. Audit log with IP
             client_ip = request.client.host if request and request.client else None
@@ -249,22 +250,22 @@ class CourseService:
                 user_id=user.id,
                 ip_address=client_ip,
                 resource_type="course",
-                resource_id=course.id,
+                resource_id=created_course.id,
                 details={
-                    "name": course.name,
-                    "grade": course.grade,
+                    "name": created_course.name,
+                    "grade": created_course.grade,
                     "teacher_count": len(teacher_ids),
                 },
             )
 
             return CourseRead(
-                id=course.id,
-                name=course.name,
-                grade=course.grade,
-                status=course.status,
+                id=created_course.id,
+                name=created_course.name,
+                grade=created_course.grade,
+                status=created_course.status,
                 teacher_ids=teacher_ids,
-                created_at=course.created_at,
-                updated_at=course.updated_at,
+                created_at=created_course.created_at,
+                updated_at=created_course.updated_at,
             )
 
         except HTTPException:
@@ -354,14 +355,15 @@ class CourseService:
             # 7. Commit and get fresh instance
             await self.session.commit()
             # Re-fetch instead of refresh to avoid detached instance issues
-            course = await self.course_repo.get_with_details(course_id)
+            updated_course = await self.course_repo.get_with_details(course_id)
+            assert updated_course is not None, "Course should exist after update"
 
             # 8. Build response teacher_ids
-            teacher_ids = [t.id for t in (course.teachers or [])]
+            teacher_ids = [t.id for t in (updated_course.teachers or [])]
 
             # 9. Audit log with IP
             client_ip = request.client.host if request and request.client else None
-            changes = {}
+            changes: dict[str, Any] = {}
             if payload.name and payload.name != old_name:
                 changes["name"] = {"old": old_name, "new": payload.name}
             if payload.grade and payload.grade != old_grade:
@@ -379,13 +381,13 @@ class CourseService:
             )
 
             return CourseRead(
-                id=course.id,
-                name=course.name,
-                grade=course.grade,
-                status=course.status,
+                id=updated_course.id,
+                name=updated_course.name,
+                grade=updated_course.grade,
+                status=updated_course.status,
                 teacher_ids=teacher_ids,
-                created_at=course.created_at,
-                updated_at=course.updated_at,
+                created_at=updated_course.created_at,
+                updated_at=updated_course.updated_at,
             )
 
         except HTTPException:

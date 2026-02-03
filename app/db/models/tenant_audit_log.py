@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -44,7 +45,7 @@ class TenantAuditLog(Base):
     action: Mapped[str] = mapped_column(String(64), nullable=False)
     entity: Mapped[str | None] = mapped_column(String(64), nullable=True)
     entity_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    details: Mapped[dict] = mapped_column(JSONBCompatible, nullable=False, default=dict)
+    details: Mapped[dict[str, Any]] = mapped_column(JSONBCompatible, nullable=False, default=dict)
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), index=True

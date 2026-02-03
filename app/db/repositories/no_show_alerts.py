@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.exc import IntegrityError
@@ -145,8 +146,8 @@ class NoShowAlertRepository:
         # R7-B5 fix: Add default limit to prevent unbounded queries
         limit: int = 500,
         offset: int | None = None,
-    ) -> list[dict]:
-        stmt: Select = (
+    ) -> list[dict[str, Any]]:
+        stmt: Select[Any] = (
             select(
                 NoShowAlert,
                 Student.full_name.label("student_name"),
@@ -200,7 +201,7 @@ class NoShowAlertRepository:
             )
         return rows
 
-    async def counts_by_course(self, alert_date: date) -> list[dict]:
+    async def counts_by_course(self, alert_date: date) -> list[dict[str, Any]]:
         stmt = (
             select(NoShowAlert.course_id, func.count().label("total"))
             .where(NoShowAlert.alert_date == alert_date, NoShowAlert.status == "PENDING")

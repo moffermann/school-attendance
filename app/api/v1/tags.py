@@ -1,5 +1,7 @@
 """NFC/QR tag provisioning endpoints."""
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core import deps
@@ -51,7 +53,7 @@ async def revoke_tag(
 async def cleanup_expired_tags(
     service: TagProvisionService = Depends(deps.get_tag_provision_service),
     _: AuthUser = Depends(deps.require_roles("ADMIN")),
-) -> dict:
+) -> dict[str, Any]:
     """Clean up PENDING tags that have been waiting more than 1 hour.
 
     Changes their status to EXPIRED. Only ADMIN can run this.

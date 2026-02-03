@@ -95,7 +95,7 @@ async def update_whatsapp_config(
     payload: WhatsAppConfigUpdate,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
-) -> dict:
+) -> dict[str, str]:
     """Update tenant's WhatsApp credentials."""
     tenant_repo = TenantRepository(session)
     config_repo = TenantConfigRepository(session)
@@ -124,7 +124,7 @@ async def update_ses_config(
     payload: SESConfigUpdate,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
-) -> dict:
+) -> dict[str, str]:
     """Update tenant's SES email credentials."""
     tenant_repo = TenantRepository(session)
     config_repo = TenantConfigRepository(session)
@@ -155,7 +155,7 @@ async def update_s3_config(
     payload: S3ConfigUpdate,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
-) -> dict:
+) -> dict[str, str]:
     """Update tenant's S3 storage configuration."""
     tenant_repo = TenantRepository(session)
     config_repo = TenantConfigRepository(session)
@@ -183,7 +183,7 @@ async def generate_device_api_key(
     tenant_id: int,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
-) -> dict:
+) -> dict[str, str]:
     """Generate a new device API key for the tenant."""
     tenant_repo = TenantRepository(session)
     config_repo = TenantConfigRepository(session)

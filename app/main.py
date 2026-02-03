@@ -44,7 +44,7 @@ def create_app() -> FastAPI:
     )
 
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
     # Security headers middleware
     app.add_middleware(SecurityHeadersMiddleware)
@@ -65,7 +65,7 @@ def create_app() -> FastAPI:
     ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins if settings.cors_origins else ["*"] if settings.app_env == "development" else [],
+        allow_origins=settings.cors_origins if settings.cors_origins else ["*"] if settings.app_env == "development" else [],  # type: ignore[list-item]
         allow_credentials=True,
         allow_methods=allowed_methods,
         allow_headers=allowed_headers,

@@ -69,7 +69,7 @@ class TenantFeatureResponse(BaseModel):
 
     feature_name: str
     is_enabled: bool
-    config: dict
+    config: dict[str, Any]
 
     class Config:
         from_attributes = True
@@ -78,7 +78,7 @@ class TenantFeatureResponse(BaseModel):
 class TenantDetail(TenantSummary):
     """Detailed view of a tenant with features."""
 
-    config: dict
+    config: dict[str, Any]
     updated_at: datetime
     features: list[TenantFeatureResponse] = []
 
@@ -285,23 +285,24 @@ async def update_tenant(
 
     # Update tenant
     update_data = payload.model_dump(exclude_unset=True)
-    tenant = await tenant_repo.update(tenant_id, **update_data)
+    updated_tenant = await tenant_repo.update(tenant_id, **update_data)
+    assert updated_tenant is not None, "Tenant should exist after update"
     await session.commit()
 
     features = await feature_repo.list_by_tenant(tenant_id)
 
     return TenantDetail(
-        id=tenant.id,
-        slug=tenant.slug,
-        name=tenant.name,
-        subdomain=tenant.subdomain,
-        domain=tenant.domain,
-        is_active=tenant.is_active,
-        plan=tenant.plan,
-        max_students=tenant.max_students,
-        config=tenant.config,
-        created_at=tenant.created_at,
-        updated_at=tenant.updated_at,
+        id=updated_tenant.id,
+        slug=updated_tenant.slug,
+        name=updated_tenant.name,
+        subdomain=updated_tenant.subdomain,
+        domain=updated_tenant.domain,
+        is_active=updated_tenant.is_active,
+        plan=updated_tenant.plan,
+        max_students=updated_tenant.max_students,
+        config=updated_tenant.config,
+        created_at=updated_tenant.created_at,
+        updated_at=updated_tenant.updated_at,
         features=[TenantFeatureResponse.model_validate(f) for f in features],
     )
 
@@ -311,7 +312,7 @@ async def deactivate_tenant(
     tenant_id: int,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
-) -> dict:
+) -> dict[str, str]:
     """Deactivate a tenant (keeps data, blocks access)."""
     tenant_repo = TenantRepository(session)
 
@@ -330,7 +331,7 @@ async def activate_tenant(
     tenant_id: int,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
-) -> dict:
+) -> dict[str, str]:
     """Activate a deactivated tenant."""
     tenant_repo = TenantRepository(session)
 
@@ -424,7 +425,7 @@ async def resend_admin_invitation(
     payload: ResendInvitationRequest,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
-) -> dict:
+) -> dict[str, str]:
     """Resend invitation email to tenant admin."""
     from app.services.tenant_provisioning_service import TenantProvisioningService
 
@@ -451,7 +452,7 @@ async def reset_admin_password(
     payload: ResendInvitationRequest,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
-) -> dict:
+) -> dict[str, str]:
     """Reset tenant admin password by sending a new invitation."""
     from app.services.tenant_provisioning_service import TenantProvisioningService
 
@@ -831,26 +832,32 @@ async def update_tenant_config(
         await config_repo.update_email_provider(tenant_id, payload.email_provider)
 
     # Update SMTP config if any field provided
-    smtp_fields = {
-        "host": payload.smtp_host,
-        "port": payload.smtp_port,
-        "user": payload.smtp_user,
-        "password": payload.smtp_password,
-        "use_tls": payload.smtp_use_tls,
-        "from_name": payload.smtp_from_name,
-    }
-    if any(v is not None for v in smtp_fields.values()):
-        await config_repo.update_smtp_config(tenant_id, **{k: v for k, v in smtp_fields.items() if v is not None})
+    if any(v is not None for v in [
+        payload.smtp_host, payload.smtp_port, payload.smtp_user,
+        payload.smtp_password, payload.smtp_use_tls, payload.smtp_from_name
+    ]):
+        await config_repo.update_smtp_config(
+            tenant_id,
+            host=payload.smtp_host,
+            port=payload.smtp_port,
+            user=payload.smtp_user,
+            password=payload.smtp_password,
+            use_tls=payload.smtp_use_tls,
+            from_name=payload.smtp_from_name,
+        )
 
     # Update SES config if any field provided
-    ses_fields = {
-        "region": payload.ses_region,
-        "source_email": payload.ses_source_email,
-        "access_key": payload.ses_access_key,
-        "secret_key": payload.ses_secret_key,
-    }
-    if any(v is not None for v in ses_fields.values()):
-        await config_repo.update_ses_config(tenant_id, **{k: v for k, v in ses_fields.items() if v is not None})
+    if any(v is not None for v in [
+        payload.ses_region, payload.ses_source_email,
+        payload.ses_access_key, payload.ses_secret_key
+    ]):
+        await config_repo.update_ses_config(
+            tenant_id,
+            region=payload.ses_region,
+            source_email=payload.ses_source_email,
+            access_key=payload.ses_access_key,
+            secret_key=payload.ses_secret_key,
+        )
 
     # Update WhatsApp config if any field provided
     if payload.whatsapp_phone_number_id is not None or payload.whatsapp_access_token is not None:
@@ -864,6 +871,7 @@ async def update_tenant_config(
 
     # Fetch updated config for response
     config = await config_repo.get(tenant_id)
+    assert config is not None, "Config should exist after update"
 
     return TenantConfigResponse(
         tenant_id=config.tenant_id,

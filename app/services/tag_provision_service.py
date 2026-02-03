@@ -58,7 +58,7 @@ class TagProvisionService:
         # R17-CRYPTO1 fix: Verify checksum/signature if provided to prevent tag forgery
         # The checksum was generated during provision and should match
         if hasattr(payload, 'checksum') and payload.checksum:
-            expected_checksum = tag.tag_hash[:12] if tag.tag_hash else None
+            expected_checksum = tag.tag_token_hash[:12] if tag.tag_token_hash else None
             if expected_checksum and payload.checksum != expected_checksum:
                 raise ValueError("Invalid tag checksum - possible forgery attempt")
 

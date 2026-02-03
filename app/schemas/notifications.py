@@ -72,6 +72,7 @@ class BroadcastPreview(BaseModel):
 
 class NotificationLog(NotificationRead):
     payload: dict[str, Any] | None = None
+    student_id: int | None = None  # Populated from context_id for student notifications
 
 
 class NotificationSummaryResponse(BaseModel):

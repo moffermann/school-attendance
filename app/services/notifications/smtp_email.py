@@ -110,13 +110,14 @@ class TenantSMTPEmailClient:
         self._tenant_id = config.tenant_id
         self._host = config.smtp_host or "smtp.gmail.com"
         self._port = config.smtp_port or 587
-        self._user = config.smtp_user
-        self._password = config.smtp_password
         self._use_tls = config.smtp_use_tls if config.smtp_use_tls is not None else True
         self._from_name = config.smtp_from_name or "Sistema de Asistencia"
 
-        if not self._user or not self._password:
+        if not config.smtp_user or not config.smtp_password:
             raise ValueError(f"SMTP not configured for tenant {config.tenant_id}")
+
+        self._user: str = config.smtp_user
+        self._password: str = config.smtp_password
 
     def _create_message(self, to: str, subject: str, body_html: str) -> MIMEMultipart:
         """Create MIME message with HTML body."""

@@ -127,7 +127,7 @@ async def change_password(
     payload: ChangePasswordRequest,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
-) -> dict:
+) -> dict[str, str]:
     """Change the current super admin's password."""
     repo = SuperAdminRepository(session)
     admin_record = await repo.get(admin.id)

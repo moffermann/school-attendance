@@ -2,6 +2,7 @@
 
 import csv
 from io import StringIO
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response, status
 from slowapi import Limiter
@@ -178,7 +179,7 @@ async def resend_invitation(
     guardian_id: int = Path(..., ge=1, description="ID del apoderado"),
     user: TenantAuthUser = Depends(deps.get_current_tenant_user),
     invitation_service: UserInvitationService = Depends(deps.get_invitation_service),
-) -> dict:
+) -> dict[str, Any]:
     """Resend invitation email to a guardian's parent account."""
     if user.role not in ("DIRECTOR", "ADMIN"):
         raise HTTPException(

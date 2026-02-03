@@ -106,7 +106,7 @@ class WebAppDataService:
 
     async def _resolve_student_ids(self, is_staff: bool, guardian: Guardian | None) -> list[int]:
         if is_staff:
-            stmt: Select[Student] = select(Student.id)
+            stmt = select(Student.id)
             result = await self.session.execute(stmt)
             return [row[0] for row in result.all()]
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,7 +55,7 @@ class TenantFeatureRepository:
         tenant_id: int,
         feature_name: str,
         is_enabled: bool = False,
-        config: dict | None = None,
+        config: dict[str, Any] | None = None,
     ) -> TenantFeature:
         """Create a new feature flag for a tenant."""
         feature = TenantFeature(
@@ -93,7 +95,7 @@ class TenantFeatureRepository:
         return feature
 
     async def update_config(
-        self, tenant_id: int, feature_name: str, config: dict
+        self, tenant_id: int, feature_name: str, config: dict[str, Any]
     ) -> TenantFeature | None:
         """Update feature configuration."""
         feature = await self.get(tenant_id, feature_name)

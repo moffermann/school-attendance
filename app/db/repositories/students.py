@@ -79,8 +79,8 @@ class StudentRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def update_photo_url(self, student_id: int, photo_url: str) -> Student | None:
-        """Update a student's photo URL."""
+    async def update_photo_url(self, student_id: int, photo_url: str | None) -> Student | None:
+        """Update a student's photo URL (or clear it by passing None)."""
         student = await self.get(student_id)
         if not student:
             return None

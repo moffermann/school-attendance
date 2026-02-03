@@ -52,7 +52,7 @@ async def _require_staff_user(
 
 
 @web_router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request) -> HTMLResponse:
+async def login_page(request: Request) -> HTMLResponse | RedirectResponse:
     next_url = request.query_params.get("next", "/app")
     return templates.TemplateResponse(
         "login.html",
@@ -72,9 +72,10 @@ async def login_submit(
     request: Request, auth_service=Depends(deps.get_auth_service)
 ):
     form = await request.form()
-    email = form.get("email", "").strip().lower()
-    password = form.get("password", "")
-    next_url = form.get("next") or "/app"
+    email = str(form.get("email", "")).strip().lower()
+    password = str(form.get("password", ""))
+    next_url_raw = form.get("next")
+    next_url = str(next_url_raw) if next_url_raw else "/app"
 
     try:
         user = await auth_service.authenticate_user(email, password)
@@ -130,7 +131,7 @@ async def logout() -> RedirectResponse:
 @web_router.get("/schedules", response_class=HTMLResponse)
 async def schedules_page(
     request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
-) -> HTMLResponse:
+) -> HTMLResponse | RedirectResponse:
     auth = await _require_staff_user(request, session)
     if isinstance(auth, RedirectResponse):
         return auth
@@ -162,7 +163,7 @@ async def schedules_page(
 @web_router.get("/broadcast", response_class=HTMLResponse)
 async def broadcast_page(
     request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
-) -> HTMLResponse:
+) -> HTMLResponse | RedirectResponse:
     auth = await _require_staff_user(request, session)
     if isinstance(auth, RedirectResponse):
         return auth
@@ -181,7 +182,7 @@ async def broadcast_page(
 @web_router.get("/parents/preferences", response_class=HTMLResponse)
 async def parents_prefs_page(
     request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
-) -> HTMLResponse:
+) -> HTMLResponse | RedirectResponse:
     auth = await _require_staff_user(request, session)
     if isinstance(auth, RedirectResponse):
         return auth
@@ -200,7 +201,7 @@ async def parents_prefs_page(
 @web_router.get("/alerts", response_class=HTMLResponse)
 async def alerts_page(
     request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
-) -> HTMLResponse:
+) -> HTMLResponse | RedirectResponse:
     auth = await _require_staff_user(request, session)
     if isinstance(auth, RedirectResponse):
         return auth
@@ -227,31 +228,30 @@ async def alerts_page(
         except ValueError:
             return None
 
-    filters = {
-        "start_date": parse_date_param("start_date"),
-        "end_date": parse_date_param("end_date"),
-        "status": params.get("status") or None,
-        "course_id": parse_int_param("course_id"),
-        "guardian_id": parse_int_param("guardian_id"),
-        "student_id": parse_int_param("student_id"),
-    }
+    # Parse filter parameters with proper types
+    start_date = parse_date_param("start_date")
+    end_date = parse_date_param("end_date")
+    status_filter = params.get("status") or None
+    course_id = parse_int_param("course_id")
+    guardian_id = parse_int_param("guardian_id")
+    student_id = parse_int_param("student_id")
 
     filters_ctx = {
-        "start_date": filters["start_date"].isoformat() if filters["start_date"] else "",
-        "end_date": filters["end_date"].isoformat() if filters["end_date"] else "",
-        "status": filters["status"],
-        "course_id": filters["course_id"],
-        "guardian_id": filters["guardian_id"],
-        "student_id": filters["student_id"],
+        "start_date": start_date.isoformat() if start_date else "",
+        "end_date": end_date.isoformat() if end_date else "",
+        "status": status_filter,
+        "course_id": course_id,
+        "guardian_id": guardian_id,
+        "student_id": student_id,
     }
 
     alerts = await service.list_alerts(
-        start_date=filters["start_date"],
-        end_date=filters["end_date"],
-        status=filters["status"],
-        course_id=filters["course_id"],
-        guardian_id=filters["guardian_id"],
-        student_id=filters["student_id"],
+        start_date=start_date,
+        end_date=end_date,
+        status=status_filter,
+        course_id=course_id,
+        guardian_id=guardian_id,
+        student_id=student_id,
     )
 
     courses = (await session.execute(select(Course))).scalars().all()
@@ -291,7 +291,7 @@ async def alerts_page(
 @web_router.get("/photos", response_class=HTMLResponse)
 async def photos_page(
     request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
-) -> HTMLResponse:
+) -> HTMLResponse | RedirectResponse:
     auth = await _require_staff_user(request, session)
     if isinstance(auth, RedirectResponse):
         return auth

@@ -111,7 +111,7 @@ async def get_session_for_tenant(tenant: "Tenant") -> AsyncGenerator[AsyncSessio
         AsyncSession with search_path configured for the tenant
     """
     schema_name = f"tenant_{tenant.slug}"
-    async for session in get_tenant_session(schema_name):
+    async with get_tenant_session(schema_name) as session:
         yield session
 
 

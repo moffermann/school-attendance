@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, Request, status
 
@@ -227,7 +227,8 @@ class StudentService:
             # 4. Commit and get fresh instance
             await self.session.commit()
             # Re-fetch instead of refresh to avoid detached instance issues
-            student = await self.student_repo.get(student.id)
+            created_student = await self.student_repo.get(student.id)
+            assert created_student is not None, "Student should exist after creation"
 
             # 5. Audit log with IP
             client_ip = request.client.host if request and request.client else None
@@ -236,15 +237,15 @@ class StudentService:
                 user_id=user.id,
                 ip_address=client_ip,
                 resource_type="student",
-                resource_id=student.id,
+                resource_id=created_student.id,
                 details={
-                    "full_name": student.full_name,
-                    "course_id": student.course_id,
-                    "national_id": student.national_id,
+                    "full_name": created_student.full_name,
+                    "course_id": created_student.course_id,
+                    "national_id": created_student.national_id,
                 },
             )
 
-            return StudentRead.model_validate(student)
+            return StudentRead.model_validate(created_student)
 
         except HTTPException:
             await self.session.rollback()
@@ -298,7 +299,7 @@ class StudentService:
 
         try:
             # 4. Track changes for audit
-            changes = {}
+            changes: dict[str, Any] = {}
             if payload.full_name and payload.full_name != student.full_name:
                 changes["full_name"] = {"old": student.full_name, "new": payload.full_name}
             if payload.national_id is not None and payload.national_id != student.national_id:
@@ -311,7 +312,7 @@ class StudentService:
                 changes["status"] = {"old": student.status, "new": payload.status}
 
             # 5. Update student
-            update_data = {}
+            update_data: dict[str, Any] = {}
             if payload.full_name is not None:
                 update_data["full_name"] = payload.full_name
             if payload.national_id is not None:
@@ -331,7 +332,8 @@ class StudentService:
             # 6. Commit and get fresh instance
             await self.session.commit()
             # Re-fetch instead of refresh to avoid detached instance issues
-            updated = await self.student_repo.get(student_id)
+            updated_student = await self.student_repo.get(student_id)
+            assert updated_student is not None, "Student should exist after update"
 
             # 7. Audit log with IP (only if there were changes)
             if changes:
@@ -345,7 +347,7 @@ class StudentService:
                     details={"changes": changes},
                 )
 
-            return StudentRead.model_validate(updated)
+            return StudentRead.model_validate(updated_student)
 
         except HTTPException:
             await self.session.rollback()

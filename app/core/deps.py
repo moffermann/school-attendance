@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from fastapi import Depends, HTTPException, Header, Request, status
 from fastapi.security import OAuth2PasswordBearer
@@ -39,6 +39,7 @@ from app.db.repositories.user_invitations import UserInvitationRepository
 
 if TYPE_CHECKING:
     from app.db.models.tenant import Tenant
+    from app.services.feature_flag_service import FeatureFlagService
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=True)
@@ -175,7 +176,7 @@ async def get_current_user(
     )
 
 
-def require_roles(*roles: str) -> Callable[[AuthUser], AuthUser]:
+def require_roles(*roles: str) -> Callable[..., Awaitable[AuthUser]]:
     async def dependency(user: AuthUser = Depends(get_current_user)) -> AuthUser:
         if roles and user.role not in roles:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permisos insuficientes")
@@ -496,7 +497,7 @@ async def get_current_super_admin(
     )
 
 
-def require_super_admin() -> Callable[[SuperAdminUser], SuperAdminUser]:
+def require_super_admin() -> Callable[..., Awaitable[SuperAdminUser]]:
     """Dependency that requires super admin authentication."""
 
     async def dependency(admin: SuperAdminUser = Depends(get_current_super_admin)) -> SuperAdminUser:

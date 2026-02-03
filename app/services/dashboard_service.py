@@ -142,7 +142,7 @@ class DashboardService:
             .order_by(AttendanceEvent.occurred_at)
         )
         result = await self.session.execute(events_stmt)
-        events: list[tuple[AttendanceEvent, Student, Course]] = list(result.all())
+        events: list[tuple[AttendanceEvent, Student, Course]] = list(result.all())  # type: ignore[arg-type]
 
         date_range = self._iter_dates(start_date, end_date)
         earliest_in: dict[tuple[int, date], datetime] = {}
@@ -257,7 +257,7 @@ class DashboardService:
         stmt = stmt.order_by(AttendanceEvent.occurred_at.desc()).limit(MAX_EVENTS)
 
         result = await self.session.execute(stmt)
-        return list(result.all())
+        return list(result.all())  # type: ignore[arg-type]
 
     @staticmethod
     def _sanitize_search_query(search: str, max_length: int = 100) -> str | None:
@@ -322,7 +322,7 @@ class DashboardService:
             with_photos=photo_count,
         )
 
-    async def _map_events_async(self, events: list) -> list[DashboardEvent]:
+    async def _map_events_async(self, events: list[tuple[AttendanceEvent, Student, Course]]) -> list[DashboardEvent]:
         """R12-P5 fix: Map events asynchronously for presigned URL generation."""
         import asyncio
 

@@ -2,7 +2,7 @@
 
 from datetime import date
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -108,7 +108,7 @@ class NotificationSummary(BaseModel):
     sent_at: str | None = None
     status: str
     template: str | None = None  # e.g., INGRESO_OK, SALIDA_OK
-    payload: dict | None = None  # Contains student_name, time, date, etc.
+    payload: dict[str, Any] | None = None  # Contains student_name, time, date, etc.
 
 
 class TeacherSummary(BaseModel):

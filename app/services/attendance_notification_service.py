@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 from loguru import logger
@@ -59,10 +59,11 @@ class AttendanceNotificationService:
         """Lazy-load Redis queue with graceful fallback if unavailable."""
         if self._queue is None:
             try:
-                self._redis = Redis.from_url(settings.redis_url)
+                redis_conn: Redis = Redis.from_url(settings.redis_url)  # type: ignore[assignment]
                 # Test connection
-                self._redis.ping()
-                self._queue = Queue("notifications", connection=self._redis)
+                redis_conn.ping()
+                self._redis = redis_conn
+                self._queue = Queue("notifications", connection=redis_conn)
             except Exception as e:
                 logger.error(f"Redis unavailable, notifications disabled: {e}")
                 return None
@@ -203,7 +204,7 @@ class AttendanceNotificationService:
         student,
         event: AttendanceEvent,
         photo_url: str | None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Build the notification payload with event details.
 
         Times are converted to the tenant's local timezone for display.
@@ -241,7 +242,7 @@ class AttendanceNotificationService:
 
     def _is_channel_enabled(
         self,
-        event_prefs: dict,
+        event_prefs: dict[str, Any],
         channel: NotificationChannel,
     ) -> bool:
         """Check if a notification channel is enabled for this event type."""
@@ -265,7 +266,7 @@ class AttendanceNotificationService:
         channel: NotificationChannel,
         recipient: str,
         template: str,
-        payload: dict,
+        payload: dict[str, Any],
     ) -> bool:
         """Enqueue notification for async processing by worker.
 
@@ -305,7 +306,7 @@ class AttendanceNotificationService:
         self,
         guardian,
         notification_type: NotificationType,
-        payload: dict,
+        payload: dict[str, Any],
         event_id: int,
         context_id: int | None = None,
     ) -> list[int]:
@@ -372,8 +373,8 @@ class AttendanceNotificationService:
     def _build_push_payload(
         self,
         notification_type: NotificationType,
-        payload: dict,
-    ) -> dict:
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
         """Build the push notification payload."""
         student_name = payload.get("student_name", "Estudiante")
         time_str = payload.get("time", "")
@@ -407,7 +408,7 @@ class AttendanceNotificationService:
         self,
         notification_id: int,
         subscription,
-        push_payload: dict,
+        push_payload: dict[str, Any],
     ) -> bool:
         """Enqueue a push notification for async processing.
 

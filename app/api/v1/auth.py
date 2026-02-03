@@ -1,5 +1,7 @@
 """Authentication endpoints."""
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -179,7 +181,7 @@ async def session_info(
 async def validate_invitation_token(
     token: str = Query(...),
     invitation_service: UserInvitationService = Depends(deps.get_invitation_service),
-) -> dict:
+) -> dict[str, Any]:
     """Validate parent invitation token."""
     invitation = await invitation_service.validate_token(token, "INVITATION")
     if not invitation:
@@ -229,7 +231,7 @@ async def forgot_password(
     request: Request,
     payload: ForgotPasswordRequest,
     invitation_service: UserInvitationService = Depends(deps.get_invitation_service),
-) -> dict:
+) -> dict[str, Any]:
     """Send password reset email (always returns OK for security)."""
     await invitation_service.send_password_reset(payload.email)
     return {"message": "Si el email existe, recibirás un enlace de recuperación"}
@@ -239,7 +241,7 @@ async def forgot_password(
 async def validate_reset_token(
     token: str = Query(...),
     invitation_service: UserInvitationService = Depends(deps.get_invitation_service),
-) -> dict:
+) -> dict[str, Any]:
     """Validate password reset token."""
     invitation = await invitation_service.validate_token(token, "PASSWORD_RESET")
     if not invitation:
@@ -252,7 +254,7 @@ async def reset_password(
     request: Request,
     payload: ResetPasswordRequest,
     invitation_service: UserInvitationService = Depends(deps.get_invitation_service),
-) -> dict:
+) -> dict[str, Any]:
     """Reset password using a valid token."""
     user = await invitation_service.reset_password(payload.token, payload.password)
     ip = _get_client_ip(request)

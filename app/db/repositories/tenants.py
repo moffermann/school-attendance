@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -102,7 +104,7 @@ class TenantRepository:
         plan: str | None = None,
         max_students: int | None = None,
         is_active: bool | None = None,
-        config: dict | None = None,
+        config: dict[str, Any] | None = None,
     ) -> Tenant | None:
         """Update tenant fields."""
         tenant = await self.get(tenant_id)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import List, TYPE_CHECKING
+from typing import Any, List, TYPE_CHECKING
 
 from datetime import datetime, timedelta, timezone
 import uuid
@@ -219,7 +219,7 @@ class AttendanceService:
         events = await self.attendance_repo.list_by_student(student_id)
         return [AttendanceEventRead.model_validate(event, from_attributes=True) for event in events]
 
-    async def detect_no_show_alerts(self, current_dt: datetime) -> list[dict]:
+    async def detect_no_show_alerts(self, current_dt: datetime) -> list[dict[str, Any]]:
         # R15-DT2 fix: Work with timezone-aware datetimes consistently
         # Ensure current_dt is UTC-aware for consistent comparisons
         if current_dt.tzinfo:
@@ -232,7 +232,7 @@ class AttendanceService:
         schedules = await self.schedule_repo.list_by_weekday(weekday)
         grace = timedelta(minutes=settings.no_show_grace_minutes)
         target_date = current_dt_utc.date()
-        alerts: list[dict] = []
+        alerts: list[dict[str, Any]] = []
 
         for schedule in schedules:
             # Course is eager-loaded via selectinload in list_by_weekday

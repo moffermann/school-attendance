@@ -171,10 +171,9 @@ class CourseRepository:
         return result.scalar() or 0
 
     async def count_active_enrollments(self, course_id: int) -> int:
-        """Count active enrollments for this course."""
+        """Count enrollments for this course."""
         stmt = select(func.count(Enrollment.id)).where(
             Enrollment.course_id == course_id,
-            Enrollment.status == "ACTIVE",
         )
         result = await self.session.execute(stmt)
         return result.scalar() or 0

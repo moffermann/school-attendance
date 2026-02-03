@@ -1,11 +1,16 @@
 """WebAuthn Credential model for biometric authentication."""
 
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.db.models.student import Student
+    from app.db.models.user import User
 
 
 def _utc_now() -> datetime:

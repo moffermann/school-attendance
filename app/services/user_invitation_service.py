@@ -6,7 +6,7 @@ import hashlib
 import logging
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, status
 
@@ -172,7 +172,7 @@ class UserInvitationService:
 
         return user
 
-    async def _queue_email(self, to: str, template: str, variables: dict) -> None:
+    async def _queue_email(self, to: str, template: str, variables: dict[str, Any]) -> None:
         """Queue an email for sending via RQ."""
         from redis import Redis
         from rq import Queue
