@@ -85,20 +85,30 @@ EMAIL_TEMPLATES = {
         """,
     },
     "NO_INGRESO_UMBRAL": {
-        "subject": "⚠️ Alerta: {student_name} no ha ingresado",
+        "subject": "⚠️ Alerta: {student_name} no ha ingresado al colegio",
         "body": """
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #d32f2f;">⚠️ Alerta de No Ingreso</h2>
             <p>Estimado/a apoderado/a,</p>
-            <p><strong>{student_name}</strong> no ha registrado ingreso al establecimiento el día de hoy.</p>
-            <table style="margin: 20px 0; border-collapse: collapse;">
+            <p><strong>{student_name}</strong> no ha registrado ingreso al establecimiento.</p>
+            <table style="margin: 20px 0; border-collapse: collapse; width: 100%;">
                 <tr>
-                    <td style="padding: 8px; color: #666;">Fecha:</td>
+                    <td style="padding: 8px; color: #666; width: 120px;">Fecha:</td>
                     <td style="padding: 8px;"><strong>{date}</strong></td>
                 </tr>
+                <tr>
+                    <td style="padding: 8px; color: #666;">Hora esperada:</td>
+                    <td style="padding: 8px;"><strong>{expected_time}</strong></td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; color: #666;">Curso:</td>
+                    <td style="padding: 8px;"><strong>{course_name}</strong></td>
+                </tr>
             </table>
-            <p>Si su hijo/a no asistirá hoy, por favor ignore este mensaje o comuníquese con el establecimiento.</p>
-            <p style="color: #666; font-size: 12px;">
+            <p style="background: #fff3e0; padding: 12px; border-radius: 4px; border-left: 4px solid #ff9800;">
+                Si su hijo/a no asistirá hoy, por favor comuníquese con el establecimiento para justificar la inasistencia.
+            </p>
+            <p style="color: #666; font-size: 12px; margin-top: 20px;">
                 Este es un mensaje automático del Sistema de Control de Asistencia.
             </p>
         </div>
@@ -113,6 +123,63 @@ EMAIL_TEMPLATES = {
             <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
             <p style="color: #666; font-size: 12px;">
                 Este es un mensaje del Sistema de Control de Asistencia.
+            </p>
+        </div>
+        """,
+    },
+    "parent_invitation": {
+        "subject": "Invitación - Portal de Apoderados",
+        "body": """
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #4f46e5;">Bienvenido al Portal de Apoderados</h2>
+            <p>Estimado/a apoderado/a,</p>
+            <p>Ha sido registrado/a como apoderado en nuestro sistema de control de asistencia.</p>
+            <p>Para activar su cuenta y establecer su contraseña, haga clic en el siguiente enlace:</p>
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{activation_url}"
+                   style="background-color: #4f46e5; color: white; padding: 12px 24px;
+                          text-decoration: none; border-radius: 6px; font-weight: bold;">
+                    Activar mi cuenta
+                </a>
+            </div>
+            <p style="color: #666; font-size: 14px;">
+                Este enlace expira en {expires_hours} horas.
+            </p>
+            <p style="color: #666; font-size: 14px;">
+                Si no reconoce esta invitación, puede ignorar este mensaje.
+            </p>
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
+            <p style="color: #999; font-size: 12px;">
+                Este es un mensaje automático del Sistema de Control de Asistencia.
+            </p>
+        </div>
+        """,
+    },
+    "password_reset": {
+        "subject": "Recuperar Contraseña",
+        "body": """
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #4f46e5;">Recuperación de Contraseña</h2>
+            <p>Estimado/a usuario/a,</p>
+            <p>Recibimos una solicitud para restablecer su contraseña.</p>
+            <p>Para crear una nueva contraseña, haga clic en el siguiente enlace:</p>
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{reset_url}"
+                   style="background-color: #4f46e5; color: white; padding: 12px 24px;
+                          text-decoration: none; border-radius: 6px; font-weight: bold;">
+                    Restablecer contraseña
+                </a>
+            </div>
+            <p style="color: #666; font-size: 14px;">
+                Este enlace expira en 1 hora.
+            </p>
+            <p style="color: #666; font-size: 14px;">
+                Si no solicitó este cambio, puede ignorar este mensaje de forma segura.
+                Su contraseña no se modificará.
+            </p>
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
+            <p style="color: #999; font-size: 12px;">
+                Este es un mensaje automático del Sistema de Control de Asistencia.
             </p>
         </div>
         """,
@@ -160,7 +227,7 @@ def _build_email_content(template: str, variables: dict) -> tuple[str, str]:
             body_html = email_template["body"].format(**safe_vars)
             return subject, body_html
         except KeyError as e:
-            logger.warning("Template %s missing variable %s, using fallback", template, e)
+            logger.warning("Template {} missing variable {}, using fallback", template, e)
 
     # Fallback: generic email
     subject = f"Notificación - {safe_vars.get('student_name', 'Alumno')}"
@@ -182,7 +249,7 @@ def _build_email_content(template: str, variables: dict) -> tuple[str, str]:
 
 
 async def _send(
-    notification_id: int,
+    notification_id: int | None,
     to: str,
     template: str,
     variables: dict,
@@ -192,10 +259,12 @@ async def _send(
     # MT-WORKER-FIX: Use tenant session to find notification in correct schema
     async with _get_session(tenant_schema) as session:
         repo = NotificationRepository(session)
-        notification = await repo.get(notification_id)
-        if notification is None:
-            logger.error("Notification %s not found", notification_id)
-            return
+        notification = None
+        if notification_id is not None:
+            notification = await repo.get(notification_id)
+            if notification is None:
+                logger.error("Notification {} not found", notification_id)
+                return
 
         # Use tenant-specific client if tenant_id is provided
         client = None
@@ -208,13 +277,13 @@ async def _send(
                     provider = config.email_provider or settings.email_provider
                     if provider == "smtp" and config.smtp_user:
                         client = TenantSMTPEmailClient(config)
-                        logger.debug("Using tenant SMTP client for tenant_id=%s", tenant_id)
+                        logger.debug("Using tenant SMTP client for tenant_id={}", tenant_id)
                     elif config.ses_source_email:
                         client = TenantSESEmailClient(config)
-                        logger.debug("Using tenant SES client for tenant_id=%s", tenant_id)
+                        logger.debug("Using tenant SES client for tenant_id={}", tenant_id)
             except Exception as e:
                 logger.warning(
-                    "Failed to load tenant email config for tenant_id=%s, falling back to default: %s",
+                    "Failed to load tenant email config for tenant_id={}, falling back to default: {}",
                     tenant_id, e
                 )
 
@@ -232,40 +301,46 @@ async def _send(
 
         try:
             await client.send_email(to=to, subject=subject, body_html=body_html)
-            await repo.mark_sent(notification)
-            await session.commit()
+            if notification:
+                await repo.mark_sent(notification)
+                await session.commit()
             logger.info(
-                "[Worker] Email sent notification_id=%s to=%s template=%s",
+                "[Worker] Email sent notification_id={} to={} template={}",
                 notification_id, mask_email(to), template
             )
         except TRANSIENT_ERRORS as exc:
-            # R6-W1 fix: Transient errors should allow retry
-            current_retries = notification.retries or 0
-            if current_retries < MAX_RETRIES:
-                notification.retries = current_retries + 1
-                await session.commit()
-                logger.warning(
-                    "Email transient error notification_id=%s retry=%d/%d error=%s",
-                    notification_id, current_retries + 1, MAX_RETRIES, exc
-                )
-                raise  # Let RQ retry the job
+            if notification:
+                # R6-W1 fix: Transient errors should allow retry
+                current_retries = notification.retries or 0
+                if current_retries < MAX_RETRIES:
+                    notification.retries = current_retries + 1
+                    await session.commit()
+                    logger.warning(
+                        "Email transient error notification_id={} retry={}/{} error={}",
+                        notification_id, current_retries + 1, MAX_RETRIES, exc
+                    )
+                    raise  # Let RQ retry the job
+                else:
+                    await repo.mark_failed(notification)
+                    await session.commit()
+                    logger.error(
+                        "Email send failed after {} retries notification_id={} error={}",
+                        MAX_RETRIES, notification_id, exc
+                    )
+                    raise
             else:
-                await repo.mark_failed(notification)
-                await session.commit()
-                logger.error(
-                    "Email send failed after %d retries notification_id=%s error=%s",
-                    MAX_RETRIES, notification_id, exc
-                )
+                logger.warning("Email transient error to={} template={} error={}", mask_email(to), template, exc)
                 raise
         except Exception as exc:  # pragma: no cover - permanent failure
-            await repo.mark_failed(notification)
-            await session.commit()
-            logger.error("Email send failed notification_id=%s error=%s", notification_id, exc)
+            if notification:
+                await repo.mark_failed(notification)
+                await session.commit()
+            logger.error("Email send failed notification_id={} error={}", notification_id, exc)
             raise
 
 
 def send_email_message(
-    notification_id: int,
+    notification_id: int | None,
     to: str,
     template: str,
     variables: dict,

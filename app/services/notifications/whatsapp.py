@@ -91,7 +91,7 @@ class WhatsAppClient:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(self._base_url, headers=headers, json=payload)
             response.raise_for_status()
-            logger.info("[WhatsApp] Image message sent to=%s", mask_phone(to))
+            logger.info("[WhatsApp] Image message sent to={}", mask_phone(to))
 
     async def send_text_message(self, to: str, text: str) -> None:
         """Send a plain text message via WhatsApp (for broadcasts)."""
@@ -118,7 +118,7 @@ class WhatsAppClient:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(self._base_url, headers=headers, json=payload)
             response.raise_for_status()
-            logger.info("[WhatsApp] Text message sent to=%s", mask_phone(to))
+            logger.info("[WhatsApp] Text message sent to={}", mask_phone(to))
 
 
 class TenantWhatsAppClient:
@@ -144,7 +144,7 @@ class TenantWhatsAppClient:
         """Send a WhatsApp template message."""
         if not settings.enable_real_notifications:
             logger.info(
-                "[WhatsApp:tenant=%s] Dry-run send to=%s template=%s",
+                "[WhatsApp:tenant={}] Dry-run send to={} template={}",
                 self._tenant_id,
                 mask_phone(to),
                 template,
@@ -169,7 +169,7 @@ class TenantWhatsAppClient:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(self._base_url, headers=headers, json=payload)
             response.raise_for_status()
-            logger.info("[WhatsApp:tenant=%s] Template sent to=%s", self._tenant_id, mask_phone(to))
+            logger.info("[WhatsApp:tenant={}] Template sent to={}", self._tenant_id, mask_phone(to))
 
     async def send_image_message(
         self,
@@ -180,7 +180,7 @@ class TenantWhatsAppClient:
         """Send an image message with caption via WhatsApp."""
         if not settings.enable_real_notifications:
             logger.info(
-                "[WhatsApp:tenant=%s] Dry-run image send to=%s",
+                "[WhatsApp:tenant={}] Dry-run image send to={}",
                 self._tenant_id,
                 mask_phone(to),
             )
@@ -204,13 +204,13 @@ class TenantWhatsAppClient:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(self._base_url, headers=headers, json=payload)
             response.raise_for_status()
-            logger.info("[WhatsApp:tenant=%s] Image sent to=%s", self._tenant_id, mask_phone(to))
+            logger.info("[WhatsApp:tenant={}] Image sent to={}", self._tenant_id, mask_phone(to))
 
     async def send_text_message(self, to: str, text: str) -> None:
         """Send a plain text message via WhatsApp (for broadcasts)."""
         if not settings.enable_real_notifications:
             logger.info(
-                "[WhatsApp:tenant=%s] Dry-run text send to=%s text=%s",
+                "[WhatsApp:tenant={}] Dry-run text send to={} text={}",
                 self._tenant_id,
                 mask_phone(to),
                 text[:50] + "..." if len(text) > 50 else text,
@@ -232,4 +232,4 @@ class TenantWhatsAppClient:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(self._base_url, headers=headers, json=payload)
             response.raise_for_status()
-            logger.info("[WhatsApp:tenant=%s] Text sent to=%s", self._tenant_id, mask_phone(to))
+            logger.info("[WhatsApp:tenant={}] Text sent to={}", self._tenant_id, mask_phone(to))

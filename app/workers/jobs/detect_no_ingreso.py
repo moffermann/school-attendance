@@ -1,48 +1,61 @@
-"""Job to detect students without check-in."""
+"""Job to detect students without check-in.
+
+Multi-tenant aware: iterates over all active tenants and checks each schema.
+"""
 
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 from loguru import logger
+from sqlalchemy import select
 
-from app.core.config import settings
-from app.db.session import async_session
+from app.core.tenant_middleware import sanitize_schema_name
+from app.db.session import async_session, get_tenant_session
+from app.db.models.tenant import Tenant
 from app.schemas.notifications import NotificationChannel, NotificationDispatchRequest, NotificationType
 from app.services.attendance_service import AttendanceService
 from app.services.notifications.dispatcher import NotificationDispatcher
 from app.db.repositories.no_show_alerts import NoShowAlertRepository
 
 
-async def _detect_and_notify(target_dt: datetime | None = None) -> None:
-    current_dt = target_dt or datetime.now(timezone.utc)
-    async with async_session() as session:
+async def _process_tenant(
+    tenant_id: int,
+    schema_name: str,
+    tenant_slug: str,
+    current_dt: datetime,
+) -> tuple[int, int]:
+    """Process no-show alerts for a single tenant.
+
+    Returns:
+        Tuple of (success_count, error_count)
+    """
+    success_count = 0
+    error_count = 0
+
+    async with get_tenant_session(schema_name) as session:
         attendance_service = AttendanceService(session)
-        dispatcher = NotificationDispatcher(session)
+        dispatcher = NotificationDispatcher(session, tenant_id=tenant_id, tenant_schema=schema_name)
         alert_repo = NoShowAlertRepository(session)
 
         alerts = await attendance_service.detect_no_show_alerts(current_dt)
         if not alerts:
-            logger.info("[NoIngreso] No pending alerts at %s", current_dt)
-            return
+            logger.debug("[NoIngreso] Tenant '{}': No pending alerts at {}", tenant_slug, current_dt)
+            return 0, 0
 
-        reminder_delta = timedelta(minutes=settings.no_show_grace_minutes)
-
-        success_count = 0
-        error_count = 0
+        logger.info("[NoIngreso] Tenant '{}': Found {} potential alerts", tenant_slug, len(alerts))
 
         for entry in alerts:
             alert_record = entry["alert"]
             guardian = entry["guardian"]
             student = entry["student"]
 
+            # Skip resolved alerts
             if alert_record.status == "RESOLVED":
                 continue
-            if (
-                alert_record.last_notification_at
-                and current_dt - alert_record.last_notification_at < reminder_delta
-            ):
+            # Only notify ONCE per alert - if already notified, skip
+            if alert_record.last_notification_at is not None:
                 continue
 
             student_names = student.full_name
@@ -72,15 +85,21 @@ async def _detect_and_notify(target_dt: datetime | None = None) -> None:
                     continue
                 if channel == NotificationChannel.EMAIL and not contacts.get("email"):
                     continue
+                # Build informative variables for email template
+                course_name = entry["course"].name if entry.get("course") else f"Curso ID {alert_record.course_id}"
+                schedule = entry.get("schedule")
+                expected_time = schedule.in_time.strftime("%H:%M") if schedule and schedule.in_time else "08:00"
+
                 payload = NotificationDispatchRequest(
                     guardian_id=guardian.id,
                     student_id=None,
                     channel=channel,
                     template=NotificationType.NO_INGRESO_UMBRAL,
                     variables={
-                        "students": student_names,
-                        "course_id": str(entry["course"].name if entry.get("course") else alert_record.course_id),
-                        "timestamp": current_dt.strftime("%H:%M"),
+                        "student_name": student_names,
+                        "date": current_dt.strftime("%d/%m/%Y"),
+                        "expected_time": expected_time,
+                        "course_name": course_name,
                     },
                 )
                 try:
@@ -94,17 +113,55 @@ async def _detect_and_notify(target_dt: datetime | None = None) -> None:
                     await session.rollback()
                     error_count += 1
                     logger.error(
-                        "[NoIngreso] Failed to enqueue notification guardian=%s channel=%s error=%s",
+                        "[NoIngreso] Tenant '{}': Failed to enqueue notification guardian={} channel={} error={}",
+                        tenant_slug,
                         guardian.id,
                         channel,
                         exc,
                     )
 
-        logger.info(
-            "[NoIngreso] Completed: %d notifications sent, %d errors",
-            success_count,
-            error_count,
+    return success_count, error_count
+
+
+async def _detect_and_notify(target_dt: datetime | None = None) -> None:
+    """Detect no-show alerts across all tenants and send notifications."""
+    current_dt = target_dt or datetime.now(timezone.utc)
+    total_success = 0
+    total_errors = 0
+
+    # First, get all active tenants from public schema
+    async with async_session() as session:
+        result = await session.execute(
+            select(Tenant).where(Tenant.is_active == True)  # noqa: E712
         )
+        tenants = list(result.scalars().all())
+
+    if not tenants:
+        logger.debug("[NoIngreso] No active tenants found")
+        return
+
+    # Process each tenant's schema
+    for tenant in tenants:
+        schema_name = f"tenant_{sanitize_schema_name(tenant.slug)}"
+
+        try:
+            success, errors = await _process_tenant(tenant.id, schema_name, tenant.slug, current_dt)
+            total_success += success
+            total_errors += errors
+        except Exception as exc:
+            logger.error(
+                "[NoIngreso] Error processing tenant '{}': {}",
+                tenant.slug,
+                exc,
+            )
+            continue
+
+    logger.info(
+        "[NoIngreso] Completed: {} notifications sent, {} errors across {} tenants",
+        total_success,
+        total_errors,
+        len(tenants),
+    )
 
 
 def detect_no_ingreso_job(target_iso: str | None = None) -> None:
@@ -113,5 +170,5 @@ def detect_no_ingreso_job(target_iso: str | None = None) -> None:
     try:
         asyncio.run(_detect_and_notify(target_dt))
     except Exception as exc:
-        logger.error("[NoIngreso] Job failed with error: %s", exc)
+        logger.error("[NoIngreso] Job failed with error: {}", exc)
         raise  # Re-raise to let RQ handle the failure

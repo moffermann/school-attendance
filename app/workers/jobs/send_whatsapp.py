@@ -109,7 +109,7 @@ async def _send(
         repo = NotificationRepository(session)
         notification = await repo.get(notification_id)
         if notification is None:
-            logger.error("Notification %s not found", notification_id)
+            logger.error("Notification {} not found", notification_id)
             return
 
         # Use tenant-specific client if tenant_id is provided
@@ -120,10 +120,10 @@ async def _send(
                 config = await config_repo.get_decrypted(tenant_id)
                 if config and config.whatsapp_access_token:
                     client = TenantWhatsAppClient(config)
-                    logger.debug("Using tenant WhatsApp client for tenant_id=%s", tenant_id)
+                    logger.debug("Using tenant WhatsApp client for tenant_id={}", tenant_id)
             except Exception as e:
                 logger.warning(
-                    "Failed to load tenant WhatsApp config for tenant_id=%s, falling back to default: %s",
+                    "Failed to load tenant WhatsApp config for tenant_id={}, falling back to default: {}",
                     tenant_id, e
                 )
 
@@ -169,7 +169,7 @@ async def _send(
             await repo.mark_sent(notification)
             await session.commit()
             logger.info(
-                "[Worker] WhatsApp sent notification_id=%s to=%s with_photo=%s",
+                "[Worker] WhatsApp sent notification_id={} to={} with_photo={}",
                 notification_id,
                 mask_phone(to),
                 has_photo and photo_url is not None,
@@ -182,7 +182,7 @@ async def _send(
                 notification.retries = current_retries + 1
                 await session.commit()
                 logger.warning(
-                    "WhatsApp transient error notification_id=%s retry=%d/%d error=%s",
+                    "WhatsApp transient error notification_id={} retry={}/{} error={}",
                     notification_id, current_retries + 1, MAX_RETRIES, exc
                 )
                 raise  # Let RQ retry the job
@@ -190,7 +190,7 @@ async def _send(
                 await repo.mark_failed(notification)
                 await session.commit()
                 logger.error(
-                    "WhatsApp send failed after %d retries notification_id=%s error=%s",
+                    "WhatsApp send failed after {} retries notification_id={} error={}",
                     MAX_RETRIES, notification_id, exc
                 )
                 raise
@@ -198,7 +198,7 @@ async def _send(
             # Non-transient errors (e.g., 400 Bad Request) - mark as failed immediately
             await repo.mark_failed(notification)
             await session.commit()
-            logger.error("WhatsApp send failed notification_id=%s error=%s", notification_id, exc)
+            logger.error("WhatsApp send failed notification_id={} error={}", notification_id, exc)
             raise
 
 

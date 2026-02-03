@@ -60,14 +60,14 @@ async def _mark_devices_offline() -> None:
 
                 if result.rowcount > 0:
                     logger.info(
-                        "[DeviceStatus] Tenant '%s': Marked %d device(s) as offline",
+                        "[DeviceStatus] Tenant '{}': Marked {} device(s) as offline",
                         tenant.slug,
                         result.rowcount,
                     )
                     total_updated += result.rowcount
         except Exception as exc:
             logger.error(
-                "[DeviceStatus] Error processing tenant '%s': %s",
+                "[DeviceStatus] Error processing tenant '{}': {}",
                 tenant.slug,
                 exc,
             )
@@ -75,7 +75,7 @@ async def _mark_devices_offline() -> None:
 
     if total_updated > 0:
         logger.info(
-            "[DeviceStatus] Total: Marked %d device(s) as offline (no heartbeat in %d min)",
+            "[DeviceStatus] Total: Marked {} device(s) as offline (no heartbeat in {} min)",
             total_updated,
             OFFLINE_THRESHOLD_MINUTES,
         )
@@ -88,5 +88,5 @@ def mark_devices_offline_job() -> None:
     try:
         asyncio.run(_mark_devices_offline())
     except Exception as exc:
-        logger.error("[DeviceStatus] Job failed with error: %s", exc)
+        logger.error("[DeviceStatus] Job failed with error: {}", exc)
         raise

@@ -80,7 +80,7 @@ class SMTPEmailClient:
         """Send email asynchronously."""
         if not settings.enable_real_notifications:
             logger.info(
-                "[SMTP] Dry-run email to=%s subject=%s host=%s",
+                "[SMTP] Dry-run email to={} subject={} host={}",
                 mask_email(to),
                 subject,
                 self._host,
@@ -90,15 +90,15 @@ class SMTPEmailClient:
         try:
             await asyncio.to_thread(self._send_sync, to, subject, body_html)
             logger.info(
-                "[SMTP] Email sent to=%s subject=%s",
+                "[SMTP] Email sent to={} subject={}",
                 mask_email(to),
                 subject,
             )
         except smtplib.SMTPAuthenticationError as exc:
-            logger.error("[SMTP] Authentication failed: %s", exc)
+            logger.error("[SMTP] Authentication failed: {}", exc)
             raise
         except smtplib.SMTPException as exc:
-            logger.error("[SMTP] Send failed: %s", exc)
+            logger.error("[SMTP] Send failed: {}", exc)
             raise
 
 
@@ -155,7 +155,7 @@ class TenantSMTPEmailClient:
         """Send email asynchronously using tenant's SMTP configuration."""
         if not settings.enable_real_notifications:
             logger.info(
-                "[SMTP:tenant=%s] Dry-run email to=%s subject=%s",
+                "[SMTP:tenant={}] Dry-run email to={} subject={}",
                 self._tenant_id,
                 mask_email(to),
                 subject,
@@ -165,13 +165,13 @@ class TenantSMTPEmailClient:
         try:
             await asyncio.to_thread(self._send_sync, to, subject, body_html)
             logger.info(
-                "[SMTP:tenant=%s] Email sent to=%s",
+                "[SMTP:tenant={}] Email sent to={}",
                 self._tenant_id,
                 mask_email(to),
             )
         except smtplib.SMTPAuthenticationError as exc:
-            logger.error("[SMTP:tenant=%s] Authentication failed: %s", self._tenant_id, exc)
+            logger.error("[SMTP:tenant={}] Authentication failed: {}", self._tenant_id, exc)
             raise
         except smtplib.SMTPException as exc:
-            logger.error("[SMTP:tenant=%s] Send failed: %s", self._tenant_id, exc)
+            logger.error("[SMTP:tenant={}] Send failed: {}", self._tenant_id, exc)
             raise

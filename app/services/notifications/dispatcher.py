@@ -29,7 +29,7 @@ class NotificationDispatcher:
                 self._redis.close()
             except Exception as exc:
                 # R2-B13 fix: Log errors instead of silently ignoring
-                logger.debug("Error closing Redis connection in destructor: %s", exc)
+                logger.debug("Error closing Redis connection in destructor: {}", exc)
 
     async def enqueue_manual_notification(self, payload: NotificationDispatchRequest) -> NotificationRead:
         guardian = await self.guardian_repo.get(payload.guardian_id)

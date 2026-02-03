@@ -59,6 +59,7 @@ def validate_schema_name(schema_name: str) -> bool:
     return True
 
 
+@asynccontextmanager
 async def get_tenant_session(schema_name: str) -> AsyncGenerator[AsyncSession, None]:
     """
     Get a database session with search_path set to tenant schema.

@@ -20,7 +20,7 @@ async def _cleanup() -> None:
         photo_service = PhotoService()
         expired = await repo.events_with_photo_before(cutoff)
         if not expired:
-            logger.info("[CleanupPhotos] No expired photos before %s", cutoff)
+            logger.info("[CleanupPhotos] No expired photos before {}", cutoff)
             return
 
         for event in expired:
@@ -30,9 +30,9 @@ async def _cleanup() -> None:
                 await photo_service.delete_photo(event.photo_ref)
                 await repo.update_photo_ref(event.id, None)
             except Exception as exc:  # pragma: no cover
-                logger.error("[CleanupPhotos] Failed to delete %s: %s", event.photo_ref, exc)
+                logger.error("[CleanupPhotos] Failed to delete {}: {}", event.photo_ref, exc)
         await session.commit()
-        logger.info("[CleanupPhotos] Removed %s expired photos", len(expired))
+        logger.info("[CleanupPhotos] Removed {} expired photos", len(expired))
 
 
 def cleanup_expired_photos() -> None:

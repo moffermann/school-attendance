@@ -165,6 +165,7 @@ class AttendanceService:
                             "guardian": guardian,
                             "student": student,
                             "course": schedule.course,
+                            "schedule": schedule,
                         }
                     )
 

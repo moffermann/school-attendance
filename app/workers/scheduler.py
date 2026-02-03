@@ -44,7 +44,7 @@ async def run_scheduler() -> None:
     )
 
     scheduler.start()
-    logger.info("Scheduler started with jobs: %s", scheduler.get_jobs())
+    logger.info("Scheduler started with jobs: {}", scheduler.get_jobs())
 
     try:
         while True:
