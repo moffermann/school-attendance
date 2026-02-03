@@ -121,6 +121,12 @@ Views.auth = function() {
                        placeholder="••••••••" required>
               </div>
 
+              <div class="text-right">
+                <a href="#/forgot-password" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+                  ¿Olvidaste tu contraseña?
+                </a>
+              </div>
+
               <div id="login-error" class="text-red-500 text-sm text-center" style="display: none;"></div>
 
               <div class="flex flex-col sm:flex-row gap-3 pt-2">
