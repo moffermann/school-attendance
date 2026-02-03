@@ -29,6 +29,7 @@ from app.db.models.associations import student_guardian_table, teacher_course_ta
 from app.db.models.no_show_alert import NoShowAlert
 from app.db.models.webauthn_credential import WebAuthnCredential
 from app.db.models.push_subscription import PushSubscription
+from app.db.models.user_invitation import UserInvitation
 
 __all__ = [
     # Multi-tenant models
@@ -60,4 +61,5 @@ __all__ = [
     "NoShowAlert",
     "WebAuthnCredential",
     "PushSubscription",
+    "UserInvitation",
 ]
