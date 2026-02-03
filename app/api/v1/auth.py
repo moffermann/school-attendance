@@ -1,6 +1,6 @@
 """Authentication endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,14 +11,18 @@ from app.core.security import create_access_token, decode_session, decode_token
 from app.core.token_blacklist import token_blacklist
 from app.db.repositories.users import UserRepository
 from app.schemas.auth import (
+    CompleteSetupRequest,
+    ForgotPasswordRequest,
     LoginRequest,
     LogoutRequest,
     RefreshRequest,
+    ResetPasswordRequest,
     SessionResponse,
     SessionUser,
     TokenPair,
 )
 from app.services.auth_service import AuthService
+from app.services.user_invitation_service import UserInvitationService
 
 router = APIRouter()
 
@@ -169,3 +173,93 @@ async def session_info(
             guardian_id=user.guardian_id,
         ),
     )
+
+
+@router.get("/validate-invitation")
+async def validate_invitation_token(
+    token: str = Query(...),
+    invitation_service: UserInvitationService = Depends(deps.get_invitation_service),
+) -> dict:
+    """Validate parent invitation token."""
+    invitation = await invitation_service.validate_token(token, "INVITATION")
+    if not invitation:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido o expirado")
+    return {"email": invitation.email, "valid": True}
+
+
+@router.post("/complete-setup", response_model=TokenPair)
+async def complete_setup(
+    request: Request,
+    payload: CompleteSetupRequest,
+    invitation_service: UserInvitationService = Depends(deps.get_invitation_service),
+    auth_service: AuthService = Depends(deps.get_auth_service),
+) -> TokenPair:
+    """Complete parent account setup (set password and get tokens)."""
+    user = await invitation_service.complete_setup(payload.token, payload.password)
+    ip = _get_client_ip(request)
+    audit_log(
+        AuditEvent.LOGIN_SUCCESS,
+        user_id=user.id,
+        ip_address=ip,
+        details={"method": "invitation_setup"},
+    )
+    # Generate tenant-aware tokens
+    from app.core.security import create_tenant_access_token, create_tenant_refresh_token
+
+    tenant = getattr(request.state, "tenant", None)
+    if tenant:
+        access_token = create_tenant_access_token(
+            user_id=user.id,
+            tenant_id=tenant.id,
+            tenant_slug=tenant.slug,
+            role=user.role,
+            guardian_id=user.guardian_id,
+        )
+        refresh_token = create_tenant_refresh_token(user_id=user.id, tenant_id=tenant.id)
+    else:
+        access_token = create_access_token(str(user.id), role=user.role, guardian_id=user.guardian_id)
+        from app.core.security import create_refresh_token
+        refresh_token = create_refresh_token(str(user.id))
+    return TokenPair(access_token=access_token, refresh_token=refresh_token)
+
+
+@router.post("/forgot-password")
+@limiter.limit("3/minute")
+async def forgot_password(
+    request: Request,
+    payload: ForgotPasswordRequest,
+    invitation_service: UserInvitationService = Depends(deps.get_invitation_service),
+) -> dict:
+    """Send password reset email (always returns OK for security)."""
+    await invitation_service.send_password_reset(payload.email)
+    return {"message": "Si el email existe, recibirás un enlace de recuperación"}
+
+
+@router.get("/validate-reset")
+async def validate_reset_token(
+    token: str = Query(...),
+    invitation_service: UserInvitationService = Depends(deps.get_invitation_service),
+) -> dict:
+    """Validate password reset token."""
+    invitation = await invitation_service.validate_token(token, "PASSWORD_RESET")
+    if not invitation:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido o expirado")
+    return {"email": invitation.email, "valid": True}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    request: Request,
+    payload: ResetPasswordRequest,
+    invitation_service: UserInvitationService = Depends(deps.get_invitation_service),
+) -> dict:
+    """Reset password using a valid token."""
+    user = await invitation_service.reset_password(payload.token, payload.password)
+    ip = _get_client_ip(request)
+    audit_log(
+        AuditEvent.LOGIN_SUCCESS,
+        ip_address=ip,
+        user_id=user.id,
+        details={"method": "password_reset"},
+    )
+    return {"message": "Contraseña actualizada exitosamente"}

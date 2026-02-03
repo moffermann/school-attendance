@@ -34,6 +34,8 @@ from app.services.course_service import CourseService
 from app.services.teacher_service import TeacherService
 from app.services.guardian_service import GuardianService
 from app.services.student_service import StudentService
+from app.services.user_invitation_service import UserInvitationService
+from app.db.repositories.user_invitations import UserInvitationRepository
 
 if TYPE_CHECKING:
     from app.db.models.tenant import Tenant
@@ -92,7 +94,7 @@ async def get_tenant_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
     tenant_schema = getattr(request.state, "tenant_schema", None)
 
     if tenant_schema:
-        async for session in get_tenant_session(tenant_schema):
+        async with get_tenant_session(tenant_schema) as session:
             yield session
     else:
         # Fallback to public schema (backwards compatibility)
@@ -118,7 +120,7 @@ async def require_tenant_db(request: Request) -> AsyncGenerator[AsyncSession, No
             detail="Se requiere contexto de tenant",
         )
 
-    async for session in get_tenant_session(tenant_schema):
+    async with get_tenant_session(tenant_schema) as session:
         yield session
 
 
@@ -405,7 +407,25 @@ async def get_guardian_service(
     request: Request,
     session: AsyncSession = Depends(get_tenant_db),
 ) -> GuardianService:
-    return GuardianService(session)
+    tenant = getattr(request.state, "tenant", None)
+    tenant_id = tenant.id if tenant else None
+    tenant_schema = getattr(request.state, "tenant_schema", None)
+    return GuardianService(session, tenant_id=tenant_id, tenant_schema=tenant_schema)
+
+
+async def get_invitation_service(
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
+) -> UserInvitationService:
+    tenant = getattr(request.state, "tenant", None)
+    tenant_id = tenant.id if tenant else None
+    tenant_schema = getattr(request.state, "tenant_schema", None)
+    user_repo = UserRepository(session)
+    invitation_repo = UserInvitationRepository(session)
+    return UserInvitationService(
+        session, user_repo, invitation_repo,
+        tenant_id=tenant_id, tenant_schema=tenant_schema,
+    )
 
 
 async def get_student_service(

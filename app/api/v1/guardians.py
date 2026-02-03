@@ -9,7 +9,9 @@ from slowapi.util import get_remote_address
 
 from app.core import deps
 from app.core.deps import TenantAuthUser
+from app.db.repositories.users import UserRepository
 from app.services.guardian_service import GuardianService
+from app.services.user_invitation_service import UserInvitationService
 from app.schemas.guardians import (
     GuardianCreateRequest,
     GuardianFilters,
@@ -167,6 +169,40 @@ async def restore_guardian(
 ) -> GuardianResponse:
     """Restore a deleted guardian."""
     return await service.restore_guardian(user, guardian_id, request)
+
+
+@router.post("/{guardian_id}/resend-invitation")
+@limiter.limit("5/minute")
+async def resend_invitation(
+    request: Request,
+    guardian_id: int = Path(..., ge=1, description="ID del apoderado"),
+    user: TenantAuthUser = Depends(deps.get_current_tenant_user),
+    invitation_service: UserInvitationService = Depends(deps.get_invitation_service),
+) -> dict:
+    """Resend invitation email to a guardian's parent account."""
+    if user.role not in ("DIRECTOR", "ADMIN"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo directores pueden reenviar invitaciones",
+        )
+    # Find user linked to this guardian
+    from sqlalchemy.ext.asyncio import AsyncSession
+    session = invitation_service.session
+    user_repo = invitation_service.user_repo
+    parent_user = await user_repo.get_by_guardian_id(guardian_id)
+    if not parent_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontró cuenta de usuario para este apoderado",
+        )
+    if parent_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El apoderado ya completó su registro",
+        )
+    await invitation_service.send_invitation(parent_user.id, parent_user.email)
+    await session.commit()
+    return {"message": "Invitación reenviada"}
 
 
 @router.put("/{guardian_id}/students", response_model=GuardianResponse)

@@ -10,6 +10,8 @@ from fastapi import HTTPException, Request, status
 from app.core.audit import AuditEvent, audit_log
 from app.db.repositories.guardians import GuardianRepository
 from app.db.repositories.students import StudentRepository
+from app.db.repositories.users import UserRepository
+from app.db.repositories.user_invitations import UserInvitationRepository
 from app.schemas.guardians import (
     GuardianCreateRequest,
     GuardianFilters,
@@ -38,10 +40,20 @@ class GuardianService:
     # Roles that can export guardians
     EXPORT_ROLES = {"ADMIN", "DIRECTOR", "INSPECTOR"}
 
-    def __init__(self, session: "AsyncSession"):
+    def __init__(
+        self,
+        session: "AsyncSession",
+        *,
+        tenant_id: int | None = None,
+        tenant_schema: str | None = None,
+    ):
         self.session = session
         self.guardian_repo = GuardianRepository(session)
         self.student_repo = StudentRepository(session)
+        self.user_repo = UserRepository(session)
+        self.invitation_repo = UserInvitationRepository(session)
+        self.tenant_id = tenant_id
+        self.tenant_schema = tenant_schema
 
     # -------------------------------------------------------------------------
     # List operations
@@ -202,12 +214,38 @@ class GuardianService:
             if payload.student_ids:
                 await self.guardian_repo.set_students(guardian.id, payload.student_ids)
 
-            # 4. Commit and get fresh instance
+            # 4. Auto-create User (PARENT) and send invitation if email provided
+            email = contacts_dict.get("email") if contacts_dict else None
+            if email:
+                existing_user = await self.user_repo.get_by_email(email.lower())
+                if not existing_user:
+                    from app.services.user_invitation_service import UserInvitationService
+
+                    new_user = await self.user_repo.create(
+                        email=email.lower(),
+                        full_name=guardian.full_name,
+                        role="PARENT",
+                        hashed_password="!PENDING_SETUP",
+                        guardian_id=guardian.id,
+                    )
+                    new_user.is_active = False
+                    await self.session.flush()
+
+                    invitation_service = UserInvitationService(
+                        self.session,
+                        self.user_repo,
+                        self.invitation_repo,
+                        tenant_id=self.tenant_id,
+                        tenant_schema=self.tenant_schema,
+                    )
+                    await invitation_service.send_invitation(new_user.id, email.lower())
+
+            # 5. Commit and get fresh instance
             await self.session.commit()
             # Re-fetch instead of refresh to avoid detached instance issues
             guardian = await self.guardian_repo.get(guardian.id)
 
-            # 5. Audit log with IP
+            # 6. Audit log with IP
             client_ip = request.client.host if request and request.client else None
             audit_log(
                 AuditEvent.GUARDIAN_CREATED,

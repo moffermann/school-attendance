@@ -46,3 +46,17 @@ class SessionUser(BaseModel):
 class SessionResponse(BaseModel):
     access_token: str
     user: SessionUser
+
+
+class CompleteSetupRequest(BaseModel):
+    token: str
+    password: str = Field(..., min_length=8)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str = Field(..., min_length=8)
