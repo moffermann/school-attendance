@@ -1,8 +1,8 @@
 """Notification model."""
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, JSON, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -29,3 +29,20 @@ class Notification(Base):
     # R12-P9 fix: Add index for worker time-range queries
     ts_sent: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     retries: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Deduplication fields for attendance notifications
+    notification_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    context_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+
+    __table_args__ = (
+        # Partial unique index for attendance notification deduplication
+        # Ensures only 1 notification per guardian/channel/template/student/day
+        Index(
+            'ix_notifications_dedup',
+            'guardian_id', 'channel', 'template', 'context_id', 'notification_date',
+            unique=True,
+            postgresql_where=text(
+                "template IN ('INGRESO_OK', 'SALIDA_OK') AND context_id IS NOT NULL"
+            )
+        ),
+    )
