@@ -3,37 +3,36 @@
 import json
 import os
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import HTTPException, status
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from webauthn import (
-    generate_registration_options,
-    verify_registration_response,
     generate_authentication_options,
-    verify_authentication_response,
+    generate_registration_options,
     options_to_json,
+    verify_authentication_response,
+    verify_registration_response,
 )
-from webauthn.helpers import bytes_to_base64url, base64url_to_bytes
+from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
 from webauthn.helpers.structs import (
+    AuthenticatorAttachment,
     AuthenticatorSelectionCriteria,
+    AuthenticatorTransport,
+    PublicKeyCredentialDescriptor,
     ResidentKeyRequirement,
     UserVerificationRequirement,
-    AuthenticatorAttachment,
-    PublicKeyCredentialDescriptor,
-    AuthenticatorTransport,
 )
 
 from app.core.config import settings
 from app.db.models.student import Student
 from app.db.models.user import User
 from app.db.models.webauthn_credential import WebAuthnCredential
-from app.db.repositories.webauthn import WebAuthnRepository
 from app.db.repositories.students import StudentRepository
 from app.db.repositories.users import UserRepository
-
+from app.db.repositories.webauthn import WebAuthnRepository
 
 # In-memory challenge store (for production, use Redis)
 # Key: challenge_id (random), Value: {challenge: bytes, entity_type: str, entity_id: int, expires: datetime}
@@ -43,14 +42,14 @@ _challenge_store: dict[str, dict[str, Any]] = {}
 def _cleanup_expired_challenges():
     """Remove expired challenges from the store."""
     # R2-B1 fix: Use timezone-aware datetime for consistent comparison
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expired = []
     for k, v in _challenge_store.items():
         expires = v["expires"]
         # Handle both naive and aware datetimes for backwards compatibility
         if expires.tzinfo is None:
             # Treat naive datetime as UTC
-            expires = expires.replace(tzinfo=timezone.utc)
+            expires = expires.replace(tzinfo=UTC)
         if expires < now:
             expired.append(k)
     for k in expired:
@@ -91,8 +90,7 @@ class WebAuthnService:
         student = await self.student_repo.get(student_id)
         if not student:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Estudiante no encontrado"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Estudiante no encontrado"
             )
 
         # Check if student already has credentials
@@ -135,7 +133,7 @@ class WebAuthnService:
             "entity_type": "student",
             "entity_id": student_id,
             "device_name": device_name,
-            "expires": datetime.now(timezone.utc) + timedelta(milliseconds=settings.webauthn_timeout_ms),
+            "expires": datetime.now(UTC) + timedelta(milliseconds=settings.webauthn_timeout_ms),
         }
 
         _cleanup_expired_challenges()
@@ -162,20 +160,18 @@ class WebAuthnService:
         challenge_data = _challenge_store.pop(challenge_id, None)
         if not challenge_data:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Challenge inválido o expirado"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Challenge inválido o expirado"
             )
 
-        if challenge_data["expires"] < datetime.now(timezone.utc):
+        if challenge_data["expires"] < datetime.now(UTC):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Challenge expirado"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Challenge expirado"
             )
 
         if challenge_data["entity_type"] != "student":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Challenge no corresponde a registro de estudiante"
+                detail="Challenge no corresponde a registro de estudiante",
             )
 
         # Verify the registration response
@@ -191,14 +187,15 @@ class WebAuthnService:
             # R10-S5 fix: Log internal error details, return generic message
             logger.error("WebAuthn student registration verification failed: %s", e)
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Error verificando credencial"
-            )
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Error verificando credencial"
+            ) from None
 
         # Extract transports if provided
         # R2-B2 fix: credential_response is a dict, use 'in' operator not hasattr
         transports = None
-        if "response" in credential_response and "transports" in credential_response.get("response", {}):
+        if "response" in credential_response and "transports" in credential_response.get(
+            "response", {}
+        ):
             transports = ",".join(credential_response["response"].get("transports", []))
 
         # Create credential record
@@ -211,7 +208,7 @@ class WebAuthnService:
             sign_count=verification.sign_count,
             transports=transports,
             device_name=challenge_data.get("device_name"),
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         await self.credential_repo.create(credential)
@@ -234,13 +231,17 @@ class WebAuthnService:
         # For discoverable credentials, we can leave this empty to allow any
         all_credentials = await self.credential_repo.get_all_student_credentials()
 
-        allow_credentials = [
-            PublicKeyCredentialDescriptor(
-                id=base64url_to_bytes(cred.credential_id),
-                transports=self._parse_transports(cred.transports),
-            )
-            for cred in all_credentials
-        ] if all_credentials else None
+        allow_credentials = (
+            [
+                PublicKeyCredentialDescriptor(
+                    id=base64url_to_bytes(cred.credential_id),
+                    transports=self._parse_transports(cred.transports),
+                )
+                for cred in all_credentials
+            ]
+            if all_credentials
+            else None
+        )
 
         options = generate_authentication_options(
             rp_id=settings.webauthn_rp_id,
@@ -255,7 +256,7 @@ class WebAuthnService:
         _challenge_store[challenge_id] = {
             "challenge": options.challenge,
             "entity_type": "student_auth",
-            "expires": datetime.now(timezone.utc) + timedelta(milliseconds=settings.webauthn_timeout_ms),
+            "expires": datetime.now(UTC) + timedelta(milliseconds=settings.webauthn_timeout_ms),
         }
 
         _cleanup_expired_challenges()
@@ -282,30 +283,26 @@ class WebAuthnService:
         challenge_data = _challenge_store.pop(challenge_id, None)
         if not challenge_data:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Challenge inválido o expirado"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Challenge inválido o expirado"
             )
 
-        if challenge_data["expires"] < datetime.now(timezone.utc):
+        if challenge_data["expires"] < datetime.now(UTC):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Challenge expirado"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Challenge expirado"
             )
 
         # Get credential ID from response
         credential_id = credential_response.get("id") or credential_response.get("rawId")
         if not credential_id:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="credential_id no proporcionado"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="credential_id no proporcionado"
             )
 
         # Look up the credential
         credential = await self.credential_repo.get_by_credential_id(credential_id)
         if not credential or not credential.student_id:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Credencial no reconocida"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Credencial no reconocida"
             )
 
         # Verify the authentication response
@@ -323,14 +320,12 @@ class WebAuthnService:
             # R10-S5 fix: Log internal error details, return generic message
             logger.error("WebAuthn authentication verification failed: %s", e)
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Error verificando autenticación"
-            )
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Error verificando autenticación"
+            ) from None
 
         # Update sign count
         await self.credential_repo.update_sign_count(
-            credential.credential_id,
-            verification.new_sign_count
+            credential.credential_id, verification.new_sign_count
         )
         await self.session.commit()
 
@@ -338,8 +333,7 @@ class WebAuthnService:
         student = await self.student_repo.get_with_course(credential.student_id)
         if not student:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Estudiante no encontrado"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Estudiante no encontrado"
             )
 
         return student
@@ -357,8 +351,7 @@ class WebAuthnService:
         user = await self.user_repo.get(user_id)
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Usuario no encontrado"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado"
             )
 
         existing = await self.credential_repo.list_by_user(user_id)
@@ -396,7 +389,7 @@ class WebAuthnService:
             "entity_type": "user",
             "entity_id": user_id,
             "device_name": device_name,
-            "expires": datetime.now(timezone.utc) + timedelta(milliseconds=settings.webauthn_timeout_ms),
+            "expires": datetime.now(UTC) + timedelta(milliseconds=settings.webauthn_timeout_ms),
         }
 
         _cleanup_expired_challenges()
@@ -418,20 +411,18 @@ class WebAuthnService:
         challenge_data = _challenge_store.pop(challenge_id, None)
         if not challenge_data:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Challenge inválido o expirado"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Challenge inválido o expirado"
             )
 
-        if challenge_data["expires"] < datetime.now(timezone.utc):
+        if challenge_data["expires"] < datetime.now(UTC):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Challenge expirado"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Challenge expirado"
             )
 
         if challenge_data["entity_type"] != "user":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Challenge no corresponde a registro de usuario"
+                detail="Challenge no corresponde a registro de usuario",
             )
 
         try:
@@ -446,9 +437,8 @@ class WebAuthnService:
             # R10-S5 fix: Log internal error details, return generic message
             logger.error("WebAuthn user registration verification failed: %s", e)
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Error verificando credencial"
-            )
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Error verificando credencial"
+            ) from None
 
         transports = None
         if "response" in credential_response and "transports" in credential_response["response"]:
@@ -463,7 +453,7 @@ class WebAuthnService:
             sign_count=verification.sign_count,
             transports=transports,
             device_name=challenge_data.get("device_name"),
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         await self.credential_repo.create(credential)
@@ -484,13 +474,17 @@ class WebAuthnService:
         # Get all user credentials for allowCredentials
         all_credentials = await self.credential_repo.get_all_user_credentials()
 
-        allow_credentials = [
-            PublicKeyCredentialDescriptor(
-                id=base64url_to_bytes(cred.credential_id),
-                transports=self._parse_transports(cred.transports),
-            )
-            for cred in all_credentials
-        ] if all_credentials else None
+        allow_credentials = (
+            [
+                PublicKeyCredentialDescriptor(
+                    id=base64url_to_bytes(cred.credential_id),
+                    transports=self._parse_transports(cred.transports),
+                )
+                for cred in all_credentials
+            ]
+            if all_credentials
+            else None
+        )
 
         options = generate_authentication_options(
             rp_id=settings.webauthn_rp_id,
@@ -503,7 +497,7 @@ class WebAuthnService:
         _challenge_store[challenge_id] = {
             "challenge": options.challenge,
             "entity_type": "user_auth",
-            "expires": datetime.now(timezone.utc) + timedelta(milliseconds=settings.webauthn_timeout_ms),
+            "expires": datetime.now(UTC) + timedelta(milliseconds=settings.webauthn_timeout_ms),
         }
 
         _cleanup_expired_challenges()
@@ -528,34 +522,30 @@ class WebAuthnService:
         challenge_data = _challenge_store.pop(challenge_id, None)
         if not challenge_data:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Challenge inválido o expirado"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Challenge inválido o expirado"
             )
 
-        if challenge_data["expires"] < datetime.now(timezone.utc):
+        if challenge_data["expires"] < datetime.now(UTC):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Challenge expirado"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Challenge expirado"
             )
 
         if challenge_data["entity_type"] != "user_auth":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Challenge no corresponde a autenticación de usuario"
+                detail="Challenge no corresponde a autenticación de usuario",
             )
 
         credential_id = credential_response.get("id") or credential_response.get("rawId")
         if not credential_id:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="credential_id no proporcionado"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="credential_id no proporcionado"
             )
 
         credential = await self.credential_repo.get_by_credential_id(credential_id)
         if not credential or not credential.user_id:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Credencial no reconocida"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Credencial no reconocida"
             )
 
         try:
@@ -571,22 +561,19 @@ class WebAuthnService:
         except Exception as e:
             logger.error("WebAuthn user authentication verification failed: %s", e)
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Error verificando autenticación"
-            )
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Error verificando autenticación"
+            ) from None
 
         # Update sign count and last_used_at
         await self.credential_repo.update_sign_count(
-            credential.credential_id,
-            verification.new_sign_count
+            credential.credential_id, verification.new_sign_count
         )
         await self.session.commit()
 
         user = await self.user_repo.get(credential.user_id)
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Usuario no encontrado"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado"
             )
 
         return user
@@ -635,7 +622,7 @@ class WebAuthnService:
         if user_id is not None and credential.user_id != user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tienes permiso para eliminar esta credencial"
+                detail="No tienes permiso para eliminar esta credencial",
             )
 
         await self.credential_repo.delete(credential_id)

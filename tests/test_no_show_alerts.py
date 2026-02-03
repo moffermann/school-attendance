@@ -2,21 +2,20 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.course import Course
 from app.db.models.guardian import Guardian
-from app.db.models.no_show_alert import NoShowAlert
 from app.db.models.student import Student
 from app.db.repositories.no_show_alerts import NoShowAlertRepository
-
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 async def alert_repo(db_session: AsyncSession) -> NoShowAlertRepository:
@@ -58,6 +57,7 @@ async def alert_student(db_session: AsyncSession, alert_course: Course) -> Stude
 # Repository Tests
 # =============================================================================
 
+
 class TestNoShowAlertRepository:
     """Tests for NoShowAlertRepository."""
 
@@ -70,7 +70,7 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=date(2025, 1, 15),
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
 
         assert alert.id is not None
@@ -90,13 +90,11 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=alert_date,
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
 
         # Get by unique constraint
-        result = await alert_repo.get_by_unique(
-            alert_student.id, alert_guardian.id, alert_date
-        )
+        result = await alert_repo.get_by_unique(alert_student.id, alert_guardian.id, alert_date)
 
         assert result is not None
         assert result.student_id == alert_student.id
@@ -116,14 +114,16 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=date(2025, 1, 17),
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
 
         assert created is True
         assert alert.id is not None
 
     @pytest.mark.asyncio
-    async def test_get_or_create_existing(self, alert_repo, alert_student, alert_guardian, alert_course):
+    async def test_get_or_create_existing(
+        self, alert_repo, alert_student, alert_guardian, alert_course
+    ):
         """Should return existing alert when already exists."""
         alert_date = date(2025, 1, 18)
 
@@ -134,7 +134,7 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=alert_date,
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
 
         # Try to create again
@@ -144,7 +144,7 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=alert_date,
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
 
         assert first_created is True
@@ -160,10 +160,10 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=date(2025, 1, 19),
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
 
-        await alert_repo.mark_notified(alert.id, datetime.now(timezone.utc))
+        await alert_repo.mark_notified(alert.id, datetime.now(UTC))
 
         # Refresh and check
         updated = await alert_repo.get_by_unique(
@@ -175,7 +175,7 @@ class TestNoShowAlertRepository:
     async def test_mark_notified_non_existent(self, alert_repo):
         """Should handle non-existent alert gracefully."""
         # Should not raise an error
-        await alert_repo.mark_notified(99999, datetime.now(timezone.utc))
+        await alert_repo.mark_notified(99999, datetime.now(UTC))
 
     @pytest.mark.asyncio
     async def test_mark_resolved(self, alert_repo, alert_student, alert_guardian, alert_course):
@@ -186,13 +186,13 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=date(2025, 1, 20),
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
 
         resolved = await alert_repo.mark_resolved(
             alert.id,
             notes="Contactado por teléfono",
-            resolved_at=datetime.now(timezone.utc),
+            resolved_at=datetime.now(UTC),
         )
 
         assert resolved is not None
@@ -200,7 +200,9 @@ class TestNoShowAlertRepository:
         assert resolved.notes == "Contactado por teléfono"
 
     @pytest.mark.asyncio
-    async def test_mark_resolved_without_notes(self, alert_repo, alert_student, alert_guardian, alert_course):
+    async def test_mark_resolved_without_notes(
+        self, alert_repo, alert_student, alert_guardian, alert_course
+    ):
         """Should mark alert as resolved without notes."""
         alert = await alert_repo.create(
             student_id=alert_student.id,
@@ -208,13 +210,13 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=date(2025, 1, 21),
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
 
         resolved = await alert_repo.mark_resolved(
             alert.id,
             notes=None,
-            resolved_at=datetime.now(timezone.utc),
+            resolved_at=datetime.now(UTC),
         )
 
         assert resolved is not None
@@ -226,7 +228,7 @@ class TestNoShowAlertRepository:
         result = await alert_repo.mark_resolved(
             99999,
             notes="Test",
-            resolved_at=datetime.now(timezone.utc),
+            resolved_at=datetime.now(UTC),
         )
         assert result is None
 
@@ -239,7 +241,7 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=date(2025, 1, 22),
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
 
         alerts = await alert_repo.list_alerts()
@@ -248,7 +250,9 @@ class TestNoShowAlertRepository:
         assert alerts[0]["student_name"] == "Alert Student"
 
     @pytest.mark.asyncio
-    async def test_list_alerts_filter_by_date(self, alert_repo, alert_student, alert_guardian, alert_course):
+    async def test_list_alerts_filter_by_date(
+        self, alert_repo, alert_student, alert_guardian, alert_course
+    ):
         """Should filter alerts by date range."""
         await alert_repo.create(
             student_id=alert_student.id,
@@ -256,7 +260,7 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=date(2025, 2, 1),
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
 
         alerts = await alert_repo.list_alerts(
@@ -264,13 +268,12 @@ class TestNoShowAlertRepository:
             end_date=date(2025, 2, 28),
         )
 
-        assert all(
-            date(2025, 2, 1) <= a["alert_date"] <= date(2025, 2, 28)
-            for a in alerts
-        )
+        assert all(date(2025, 2, 1) <= a["alert_date"] <= date(2025, 2, 28) for a in alerts)
 
     @pytest.mark.asyncio
-    async def test_list_alerts_filter_by_status(self, alert_repo, alert_student, alert_guardian, alert_course):
+    async def test_list_alerts_filter_by_status(
+        self, alert_repo, alert_student, alert_guardian, alert_course
+    ):
         """Should filter alerts by status."""
         alert = await alert_repo.create(
             student_id=alert_student.id,
@@ -278,16 +281,18 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=date(2025, 2, 2),
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
-        await alert_repo.mark_resolved(alert.id, "Resuelto", datetime.now(timezone.utc))
+        await alert_repo.mark_resolved(alert.id, "Resuelto", datetime.now(UTC))
 
         alerts = await alert_repo.list_alerts(status="RESOLVED")
 
         assert all(a["status"] == "RESOLVED" for a in alerts)
 
     @pytest.mark.asyncio
-    async def test_list_alerts_filter_by_course(self, alert_repo, alert_student, alert_guardian, alert_course):
+    async def test_list_alerts_filter_by_course(
+        self, alert_repo, alert_student, alert_guardian, alert_course
+    ):
         """Should filter alerts by course."""
         await alert_repo.create(
             student_id=alert_student.id,
@@ -295,7 +300,7 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=date(2025, 2, 3),
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
 
         alerts = await alert_repo.list_alerts(course_id=alert_course.id)
@@ -303,7 +308,9 @@ class TestNoShowAlertRepository:
         assert all(a["course_id"] == alert_course.id for a in alerts)
 
     @pytest.mark.asyncio
-    async def test_list_alerts_filter_by_guardian(self, alert_repo, alert_student, alert_guardian, alert_course):
+    async def test_list_alerts_filter_by_guardian(
+        self, alert_repo, alert_student, alert_guardian, alert_course
+    ):
         """Should filter alerts by guardian."""
         await alert_repo.create(
             student_id=alert_student.id,
@@ -311,7 +318,7 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=date(2025, 2, 4),
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
 
         alerts = await alert_repo.list_alerts(guardian_id=alert_guardian.id)
@@ -319,7 +326,9 @@ class TestNoShowAlertRepository:
         assert all(a["guardian_id"] == alert_guardian.id for a in alerts)
 
     @pytest.mark.asyncio
-    async def test_list_alerts_filter_by_student(self, alert_repo, alert_student, alert_guardian, alert_course):
+    async def test_list_alerts_filter_by_student(
+        self, alert_repo, alert_student, alert_guardian, alert_course
+    ):
         """Should filter alerts by student."""
         await alert_repo.create(
             student_id=alert_student.id,
@@ -327,7 +336,7 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=date(2025, 2, 5),
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
 
         alerts = await alert_repo.list_alerts(student_id=alert_student.id)
@@ -335,7 +344,9 @@ class TestNoShowAlertRepository:
         assert all(a["student_id"] == alert_student.id for a in alerts)
 
     @pytest.mark.asyncio
-    async def test_list_alerts_with_limit_offset(self, alert_repo, alert_student, alert_guardian, alert_course):
+    async def test_list_alerts_with_limit_offset(
+        self, alert_repo, alert_student, alert_guardian, alert_course
+    ):
         """Should apply limit and offset."""
         for i in range(5):
             await alert_repo.create(
@@ -344,7 +355,7 @@ class TestNoShowAlertRepository:
                 course_id=alert_course.id,
                 schedule_id=None,
                 alert_date=date(2025, 3, i + 1),
-                alerted_at=datetime.now(timezone.utc),
+                alerted_at=datetime.now(UTC),
             )
 
         alerts = await alert_repo.list_alerts(limit=2, offset=1)
@@ -362,7 +373,7 @@ class TestNoShowAlertRepository:
             course_id=alert_course.id,
             schedule_id=None,
             alert_date=test_date,
-            alerted_at=datetime.now(timezone.utc),
+            alerted_at=datetime.now(UTC),
         )
 
         counts = await alert_repo.counts_by_course(test_date)

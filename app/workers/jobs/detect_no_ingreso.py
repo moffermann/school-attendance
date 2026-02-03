@@ -6,18 +6,22 @@ Multi-tenant aware: iterates over all active tenants and checks each schema.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from loguru import logger
 from sqlalchemy import select
 
 from app.core.tenant_middleware import sanitize_schema_name
-from app.db.session import async_session, get_tenant_session
 from app.db.models.tenant import Tenant
-from app.schemas.notifications import NotificationChannel, NotificationDispatchRequest, NotificationType
+from app.db.repositories.no_show_alerts import NoShowAlertRepository
+from app.db.session import async_session, get_tenant_session
+from app.schemas.notifications import (
+    NotificationChannel,
+    NotificationDispatchRequest,
+    NotificationType,
+)
 from app.services.attendance_service import AttendanceService
 from app.services.notifications.dispatcher import NotificationDispatcher
-from app.db.repositories.no_show_alerts import NoShowAlertRepository
 
 
 async def _process_tenant(
@@ -41,7 +45,9 @@ async def _process_tenant(
 
         alerts = await attendance_service.detect_no_show_alerts(current_dt)
         if not alerts:
-            logger.debug("[NoIngreso] Tenant '{}': No pending alerts at {}", tenant_slug, current_dt)
+            logger.debug(
+                "[NoIngreso] Tenant '{}': No pending alerts at {}", tenant_slug, current_dt
+            )
             return 0, 0
 
         logger.info("[NoIngreso] Tenant '{}': Found {} potential alerts", tenant_slug, len(alerts))
@@ -86,9 +92,15 @@ async def _process_tenant(
                 if channel == NotificationChannel.EMAIL and not contacts.get("email"):
                     continue
                 # Build informative variables for email template
-                course_name = entry["course"].name if entry.get("course") else f"Curso ID {alert_record.course_id}"
+                course_name = (
+                    entry["course"].name
+                    if entry.get("course")
+                    else f"Curso ID {alert_record.course_id}"
+                )
                 schedule = entry.get("schedule")
-                expected_time = schedule.in_time.strftime("%H:%M") if schedule and schedule.in_time else "08:00"
+                expected_time = (
+                    schedule.in_time.strftime("%H:%M") if schedule and schedule.in_time else "08:00"
+                )
 
                 payload = NotificationDispatchRequest(
                     guardian_id=guardian.id,
@@ -125,7 +137,7 @@ async def _process_tenant(
 
 async def _detect_and_notify(target_dt: datetime | None = None) -> None:
     """Detect no-show alerts across all tenants and send notifications."""
-    current_dt = target_dt or datetime.now(timezone.utc)
+    current_dt = target_dt or datetime.now(UTC)
     total_success = 0
     total_errors = 0
 

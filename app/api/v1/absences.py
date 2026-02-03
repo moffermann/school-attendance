@@ -11,7 +11,18 @@ import csv
 from datetime import date
 from io import StringIO
 
-from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, Request, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Path,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 
 from app.core import deps
 from app.core.auth import AuthUser
@@ -32,7 +43,6 @@ from app.schemas.absences import (
     PaginatedAbsences,
 )
 from app.services.absence_service import AbsenceService
-
 
 router = APIRouter()
 
@@ -94,35 +104,39 @@ async def export_absences(
 
     buffer = StringIO()
     writer = csv.writer(buffer)
-    writer.writerow([
-        "ID",
-        "Estudiante",
-        "Curso",
-        "Tipo",
-        "Fecha Inicio",
-        "Fecha Fin",
-        "Dias",
-        "Estado",
-        "Razon Rechazo",
-        "Comentario",
-        "Fecha Solicitud",
-    ])
+    writer.writerow(
+        [
+            "ID",
+            "Estudiante",
+            "Curso",
+            "Tipo",
+            "Fecha Inicio",
+            "Fecha Fin",
+            "Dias",
+            "Estado",
+            "Razon Rechazo",
+            "Comentario",
+            "Fecha Solicitud",
+        ]
+    )
 
     for a in absences:
         days = (a.end_date - a.start_date).days + 1 if a.end_date and a.start_date else 0
-        writer.writerow([
-            a.id,
-            _sanitize_csv_value(a.student_name),
-            _sanitize_csv_value(a.course_name) if a.course_name else "",
-            a.type,
-            a.start_date.isoformat() if a.start_date else "",
-            a.end_date.isoformat() if a.end_date else "",
-            days,
-            a.status,
-            _sanitize_csv_value(a.rejection_reason) if a.rejection_reason else "",
-            _sanitize_csv_value(a.comment) if a.comment else "",
-            a.ts_submitted.isoformat() if a.ts_submitted else "",
-        ])
+        writer.writerow(
+            [
+                a.id,
+                _sanitize_csv_value(a.student_name),
+                _sanitize_csv_value(a.course_name) if a.course_name else "",
+                a.type,
+                a.start_date.isoformat() if a.start_date else "",
+                a.end_date.isoformat() if a.end_date else "",
+                days,
+                a.status,
+                _sanitize_csv_value(a.rejection_reason) if a.rejection_reason else "",
+                _sanitize_csv_value(a.comment) if a.comment else "",
+                a.ts_submitted.isoformat() if a.ts_submitted else "",
+            ]
+        )
 
     return Response(
         content=buffer.getvalue(),
@@ -193,7 +207,9 @@ async def list_absences(
     user: AuthUser = Depends(deps.require_roles("PARENT", "ADMIN", "DIRECTOR", "INSPECTOR")),
 ) -> list[AbsenceRequestRead]:
     """List absences (legacy endpoint for backward compatibility)."""
-    records = await service.list_absences(user, start_date=start_date, end_date=end_date, status=status_filter)
+    records = await service.list_absences(
+        user, start_date=start_date, end_date=end_date, status=status_filter
+    )
     return [
         AbsenceRequestRead(
             id=record.id,
@@ -230,7 +246,11 @@ async def submit_absence_request(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except ValueError as exc:
         message = str(exc) or "Solicitud invalida"
-        status_code = status.HTTP_404_NOT_FOUND if "not found" in message.lower() else status.HTTP_400_BAD_REQUEST
+        status_code = (
+            status.HTTP_404_NOT_FOUND
+            if "not found" in message.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
         raise HTTPException(status_code=status_code, detail=message) from exc
 
     status_value = record.status or AbsenceStatus.PENDING.value

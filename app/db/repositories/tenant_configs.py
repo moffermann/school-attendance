@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -106,7 +106,7 @@ class TenantConfigRepository:
         if phone_number_id is not None:
             config.whatsapp_phone_number_id = phone_number_id
 
-        config.updated_at = datetime.now(timezone.utc)
+        config.updated_at = datetime.now(UTC)
         await self.session.flush()
         return config
 
@@ -133,7 +133,7 @@ class TenantConfigRepository:
         if secret_key is not None:
             config.ses_secret_key_encrypted = encrypt_if_present(secret_key)
 
-        config.updated_at = datetime.now(timezone.utc)
+        config.updated_at = datetime.now(UTC)
         await self.session.flush()
         return config
 
@@ -166,7 +166,7 @@ class TenantConfigRepository:
         if from_name is not None:
             config.smtp_from_name = from_name
 
-        config.updated_at = datetime.now(timezone.utc)
+        config.updated_at = datetime.now(UTC)
         await self.session.flush()
         return config
 
@@ -184,7 +184,7 @@ class TenantConfigRepository:
             return None
 
         config.email_provider = provider
-        config.updated_at = datetime.now(timezone.utc)
+        config.updated_at = datetime.now(UTC)
         await self.session.flush()
         return config
 
@@ -205,7 +205,7 @@ class TenantConfigRepository:
         if prefix is not None:
             config.s3_prefix = prefix
 
-        config.updated_at = datetime.now(timezone.utc)
+        config.updated_at = datetime.now(UTC)
         await self.session.flush()
         return config
 
@@ -220,7 +220,7 @@ class TenantConfigRepository:
             return None
 
         config.device_api_key_encrypted = encrypt_if_present(device_api_key)
-        config.updated_at = datetime.now(timezone.utc)
+        config.updated_at = datetime.now(UTC)
         await self.session.flush()
         return config
 
@@ -243,6 +243,6 @@ class TenantConfigRepository:
             return None
 
         config.timezone = tz_name
-        config.updated_at = datetime.now(timezone.utc)
+        config.updated_at = datetime.now(UTC)
         await self.session.flush()
         return config

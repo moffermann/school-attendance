@@ -36,7 +36,7 @@ async def _send_push_async(
         data = json.dumps(payload)
 
         # Send push notification
-        response = webpush(
+        webpush(
             subscription_info=subscription_info,
             data=data,
             vapid_private_key=settings.vapid_private_key,
@@ -44,7 +44,9 @@ async def _send_push_async(
         )
 
         log_id = notification_id or "unknown"
-        logger.info(f"[Push] Sent notification {log_id} to {subscription_info.get('endpoint', '')[:50]}...")
+        logger.info(
+            f"[Push] Sent notification {log_id} to {subscription_info.get('endpoint', '')[:50]}..."
+        )
         return True
 
     except WebPushException as e:
@@ -85,7 +87,9 @@ def send_push_notification(
     log_prefix = f"[Push][Tenant:{tenant_id or 'default'}]"
 
     if not settings.enable_real_notifications:
-        logger.info(f"{log_prefix} SIMULATED push to {subscription_info.get('endpoint', '')[:50]}...")
+        logger.info(
+            f"{log_prefix} SIMULATED push to {subscription_info.get('endpoint', '')[:50]}..."
+        )
         logger.debug(f"{log_prefix} Payload: {payload}")
         return True
 

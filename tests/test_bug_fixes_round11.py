@@ -16,7 +16,7 @@ class TestR111BroadcastRoute:
         """R11-1: API.sendBroadcast should use /broadcasts/send, not /broadcast."""
         api_js_path = "src/web-app/js/api.js"
 
-        with open(api_js_path, "r", encoding="utf-8") as f:
+        with open(api_js_path, encoding="utf-8") as f:
             content = f.read()
 
         # Find the sendBroadcast function
@@ -53,10 +53,10 @@ class TestR112ApiRoutesConsistency:
         api_js_path = "src/web-app/js/api.js"
         webapp_py_path = "app/api/v1/webapp.py"
 
-        with open(api_js_path, "r", encoding="utf-8") as f:
+        with open(api_js_path, encoding="utf-8") as f:
             api_content = f.read()
 
-        with open(webapp_py_path, "r", encoding="utf-8") as f:
+        with open(webapp_py_path, encoding="utf-8") as f:
             webapp_content = f.read()
 
         # Frontend uses /web-app/bootstrap
@@ -70,10 +70,10 @@ class TestR112ApiRoutesConsistency:
         api_js_path = "src/web-app/js/api.js"
         webapp_py_path = "app/api/v1/webapp.py"
 
-        with open(api_js_path, "r", encoding="utf-8") as f:
+        with open(api_js_path, encoding="utf-8") as f:
             api_content = f.read()
 
-        with open(webapp_py_path, "r", encoding="utf-8") as f:
+        with open(webapp_py_path, encoding="utf-8") as f:
             webapp_content = f.read()
 
         assert "/web-app/dashboard" in api_content
@@ -84,10 +84,10 @@ class TestR112ApiRoutesConsistency:
         api_js_path = "src/web-app/js/api.js"
         absences_py_path = "app/api/v1/absences.py"
 
-        with open(api_js_path, "r", encoding="utf-8") as f:
+        with open(api_js_path, encoding="utf-8") as f:
             api_content = f.read()
 
-        with open(absences_py_path, "r", encoding="utf-8") as f:
+        with open(absences_py_path, encoding="utf-8") as f:
             absences_content = f.read()
 
         # Frontend uses /absences
@@ -101,7 +101,7 @@ class TestR112ApiRoutesConsistency:
         """Verify /parents/{id}/preferences route exists."""
         api_js_path = "src/web-app/js/api.js"
 
-        with open(api_js_path, "r", encoding="utf-8") as f:
+        with open(api_js_path, encoding="utf-8") as f:
             api_content = f.read()
 
         # Should use backticks for template literal
@@ -118,7 +118,7 @@ class TestR113FrontendHashRoutes:
         """All routes in Router.addRoute should have corresponding Views."""
         router_js_path = "src/web-app/js/router.js"
 
-        with open(router_js_path, "r", encoding="utf-8") as f:
+        with open(router_js_path, encoding="utf-8") as f:
             content = f.read()
 
         # Extract all addRoute calls
@@ -143,10 +143,10 @@ class TestR114SidebarLinksMatchRouter:
         components_js_path = "src/web-app/js/components.js"
         router_js_path = "src/web-app/js/router.js"
 
-        with open(components_js_path, "r", encoding="utf-8") as f:
+        with open(components_js_path, encoding="utf-8") as f:
             components_content = f.read()
 
-        with open(router_js_path, "r", encoding="utf-8") as f:
+        with open(router_js_path, encoding="utf-8") as f:
             router_content = f.read()
 
         # Extract sidebar links (href="#/...")
@@ -157,9 +157,7 @@ class TestR114SidebarLinksMatchRouter:
 
         # All sidebar links should be registered
         for link in sidebar_links:
-            assert link in registered_routes, (
-                f"Sidebar link '{link}' is not a registered route"
-            )
+            assert link in registered_routes, f"Sidebar link '{link}' is not a registered route"
 
 
 # =============================================================================
@@ -173,10 +171,10 @@ class TestR115KioskApiRoutes:
         kiosk_sync_path = "src/kiosk-app/js/sync.js"
         kiosk_py_path = "app/api/v1/kiosk.py"
 
-        with open(kiosk_sync_path, "r", encoding="utf-8") as f:
+        with open(kiosk_sync_path, encoding="utf-8") as f:
             sync_content = f.read()
 
-        with open(kiosk_py_path, "r", encoding="utf-8") as f:
+        with open(kiosk_py_path, encoding="utf-8") as f:
             kiosk_content = f.read()
 
         # Frontend uses /kiosk/bootstrap
@@ -190,10 +188,10 @@ class TestR115KioskApiRoutes:
         kiosk_sync_path = "src/kiosk-app/js/sync.js"
         kiosk_py_path = "app/api/v1/kiosk.py"
 
-        with open(kiosk_sync_path, "r", encoding="utf-8") as f:
+        with open(kiosk_sync_path, encoding="utf-8") as f:
             sync_content = f.read()
 
-        with open(kiosk_py_path, "r", encoding="utf-8") as f:
+        with open(kiosk_py_path, encoding="utf-8") as f:
             kiosk_content = f.read()
 
         # Frontend uses /kiosk/students
@@ -214,10 +212,10 @@ class TestR116TeacherPwaApiRoutes:
         pwa_api_path = "src/teacher-pwa/js/api.js"
         teachers_py_path = "app/api/v1/teachers.py"
 
-        with open(pwa_api_path, "r", encoding="utf-8") as f:
+        with open(pwa_api_path, encoding="utf-8") as f:
             api_content = f.read()
 
-        with open(teachers_py_path, "r", encoding="utf-8") as f:
+        with open(teachers_py_path, encoding="utf-8") as f:
             teachers_content = f.read()
 
         # Frontend uses /teachers/me
@@ -231,10 +229,10 @@ class TestR116TeacherPwaApiRoutes:
         pwa_api_path = "src/teacher-pwa/js/api.js"
         teachers_py_path = "app/api/v1/teachers.py"
 
-        with open(pwa_api_path, "r", encoding="utf-8") as f:
+        with open(pwa_api_path, encoding="utf-8") as f:
             api_content = f.read()
 
-        with open(teachers_py_path, "r", encoding="utf-8") as f:
+        with open(teachers_py_path, encoding="utf-8") as f:
             teachers_content = f.read()
 
         # Frontend uses /teachers/courses/{id}/students
@@ -248,10 +246,10 @@ class TestR116TeacherPwaApiRoutes:
         pwa_api_path = "src/teacher-pwa/js/api.js"
         teachers_py_path = "app/api/v1/teachers.py"
 
-        with open(pwa_api_path, "r", encoding="utf-8") as f:
+        with open(pwa_api_path, encoding="utf-8") as f:
             api_content = f.read()
 
-        with open(teachers_py_path, "r", encoding="utf-8") as f:
+        with open(teachers_py_path, encoding="utf-8") as f:
             teachers_content = f.read()
 
         # Frontend uses /teachers/attendance/bulk

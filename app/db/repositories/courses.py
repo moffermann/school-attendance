@@ -78,9 +78,7 @@ class CourseRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_name(
-        self, name: str, *, exclude_id: int | None = None
-    ) -> Course | None:
+    async def get_by_name(self, name: str, *, exclude_id: int | None = None) -> Course | None:
         """Get active course by exact name (for uniqueness validation)."""
         stmt = select(Course).where(
             func.lower(Course.name) == name.lower(),

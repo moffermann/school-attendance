@@ -11,7 +11,6 @@ from fastapi.testclient import TestClient
 from app import main
 from app.core import deps
 from app.core.auth import AuthUser
-from app.schemas.attendance import AttendanceType
 
 
 @pytest.fixture
@@ -57,6 +56,7 @@ def app_with_director_auth():
 # Tests for unauthenticated access (should be denied)
 # ============================================================================
 
+
 def test_dashboard_requires_auth(app_no_auth):
     """Dashboard endpoint should require authentication."""
     with TestClient(app_no_auth) as client:
@@ -89,6 +89,7 @@ def test_absences_requires_auth(app_no_auth):
 # Tests for role-based access control
 # ============================================================================
 
+
 def test_parent_cannot_access_devices(app_with_parent_auth):
     """Parent role should not access devices endpoint."""
     with TestClient(app_with_parent_auth) as client:
@@ -103,12 +104,15 @@ def test_parent_cannot_register_attendance_without_device_key(app_with_parent_au
         # Disable device key verification for this test
         app_with_parent_auth.dependency_overrides[deps.verify_device_key] = lambda: False
 
-        resp = client.post("/api/v1/attendance/events", json={
-            "student_id": 1,
-            "device_id": "DEV-TEST",
-            "gate_id": "GATE-A",
-            "type": "IN",
-        })
+        resp = client.post(
+            "/api/v1/attendance/events",
+            json={
+                "student_id": 1,
+                "device_id": "DEV-TEST",
+                "gate_id": "GATE-A",
+                "type": "IN",
+            },
+        )
         assert resp.status_code == 403
 
 
@@ -133,12 +137,15 @@ def test_director_can_register_attendance(app_with_director_auth):
     app.dependency_overrides[deps.get_attendance_service] = lambda: FakeAttendanceService()
 
     with TestClient(app) as client:
-        resp = client.post("/api/v1/attendance/events", json={
-            "student_id": 1,
-            "device_id": "DEV-TEST",
-            "gate_id": "GATE-A",
-            "type": "IN",
-        })
+        resp = client.post(
+            "/api/v1/attendance/events",
+            json={
+                "student_id": 1,
+                "device_id": "DEV-TEST",
+                "gate_id": "GATE-A",
+                "type": "IN",
+            },
+        )
         assert resp.status_code == 201
         assert resp.json()["student_id"] == 1
 
@@ -146,6 +153,7 @@ def test_director_can_register_attendance(app_with_director_auth):
 # ============================================================================
 # Tests for device key authentication
 # ============================================================================
+
 
 def test_attendance_with_valid_device_key(app_no_auth):
     """Attendance endpoint should work with valid device key."""
@@ -170,12 +178,15 @@ def test_attendance_with_valid_device_key(app_no_auth):
     app.dependency_overrides[deps.get_attendance_service] = lambda: FakeAttendanceService()
 
     with TestClient(app) as client:
-        resp = client.post("/api/v1/attendance/events", json={
-            "student_id": 1,
-            "device_id": "DEV-TEST",
-            "gate_id": "GATE-A",
-            "type": "IN",
-        })
+        resp = client.post(
+            "/api/v1/attendance/events",
+            json={
+                "student_id": 1,
+                "device_id": "DEV-TEST",
+                "gate_id": "GATE-A",
+                "type": "IN",
+            },
+        )
         assert resp.status_code == 201
 
 
@@ -183,33 +194,41 @@ def test_attendance_with_valid_device_key(app_no_auth):
 # Tests for input validation
 # ============================================================================
 
+
 def test_attendance_event_validates_type(app_with_director_auth):
     """Attendance event type should be validated."""
     with TestClient(app_with_director_auth) as client:
-        resp = client.post("/api/v1/attendance/events", json={
-            "student_id": 1,
-            "device_id": "DEV-TEST",
-            "gate_id": "GATE-A",
-            "type": "INVALID",  # Invalid type
-        })
+        resp = client.post(
+            "/api/v1/attendance/events",
+            json={
+                "student_id": 1,
+                "device_id": "DEV-TEST",
+                "gate_id": "GATE-A",
+                "type": "INVALID",  # Invalid type
+            },
+        )
         assert resp.status_code == 422
 
 
 def test_attendance_event_validates_student_id(app_with_director_auth):
     """Attendance event should require valid student_id."""
     with TestClient(app_with_director_auth) as client:
-        resp = client.post("/api/v1/attendance/events", json={
-            "student_id": "not-a-number",  # Invalid
-            "device_id": "DEV-TEST",
-            "gate_id": "GATE-A",
-            "type": "IN",
-        })
+        resp = client.post(
+            "/api/v1/attendance/events",
+            json={
+                "student_id": "not-a-number",  # Invalid
+                "device_id": "DEV-TEST",
+                "gate_id": "GATE-A",
+                "type": "IN",
+            },
+        )
         assert resp.status_code == 422
 
 
 # ============================================================================
 # Tests for health endpoint (public)
 # ============================================================================
+
 
 def test_health_ping_is_public(app_no_auth):
     """Health ping endpoint should be accessible without auth."""

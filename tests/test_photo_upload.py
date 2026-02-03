@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.services.attendance_service import AttendanceService
-
 
 # Valid magic bytes for different image types
 JPEG_MAGIC = b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"\x00" * 100  # JPEG header
@@ -31,10 +29,10 @@ class FakeUploadFile:
     async def read(self, size: int = -1) -> bytes:
         """Read content in chunks, like real UploadFile."""
         if size == -1 or size >= len(self._content) - self._position:
-            result = self._content[self._position:]
+            result = self._content[self._position :]
             self._position = len(self._content)
             return result
-        result = self._content[self._position:self._position + size]
+        result = self._content[self._position : self._position + size]
         self._position += size
         return result
 

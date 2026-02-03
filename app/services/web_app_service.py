@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
-from sqlalchemy import Select, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -36,7 +36,6 @@ from app.schemas.webapp import (
     WebAppBootstrap,
 )
 
-
 STAFF_ROLES = {"ADMIN", "DIRECTOR", "INSPECTOR"}
 
 
@@ -64,7 +63,9 @@ class WebAppDataService:
             )
             guardian = (await self.session.execute(guardian_stmt)).scalar_one_or_none()
             if guardian is None:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Apoderado no encontrado")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Apoderado no encontrado"
+                )
 
         student_ids = await self._resolve_student_ids(is_staff, guardian)
         students = await self._load_students(student_ids)
@@ -127,7 +128,11 @@ class WebAppDataService:
 
     async def _load_guardians(self, is_staff: bool, guardian: Guardian | None) -> list[Guardian]:
         if is_staff:
-            stmt = select(Guardian).options(selectinload(Guardian.students)).order_by(Guardian.full_name)
+            stmt = (
+                select(Guardian)
+                .options(selectinload(Guardian.students))
+                .order_by(Guardian.full_name)
+            )
             result = await self.session.execute(stmt)
             return list(result.scalars().all())
         if guardian is None:
@@ -151,17 +156,24 @@ class WebAppDataService:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def _load_schedule_exceptions(self, course_ids: set[int], is_staff: bool) -> list[ScheduleException]:
+    async def _load_schedule_exceptions(
+        self, course_ids: set[int], is_staff: bool
+    ) -> list[ScheduleException]:
         stmt = select(ScheduleException).order_by(ScheduleException.date.desc())
         if not is_staff:
             stmt = stmt.where(
                 (ScheduleException.scope == "GLOBAL")
-                | (ScheduleException.course_id.is_not(None) & ScheduleException.course_id.in_(course_ids))
+                | (
+                    ScheduleException.course_id.is_not(None)
+                    & ScheduleException.course_id.in_(course_ids)
+                )
             )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def _load_attendance_events(self, student_ids: list[int], is_staff: bool) -> list[AttendanceEvent]:
+    async def _load_attendance_events(
+        self, student_ids: list[int], is_staff: bool
+    ) -> list[AttendanceEvent]:
         if not student_ids:
             return []
         stmt = (
@@ -189,7 +201,11 @@ class WebAppDataService:
     async def _load_absences(self, student_ids: list[int], is_staff: bool) -> list[AbsenceRequest]:
         if not student_ids:
             return []
-        stmt = select(AbsenceRequest).where(AbsenceRequest.student_id.in_(student_ids)).order_by(AbsenceRequest.ts_submitted.desc())
+        stmt = (
+            select(AbsenceRequest)
+            .where(AbsenceRequest.student_id.in_(student_ids))
+            .order_by(AbsenceRequest.ts_submitted.desc())
+        )
         if is_staff:
             stmt = select(AbsenceRequest).order_by(AbsenceRequest.ts_submitted.desc())
         result = await self.session.execute(stmt)
@@ -205,7 +221,11 @@ class WebAppDataService:
             return []
 
         guardian_ids = [g.id for g in guardians]
-        stmt = select(Notification).where(Notification.guardian_id.in_(guardian_ids)).order_by(Notification.ts_created.desc())
+        stmt = (
+            select(Notification)
+            .where(Notification.guardian_id.in_(guardian_ids))
+            .order_by(Notification.ts_created.desc())
+        )
         if is_staff:
             result = await self.session.execute(stmt.limit(300))
             return list(result.scalars().all())
@@ -222,7 +242,9 @@ class WebAppDataService:
         return value.replace(microsecond=0).isoformat()
 
     @staticmethod
-    def _map_student(student: Student, course_lookup: dict[int, str] | None = None) -> StudentSummary:
+    def _map_student(
+        student: Student, course_lookup: dict[int, str] | None = None
+    ) -> StudentSummary:
         course_name = None
         if course_lookup and student.course_id in course_lookup:
             course_name = course_lookup[student.course_id]
@@ -287,7 +309,7 @@ class WebAppDataService:
             type=event.type,
             gate_id=event.gate_id,
             # R5-B2 fix: Use timezone-aware datetime
-            ts=self._format_time(event.occurred_at) or datetime.now(timezone.utc).isoformat(),
+            ts=self._format_time(event.occurred_at) or datetime.now(UTC).isoformat(),
             device_id=event.device_id,
             photo_ref=event.photo_ref,
             source=event.source,

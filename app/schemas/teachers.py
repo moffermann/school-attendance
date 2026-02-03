@@ -1,12 +1,12 @@
 """Teacher schemas."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
-class TeacherStatus(str, Enum):
+class TeacherStatus(StrEnum):
     """Status enum for teachers."""
 
     ACTIVE = "ACTIVE"
@@ -104,7 +104,9 @@ class PaginatedTeachers(BaseModel):
     has_more: bool
 
     @classmethod
-    def create(cls, items: list[TeacherRead], total: int, limit: int, offset: int) -> "PaginatedTeachers":
+    def create(
+        cls, items: list[TeacherRead], total: int, limit: int, offset: int
+    ) -> "PaginatedTeachers":
         """Factory method with correct has_more calculation."""
         return cls(
             items=items,
@@ -152,8 +154,9 @@ class TeacherMeResponse(BaseModel):
     courses: list[TeacherCourseRead]
 
 
-class AttendanceType(str, Enum):
+class AttendanceType(StrEnum):
     """R3-V10 fix: Valid attendance event types."""
+
     IN = "IN"
     OUT = "OUT"
 

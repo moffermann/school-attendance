@@ -1,7 +1,7 @@
 """Student model."""
 
-from datetime import datetime, timezone
-from enum import Enum as PyEnum
+from datetime import UTC, datetime
+from enum import StrEnum
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -10,7 +10,7 @@ from app.db.base import Base
 from app.db.models.associations import student_guardian_table
 
 
-class EvidencePreference(str, PyEnum):
+class EvidencePreference(StrEnum):
     """Evidence capture preference for attendance."""
 
     PHOTO = "photo"
@@ -39,17 +39,19 @@ class Student(Base):
 
     # Timestamps for audit trail
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     course = relationship("Course", back_populates="students")
     enrollments = relationship("Enrollment", back_populates="student", cascade="all, delete-orphan")
-    guardians = relationship("Guardian", secondary=student_guardian_table, back_populates="students")
+    guardians = relationship(
+        "Guardian", secondary=student_guardian_table, back_populates="students"
+    )
     webauthn_credentials = relationship(
         "WebAuthnCredential", back_populates="student", cascade="all, delete-orphan"
     )

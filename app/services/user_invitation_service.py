@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, status
@@ -30,7 +30,7 @@ PASSWORD_RESET_EXPIRES_HOURS = 1
 class UserInvitationService:
     def __init__(
         self,
-        session: "AsyncSession",
+        session: AsyncSession,
         user_repo: UserRepository,
         invitation_repo: UserInvitationRepository,
         *,
@@ -51,7 +51,7 @@ class UserInvitationService:
         # Generate secure token
         token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=INVITATION_EXPIRES_HOURS)
+        expires_at = datetime.now(UTC) + timedelta(hours=INVITATION_EXPIRES_HOURS)
 
         # Store in DB
         await self.invitation_repo.create(
@@ -84,7 +84,7 @@ class UserInvitationService:
         # Generate secure token
         token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=PASSWORD_RESET_EXPIRES_HOURS)
+        expires_at = datetime.now(UTC) + timedelta(hours=PASSWORD_RESET_EXPIRES_HOURS)
 
         # Store in DB
         await self.invitation_repo.create(
@@ -105,7 +105,7 @@ class UserInvitationService:
             {"reset_url": reset_url},
         )
 
-    async def validate_token(self, token: str, purpose: str) -> "UserInvitation | None":
+    async def validate_token(self, token: str, purpose: str) -> UserInvitation | None:
         """Validate token: hash match + not used + not expired + correct purpose."""
         token_hash = hashlib.sha256(token.encode()).hexdigest()
         invitation = await self.invitation_repo.get_by_token_hash(token_hash)
@@ -114,14 +114,14 @@ class UserInvitationService:
             return None
         if invitation.used_at is not None:
             return None
-        if invitation.expires_at < datetime.now(timezone.utc):
+        if invitation.expires_at < datetime.now(UTC):
             return None
         if invitation.purpose != purpose:
             return None
 
         return invitation
 
-    async def complete_setup(self, token: str, password: str) -> "User":
+    async def complete_setup(self, token: str, password: str) -> User:
         """Complete parent account setup: set password and activate user."""
         invitation = await self.validate_token(token, "INVITATION")
         if not invitation:
@@ -147,7 +147,7 @@ class UserInvitationService:
 
         return user
 
-    async def reset_password(self, token: str, new_password: str) -> "User":
+    async def reset_password(self, token: str, new_password: str) -> User:
         """Reset user password using a valid reset token."""
         invitation = await self.validate_token(token, "PASSWORD_RESET")
         if not invitation:

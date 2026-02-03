@@ -1,8 +1,8 @@
 """Attendance repository stub."""
 
-from datetime import datetime, date
+from datetime import date, datetime
 
-from sqlalchemy import and_, select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -92,9 +92,7 @@ class AttendanceRepository:
     async def list_recent_with_photos(self, limit: int = 50) -> list[AttendanceEvent]:
         stmt = (
             select(AttendanceEvent)
-            .options(
-                selectinload(AttendanceEvent.student).selectinload(Student.course)
-            )
+            .options(selectinload(AttendanceEvent.student).selectinload(Student.course))
             .where(AttendanceEvent.photo_ref.is_not(None))
             .order_by(AttendanceEvent.occurred_at.desc())
             .limit(limit)

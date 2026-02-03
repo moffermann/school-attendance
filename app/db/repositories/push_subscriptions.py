@@ -1,6 +1,6 @@
 """Push subscription repository."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -81,7 +81,7 @@ class PushSubscriptionRepository:
             existing.p256dh = p256dh
             existing.auth = auth
             existing.is_active = True
-            existing.updated_at = datetime.now(timezone.utc)
+            existing.updated_at = datetime.now(UTC)
             if user_agent:
                 existing.user_agent = user_agent
             if device_name:
@@ -104,7 +104,7 @@ class PushSubscriptionRepository:
         stmt = (
             update(PushSubscription)
             .where(PushSubscription.id == subscription_id)
-            .values(is_active=False, updated_at=datetime.now(timezone.utc))
+            .values(is_active=False, updated_at=datetime.now(UTC))
         )
         result = await self.session.execute(stmt)
         return result.rowcount > 0
@@ -114,7 +114,7 @@ class PushSubscriptionRepository:
         stmt = (
             update(PushSubscription)
             .where(PushSubscription.endpoint == endpoint)
-            .values(is_active=False, updated_at=datetime.now(timezone.utc))
+            .values(is_active=False, updated_at=datetime.now(UTC))
         )
         result = await self.session.execute(stmt)
         return result.rowcount > 0

@@ -68,7 +68,9 @@ class SMTPEmailClient:
             # Direct SSL on port 465 or plain on port 25
             if self._port == 465:
                 context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(self._host, self._port, context=context, timeout=30) as server:
+                with smtplib.SMTP_SSL(
+                    self._host, self._port, context=context, timeout=30
+                ) as server:
                     server.login(self._user, self._password)
                     server.send_message(msg)
             else:
@@ -105,7 +107,7 @@ class SMTPEmailClient:
 class TenantSMTPEmailClient:
     """SMTP email client using tenant-specific credentials."""
 
-    def __init__(self, config: "DecryptedTenantConfig") -> None:
+    def __init__(self, config: DecryptedTenantConfig) -> None:
         """Initialize with decrypted tenant configuration."""
         self._tenant_id = config.tenant_id
         self._host = config.smtp_host or "smtp.gmail.com"
@@ -144,7 +146,9 @@ class TenantSMTPEmailClient:
         else:
             if self._port == 465:
                 context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(self._host, self._port, context=context, timeout=30) as server:
+                with smtplib.SMTP_SSL(
+                    self._host, self._port, context=context, timeout=30
+                ) as server:
                     server.login(self._user, self._password)
                     server.send_message(msg)
             else:

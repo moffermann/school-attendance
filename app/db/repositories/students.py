@@ -62,20 +62,14 @@ class StudentRepository:
     async def get_with_guardians(self, student_id: int) -> Student | None:
         """Get a student with their guardians eagerly loaded."""
         stmt = (
-            select(Student)
-            .where(Student.id == student_id)
-            .options(selectinload(Student.guardians))
+            select(Student).where(Student.id == student_id).options(selectinload(Student.guardians))
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_with_course(self, student_id: int) -> Student | None:
         """Get a student with their course eagerly loaded."""
-        stmt = (
-            select(Student)
-            .where(Student.id == student_id)
-            .options(selectinload(Student.course))
-        )
+        stmt = select(Student).where(Student.id == student_id).options(selectinload(Student.course))
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -213,12 +207,7 @@ class StudentRepository:
         total = total_result.scalar() or 0
 
         # Get paginated results
-        paginated_query = (
-            base_query
-            .order_by(Student.full_name)
-            .offset(skip)
-            .limit(limit)
-        )
+        paginated_query = base_query.order_by(Student.full_name).offset(skip).limit(limit)
         result = await self.session.execute(paginated_query)
         students = list(result.scalars().all())
 
@@ -340,8 +329,10 @@ class StudentRepository:
         """
         from app.db.models.associations import student_guardian_table
 
-        stmt = select(func.count()).select_from(student_guardian_table).where(
-            student_guardian_table.c.student_id == student_id
+        stmt = (
+            select(func.count())
+            .select_from(student_guardian_table)
+            .where(student_guardian_table.c.student_id == student_id)
         )
         result = await self.session.execute(stmt)
         return result.scalar() or 0
@@ -357,8 +348,10 @@ class StudentRepository:
         """
         from app.db.models.attendance_event import AttendanceEvent
 
-        stmt = select(func.count()).select_from(AttendanceEvent).where(
-            AttendanceEvent.student_id == student_id
+        stmt = (
+            select(func.count())
+            .select_from(AttendanceEvent)
+            .where(AttendanceEvent.student_id == student_id)
         )
         result = await self.session.execute(stmt)
         return result.scalar() or 0

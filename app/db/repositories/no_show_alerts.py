@@ -11,10 +11,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.models.no_show_alert import NoShowAlert
-from app.db.models.guardian import Guardian
-from app.db.models.student import Student
 from app.db.models.course import Course
+from app.db.models.guardian import Guardian
+from app.db.models.no_show_alert import NoShowAlert
+from app.db.models.student import Student
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +23,16 @@ class NoShowAlertRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_unique(self, student_id: int, guardian_id: int, alert_date: date) -> NoShowAlert | None:
+    async def get_by_unique(
+        self, student_id: int, guardian_id: int, alert_date: date
+    ) -> NoShowAlert | None:
         stmt = (
             select(NoShowAlert)
-            .options(selectinload(NoShowAlert.guardian), selectinload(NoShowAlert.student), selectinload(NoShowAlert.course))
+            .options(
+                selectinload(NoShowAlert.guardian),
+                selectinload(NoShowAlert.student),
+                selectinload(NoShowAlert.course),
+            )
             .where(
                 NoShowAlert.student_id == student_id,
                 NoShowAlert.guardian_id == guardian_id,
@@ -122,7 +128,9 @@ class NoShowAlertRepository:
         alert.last_notification_at = notified_at
         await self.session.flush()
 
-    async def mark_resolved(self, alert_id: int, notes: str | None, resolved_at: datetime) -> NoShowAlert | None:
+    async def mark_resolved(
+        self, alert_id: int, notes: str | None, resolved_at: datetime
+    ) -> NoShowAlert | None:
         alert = await self.session.get(NoShowAlert, alert_id)
         if alert is None:
             return None

@@ -1,7 +1,7 @@
 """Schemas for the web-app integration payloads."""
 
 from datetime import date
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -18,7 +18,7 @@ class StudentSummary(BaseModel):
 
 
 # R8-V4 fix: Define valid contact types
-class ContactType(str, Enum):
+class ContactType(StrEnum):
     WHATSAPP = "whatsapp"
     EMAIL = "email"
     PHONE = "phone"

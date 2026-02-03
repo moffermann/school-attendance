@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -13,13 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import main
 from app.core import deps
-from app.core.auth import AuthUser
 from app.core.security import encode_session
-
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def client():
@@ -42,6 +40,7 @@ def mock_db_session():
 # =============================================================================
 # Login Tests
 # =============================================================================
+
 
 class TestLoginPage:
     """Tests for login page."""
@@ -188,6 +187,7 @@ class TestLogout:
 # Protected Routes (No Auth)
 # =============================================================================
 
+
 class TestProtectedRoutesNoAuth:
     """Tests for protected routes without authentication."""
 
@@ -241,6 +241,7 @@ class TestProtectedRoutesNoAuth:
 # Protected Routes (Invalid Session)
 # =============================================================================
 
+
 class TestProtectedRoutesInvalidSession:
     """Tests for protected routes with invalid session."""
 
@@ -270,6 +271,7 @@ class TestProtectedRoutesInvalidSession:
 # =============================================================================
 # Helper Function Tests
 # =============================================================================
+
 
 class TestRequireStaffUser:
     """Tests for _require_staff_user helper."""

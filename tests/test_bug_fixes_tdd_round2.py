@@ -1,10 +1,10 @@
 """TDD Bug Fix Tests Round 2 - These tests should FAIL initially, then PASS after fixes."""
 
-import pytest
 import jwt
+import pytest
 
-from app.core.security import create_access_token, decode_token
 from app.core.config import settings
+from app.core.security import create_access_token, decode_token
 
 
 class TestBugR2_1_JWTIssuerValidation:
@@ -14,9 +14,7 @@ class TestBugR2_1_JWTIssuerValidation:
         """Verify decode_token rejects tokens with wrong issuer."""
         # Create a token with wrong issuer
         wrong_issuer_token = jwt.encode(
-            {"sub": "test_user", "iss": "wrong-app"},
-            settings.secret_key,
-            algorithm="HS256"
+            {"sub": "test_user", "iss": "wrong-app"}, settings.secret_key, algorithm="HS256"
         )
 
         # This should raise an error because issuer doesn't match
@@ -36,11 +34,7 @@ class TestBugR2_1_JWTIssuerValidation:
     def test_decode_token_rejects_missing_issuer(self):
         """Verify decode_token rejects tokens without issuer claim."""
         # Create a token without issuer
-        no_issuer_token = jwt.encode(
-            {"sub": "test_user"},
-            settings.secret_key,
-            algorithm="HS256"
-        )
+        no_issuer_token = jwt.encode({"sub": "test_user"}, settings.secret_key, algorithm="HS256")
 
         # This should raise an error because issuer is missing
         with pytest.raises(Exception):
@@ -54,8 +48,9 @@ class TestBugR2_2_GuardianPreferencesMerge:
     async def test_preferences_partial_update_preserves_existing(self):
         """Verify partial preference update doesn't delete other preferences."""
         from unittest.mock import AsyncMock, MagicMock
+
+        from app.schemas.guardians import ChannelPreference, GuardianPreferencesUpdate
         from app.services.consent_service import ConsentService
-        from app.schemas.guardians import GuardianPreferencesUpdate, ChannelPreference
 
         # Create mock session and repository
         mock_session = AsyncMock()
@@ -77,7 +72,7 @@ class TestBugR2_2_GuardianPreferencesMerge:
         # Update only INGRESO_OK preference
         payload = GuardianPreferencesUpdate(
             preferences={"INGRESO_OK": ChannelPreference(whatsapp=False, email=False)},
-            photo_consents=None
+            photo_consents=None,
         )
 
         await service.update_guardian_preferences(1, payload)
@@ -90,7 +85,9 @@ class TestBugR2_2_GuardianPreferencesMerge:
         assert "NO_INGRESO_UMBRAL" in final_prefs, "NO_INGRESO_UMBRAL preference was deleted!"
         # TDD-R2-BUG2 fix: preferences are now stored as dicts for JSON serialization
         ingreso_pref = final_prefs["INGRESO_OK"]
-        whatsapp_val = ingreso_pref["whatsapp"] if isinstance(ingreso_pref, dict) else ingreso_pref.whatsapp
+        whatsapp_val = (
+            ingreso_pref["whatsapp"] if isinstance(ingreso_pref, dict) else ingreso_pref.whatsapp
+        )
         assert whatsapp_val is False, "INGRESO_OK should be updated"
 
 
@@ -104,18 +101,19 @@ class TestBugR2_3_CSVSanitization:
 
         # These should all be sanitized
         test_cases = [
-            ("=1+1", "'=1+1"),              # Direct formula
-            (" =1+1", "' =1+1"),            # Single space prefix
-            ("  =1+1", "'  =1+1"),          # Double space prefix - FAILS currently!
-            ("\t=1+1", "'\t=1+1"),          # Tab prefix - FAILS currently!
-            ("   @SUM(A1)", "'   @SUM(A1)"), # Multiple spaces - FAILS currently!
+            ("=1+1", "'=1+1"),  # Direct formula
+            (" =1+1", "' =1+1"),  # Single space prefix
+            ("  =1+1", "'  =1+1"),  # Double space prefix - FAILS currently!
+            ("\t=1+1", "'\t=1+1"),  # Tab prefix - FAILS currently!
+            ("   @SUM(A1)", "'   @SUM(A1)"),  # Multiple spaces - FAILS currently!
         ]
 
-        for input_val, expected in test_cases:
+        for input_val, _expected in test_cases:
             result = _sanitize_csv_value(input_val)
             # After stripping, if starts with formula char, should have quote prefix
-            assert result.startswith("'") or input_val.strip()[0] not in "=+-@", \
+            assert result.startswith("'") or input_val.strip()[0] not in "=+-@", (
                 f"Input '{input_val}' should be sanitized but got '{result}'"
+            )
 
 
 class TestBugR2_4_PathParameterValidation:
@@ -127,6 +125,7 @@ class TestBugR2_4_PathParameterValidation:
     def test_attendance_endpoint_has_path_validation(self):
         """Verify attendance endpoint path parameter has ge=1 validation."""
         import inspect
+
         from app.api.v1 import attendance
 
         source = inspect.getsource(attendance.list_events_by_student)
@@ -136,6 +135,7 @@ class TestBugR2_4_PathParameterValidation:
     def test_photo_endpoint_has_path_validation(self):
         """Verify photo upload endpoint has ge=1 validation."""
         import inspect
+
         from app.api.v1 import attendance
 
         source = inspect.getsource(attendance.upload_event_photo)
@@ -145,6 +145,7 @@ class TestBugR2_4_PathParameterValidation:
     def test_audio_endpoint_has_path_validation(self):
         """Verify audio upload endpoint has ge=1 validation."""
         import inspect
+
         from app.api.v1 import attendance
 
         source = inspect.getsource(attendance.upload_event_audio)

@@ -7,14 +7,14 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import deps
 from app.db.models.tenant_audit_log import TenantAuditLog
 from app.db.models.tenant_feature import TenantFeature
-from app.db.repositories.tenants import TenantRepository
 from app.db.repositories.tenant_features import TenantFeatureRepository
+from app.db.repositories.tenants import TenantRepository
 
 router = APIRouter()
 
@@ -116,9 +116,7 @@ async def list_tenants(
         student_count = 0
         try:
             schema_name = f"tenant_{tenant.slug}"
-            result = await session.execute(
-                text(f"SELECT COUNT(*) FROM {schema_name}.students")
-            )
+            result = await session.execute(text(f"SELECT COUNT(*) FROM {schema_name}.students"))
             student_count = result.scalar() or 0
         except Exception:
             pass  # Schema may not exist yet
@@ -687,7 +685,7 @@ async def end_impersonation(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Token inválido o ya expirado",
-        )
+        ) from None
 
     # Verify it's an impersonation token
     if not token_payload.get("is_impersonation"):
@@ -705,6 +703,7 @@ async def end_impersonation(
 
     # Calculate session duration
     import time
+
     iat = token_payload.get("iat")
     duration_seconds = int(time.time() - iat) if iat else None
 
@@ -803,6 +802,7 @@ async def update_tenant_config(
     Credentials (passwords, tokens, keys) are encrypted before storage.
     """
     from zoneinfo import ZoneInfo
+
     from app.db.repositories.tenant_configs import TenantConfigRepository
 
     tenant_repo = TenantRepository(session)
@@ -821,10 +821,14 @@ async def update_tenant_config(
         try:
             ZoneInfo(payload.timezone)
         except Exception:
+            msg = (
+                f"Zona horaria inválida: {payload.timezone}. "
+                "Use formato IANA (ej: America/Santiago)"
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Zona horaria inválida: {payload.timezone}. Use formato IANA (ej: America/Santiago)",
-            )
+                detail=msg,
+            ) from None
         await config_repo.update_timezone(tenant_id, payload.timezone)
 
     # Update email provider
@@ -832,10 +836,17 @@ async def update_tenant_config(
         await config_repo.update_email_provider(tenant_id, payload.email_provider)
 
     # Update SMTP config if any field provided
-    if any(v is not None for v in [
-        payload.smtp_host, payload.smtp_port, payload.smtp_user,
-        payload.smtp_password, payload.smtp_use_tls, payload.smtp_from_name
-    ]):
+    if any(
+        v is not None
+        for v in [
+            payload.smtp_host,
+            payload.smtp_port,
+            payload.smtp_user,
+            payload.smtp_password,
+            payload.smtp_use_tls,
+            payload.smtp_from_name,
+        ]
+    ):
         await config_repo.update_smtp_config(
             tenant_id,
             host=payload.smtp_host,
@@ -847,10 +858,15 @@ async def update_tenant_config(
         )
 
     # Update SES config if any field provided
-    if any(v is not None for v in [
-        payload.ses_region, payload.ses_source_email,
-        payload.ses_access_key, payload.ses_secret_key
-    ]):
+    if any(
+        v is not None
+        for v in [
+            payload.ses_region,
+            payload.ses_source_email,
+            payload.ses_access_key,
+            payload.ses_secret_key,
+        ]
+    ):
         await config_repo.update_ses_config(
             tenant_id,
             region=payload.ses_region,

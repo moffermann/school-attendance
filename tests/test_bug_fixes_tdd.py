@@ -1,11 +1,12 @@
 """TDD Bug Fix Tests - These tests should FAIL initially, then PASS after fixes."""
 
 import asyncio
-import pytest
-import jwt
 
-from app.core.security import create_refresh_token, create_access_token
+import jwt
+import pytest
+
 from app.core.config import settings
+from app.core.security import create_access_token, create_refresh_token
 
 
 class TestBug1RefreshTokenIssuer:
@@ -37,8 +38,9 @@ class TestBug1RefreshTokenIssuer:
         refresh_decoded = jwt.decode(refresh_token, settings.secret_key, algorithms=["HS256"])
 
         # This should fail initially
-        assert access_decoded.get("iss") == refresh_decoded.get("iss"), \
+        assert access_decoded.get("iss") == refresh_decoded.get("iss"), (
             "Access and refresh tokens must have same issuer"
+        )
 
 
 class TestBug2ErrorMessageLeak:
@@ -48,6 +50,7 @@ class TestBug2ErrorMessageLeak:
     async def test_attendance_error_message_is_generic(self):
         """Verify attendance endpoint returns generic error message, not exception details."""
         from fastapi.testclient import TestClient
+
         from app.main import app
 
         client = TestClient(app)
@@ -60,9 +63,9 @@ class TestBug2ErrorMessageLeak:
                 "device_id": "TEST",
                 "gate_id": "GATE-1",
                 "type": "IN",
-                "occurred_at": "2024-01-01T08:00:00"
+                "occurred_at": "2024-01-01T08:00:00",
             },
-            headers={"X-Device-Key": settings.device_api_key}
+            headers={"X-Device-Key": settings.device_api_key},
         )
 
         # Should return 400 or 404, but NOT leak internal error details
@@ -70,18 +73,11 @@ class TestBug2ErrorMessageLeak:
             detail = response.json().get("detail", "")
 
             # Error message should NOT contain Python exception details
-            forbidden_patterns = [
-                "Traceback",
-                "ValueError",
-                "KeyError",
-                "AttributeError",
-                "student_id",  # Should not reveal field names in errors
-                "not found",   # Generic is OK, but specific internal messages are not
-            ]
 
             # The message should be user-friendly, not a raw exception string
-            assert not any(pattern in detail for pattern in ["ValueError", "Traceback"]), \
+            assert not any(pattern in detail for pattern in ["ValueError", "Traceback"]), (
                 f"Error message should not leak exception details: {detail}"
+            )
 
 
 class TestBug3AsyncWorkerEventLoop:
@@ -89,15 +85,16 @@ class TestBug3AsyncWorkerEventLoop:
 
     def test_send_whatsapp_handles_existing_event_loop(self):
         """Verify WhatsApp worker handles case when event loop is already running."""
+        from unittest.mock import AsyncMock, patch
+
         from app.workers.jobs.send_whatsapp import send_whatsapp_message
-        from unittest.mock import patch, AsyncMock
 
         # Create and set a running event loop (simulating async context)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
         # Mock the async _send function to avoid actual API calls
-        with patch('app.workers.jobs.send_whatsapp._send', new_callable=AsyncMock) as mock_send:
+        with patch("app.workers.jobs.send_whatsapp._send", new_callable=AsyncMock) as mock_send:
             mock_send.return_value = None
 
             # This should NOT raise RuntimeError even if loop exists
@@ -112,7 +109,7 @@ class TestBug3AsyncWorkerEventLoop:
                         notification_id=1,
                         to="+56912345678",
                         template="INGRESO_OK",
-                        variables={"student_name": "Test", "date": "01/01/2024", "time": "08:00"}
+                        variables={"student_name": "Test", "date": "01/01/2024", "time": "08:00"},
                     )
 
                 # Run the test
@@ -121,8 +118,7 @@ class TestBug3AsyncWorkerEventLoop:
             except RuntimeError as e:
                 if "cannot be called from a running event loop" in str(e):
                     pytest.fail(
-                        "Worker should handle existing event loop gracefully, "
-                        f"but raised: {e}"
+                        f"Worker should handle existing event loop gracefully, but raised: {e}"
                     )
                 raise
             finally:
@@ -131,8 +127,9 @@ class TestBug3AsyncWorkerEventLoop:
 
     def test_send_whatsapp_works_without_event_loop(self):
         """Verify WhatsApp worker works normally when no event loop exists."""
+        from unittest.mock import AsyncMock, patch
+
         from app.workers.jobs.send_whatsapp import send_whatsapp_message
-        from unittest.mock import patch, AsyncMock
 
         # Ensure no event loop is running
         try:
@@ -142,7 +139,7 @@ class TestBug3AsyncWorkerEventLoop:
             pass  # No running loop, good
 
         # Mock the async _send function
-        with patch('app.workers.jobs.send_whatsapp._send', new_callable=AsyncMock) as mock_send:
+        with patch("app.workers.jobs.send_whatsapp._send", new_callable=AsyncMock) as mock_send:
             mock_send.return_value = None
 
             # This should work without issues
@@ -150,7 +147,7 @@ class TestBug3AsyncWorkerEventLoop:
                 notification_id=1,
                 to="+56912345678",
                 template="INGRESO_OK",
-                variables={"student_name": "Test", "date": "01/01/2024", "time": "08:00"}
+                variables={"student_name": "Test", "date": "01/01/2024", "time": "08:00"},
             )
 
             mock_send.assert_called_once()

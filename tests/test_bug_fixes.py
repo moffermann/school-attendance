@@ -9,18 +9,15 @@ Bug Reference: See plans/keen-twirling-swing.md
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
-from io import StringIO
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
-import csv
 
 import pytest
 from fastapi import HTTPException
 
 from app.core.config import Settings
 from app.schemas.attendance import AttendanceEventCreate, AttendanceType
-
 
 # ============================================================================
 # B1: Memory Leak in WebAuthn Challenge Store
@@ -32,7 +29,9 @@ class TestB1ChallengeCleanuponComplete:
     """Tests for B1: Challenge cleanup on registration/auth completion."""
 
     @pytest.mark.asyncio
-    async def test_challenge_removed_after_complete_student_registration(self, db_session, sample_student):
+    async def test_challenge_removed_after_complete_student_registration(
+        self, db_session, sample_student
+    ):
         """Challenge should be removed from store after successful registration."""
         from app.services.webauthn_service import WebAuthnService, _challenge_store
 
@@ -52,14 +51,15 @@ class TestB1ChallengeCleanuponComplete:
         # Complete registration (will fail verification but should still remove challenge)
         try:
             await service.complete_student_registration(
-                challenge_id,
-                {"id": "fake", "response": {}, "type": "public-key"}
+                challenge_id, {"id": "fake", "response": {}, "type": "public-key"}
             )
         except HTTPException:
             pass  # Expected to fail verification
 
         # Challenge should be removed even if verification fails
-        assert challenge_id not in _challenge_store, "Challenge should be removed after complete attempt"
+        assert challenge_id not in _challenge_store, (
+            "Challenge should be removed after complete attempt"
+        )
 
     @pytest.mark.asyncio
     async def test_expired_challenges_cleaned_on_complete(self, db_session, sample_student):
@@ -80,8 +80,7 @@ class TestB1ChallengeCleanuponComplete:
         # Try to complete with invalid challenge (should trigger cleanup)
         try:
             await service.complete_student_registration(
-                "nonexistent_challenge",
-                {"id": "fake", "response": {}}
+                "nonexistent_challenge", {"id": "fake", "response": {}}
             )
         except HTTPException:
             pass
@@ -111,6 +110,7 @@ class TestB5PhotoServiceAsync:
             # Simulate slow upload (0.1 seconds)
             def slow_upload(*args, **kwargs):
                 import time
+
                 time.sleep(0.1)
 
             mock_client.upload_fileobj = slow_upload
@@ -130,10 +130,9 @@ class TestB5PhotoServiceAsync:
             # while waiting for the slow upload
             start = asyncio.get_event_loop().time()
             await asyncio.gather(
-                service.store_photo("test.jpg", b"data", "image/jpeg"),
-                concurrent_task()
+                service.store_photo("test.jpg", b"data", "image/jpeg"), concurrent_task()
             )
-            elapsed = asyncio.get_event_loop().time() - start
+            asyncio.get_event_loop().time() - start
 
             # If blocking, elapsed would be > 0.1 (sequential)
             # If async, elapsed would be ~0.1 (parallel)
@@ -155,6 +154,7 @@ class TestB6SESClientAsync:
             # Simulate slow send (0.1 seconds)
             def slow_send(*args, **kwargs):
                 import time
+
                 time.sleep(0.1)
                 return {"MessageId": "test"}
 
@@ -171,8 +171,7 @@ class TestB6SESClientAsync:
                 concurrent_task_ran = True
 
             await asyncio.gather(
-                client.send_email("test@example.com", "Subject", "<p>Body</p>"),
-                concurrent_task()
+                client.send_email("test@example.com", "Subject", "<p>Body</p>"), concurrent_task()
             )
 
             assert concurrent_task_ran, "Concurrent task should have run (indicates non-blocking)"
@@ -242,8 +241,8 @@ class TestB11GuardianContactsNull:
     @pytest.mark.asyncio
     async def test_notification_handles_null_contacts(self):
         """detect_no_ingreso should handle guardian with NULL contacts."""
-        from app.workers.jobs.detect_no_ingreso import _detect_and_notify
         from app.db.models.guardian import Guardian
+        from app.workers.jobs.detect_no_ingreso import _detect_and_notify
 
         # Create guardian with NULL contacts
         guardian = Guardian(
@@ -262,12 +261,16 @@ class TestB11GuardianContactsNull:
                 mock_attendance.return_value = mock_attendance_instance
 
                 # Return alert with guardian that has NULL contacts
-                mock_attendance_instance.detect_no_show_alerts.return_value = [{
-                    "alert": MagicMock(status="PENDING", last_notification_at=None, id=1, course_id=1),
-                    "guardian": guardian,
-                    "student": MagicMock(full_name="Test Student"),
-                    "course": MagicMock(name="1A"),
-                }]
+                mock_attendance_instance.detect_no_show_alerts.return_value = [
+                    {
+                        "alert": MagicMock(
+                            status="PENDING", last_notification_at=None, id=1, course_id=1
+                        ),
+                        "guardian": guardian,
+                        "student": MagicMock(full_name="Test Student"),
+                        "course": MagicMock(name="1A"),
+                    }
+                ]
 
                 # This should NOT raise AttributeError: 'NoneType' object has no attribute 'get'
                 try:
@@ -288,13 +291,15 @@ class TestB16ConsentOwnershipValidation:
     """Tests for B16: Validate guardian owns student before changing consent."""
 
     @pytest.mark.asyncio
-    async def test_consent_update_rejects_foreign_student(self, db_session, sample_guardian, sample_student):
+    async def test_consent_update_rejects_foreign_student(
+        self, db_session, sample_guardian, sample_student
+    ):
         """Guardian should not be able to update consent for students they don't own."""
-        from app.services.consent_service import ConsentService
-        from app.schemas.guardians import GuardianPreferencesUpdate
-
         # Create another student NOT belonging to sample_guardian
         from app.db.models.student import Student
+        from app.schemas.guardians import GuardianPreferencesUpdate
+        from app.services.consent_service import ConsentService
+
         foreign_student = Student(
             full_name="Foreign Student",
             course_id=sample_student.course_id,
@@ -307,16 +312,17 @@ class TestB16ConsentOwnershipValidation:
         # Try to update photo consent for foreign student
         payload = GuardianPreferencesUpdate(
             preferences={},
-            photo_consents={str(foreign_student.id): True}  # Student not owned by guardian
+            photo_consents={str(foreign_student.id): True},  # Student not owned by guardian
         )
 
         # This should either reject or ignore the foreign student
-        result = await service.update_guardian_preferences(sample_guardian.id, payload)
+        await service.update_guardian_preferences(sample_guardian.id, payload)
 
         # Foreign student's consent should NOT have been changed
         await db_session.refresh(foreign_student)
-        assert foreign_student.photo_pref_opt_in is not True, \
+        assert foreign_student.photo_pref_opt_in is not True, (
             "B16 Bug: Guardian was able to modify consent of foreign student"
+        )
 
 
 # ============================================================================
@@ -428,12 +434,12 @@ class TestC4TimestampValidation:
 
     def test_rejects_event_more_than_1_day_old(self):
         """Events more than 1 day old should be rejected."""
-        two_days_ago = datetime.now(timezone.utc) - timedelta(days=2)
+        two_days_ago = datetime.now(UTC) - timedelta(days=2)
 
         # This should raise ValidationError with stricter validation
         # Current behavior: allows up to 7 days
         try:
-            event = AttendanceEventCreate(
+            AttendanceEventCreate(
                 student_id=1,
                 device_id="DEV-001",
                 gate_id="GATE-A",
@@ -448,10 +454,10 @@ class TestC4TimestampValidation:
 
     def test_rejects_event_more_than_5_min_future(self):
         """Events more than 5 minutes in future should be rejected."""
-        thirty_min_future = datetime.now(timezone.utc) + timedelta(minutes=30)
+        thirty_min_future = datetime.now(UTC) + timedelta(minutes=30)
 
         try:
-            event = AttendanceEventCreate(
+            AttendanceEventCreate(
                 student_id=1,
                 device_id="DEV-001",
                 gate_id="GATE-A",
@@ -465,7 +471,7 @@ class TestC4TimestampValidation:
     def test_accepts_event_within_valid_window(self):
         """Events within valid window should be accepted."""
         # 1 minute ago - should always be valid
-        one_min_ago = datetime.now(timezone.utc) - timedelta(minutes=1)
+        one_min_ago = datetime.now(UTC) - timedelta(minutes=1)
 
         event = AttendanceEventCreate(
             student_id=1,
@@ -506,7 +512,15 @@ class TestC9IncompleteMocks:
         fake_user_attrs = set(vars(fake_user).keys())
 
         # Check for required fields
-        expected_fields = {"id", "email", "hashed_password", "role", "guardian_id", "teacher_id", "is_active"}
+        expected_fields = {
+            "id",
+            "email",
+            "hashed_password",
+            "role",
+            "guardian_id",
+            "teacher_id",
+            "is_active",
+        }
 
         missing = expected_fields - fake_user_attrs
         assert not missing, f"C9 Bug: fake_user missing fields: {missing}"
@@ -535,6 +549,7 @@ class TestC11ErrorMessageLeakage:
             # This should raise but not expose "Student ID 12345 not found"
             try:
                 from app.schemas.attendance import AttendanceEventCreate, AttendanceType
+
                 await service.register_event(
                     AttendanceEventCreate(
                         student_id=12345,
@@ -544,7 +559,7 @@ class TestC11ErrorMessageLeakage:
                     )
                 )
             except (ValueError, HTTPException) as e:
-                error_msg = str(e.detail) if hasattr(e, 'detail') else str(e)
+                error_msg = str(e.detail) if hasattr(e, "detail") else str(e)
                 # Should NOT contain the specific student ID
                 if "12345" in error_msg:
                     pytest.skip("C11: Error message exposes internal ID")
@@ -561,17 +576,17 @@ class TestC13RateLimitInconsistency:
 
     def test_auth_endpoints_have_same_rate_limit(self):
         """All auth endpoints should have the same rate limit."""
-        from app.api.v1 import auth
-
         # Get rate limit decorators from auth endpoints
         # This is a documentation/code review test
         import inspect
+
+        from app.api.v1 import auth
 
         source = inspect.getsource(auth)
 
         # Count occurrences of rate limit decorators
         login_limits = source.count('@limiter.limit("5/minute")')
-        refresh_limits = source.count('@limiter.limit("10/minute")')
+        source.count('@limiter.limit("10/minute")')
 
         # If login has 5/min and we have 2 login endpoints, attacker gets 10/min
         # All auth should ideally use same global limit
@@ -591,12 +606,13 @@ class TestC15HSTSDisabled:
     def test_hsts_header_in_production(self):
         """Production responses should include HSTS header."""
         import inspect
+
         from app.core import security_headers
 
         source = inspect.getsource(security_headers)
 
         # Check if HSTS is commented out
-        if "# response.headers[\"Strict-Transport-Security\"]" in source:
+        if '# response.headers["Strict-Transport-Security"]' in source:
             pytest.skip("C15: HSTS header is commented out")
 
         # In a real test, we'd check the actual middleware response
@@ -614,10 +630,10 @@ class TestC17SecurityTestCoverage:
     @pytest.mark.asyncio
     async def test_sql_injection_in_student_name(self, db_session):
         """Student name with SQL injection should be safely escaped."""
-        from app.db.repositories.students import StudentRepository
         from app.db.models.student import Student
+        from app.db.repositories.students import StudentRepository
 
-        repo = StudentRepository(db_session)
+        StudentRepository(db_session)
 
         # Try SQL injection payload
         malicious_name = "Robert'; DROP TABLE students;--"
@@ -687,8 +703,8 @@ async def sample_guardian(db_session):
 @pytest.fixture
 async def sample_student(db_session, sample_course, sample_guardian):
     """Create a sample student for testing."""
-    from app.db.models.student import Student
     from app.db.models.associations import student_guardian_table
+    from app.db.models.student import Student
 
     student = Student(
         full_name="Pedro González",

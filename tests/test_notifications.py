@@ -1,4 +1,8 @@
-from app.schemas.notifications import NotificationDispatchRequest, NotificationType, NotificationChannel
+from app.schemas.notifications import (
+    NotificationChannel,
+    NotificationDispatchRequest,
+    NotificationType,
+)
 
 
 def test_notification_dispatch_request_defaults() -> None:

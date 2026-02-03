@@ -10,7 +10,7 @@ Enterprise pattern implementation with:
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, Request, UploadFile
@@ -60,9 +60,7 @@ class AbsenceService:
     # Helpers de autorizacion
     # -------------------------------------------------------------------------
 
-    async def _get_student_ids_for_user(
-        self, user: "AuthUser | TenantAuthUser"
-    ) -> list[int] | None:
+    async def _get_student_ids_for_user(self, user: AuthUser | TenantAuthUser) -> list[int] | None:
         """Get student IDs accessible by user based on role.
 
         Returns:
@@ -85,9 +83,7 @@ class AbsenceService:
     # Metodos legacy (mantener compatibilidad con codigo existente)
     # -------------------------------------------------------------------------
 
-    async def submit_absence(
-        self, user: AuthUser, payload: AbsenceRequestCreate
-    ) -> AbsenceRequest:
+    async def submit_absence(self, user: AuthUser, payload: AbsenceRequestCreate) -> AbsenceRequest:
         """Legacy method: Submit absence request (backward compatible)."""
         student = await self.student_repo.get(payload.student_id)
         if not student:
@@ -108,7 +104,7 @@ class AbsenceService:
             if payload.student_id not in student_ids:
                 raise PermissionError("El alumno no pertenece al apoderado")
 
-        submitted_at = datetime.now(timezone.utc)
+        submitted_at = datetime.now(UTC)
         record = await self.absence_repo.create(
             student_id=payload.student_id,
             type_=payload.type.value,
@@ -137,7 +133,7 @@ class AbsenceService:
 
     async def list_absences(
         self,
-        user: "AuthUser | TenantAuthUser",
+        user: AuthUser | TenantAuthUser,
         *,
         start_date: date | None = None,
         end_date: date | None = None,
@@ -172,7 +168,7 @@ class AbsenceService:
 
     async def list_absences_paginated(
         self,
-        user: "AuthUser | TenantAuthUser",
+        user: AuthUser | TenantAuthUser,
         filters: AbsenceFilters,
         *,
         limit: int = 50,
@@ -255,7 +251,7 @@ class AbsenceService:
 
     async def get_absence(
         self,
-        user: "AuthUser | TenantAuthUser",
+        user: AuthUser | TenantAuthUser,
         absence_id: int,
     ) -> AbsenceRead:
         """Get a single absence request by ID."""
@@ -293,7 +289,7 @@ class AbsenceService:
 
     async def create_absence(
         self,
-        user: "AuthUser | TenantAuthUser",
+        user: AuthUser | TenantAuthUser,
         payload: AbsenceCreate,
         request: Request | None = None,
     ) -> AbsenceRead:
@@ -308,7 +304,7 @@ class AbsenceService:
             raise HTTPException(status_code=403, detail="Sin acceso a este estudiante")
 
         try:
-            submitted_at = datetime.now(timezone.utc)
+            submitted_at = datetime.now(UTC)
             absence = await self.absence_repo.create(
                 student_id=payload.student_id,
                 type_=payload.type.upper(),
@@ -358,7 +354,7 @@ class AbsenceService:
 
     async def delete_absence(
         self,
-        user: "AuthUser | TenantAuthUser",
+        user: AuthUser | TenantAuthUser,
         absence_id: int,
         request: Request | None = None,
     ) -> dict[str, Any]:
@@ -378,9 +374,7 @@ class AbsenceService:
 
         try:
             student_id = absence.student_id
-            deleted_absence = await self.absence_repo.delete(
-                absence_id, deleted_by_id=user.id
-            )
+            await self.absence_repo.delete(absence_id, deleted_by_id=user.id)
             await self.session.commit()
 
             ip_address = request.client.host if request and request.client else None
@@ -410,7 +404,7 @@ class AbsenceService:
 
     async def approve_absence(
         self,
-        user: "AuthUser | TenantAuthUser",
+        user: AuthUser | TenantAuthUser,
         absence_id: int,
         request: Request | None = None,
     ) -> AbsenceRead:
@@ -425,7 +419,10 @@ class AbsenceService:
         if absence.status != "PENDING":
             raise HTTPException(
                 status_code=400,
-                detail=f"Solo se pueden aprobar solicitudes pendientes. Estado actual: {absence.status}",
+                detail=(
+                    "Solo se pueden aprobar solicitudes pendientes. "
+                    f"Estado actual: {absence.status}"
+                ),
             )
 
         try:
@@ -472,7 +469,7 @@ class AbsenceService:
 
     async def reject_absence(
         self,
-        user: "AuthUser | TenantAuthUser",
+        user: AuthUser | TenantAuthUser,
         absence_id: int,
         payload: AbsenceRejectRequest,
         request: Request | None = None,
@@ -488,7 +485,10 @@ class AbsenceService:
         if absence.status != "PENDING":
             raise HTTPException(
                 status_code=400,
-                detail=f"Solo se pueden rechazar solicitudes pendientes. Estado actual: {absence.status}",
+                detail=(
+                    "Solo se pueden rechazar solicitudes pendientes. "
+                    f"Estado actual: {absence.status}"
+                ),
             )
 
         try:
@@ -541,7 +541,7 @@ class AbsenceService:
 
     async def get_stats(
         self,
-        user: "AuthUser | TenantAuthUser",
+        user: AuthUser | TenantAuthUser,
     ) -> AbsenceStatsResponse:
         """Get absence statistics (counts by status)."""
         student_ids = await self._get_student_ids_for_user(user)
@@ -556,7 +556,7 @@ class AbsenceService:
 
     async def search_absences(
         self,
-        user: "AuthUser | TenantAuthUser",
+        user: AuthUser | TenantAuthUser,
         query: str,
         *,
         limit: int = 20,
@@ -588,7 +588,7 @@ class AbsenceService:
 
     async def list_absences_for_export(
         self,
-        user: "AuthUser | TenantAuthUser",
+        user: AuthUser | TenantAuthUser,
         filters: AbsenceFilters,
         request: Request | None = None,
     ) -> list[AbsenceRead]:
@@ -643,7 +643,7 @@ class AbsenceService:
 
     async def upload_attachment(
         self,
-        user: "AuthUser | TenantAuthUser",
+        user: AuthUser | TenantAuthUser,
         absence_id: int,
         file: UploadFile,
         request: Request | None = None,
@@ -678,7 +678,7 @@ class AbsenceService:
         if content_type not in allowed_types:
             raise HTTPException(
                 status_code=400,
-                detail=f"Tipo de archivo no permitido. Permitidos: PDF, JPG, PNG",
+                detail="Tipo de archivo no permitido. Permitidos: PDF, JPG, PNG",
             )
 
         # Validar tamaño (max 5MB)
@@ -738,7 +738,7 @@ class AbsenceService:
         except Exception as e:
             await self.session.rollback()
             logger.error(f"Error uploading attachment: {e}")
-            raise HTTPException(status_code=500, detail="Error al subir archivo")
+            raise HTTPException(status_code=500, detail="Error al subir archivo") from e
         finally:
             photo_service.close()
 

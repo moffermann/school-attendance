@@ -1,12 +1,12 @@
 """Authentication schemas."""
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, EmailStr, Field
 
 
 # R8-V2 fix: Define valid user roles
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     ADMIN = "ADMIN"
     DIRECTOR = "DIRECTOR"
     INSPECTOR = "INSPECTOR"

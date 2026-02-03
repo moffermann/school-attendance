@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,10 +13,10 @@ from app.core import deps
 from app.core.auth import AuthUser
 from app.core.deps import TenantAuthUser
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def app_with_admin_auth():
@@ -54,6 +53,7 @@ def app_no_auth():
 # Device API Tests
 # =============================================================================
 
+
 class TestDeviceAPI:
     """Tests for device endpoints."""
 
@@ -72,7 +72,7 @@ class TestDeviceAPI:
                         battery_pct=85,
                         pending_events=0,
                         online=True,
-                        last_sync=datetime.now(timezone.utc),
+                        last_sync=datetime.now(UTC),
                     )
                 ]
 
@@ -99,32 +99,38 @@ class TestDeviceAPI:
                     battery_pct=payload.battery_pct,
                     pending_events=payload.pending_events,
                     online=True,
-                    last_sync=datetime.now(timezone.utc),
+                    last_sync=datetime.now(UTC),
                 )
 
         app.dependency_overrides[deps.get_device_service] = lambda: FakeDeviceService()
 
         with TestClient(app) as client:
-            resp = client.post("/api/v1/devices/heartbeat", json={
-                "device_id": "DEV-001",
-                "gate_id": "GATE-A",
-                "firmware_version": "1.0.0",
-                "battery_pct": 90,
-                "pending_events": 5,
-            })
+            resp = client.post(
+                "/api/v1/devices/heartbeat",
+                json={
+                    "device_id": "DEV-001",
+                    "gate_id": "GATE-A",
+                    "firmware_version": "1.0.0",
+                    "battery_pct": 90,
+                    "pending_events": 5,
+                },
+            )
             assert resp.status_code == 200
             assert resp.json()["battery_pct"] == 90
 
     def test_heartbeat_no_auth(self, app_no_auth):
         """Should reject heartbeat without auth."""
         with TestClient(app_no_auth) as client:
-            resp = client.post("/api/v1/devices/heartbeat", json={
-                "device_id": "DEV-001",
-                "gate_id": "GATE-A",
-                "firmware_version": "1.0.0",
-                "battery_pct": 90,
-                "pending_events": 5,
-            })
+            resp = client.post(
+                "/api/v1/devices/heartbeat",
+                json={
+                    "device_id": "DEV-001",
+                    "gate_id": "GATE-A",
+                    "firmware_version": "1.0.0",
+                    "battery_pct": 90,
+                    "pending_events": 5,
+                },
+            )
             assert resp.status_code == 403
 
     def test_ping_device(self, app_with_admin_auth):
@@ -141,7 +147,7 @@ class TestDeviceAPI:
                     battery_pct=85,
                     pending_events=0,
                     online=True,
-                    last_sync=datetime.now(timezone.utc),
+                    last_sync=datetime.now(UTC),
                 )
 
         app.dependency_overrides[deps.get_device_service] = lambda: FakeDeviceService()
@@ -198,18 +204,22 @@ class TestDeviceAPI:
 # Attendance API Tests
 # =============================================================================
 
+
 class TestAttendanceAPI:
     """Tests for attendance endpoints."""
 
     def test_register_event_forbidden_no_auth(self, app_no_auth):
         """Should reject event without auth."""
         with TestClient(app_no_auth) as client:
-            resp = client.post("/api/v1/attendance/events", json={
-                "student_id": 1,
-                "type": "IN",
-                "gate_id": "GATE-A",
-                "device_id": "DEV-001",
-            })
+            resp = client.post(
+                "/api/v1/attendance/events",
+                json={
+                    "student_id": 1,
+                    "type": "IN",
+                    "gate_id": "GATE-A",
+                    "device_id": "DEV-001",
+                },
+            )
             assert resp.status_code == 403
 
     def test_register_event_with_device_key(self, app_with_device_auth):
@@ -224,7 +234,7 @@ class TestAttendanceAPI:
                     type=payload.type.value,
                     gate_id=payload.gate_id,
                     device_id=payload.device_id,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                     photo_ref=None,
                     local_seq=None,
                     synced_at=None,
@@ -233,12 +243,15 @@ class TestAttendanceAPI:
         app.dependency_overrides[deps.get_attendance_service] = lambda: FakeAttendanceService()
 
         with TestClient(app) as client:
-            resp = client.post("/api/v1/attendance/events", json={
-                "student_id": 1,
-                "type": "IN",
-                "gate_id": "GATE-A",
-                "device_id": "DEV-001",
-            })
+            resp = client.post(
+                "/api/v1/attendance/events",
+                json={
+                    "student_id": 1,
+                    "type": "IN",
+                    "gate_id": "GATE-A",
+                    "device_id": "DEV-001",
+                },
+            )
             assert resp.status_code == 201
 
     def test_list_student_events(self, app_with_admin_auth):
@@ -254,7 +267,7 @@ class TestAttendanceAPI:
                         type="IN",
                         gate_id="GATE-A",
                         device_id="DEV-001",
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                         photo_ref=None,
                         local_seq=None,
                         synced_at=None,
@@ -273,6 +286,7 @@ class TestAttendanceAPI:
 # Alerts API Tests
 # =============================================================================
 
+
 class TestAlertsAPI:
     """Tests for alerts endpoints."""
 
@@ -281,7 +295,17 @@ class TestAlertsAPI:
         app = app_with_admin_auth
 
         class FakeAlertService:
-            async def list_alerts(self, start_date=None, end_date=None, status=None, course_id=None, guardian_id=None, student_id=None, limit=100, offset=0):
+            async def list_alerts(
+                self,
+                start_date=None,
+                end_date=None,
+                status=None,
+                course_id=None,
+                guardian_id=None,
+                student_id=None,
+                limit=100,
+                offset=0,
+            ):
                 return []
 
         app.dependency_overrides[deps.get_alert_service] = lambda: FakeAlertService()
@@ -304,10 +328,10 @@ class TestAlertsAPI:
                     course_id=1,
                     schedule_id=1,
                     alert_date=datetime.now().date(),
-                    alerted_at=datetime.now(timezone.utc),
+                    alerted_at=datetime.now(UTC),
                     status="RESOLVED",
                     notes=notes,
-                    resolved_at=datetime.now(timezone.utc),
+                    resolved_at=datetime.now(UTC),
                     notification_attempts=1,
                     last_notification_at=None,
                     student_name="Test Student",
@@ -327,6 +351,7 @@ class TestAlertsAPI:
 # Tags API Tests
 # =============================================================================
 
+
 class TestTagsAPI:
     """Tests for tags endpoints."""
 
@@ -345,9 +370,12 @@ class TestTagsAPI:
         app.dependency_overrides[deps.get_tag_provision_service] = lambda: FakeTagProvisionService()
 
         with TestClient(app) as client:
-            resp = client.post("/api/v1/tags/provision", json={
-                "student_id": 1,
-            })
+            resp = client.post(
+                "/api/v1/tags/provision",
+                json={
+                    "student_id": 1,
+                },
+            )
             assert resp.status_code == 200
             assert "tag_token_preview" in resp.json()
 
@@ -367,10 +395,13 @@ class TestTagsAPI:
         app.dependency_overrides[deps.get_tag_provision_service] = lambda: FakeTagProvisionService()
 
         with TestClient(app) as client:
-            resp = client.post("/api/v1/tags/confirm", json={
-                "student_id": 1,
-                "tag_token_preview": "nfc_xxx",
-            })
+            resp = client.post(
+                "/api/v1/tags/confirm",
+                json={
+                    "student_id": 1,
+                    "tag_token_preview": "nfc_xxx",
+                },
+            )
             assert resp.status_code == 201
 
     def test_confirm_tag_not_found(self, app_with_admin_auth):
@@ -384,10 +415,13 @@ class TestTagsAPI:
         app.dependency_overrides[deps.get_tag_provision_service] = lambda: FakeTagProvisionService()
 
         with TestClient(app) as client:
-            resp = client.post("/api/v1/tags/confirm", json={
-                "student_id": 1,
-                "tag_token_preview": "nonexistent",
-            })
+            resp = client.post(
+                "/api/v1/tags/confirm",
+                json={
+                    "student_id": 1,
+                    "tag_token_preview": "nonexistent",
+                },
+            )
             assert resp.status_code == 404
 
     def test_revoke_tag(self, app_with_admin_auth):
@@ -429,6 +463,7 @@ class TestTagsAPI:
 # Parents API Tests
 # =============================================================================
 
+
 class TestParentsAPI:
     """Tests for parents endpoints."""
 
@@ -437,8 +472,13 @@ class TestParentsAPI:
         """Get app with ADMIN role auth for tenant endpoints."""
         app = main.app
         app.dependency_overrides[deps.get_current_tenant_user] = lambda: TenantAuthUser(
-            id=1, role="ADMIN", full_name="Admin User", guardian_id=None, teacher_id=None,
-            tenant_id=1, tenant_slug="test"
+            id=1,
+            role="ADMIN",
+            full_name="Admin User",
+            guardian_id=None,
+            teacher_id=None,
+            tenant_id=1,
+            tenant_slug="test",
         )
         yield app
         app.dependency_overrides.clear()
@@ -448,8 +488,13 @@ class TestParentsAPI:
         """Get app with PARENT role auth for tenant endpoints."""
         app = main.app
         app.dependency_overrides[deps.get_current_tenant_user] = lambda: TenantAuthUser(
-            id=2, role="PARENT", full_name="Parent User", guardian_id=10, teacher_id=None,
-            tenant_id=1, tenant_slug="test"
+            id=2,
+            role="PARENT",
+            full_name="Parent User",
+            guardian_id=10,
+            teacher_id=None,
+            tenant_id=1,
+            tenant_slug="test",
         )
         yield app
         app.dependency_overrides.clear()
@@ -528,10 +573,13 @@ class TestParentsAPI:
         app.dependency_overrides[deps.get_consent_service] = lambda: FakeConsentService()
 
         with TestClient(app) as client:
-            resp = client.put("/api/v1/parents/10/preferences", json={
-                "preferences": {"INGRESO_OK": {"whatsapp": True, "email": False}},
-                "photo_consents": {"1": True},
-            })
+            resp = client.put(
+                "/api/v1/parents/10/preferences",
+                json={
+                    "preferences": {"INGRESO_OK": {"whatsapp": True, "email": False}},
+                    "photo_consents": {"1": True},
+                },
+            )
             assert resp.status_code == 200
             assert resp.json()["guardian_id"] == 10
 
@@ -540,9 +588,12 @@ class TestParentsAPI:
         app = app_with_parent_auth
 
         with TestClient(app) as client:
-            resp = client.put("/api/v1/parents/99/preferences", json={
-                "preferences": {},
-            })
+            resp = client.put(
+                "/api/v1/parents/99/preferences",
+                json={
+                    "preferences": {},
+                },
+            )
             assert resp.status_code == 403
 
     def test_update_preferences_not_found(self, app_with_tenant_admin_auth):
@@ -556,15 +607,19 @@ class TestParentsAPI:
         app.dependency_overrides[deps.get_consent_service] = lambda: FakeConsentService()
 
         with TestClient(app) as client:
-            resp = client.put("/api/v1/parents/999/preferences", json={
-                "preferences": {},
-            })
+            resp = client.put(
+                "/api/v1/parents/999/preferences",
+                json={
+                    "preferences": {},
+                },
+            )
             assert resp.status_code == 404
 
 
 # =============================================================================
 # Broadcast API Tests
 # =============================================================================
+
 
 class TestBroadcastAPI:
     """Tests for broadcast endpoints."""
@@ -599,12 +654,15 @@ class TestBroadcastAPI:
         app.dependency_overrides[deps.get_broadcast_service] = lambda: FakeBroadcastService()
 
         with TestClient(app) as client:
-            resp = client.post("/api/v1/broadcasts/preview", json={
-                "subject": "Test Subject",
-                "message": "Test Message",
-                "template": "INGRESO_OK",
-                "audience": {"scope": "global"},
-            })
+            resp = client.post(
+                "/api/v1/broadcasts/preview",
+                json={
+                    "subject": "Test Subject",
+                    "message": "Test Message",
+                    "template": "INGRESO_OK",
+                    "audience": {"scope": "global"},
+                },
+            )
             assert resp.status_code == 200
             assert resp.json()["recipients"] == 5
 
@@ -619,11 +677,14 @@ class TestBroadcastAPI:
         app.dependency_overrides[deps.get_broadcast_service] = lambda: FakeBroadcastService()
 
         with TestClient(app) as client:
-            resp = client.post("/api/v1/broadcasts/send", json={
-                "subject": "Test Subject",
-                "message": "Test Message",
-                "template": "INGRESO_OK",
-                "audience": {"scope": "global"},
-            })
+            resp = client.post(
+                "/api/v1/broadcasts/send",
+                json={
+                    "subject": "Test Subject",
+                    "message": "Test Message",
+                    "template": "INGRESO_OK",
+                    "audience": {"scope": "global"},
+                },
+            )
             assert resp.status_code == 202
             assert resp.json()["job_id"] == "job-123"

@@ -3,19 +3,19 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-class AbsenceType(str, Enum):
+class AbsenceType(StrEnum):
     MEDICAL = "MEDICAL"
     FAMILY = "FAMILY"
     VACATION = "VACATION"
     OTHER = "OTHER"
 
 
-class AbsenceStatus(str, Enum):
+class AbsenceStatus(StrEnum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
@@ -37,7 +37,7 @@ class AbsenceRequestCreate(BaseModel):
     attachment_name: str | None = None
 
     @model_validator(mode="after")
-    def validate_dates(self) -> "AbsenceRequestCreate":
+    def validate_dates(self) -> AbsenceRequestCreate:
         if self.end < self.start:
             raise ValueError("La fecha de fin no puede ser anterior a la fecha de inicio")
         # Validacion de rango maximo de 30 dias
@@ -59,7 +59,7 @@ class AbsenceCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     @model_validator(mode="after")
-    def validate_date_range(self) -> "AbsenceCreate":
+    def validate_date_range(self) -> AbsenceCreate:
         if self.end_date < self.start_date:
             raise ValueError("Fecha de termino debe ser mayor o igual a fecha de inicio")
         if (self.end_date - self.start_date).days > 30:
@@ -165,7 +165,7 @@ class PaginatedAbsences(BaseModel):
         limit: int,
         offset: int,
         counts: dict[str, int] | None = None,
-    ) -> "PaginatedAbsences":
+    ) -> PaginatedAbsences:
         return cls(
             items=items,
             total=total,

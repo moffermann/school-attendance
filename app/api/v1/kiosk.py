@@ -5,6 +5,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from loguru import logger
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import deps
 from app.core.rate_limiter import limiter
@@ -13,14 +14,13 @@ from app.db.repositories.courses import CourseRepository
 from app.db.repositories.students import StudentRepository
 from app.db.repositories.tags import TagRepository
 from app.db.repositories.teachers import TeacherRepository
-from sqlalchemy.ext.asyncio import AsyncSession
-
 
 router = APIRouter()
 
 
 class KioskStudentRead(BaseModel):
     """Student data for kiosk display."""
+
     id: int
     full_name: str
     course_id: int | None = None
@@ -40,6 +40,7 @@ class KioskTagRead(BaseModel):
     Teacher tags are identified by having teacher_id set (requires DB migration).
     For now, all tags are student tags.
     """
+
     token: str
     student_id: int | None = None
     teacher_id: int | None = None
@@ -48,12 +49,14 @@ class KioskTagRead(BaseModel):
 
 class KioskTeacherRead(BaseModel):
     """Teacher data for kiosk admin access."""
+
     id: int
     full_name: str
 
 
 class KioskTodayEventRead(BaseModel):
     """Today's attendance event for IN/OUT state tracking."""
+
     id: int
     student_id: int
     type: str  # 'IN' or 'OUT'
@@ -62,6 +65,7 @@ class KioskTodayEventRead(BaseModel):
 
 class KioskBootstrapResponse(BaseModel):
     """Bootstrap data for kiosk provisioning."""
+
     students: list[KioskStudentRead]
     tags: list[KioskTagRead]
     teachers: list[KioskTeacherRead]
@@ -88,10 +92,7 @@ async def get_kiosk_bootstrap(
     )
 
     if not device_authenticated:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Device key inválida"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Device key inválida")
 
     student_repo = StudentRepository(session)
     tag_repo = TagRepository(session)
@@ -127,16 +128,18 @@ async def get_kiosk_bootstrap(
         # Get course name from lookup
         course_name = course_lookup.get(s.course_id) if s.course_id else None
 
-        students.append(KioskStudentRead(
-            id=s.id,
-            full_name=s.full_name,
-            course_id=s.course_id,
-            course_name=course_name,
-            photo_url=photo_url,
-            photo_pref_opt_in=s.photo_pref_opt_in,
-            evidence_preference=getattr(s, "effective_evidence_preference", "none"),
-            guardian_name=guardian_name,
-        ))
+        students.append(
+            KioskStudentRead(
+                id=s.id,
+                full_name=s.full_name,
+                course_id=s.course_id,
+                course_name=course_name,
+                photo_url=photo_url,
+                photo_pref_opt_in=s.photo_pref_opt_in,
+                evidence_preference=getattr(s, "effective_evidence_preference", "none"),
+                guardian_name=guardian_name,
+            )
+        )
 
     # Get all tags - map DB fields to kiosk format
     # DB uses tag_token_preview, kiosk uses token
@@ -146,7 +149,7 @@ async def get_kiosk_bootstrap(
         KioskTagRead(
             token=t.tag_token_preview,
             student_id=t.student_id,
-            teacher_id=getattr(t, 'teacher_id', None),  # Future-proof
+            teacher_id=getattr(t, "teacher_id", None),  # Future-proof
             status=t.status,
         )
         for t in tags_raw
@@ -192,10 +195,7 @@ async def get_kiosk_students(
 ) -> list[KioskStudentRead]:
     """Get all students for kiosk with photo proxy URLs."""
     if not device_authenticated:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Device key inválida"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Device key inválida")
 
     student_repo = StudentRepository(session)
     course_repo = CourseRepository(session)
@@ -221,16 +221,18 @@ async def get_kiosk_students(
         # Get course name from lookup
         course_name = course_lookup.get(s.course_id) if s.course_id else None
 
-        students.append(KioskStudentRead(
-            id=s.id,
-            full_name=s.full_name,
-            course_id=s.course_id,
-            course_name=course_name,
-            photo_url=photo_url,
-            photo_pref_opt_in=s.photo_pref_opt_in,
-            evidence_preference=getattr(s, "effective_evidence_preference", "none"),
-            guardian_name=guardian_name,
-        ))
+        students.append(
+            KioskStudentRead(
+                id=s.id,
+                full_name=s.full_name,
+                course_id=s.course_id,
+                course_name=course_name,
+                photo_url=photo_url,
+                photo_pref_opt_in=s.photo_pref_opt_in,
+                evidence_preference=getattr(s, "effective_evidence_preference", "none"),
+                guardian_name=guardian_name,
+            )
+        )
 
     return students
 
@@ -244,10 +246,7 @@ async def get_kiosk_tags(
 ) -> list[KioskTagRead]:
     """Get all tags for kiosk."""
     if not device_authenticated:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Device key inválida"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Device key inválida")
 
     tag_repo = TagRepository(session)
     tags_raw = await tag_repo.list_all()
@@ -256,7 +255,7 @@ async def get_kiosk_tags(
         KioskTagRead(
             token=t.tag_token_preview,
             student_id=t.student_id,
-            teacher_id=getattr(t, 'teacher_id', None),
+            teacher_id=getattr(t, "teacher_id", None),
             status=t.status,
         )
         for t in tags_raw
@@ -272,10 +271,7 @@ async def get_kiosk_teachers(
 ) -> list[KioskTeacherRead]:
     """Get all teachers for kiosk admin access."""
     if not device_authenticated:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Device key inválida"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Device key inválida")
 
     teacher_repo = TeacherRepository(session)
     teachers_raw = await teacher_repo.list_all()
@@ -301,10 +297,7 @@ async def get_kiosk_today_events(
     Called after cache clear to restore proper IN/OUT alternation.
     """
     if not device_authenticated:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Device key inválida"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Device key inválida")
 
     attendance_repo = AttendanceRepository(session)
     today = date.today()

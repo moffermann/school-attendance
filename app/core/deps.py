@@ -6,36 +6,36 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from fastapi import Depends, HTTPException, Header, Request, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import AuthUser
 from app.core.config import settings
 from app.core.security import decode_token
+from app.db.repositories.user_invitations import UserInvitationRepository
 from app.db.repositories.users import UserRepository
 from app.db.session import get_session, get_tenant_session
-from app.services.attendance_service import AttendanceService
+from app.services.absence_service import AbsenceService
+from app.services.alert_service import AlertService
 from app.services.attendance_notification_service import AttendanceNotificationService
+from app.services.attendance_service import AttendanceService
+from app.services.auth_service import AuthService
 from app.services.broadcast_service import BroadcastService
 from app.services.consent_service import ConsentService
+from app.services.course_service import CourseService
+from app.services.dashboard_service import DashboardService
 from app.services.device_service import DeviceService
-from app.services.auth_service import AuthService
+from app.services.guardian_service import GuardianService
+from app.services.notification_service import NotificationService
 from app.services.notifications.dispatcher import NotificationDispatcher
 from app.services.schedule_service import ScheduleService
-from app.services.tag_provision_service import TagProvisionService
-from app.services.alert_service import AlertService
-from app.services.web_app_service import WebAppDataService
-from app.services.absence_service import AbsenceService
-from app.services.dashboard_service import DashboardService
-from app.services.notification_service import NotificationService
-from app.services.webauthn_service import WebAuthnService
-from app.services.course_service import CourseService
-from app.services.teacher_service import TeacherService
-from app.services.guardian_service import GuardianService
 from app.services.student_service import StudentService
+from app.services.tag_provision_service import TagProvisionService
+from app.services.teacher_service import TeacherService
 from app.services.user_invitation_service import UserInvitationService
-from app.db.repositories.user_invitations import UserInvitationRepository
+from app.services.web_app_service import WebAppDataService
+from app.services.webauthn_service import WebAuthnService
 
 if TYPE_CHECKING:
     from app.db.models.tenant import Tenant
@@ -165,7 +165,9 @@ async def get_current_user(
     repo = UserRepository(session)
     user = await repo.get(int(user_id))
     if not user or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no disponible")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no disponible"
+        )
 
     return AuthUser(
         id=user.id,
@@ -179,7 +181,9 @@ async def get_current_user(
 def require_roles(*roles: str) -> Callable[..., Awaitable[AuthUser]]:
     async def dependency(user: AuthUser = Depends(get_current_user)) -> AuthUser:
         if roles and user.role not in roles:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permisos insuficientes")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Permisos insuficientes"
+            )
         return user
 
     return dependency
@@ -233,6 +237,7 @@ async def verify_device_key(
     3. Fallback to global settings.device_api_key (for migration)
     """
     import secrets as secrets_module
+
     from app.db.repositories.tenant_configs import TenantConfigRepository
 
     if not x_device_key:
@@ -294,6 +299,7 @@ async def get_attendance_service(
     tenant_timezone = None
     if tenant_id:
         from app.db.repositories.tenant_configs import TenantConfigRepository
+
         config_repo = TenantConfigRepository(public_session)
         config = await config_repo.get(tenant_id)
         if config and config.timezone:
@@ -438,8 +444,11 @@ async def get_invitation_service(
     user_repo = UserRepository(session)
     invitation_repo = UserInvitationRepository(session)
     return UserInvitationService(
-        session, user_repo, invitation_repo,
-        tenant_id=tenant_id, tenant_schema=tenant_schema,
+        session,
+        user_repo,
+        invitation_repo,
+        tenant_id=tenant_id,
+        tenant_schema=tenant_schema,
     )
 
 
@@ -500,7 +509,9 @@ async def get_current_super_admin(
 def require_super_admin() -> Callable[..., Awaitable[SuperAdminUser]]:
     """Dependency that requires super admin authentication."""
 
-    async def dependency(admin: SuperAdminUser = Depends(get_current_super_admin)) -> SuperAdminUser:
+    async def dependency(
+        admin: SuperAdminUser = Depends(get_current_super_admin),
+    ) -> SuperAdminUser:
         return admin
 
     return dependency
@@ -564,7 +575,7 @@ async def get_current_tenant_user(
         return TenantAuthUser(
             id=int(user_id),
             role=token_role,
-            full_name=f"Super Admin (impersonating)",
+            full_name="Super Admin (impersonating)",
             guardian_id=None,
             teacher_id=None,
             tenant_id=token_tenant_id,
@@ -574,7 +585,9 @@ async def get_current_tenant_user(
     repo = UserRepository(session)
     user = await repo.get(int(user_id))
     if not user or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no disponible")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no disponible"
+        )
 
     return TenantAuthUser(
         id=user.id,
@@ -590,12 +603,12 @@ async def get_current_tenant_user(
 # ==================== Tenant Context Dependencies ====================
 
 
-def get_tenant(request: Request) -> "Tenant | None":
+def get_tenant(request: Request) -> Tenant | None:
     """Get the current tenant from request state."""
     return getattr(request.state, "tenant", None)
 
 
-def require_tenant(request: Request) -> "Tenant":
+def require_tenant(request: Request) -> Tenant:
     """Dependency that requires a tenant to be present."""
     tenant = get_tenant(request)
     if tenant is None:
@@ -621,7 +634,7 @@ def require_feature(feature_name: str):
     Returns:
         A dependency function that checks the feature
     """
-    from app.services.feature_flag_service import FeatureFlagService, _feature_cache
+    from app.services.feature_flag_service import FeatureFlagService
 
     async def check_feature(
         request: Request,
@@ -648,7 +661,7 @@ def require_feature(feature_name: str):
 
 async def get_feature_flag_service(
     session: AsyncSession = Depends(get_public_db),
-) -> "FeatureFlagService":
+) -> FeatureFlagService:
     """Get an instance of the FeatureFlagService."""
     from app.services.feature_flag_service import FeatureFlagService
 

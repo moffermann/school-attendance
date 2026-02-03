@@ -12,8 +12,7 @@ from requests.exceptions import ConnectionError, Timeout  # type: ignore[import-
 from app.db.repositories.notifications import NotificationRepository
 from app.db.repositories.tenant_configs import TenantConfigRepository
 from app.db.session import get_worker_session
-from app.services.notifications.whatsapp import WhatsAppClient, TenantWhatsAppClient, mask_phone
-
+from app.services.notifications.whatsapp import TenantWhatsAppClient, WhatsAppClient, mask_phone
 
 # R2-B4 fix: Constants for retry logic
 MAX_RETRIES = 3
@@ -63,8 +62,8 @@ def _escape_whatsapp_formatting(value: str) -> str:
     if not isinstance(value, str):
         value = str(value) if value is not None else ""
     # Escape formatting characters
-    for char in ['*', '_', '~', '`']:
-        value = value.replace(char, '\\' + char)
+    for char in ["*", "_", "~", "`"]:
+        value = value.replace(char, "\\" + char)
     return value
 
 
@@ -125,7 +124,8 @@ async def _send(
             except Exception as e:
                 logger.warning(
                     "Failed to load tenant WhatsApp config for tenant_id={}, falling back to default: {}",
-                    tenant_id, e
+                    tenant_id,
+                    e,
                 )
 
         # Fall back to global client if no tenant config
@@ -184,7 +184,10 @@ async def _send(
                 await session.commit()
                 logger.warning(
                     "WhatsApp transient error notification_id={} retry={}/{} error={}",
-                    notification_id, current_retries + 1, MAX_RETRIES, exc
+                    notification_id,
+                    current_retries + 1,
+                    MAX_RETRIES,
+                    exc,
                 )
                 raise  # Let RQ retry the job
             else:
@@ -192,7 +195,9 @@ async def _send(
                 await session.commit()
                 logger.error(
                     "WhatsApp send failed after {} retries notification_id={} error={}",
-                    MAX_RETRIES, notification_id, exc
+                    MAX_RETRIES,
+                    notification_id,
+                    exc,
                 )
                 raise
         except Exception as exc:  # pragma: no cover - permanent failure
@@ -234,8 +239,11 @@ def send_whatsapp_message(
     else:
         # Loop is already running - run in separate thread with new event loop
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(
-                lambda: asyncio.run(_send(notification_id, to, template, variables, tenant_id, tenant_schema))
+                lambda: asyncio.run(
+                    _send(notification_id, to, template, variables, tenant_id, tenant_schema)
+                )
             )
             future.result()  # Wait for completion

@@ -13,7 +13,6 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-
 revision = "0021_add_conflict_corrected"
 down_revision = "0020_user_invitations"
 branch_labels = None

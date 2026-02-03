@@ -1,7 +1,7 @@
 """initial schema
 
 Revision ID: 0001_initial
-Revises: 
+Revises:
 Create Date: 2024-05-13 00:00:00.000000
 """
 
@@ -10,7 +10,6 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
-
 
 revision = "0001_initial"
 down_revision = None
@@ -23,9 +22,7 @@ def upgrade() -> None:
         "DO $$ BEGIN CREATE TYPE attendance_type AS ENUM ('IN','OUT'); "
         "EXCEPTION WHEN duplicate_object THEN NULL; END $$;"
     )
-    attendance_type = postgresql.ENUM(
-        "IN", "OUT", name="attendance_type", create_type=False
-    )
+    attendance_type = postgresql.ENUM("IN", "OUT", name="attendance_type", create_type=False)
 
     op.create_table(
         "courses",
@@ -49,7 +46,9 @@ def upgrade() -> None:
         sa.Column("course_id", sa.Integer(), sa.ForeignKey("courses.id"), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False, server_default="ACTIVE"),
         sa.Column("qr_code_hash", sa.String(length=128), nullable=True),
-        sa.Column("photo_pref_opt_in", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+        sa.Column(
+            "photo_pref_opt_in", sa.Boolean(), nullable=False, server_default=sa.text("false")
+        ),
     )
     op.create_index("ix_students_id", "students", ["id"], unique=False)
 
@@ -97,7 +96,9 @@ def upgrade() -> None:
         sa.Column("photo_ref", sa.String(length=512), nullable=True),
         sa.Column("synced_at", sa.DateTime(timezone=True), nullable=True),
     )
-    op.create_index("ix_attendance_events_student", "attendance_events", ["student_id"], unique=False)
+    op.create_index(
+        "ix_attendance_events_student", "attendance_events", ["student_id"], unique=False
+    )
 
     op.create_table(
         "absence_requests",

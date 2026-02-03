@@ -4,15 +4,15 @@ Multi-tenant aware: iterates over all active tenants and updates devices in each
 """
 
 import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 from loguru import logger
 from sqlalchemy import or_, select, update
 
-from app.db.session import async_session, get_tenant_session
+from app.core.tenant_middleware import sanitize_schema_name
 from app.db.models.device import Device
 from app.db.models.tenant import Tenant
-from app.core.tenant_middleware import sanitize_schema_name
+from app.db.session import async_session, get_tenant_session
 
 # Devices without heartbeat for this duration are marked offline
 OFFLINE_THRESHOLD_MINUTES = 5
@@ -23,7 +23,7 @@ async def _mark_devices_offline() -> None:
 
     Iterates over all active tenants and updates their devices.
     """
-    threshold = datetime.now(timezone.utc) - timedelta(minutes=OFFLINE_THRESHOLD_MINUTES)
+    threshold = datetime.now(UTC) - timedelta(minutes=OFFLINE_THRESHOLD_MINUTES)
     total_updated = 0
 
     # First, get all active tenants from public schema

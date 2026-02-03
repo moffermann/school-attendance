@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gestión Biométrica | NEUVOX</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+        :root {
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .sidebar-item.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #818cf8;
+            color: #ffffff;
+        }
+        .bg-primary-gradient {
+            background: var(--primary-gradient);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e5e7eb;
+            border-radius: 10px;
+        }
+    </style>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6366f1",
+                        secondary: "#0ea5e9",
+                        "sidebar-dark": "#1e1b4b",
+                        "border-light": "#e5e7eb",
+                    },
+                    borderRadius: {
+                        'custom': '12px',
+                    },
+                },
+            },
+        };
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-900 antialiased h-screen flex overflow-hidden">
+<aside class="w-64 bg-sidebar-dark text-gray-400 flex-shrink-0 flex flex-col hidden md:flex z-20">
+<div class="h-20 flex items-center px-6 mb-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg">
+<div class="w-4 h-4 bg-sidebar-dark rounded-full"></div>
+</div>
+<h1 class="text-xl font-bold tracking-tight text-white">NEUVOX</h1>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto space-y-1 px-3 pb-4">
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">dashboard</span>
+<span class="text-sm font-medium">Tablero</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">analytics</span>
+<span class="text-sm font-medium">Reportes</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">bar_chart</span>
+<span class="text-sm font-medium">Métricas</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">schedule</span>
+<span class="text-sm font-medium">Horarios</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">event_busy</span>
+<span class="text-sm font-medium">Excepciones</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">campaign</span>
+<span class="text-sm font-medium">Comunicados</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">devices</span>
+<span class="text-sm font-medium">Dispositivos</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">school</span>
+<span class="text-sm font-medium">Alumnos</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">family_restroom</span>
+<span class="text-sm font-medium">Apoderados</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">badge</span>
+<span class="text-sm font-medium">Profesores</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">class</span>
+<span class="text-sm font-medium">Cursos</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">person_off</span>
+<span class="text-sm font-medium">Ausencias</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">notifications</span>
+<span class="text-sm font-medium">Notificaciones</span>
+</a>
+<a class="sidebar-item active flex items-center px-4 py-3 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">fingerprint</span>
+<span class="text-sm font-medium">Biometría</span>
+</a>
+</nav>
+</aside>
+<main class="flex-1 flex flex-col overflow-hidden">
+<header class="h-20 bg-white border-b border-border-light flex items-center justify-between px-8 shrink-0 shadow-sm z-10">
+<h2 class="text-xl font-bold text-gray-800">Gestión Biométrica</h2>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-500">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="h-8 w-px bg-gray-200"></div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<p class="text-sm font-semibold text-gray-800">Director</p>
+<p class="text-xs text-gray-500">Administrador</p>
+</div>
+<img alt="Director" class="w-10 h-10 rounded-full border border-gray-200 shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuATXMQmi4tc7pyne9xfBmiC-sFhXXQQEdTxo6ZDE0Q-eRWdGZBH2BTfopIwMNch7WMQs3jqypUW8CwaAibyRPmpxYHhg6FanoPAy_lwRfvUTluZBH2vXxXbvuLktNGGnny4MP-PI-hEiex0Uy6LJ2PKivLuLYTXEgc405KL9Fg9II3UevScTAVd93VMXTXnd3BHsG9sTm8mg0IlVXQ538Inht1J82954c4vIe5loFMc5hsCAYmN4JZv8yafQ7w00rthZa7fCeHlKV0"/>
+<button class="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-red-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+<span class="material-symbols-outlined text-lg">logout</span>
+<span>Salir</span>
+</button>
+</div>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto p-8 space-y-6">
+<div class="bg-indigo-50 border border-indigo-100 p-6 rounded-custom flex items-center gap-4 shadow-sm">
+<div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-indigo-600">
+<span class="material-symbols-outlined text-3xl">pan_tool</span>
+</div>
+<div>
+<h3 class="text-sm font-bold text-indigo-900">Registro de Huellas Digitales</h3>
+<p class="text-sm text-indigo-700">Registre las huellas digitales de los estudiantes para permitir la autenticación biométrica en los kioscos de asistencia.</p>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-6 items-start">
+<div class="col-span-12 lg:col-span-4 space-y-4">
+<div class="bg-white rounded-custom p-6 shadow-sm border border-gray-100">
+<h4 class="text-sm font-bold text-gray-700 uppercase tracking-tight mb-4">Seleccionar Alumno</h4>
+<div class="space-y-3">
+<div>
+<input class="w-full px-4 py-2 border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm" placeholder="Buscar por nombre..." type="text"/>
+</div>
+<div>
+<select class="w-full px-4 py-2 border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+<option>Todos los cursos</option>
+<option>1° Básico A</option>
+<option>2° Básico B</option>
+</select>
+</div>
+</div>
+<div class="mt-6 space-y-1 h-[400px] overflow-y-auto custom-scrollbar pr-2">
+<div class="flex items-center justify-between p-3 rounded-lg bg-indigo-50 border border-indigo-100 cursor-pointer">
+<div class="flex flex-col">
+<span class="text-sm font-bold text-indigo-900">Agustín Bustos Cárdenas</span>
+<span class="text-xs text-indigo-600">2° Básico A</span>
+</div>
+<span class="material-symbols-outlined text-indigo-500 text-lg">fingerprint</span>
+</div>
+<div class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors border border-transparent">
+<div class="flex flex-col">
+<span class="text-sm font-medium text-gray-700">Alonso Araya Carvajal</span>
+<span class="text-xs text-gray-400">1° Básico B</span>
+</div>
+<div class="w-2 h-2 rounded-full bg-gray-200"></div>
+</div>
+<div class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors border border-transparent">
+<div class="flex flex-col">
+<span class="text-sm font-medium text-gray-700">Amanda Sánchez Peña</span>
+<span class="text-xs text-gray-400">1° Básico B</span>
+</div>
+<div class="w-2 h-2 rounded-full bg-gray-200"></div>
+</div>
+<div class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors border border-transparent">
+<div class="flex flex-col">
+<span class="text-sm font-medium text-gray-700">Amparo Jiménez Castro</span>
+<span class="text-xs text-gray-400">1° Básico A</span>
+</div>
+<div class="w-2 h-2 rounded-full bg-gray-200"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-8">
+<div class="bg-white rounded-custom shadow-sm border border-gray-100 overflow-hidden">
+<div class="px-6 py-4 border-b border-gray-100">
+<h4 class="text-sm font-bold text-gray-700 uppercase tracking-tight">Registro Biométrico</h4>
+</div>
+<div class="p-8">
+<div class="flex items-center gap-6 mb-8 bg-gray-50 p-6 rounded-2xl border border-gray-100">
+<div class="w-20 h-20 rounded-full bg-white flex items-center justify-center border border-gray-200 shadow-sm overflow-hidden">
+<span class="material-symbols-outlined text-4xl text-gray-300">person</span>
+</div>
+<div>
+<h3 class="text-2xl font-bold text-gray-800">Agustín Bustos Cárdenas</h3>
+<div class="flex items-center gap-2 mt-1">
+<span class="px-2.5 py-1 rounded-md bg-white border border-gray-200 text-xs font-semibold text-gray-600">2° Básico A</span>
+<span class="text-xs text-gray-400">ID: 23.456.789-0</span>
+</div>
+</div>
+</div>
+<div class="mb-8 p-5 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-4">
+<div class="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-white">
+<span class="material-symbols-outlined">check_circle</span>
+</div>
+<div>
+<p class="text-emerald-900 font-bold">Biometría Registrada</p>
+<p class="text-emerald-700 text-sm">1 credencial(es) registrada(s) actualmente.</p>
+</div>
+</div>
+<div class="flex flex-wrap gap-4">
+<button class="flex items-center gap-2 px-6 py-3 bg-primary-gradient text-white font-bold rounded-xl shadow-lg hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined">fingerprint</span>
+                                    Agregar Nueva Huella
+                                </button>
+<button class="flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors">
+<span class="material-symbols-outlined">badge</span>
+                                    Ver Credenciales (1)
+                                </button>
+<button class="flex items-center gap-2 px-6 py-3 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors ml-auto border border-red-100">
+<span class="material-symbols-outlined">delete_forever</span>
+                                    Eliminar Todas
+                                </button>
+</div>
+</div>
+<div class="px-8 py-4 bg-gray-50 border-t border-gray-100">
+<div class="flex items-center gap-2 text-xs text-gray-500">
+<span class="material-symbols-outlined text-sm">info</span>
+<span>El dispositivo biométrico debe estar conectado y sincronizado para realizar nuevos registros.</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<footer class="text-center text-[10px] text-gray-400 py-8">
+                © 2026 NEUVOX. Todos los derechos reservados.
+            </footer>
+</div>
+</main>
+
+</body></html>

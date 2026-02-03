@@ -39,7 +39,7 @@ class TenantFeatureRepository:
         """Get list of enabled feature names for a tenant."""
         stmt = select(TenantFeature.feature_name).where(
             TenantFeature.tenant_id == tenant_id,
-            TenantFeature.is_enabled == True,
+            TenantFeature.is_enabled,
         )
         result = await self.session.execute(stmt)
         return [row[0] for row in result.all()]

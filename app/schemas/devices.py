@@ -20,12 +20,18 @@ class DeviceHeartbeatRequest(BaseModel):
 class DeviceCreate(BaseModel):
     """Schema for creating a new device from admin UI."""
 
-    device_id: str = Field(..., max_length=64, description="Unique device identifier (e.g., KIOSK-001)")
-    gate_id: str = Field(..., max_length=64, description="Gate/door identifier (e.g., GATE-PRINCIPAL)")
+    device_id: str = Field(
+        ..., max_length=64, description="Unique device identifier (e.g., KIOSK-001)"
+    )
+    gate_id: str = Field(
+        ..., max_length=64, description="Gate/door identifier (e.g., GATE-PRINCIPAL)"
+    )
     firmware_version: str = Field(default="1.0.0", max_length=32, description="Firmware version")
     battery_pct: int = Field(default=100, ge=0, le=100)
     pending_events: int = Field(default=0, ge=0)
-    online: bool = Field(default=False, description="Device online status (False until first heartbeat)")
+    online: bool = Field(
+        default=False, description="Device online status (False until first heartbeat)"
+    )
 
 
 class DeviceUpdate(BaseModel):

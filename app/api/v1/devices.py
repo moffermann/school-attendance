@@ -7,7 +7,6 @@ from app.core.auth import AuthUser
 from app.schemas.devices import DeviceCreate, DeviceHeartbeatRequest, DeviceRead, DeviceUpdate
 from app.services.device_service import DeviceService
 
-
 router = APIRouter()
 
 

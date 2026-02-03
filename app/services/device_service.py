@@ -79,7 +79,7 @@ class DeviceService:
             return DeviceRead.model_validate(device, from_attributes=True)
         except IntegrityError as exc:
             await self.session.rollback()
-            raise ValueError(f"Ya existe un dispositivo con ese ID") from exc
+            raise ValueError("Ya existe un dispositivo con ese ID") from exc
 
     async def delete_device(self, device_id: int) -> None:
         """Delete a device."""

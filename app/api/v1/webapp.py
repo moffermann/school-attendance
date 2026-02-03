@@ -12,7 +12,6 @@ from app.schemas.webapp import DashboardSnapshot, ReportsSnapshot, WebAppBootstr
 from app.services.dashboard_service import DashboardService
 from app.services.web_app_service import WebAppDataService
 
-
 router = APIRouter(prefix="", tags=["web-app"])
 
 # R10-A4 fix: Define valid event types
@@ -21,7 +20,9 @@ EventTypeFilter = Literal["IN", "OUT"]
 
 @router.get("/bootstrap", response_model=WebAppBootstrap)
 async def load_bootstrap(
-    current_user: AuthUser = Depends(deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR", "PARENT")),
+    current_user: AuthUser = Depends(
+        deps.require_roles("ADMIN", "DIRECTOR", "INSPECTOR", "PARENT")
+    ),
     service: WebAppDataService = Depends(deps.get_web_app_data_service),
 ) -> WebAppBootstrap:
     return await service.build_bootstrap_payload(current_user)
@@ -69,7 +70,7 @@ async def export_dashboard_snapshot(
     return StreamingResponse(
         iter([csv_data]),
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename=\"{filename}\"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

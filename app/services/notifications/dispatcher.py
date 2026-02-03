@@ -1,7 +1,5 @@
 """Dispatcher for notifications."""
 
-import asyncio
-
 from loguru import logger
 from redis import Redis
 from rq import Queue
@@ -9,7 +7,11 @@ from rq import Queue
 from app.core.config import settings
 from app.db.repositories.guardians import GuardianRepository
 from app.db.repositories.notifications import NotificationRepository
-from app.schemas.notifications import NotificationDispatchRequest, NotificationRead, NotificationChannel
+from app.schemas.notifications import (
+    NotificationChannel,
+    NotificationDispatchRequest,
+    NotificationRead,
+)
 
 
 class NotificationDispatcher:
@@ -24,14 +26,16 @@ class NotificationDispatcher:
 
     def __del__(self):
         """Close Redis connection on cleanup (B7 fix)."""
-        if hasattr(self, '_redis') and self._redis:
+        if hasattr(self, "_redis") and self._redis:
             try:
                 self._redis.close()
             except Exception as exc:
                 # R2-B13 fix: Log errors instead of silently ignoring
                 logger.debug("Error closing Redis connection in destructor: {}", exc)
 
-    async def enqueue_manual_notification(self, payload: NotificationDispatchRequest) -> NotificationRead:
+    async def enqueue_manual_notification(
+        self, payload: NotificationDispatchRequest
+    ) -> NotificationRead:
         guardian = await self.guardian_repo.get(payload.guardian_id)
         if not guardian:
             raise ValueError("Guardian not found")

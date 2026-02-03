@@ -1,13 +1,13 @@
 """Student schemas."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class StudentStatus(str, Enum):
+class StudentStatus(StrEnum):
     """Status enum for students."""
 
     ACTIVE = "ACTIVE"
@@ -113,7 +113,9 @@ class PaginatedStudents(BaseModel):
     has_more: bool
 
     @classmethod
-    def create(cls, items: list[StudentRead], total: int, limit: int, offset: int) -> "PaginatedStudents":
+    def create(
+        cls, items: list[StudentRead], total: int, limit: int, offset: int
+    ) -> "PaginatedStudents":
         """Factory method with correct has_more calculation."""
         return cls(
             items=items,

@@ -8,7 +8,6 @@ Create Date: 2025-12-02
 
 from __future__ import annotations
 
-
 revision = "0007_merge_0006_heads"
 down_revision = ("0006_add_absence_comment", "0006_webauthn_credentials")
 branch_labels = None

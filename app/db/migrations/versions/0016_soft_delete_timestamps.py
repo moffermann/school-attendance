@@ -10,7 +10,6 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-
 revision = "0016_soft_delete_timestamps"
 down_revision = "0015_smtp_email_support"
 branch_labels = None

@@ -8,8 +8,6 @@ Create Date: 2025-10-15 00:00:00.000000
 from __future__ import annotations
 
 from alembic import op
-import sqlalchemy as sa
-
 
 revision = "0006_add_absence_comment"
 down_revision = "0005_merge_heads"

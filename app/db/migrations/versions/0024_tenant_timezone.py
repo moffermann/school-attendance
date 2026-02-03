@@ -8,8 +8,8 @@ Revises: 0023_sequence_corrections
 Create Date: 2026-02-03
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0024_tenant_timezone"
@@ -22,13 +22,8 @@ def upgrade() -> None:
     # Add timezone column with default America/Santiago (Chile)
     op.add_column(
         "tenant_configs",
-        sa.Column(
-            "timezone",
-            sa.String(64),
-            nullable=True,
-            server_default="America/Santiago"
-        ),
-        schema="public"
+        sa.Column("timezone", sa.String(64), nullable=True, server_default="America/Santiago"),
+        schema="public",
     )
 
 

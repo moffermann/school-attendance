@@ -13,7 +13,6 @@ Total: 104 issues identified, testing priority fixes below.
 
 import inspect
 import re
-from datetime import datetime, timezone
 
 
 # =============================================================================
@@ -25,6 +24,7 @@ class TestR15MDL1MutableDefaults:
     def test_guardian_contacts_no_mutable_default(self):
         """R15-MDL1: Guardian.contacts should use factory, not mutable dict."""
         from app.db.models.guardian import Guardian
+
         source = inspect.getsource(Guardian)
 
         # Check for dangerous pattern: default=dict (callable passed directly)
@@ -43,6 +43,7 @@ class TestR15MDL1MutableDefaults:
     def test_notification_payload_no_mutable_default(self):
         """R15-MDL1: Notification.payload should use factory."""
         from app.db.models.notification import Notification
+
         source = inspect.getsource(Notification)
 
         # Check for dangerous pattern
@@ -65,13 +66,13 @@ class TestR15DT1DeprecatedDatetime:
     def test_tags_repo_no_utcnow(self):
         """R15-DT1: Tags repository should not use deprecated utcnow()."""
         from app.db.repositories import tags
+
         source = inspect.getsource(tags)
 
         # Check for deprecated pattern
         uses_utcnow = "datetime.utcnow()" in source
 
         # Check for correct pattern
-        uses_timezone_utc = "datetime.now(timezone.utc)" in source or "UTC" in source
 
         assert not uses_utcnow, (
             "Tags repository should use datetime.now(timezone.utc) "
@@ -88,6 +89,7 @@ class TestR15DT2DatetimeCombine:
     def test_attendance_service_combine_has_timezone(self):
         """R15-DT2: datetime.combine should include tzinfo parameter."""
         from app.services import attendance_service
+
         source = inspect.getsource(attendance_service)
 
         # Find combine calls - check that they include tzinfo
@@ -96,9 +98,7 @@ class TestR15DT2DatetimeCombine:
         for call in combine_calls:
             # Check if tzinfo is specified in the call
             has_tzinfo = "tzinfo=" in call or "timezone" in call
-            assert has_tzinfo, (
-                f"datetime.combine() call should include tzinfo parameter: {call}"
-            )
+            assert has_tzinfo, f"datetime.combine() call should include tzinfo parameter: {call}"
 
 
 # =============================================================================
@@ -110,22 +110,21 @@ class TestR15LIM1ExportLimits:
     def test_alerts_export_has_limit(self):
         """R15-LIM1: Alerts CSV export should have a limit."""
         from app.api.v1 import alerts
+
         source = inspect.getsource(alerts)
 
         # Find export function
         export_match = re.search(
-            r"def export.*?(?=\nasync def |\ndef |\nclass |\Z)",
-            source,
-            re.DOTALL
+            r"def export.*?(?=\nasync def |\ndef |\nclass |\Z)", source, re.DOTALL
         )
 
         if export_match:
             export_source = export_match.group(0)
             has_limit = (
-                "limit" in export_source.lower() or
-                "MAX_" in export_source or
-                "10000" in export_source or
-                "5000" in export_source
+                "limit" in export_source.lower()
+                or "MAX_" in export_source
+                or "10000" in export_source
+                or "5000" in export_source
             )
 
             assert has_limit, (
@@ -143,6 +142,7 @@ class TestR15LIM2PaginationLimits:
     def test_notifications_pagination_limit_reasonable(self):
         """R15-LIM2: Notification pagination should have reasonable limit."""
         from app.api.v1 import notifications
+
         source = inspect.getsource(notifications)
 
         # Check for unreasonable limits
@@ -152,8 +152,7 @@ class TestR15LIM2PaginationLimits:
         # Should not have extremely high defaults
         if has_2000_limit:
             assert has_reasonable, (
-                "Notification pagination limit of 2000 is too high. "
-                "Consider 100-500 as default."
+                "Notification pagination limit of 2000 is too high. Consider 100-500 as default."
             )
 
 
@@ -167,6 +166,7 @@ class TestR15LIM3UploadValidation:
         """R15-LIM3: Photo upload should validate file size."""
         # Size validation is in the service layer, not API layer
         from app.services import attendance_service
+
         source = inspect.getsource(attendance_service)
 
         # Check for size validation constants
@@ -187,12 +187,11 @@ class TestR15CSV1FormulaSanitization:
     def test_csv_sanitizes_formula_characters(self):
         """R15-CSV1: CSV export should sanitize =, +, -, @, tab, CR, LF."""
         from app.api.v1 import notifications
+
         source = inspect.getsource(notifications)
 
         # Check for sanitization of dangerous characters
         sanitizes_equals = '="' in source or "'" in source or "startswith" in source
-        sanitizes_plus = "+" in source
-        sanitizes_at = "@" in source
 
         has_sanitization = sanitizes_equals or "sanitize" in source.lower()
 
@@ -210,21 +209,16 @@ class TestR15STATE1NotificationStatus:
     def test_notification_mark_sent_validates_current_status(self):
         """R15-STATE1: mark_sent should validate current status."""
         from app.db.repositories import notifications
+
         source = inspect.getsource(notifications)
 
         # Find mark_sent method
         method_match = re.search(
-            r"def mark_sent.*?(?=\n    async def |\n    def |\nclass |\Z)",
-            source,
-            re.DOTALL
+            r"def mark_sent.*?(?=\n    async def |\n    def |\nclass |\Z)", source, re.DOTALL
         )
 
         if method_match:
             method_source = method_match.group(0)
-            has_status_check = (
-                "status" in method_source and
-                ("if " in method_source or "assert" in method_source)
-            )
 
             # At minimum should log or check
             has_awareness = "status" in method_source
@@ -248,18 +242,15 @@ class TestR15STATE2WebAuthnCredential:
         # Check for CHECK constraint in table args
         table_args = getattr(WebAuthnCredential, "__table_args__", None)
 
-        has_constraint = False
         if table_args:
             for arg in table_args:
                 if hasattr(arg, "name") and "check" in str(type(arg)).lower():
-                    has_constraint = True
                     break
 
         # Or check source for validation
         source = inspect.getsource(WebAuthnCredential)
         has_validation = (
-            "CheckConstraint" in source or
-            "student_id" in source and "user_id" in source
+            "CheckConstraint" in source or "student_id" in source and "user_id" in source
         )
 
         # At minimum both fields should exist
@@ -278,11 +269,14 @@ class TestR15STATE3StudentPreferences:
     def test_attendance_notification_uses_effective_preference(self):
         """R15-STATE3: Should use effective_evidence_preference, not legacy field."""
         from app.services import attendance_notification_service
+
         source = inspect.getsource(attendance_notification_service)
 
         # Check which field is used
         uses_legacy = "photo_pref_opt_in" in source
-        uses_effective = "effective_evidence_preference" in source or "evidence_preference" in source
+        uses_effective = (
+            "effective_evidence_preference" in source or "evidence_preference" in source
+        )
 
         # Should prefer the new field or property
         assert uses_effective or not uses_legacy, (
@@ -300,6 +294,7 @@ class TestR15GC1PhotoServiceCleanup:
     def test_cleanup_photos_closes_photo_service(self):
         """R15-GC1: cleanup_photos worker should close PhotoService."""
         from app.workers.jobs import cleanup_photos
+
         source = inspect.getsource(cleanup_photos)
 
         # Check for cleanup
@@ -320,6 +315,7 @@ class TestR15GC2SESClientCleanup:
     def test_send_email_closes_ses_client(self):
         """R15-GC2: send_email worker should close SES client."""
         from app.workers.jobs import send_email
+
         source = inspect.getsource(send_email)
 
         # Check for cleanup
@@ -341,17 +337,15 @@ class TestR15GC3RedisCleanup:
     def test_notification_dispatcher_closes_session(self):
         """R15-GC3: NotificationDispatcher should close session in destructor."""
         from app.services.notifications import dispatcher
+
         source = inspect.getsource(dispatcher)
 
         # Check __del__ or close method
-        has_session_close = "session" in source and "close" in source
 
         # At minimum should have destructor
         has_destructor = "__del__" in source or "def close" in source
 
-        assert has_destructor, (
-            "NotificationDispatcher should have __del__ or close() for cleanup."
-        )
+        assert has_destructor, "NotificationDispatcher should have __del__ or close() for cleanup."
 
 
 # =============================================================================
@@ -363,16 +357,15 @@ class TestR15GC4SchedulerShutdown:
     def test_scheduler_has_signal_handling(self):
         """R15-GC4: Scheduler should handle SIGTERM gracefully."""
         from app.workers import scheduler
+
         source = inspect.getsource(scheduler)
 
         # Check for signal handling
-        has_signal = "signal" in source.lower()
+        "signal" in source.lower()
         has_shutdown = "shutdown" in source
         has_except = "KeyboardInterrupt" in source or "SystemExit" in source
 
-        assert has_shutdown and has_except, (
-            "Scheduler should have graceful shutdown handling."
-        )
+        assert has_shutdown and has_except, "Scheduler should have graceful shutdown handling."
 
 
 # =============================================================================
@@ -384,12 +377,13 @@ class TestR15CHAL1ChallengeStoreCleanup:
     def test_webauthn_challenge_store_has_limits(self):
         """R15-CHAL1: Challenge store should have size limits."""
         from app.services import webauthn_service
+
         source = inspect.getsource(webauthn_service)
 
         # Check for cleanup mechanism
         has_cleanup = "_cleanup" in source
         has_expires = "expires" in source
-        has_max_size = "MAX_" in source or "max_" in source or "limit" in source.lower()
+        "MAX_" in source or "max_" in source or "limit" in source.lower()
 
         assert has_cleanup and has_expires, (
             "WebAuthn challenge store should have expiration cleanup."
@@ -405,6 +399,7 @@ class TestR15CHAL2ChallengeStoreRedis:
     def test_webauthn_challenge_store_is_thread_safe(self):
         """R15-CHAL2: Challenge store should be thread-safe for production."""
         from app.services import webauthn_service
+
         source = inspect.getsource(webauthn_service)
 
         # Check for thread safety
@@ -415,9 +410,7 @@ class TestR15CHAL2ChallengeStoreRedis:
         # At minimum should have awareness of the issue
         is_aware = uses_redis or uses_lock or has_warning or "_challenge_store" in source
 
-        assert is_aware, (
-            "WebAuthn challenge store should be thread-safe or use Redis."
-        )
+        assert is_aware, "WebAuthn challenge store should be thread-safe or use Redis."
 
 
 # =============================================================================
@@ -429,19 +422,18 @@ class TestR15NULL1GuardianContacts:
     def test_detect_no_ingreso_handles_null_contacts(self):
         """R15-NULL1: detect_no_ingreso should handle null guardian.contacts."""
         from app.workers.jobs import detect_no_ingreso
+
         source = inspect.getsource(detect_no_ingreso)
 
         # Check for null-safe access
         has_safe_access = (
-            "(guardian.contacts or" in source or
-            "getattr(guardian, 'contacts'" in source or
-            "if guardian.contacts" in source or
-            ".get(" in source
+            "(guardian.contacts or" in source
+            or "getattr(guardian, 'contacts'" in source
+            or "if guardian.contacts" in source
+            or ".get(" in source
         )
 
-        assert has_safe_access, (
-            "detect_no_ingreso should safely handle null guardian.contacts."
-        )
+        assert has_safe_access, "detect_no_ingreso should safely handle null guardian.contacts."
 
 
 # =============================================================================
@@ -453,13 +445,10 @@ class TestR15ERR1ErrorHandling:
     def test_attendance_api_doesnt_expose_internal_errors(self):
         """R15-ERR1: Attendance API should not expose internal errors."""
         from app.api.v1 import attendance
+
         source = inspect.getsource(attendance)
 
         # Check for generic error responses
-        has_generic_errors = (
-            "Internal server error" in source or
-            "detail=" in source
-        )
 
         # Should not expose raw exceptions
         exposes_raw = "str(e)" in source or "str(exc)" in source
@@ -468,9 +457,7 @@ class TestR15ERR1ErrorHandling:
             # If it does, should be logged not returned
             has_logging = "logger" in source
 
-            assert has_logging, (
-                "Attendance API should log internal errors, not expose them."
-            )
+            assert has_logging, "Attendance API should log internal errors, not expose them."
 
 
 # =============================================================================
@@ -510,13 +497,14 @@ class TestR15SEC1SecretsValidation:
     def test_config_validates_secrets_not_default(self):
         """R15-SEC1: Config should validate SECRET_KEY is not default."""
         from app.core import config
+
         source = inspect.getsource(config)
 
         # Check for validation
-        has_validation = (
-            "change-me" in source.lower() or
-            "default" in source.lower() or
-            "production" in source.lower()
+        (
+            "change-me" in source.lower()
+            or "default" in source.lower()
+            or "production" in source.lower()
         )
 
         # Should have SECRET_KEY defined

@@ -7,9 +7,8 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.types import JSONBCompatible
-
 from app.db.base import Base
+from app.db.types import JSONBCompatible
 
 if TYPE_CHECKING:
     from app.db.models.tenant import Tenant
@@ -64,7 +63,10 @@ class TenantFeature(Base):
     config: Mapped[dict[str, Any]] = mapped_column(JSONBCompatible, nullable=False, default=dict)
 
     # Relationships
-    tenant: Mapped["Tenant"] = relationship("Tenant", back_populates="features")
+    tenant: Mapped[Tenant] = relationship("Tenant", back_populates="features")
 
     def __repr__(self) -> str:
-        return f"<TenantFeature(tenant_id={self.tenant_id}, feature={self.feature_name}, enabled={self.is_enabled})>"
+        return (
+            f"<TenantFeature(tenant_id={self.tenant_id}, "
+            f"feature={self.feature_name}, enabled={self.is_enabled})>"
+        )

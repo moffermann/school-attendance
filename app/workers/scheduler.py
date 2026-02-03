@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from loguru import logger
 
-from app.workers.jobs.detect_no_ingreso import _detect_and_notify
 from app.workers.jobs.cleanup_photos import _cleanup
+from app.workers.jobs.detect_no_ingreso import _detect_and_notify
 from app.workers.jobs.mark_devices_offline import _mark_devices_offline
 
 

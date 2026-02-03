@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -153,7 +153,9 @@ async def session_info(
     try:
         payload = decode_session(session_token)
     except HTTPException as exc:  # pragma: no cover - propagates invalid session
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sesión inválida") from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Sesión inválida"
+        ) from exc
 
     user_id = payload.get("user_id")
     if not user_id:
@@ -185,7 +187,9 @@ async def validate_invitation_token(
     """Validate parent invitation token."""
     invitation = await invitation_service.validate_token(token, "INVITATION")
     if not invitation:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido o expirado")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido o expirado"
+        )
     return {"email": invitation.email, "valid": True}
 
 
@@ -219,8 +223,11 @@ async def complete_setup(
         )
         refresh_token = create_tenant_refresh_token(user_id=user.id, tenant_id=tenant.id)
     else:
-        access_token = create_access_token(str(user.id), role=user.role, guardian_id=user.guardian_id)
+        access_token = create_access_token(
+            str(user.id), role=user.role, guardian_id=user.guardian_id
+        )
         from app.core.security import create_refresh_token
+
         refresh_token = create_refresh_token(str(user.id))
     return TokenPair(access_token=access_token, refresh_token=refresh_token)
 
@@ -245,7 +252,9 @@ async def validate_reset_token(
     """Validate password reset token."""
     invitation = await invitation_service.validate_token(token, "PASSWORD_RESET")
     if not invitation:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido o expirado")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido o expirado"
+        )
     return {"email": invitation.email, "valid": True}
 
 

@@ -10,7 +10,6 @@ These tests verify performance-related fixes:
 - R12-P7: Frontend search input should have debounce
 """
 
-import ast
 import inspect
 import re
 
@@ -29,8 +28,7 @@ class TestR12P1AvoidDuplicateStudentFetch:
 
         # Check that _send_attendance_notifications accepts student parameter
         method_match = re.search(
-            r"async def _send_attendance_notifications\s*\([^)]*student",
-            source
+            r"async def _send_attendance_notifications\s*\([^)]*student", source
         )
         assert method_match, (
             "_send_attendance_notifications should accept student as parameter "
@@ -47,8 +45,8 @@ class TestR12P1AvoidDuplicateStudentFetch:
 
         # Should pass student to _send_attendance_notifications
         passes_student = (
-            "_send_attendance_notifications(event, student)" in register_source or
-            "_send_attendance_notifications(event=event, student=student)" in register_source
+            "_send_attendance_notifications(event, student)" in register_source
+            or "_send_attendance_notifications(event=event, student=student)" in register_source
         )
 
         assert passes_student, (
@@ -76,10 +74,7 @@ class TestR12P2StudentCourseIdIndex:
 
         # Also check if there's a separate index on this column
         indexes = Student.__table__.indexes
-        has_separate_index = any(
-            "course_id" in [c.name for c in idx.columns]
-            for idx in indexes
-        )
+        has_separate_index = any("course_id" in [c.name for c in idx.columns] for idx in indexes)
 
         assert has_index or has_separate_index, (
             "Student.course_id should have index=True for query performance. "
@@ -124,10 +119,7 @@ class TestR12P5PresignedUrlAsync:
         source = inspect.getsource(photo_service)
 
         # Find generate_presigned_url - should be async
-        method_match = re.search(
-            r"(async\s+)?def\s+generate_presigned_url",
-            source
-        )
+        method_match = re.search(r"(async\s+)?def\s+generate_presigned_url", source)
 
         assert method_match, "generate_presigned_url should exist"
 
@@ -151,7 +143,7 @@ class TestR12P6EventDelegation:
         """R12-P6: Delete buttons should use event delegation, not per-button listeners."""
         biometric_js_path = "src/web-app/js/views/director_biometric.js"
 
-        with open(biometric_js_path, "r", encoding="utf-8") as f:
+        with open(biometric_js_path, encoding="utf-8") as f:
             content = f.read()
 
         # Look for event delegation pattern on a parent container
@@ -159,15 +151,15 @@ class TestR12P6EventDelegation:
         # Bad: forEach(btn => btn.addEventListener('click', ...))
 
         has_foreach_addEventListener = (
-            ".forEach(btn =>" in content and
-            "addEventListener('click'" in content
+            ".forEach(btn =>" in content and "addEventListener('click'" in content
         )
 
         # Check for event delegation pattern
         has_delegation = (
-            "closest(" in content or
-            "matches(" in content or
-            ".delete-credential-btn" in content and "e.target" in content
+            "closest(" in content
+            or "matches(" in content
+            or ".delete-credential-btn" in content
+            and "e.target" in content
         )
 
         # Should NOT have the problematic forEach pattern without cleanup
@@ -189,7 +181,7 @@ class TestR12P7SearchDebounce:
         """R12-P7: Search input should debounce filterStudents calls."""
         biometric_js_path = "src/web-app/js/views/director_biometric.js"
 
-        with open(biometric_js_path, "r", encoding="utf-8") as f:
+        with open(biometric_js_path, encoding="utf-8") as f:
             content = f.read()
 
         # Check if oninput calls filterStudents directly (bad)
@@ -198,9 +190,10 @@ class TestR12P7SearchDebounce:
 
         # Check for debounce pattern
         has_debounce = (
-            "debounce" in content.lower() or
-            "setTimeout" in content and "filterStudents" in content or
-            "clearTimeout" in content
+            "debounce" in content.lower()
+            or "setTimeout" in content
+            and "filterStudents" in content
+            or "clearTimeout" in content
         )
 
         # If direct oninput, should have debounce
@@ -229,10 +222,7 @@ class TestR12P8StudentStatusIndex:
 
         # Also check if there's a separate index on this column
         indexes = Student.__table__.indexes
-        has_separate_index = any(
-            "status" in [c.name for c in idx.columns]
-            for idx in indexes
-        )
+        has_separate_index = any("status" in [c.name for c in idx.columns] for idx in indexes)
 
         assert has_index or has_separate_index, (
             "Student.status should have index=True for filtering active students. "
@@ -258,10 +248,7 @@ class TestR12P9NotificationTsSentIndex:
 
         # Also check if there's a separate index
         indexes = Notification.__table__.indexes
-        has_separate_index = any(
-            "ts_sent" in [c.name for c in idx.columns]
-            for idx in indexes
-        )
+        has_separate_index = any("ts_sent" in [c.name for c in idx.columns] for idx in indexes)
 
         assert has_index or has_separate_index, (
             "Notification.ts_sent should have index for worker queries "
@@ -287,12 +274,8 @@ class TestR12P10NoShowAlertCourseIdIndex:
 
         # Also check if there's a separate index
         indexes = NoShowAlert.__table__.indexes
-        has_separate_index = any(
-            "course_id" in [c.name for c in idx.columns]
-            for idx in indexes
-        )
+        has_separate_index = any("course_id" in [c.name for c in idx.columns] for idx in indexes)
 
         assert has_index or has_separate_index, (
-            "NoShowAlert.course_id should have index for counts_by_course() "
-            "GROUP BY queries."
+            "NoShowAlert.course_id should have index for counts_by_course() GROUP BY queries."
         )

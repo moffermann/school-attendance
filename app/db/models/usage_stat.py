@@ -15,7 +15,9 @@ class UsageStat(Base):
 
     __tablename__ = "usage_stats"
     __table_args__ = (
-        UniqueConstraint("tenant_id", "stat_date", "metric_name", name="uq_usage_stats_tenant_date_metric"),
+        UniqueConstraint(
+            "tenant_id", "stat_date", "metric_name", name="uq_usage_stats_tenant_date_metric"
+        ),
         {"schema": "public"},
     )
 
@@ -52,4 +54,7 @@ class UsageStat(Base):
     tenant = relationship("Tenant")
 
     def __repr__(self) -> str:
-        return f"<UsageStat(tenant_id={self.tenant_id}, date={self.stat_date}, metric={self.metric_name}, value={self.value})>"
+        return (
+            f"<UsageStat(tenant_id={self.tenant_id}, date={self.stat_date}, "
+            f"metric={self.metric_name}, value={self.value})>"
+        )

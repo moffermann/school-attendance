@@ -2,7 +2,7 @@
 
 import csv
 from datetime import date
-from enum import Enum
+from enum import StrEnum
 from io import StringIO
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -12,13 +12,13 @@ from app.core.auth import AuthUser
 from app.schemas.alerts import NoShowAlertRead, NoShowAlertResolve
 from app.services.alert_service import AlertService
 
-
 router = APIRouter()
 
 
 # R5-A1 fix: Enum for valid alert statuses
-class AlertStatusFilter(str, Enum):
+class AlertStatusFilter(StrEnum):
     """Valid status values for filtering alerts."""
+
     PENDING = "PENDING"
     RESOLVED = "RESOLVED"
 
@@ -76,7 +76,7 @@ def _sanitize_csv_value(val: str | None) -> str:
     val = str(val)
     # Check both the original first char AND the stripped first char
     stripped = val.lstrip()
-    if stripped and stripped[0] in '=+-@':
+    if stripped and stripped[0] in "=+-@":
         return "'" + val  # Prefix with quote to prevent formula interpretation
     return val
 
@@ -108,18 +108,19 @@ async def export_no_entry_alerts(
     writer = csv.writer(buffer)
     writer.writerow(["guardian", "student", "course", "date", "status", "notes"])
     for alert in alerts:
-        writer.writerow([
-            _sanitize_csv_value(alert.guardian_name),
-            _sanitize_csv_value(alert.student_name),
-            _sanitize_csv_value(alert.course_name),
-            alert.alert_date,
-            _sanitize_csv_value(alert.status),
-            _sanitize_csv_value(alert.notes),
-        ])
+        writer.writerow(
+            [
+                _sanitize_csv_value(alert.guardian_name),
+                _sanitize_csv_value(alert.student_name),
+                _sanitize_csv_value(alert.course_name),
+                alert.alert_date,
+                _sanitize_csv_value(alert.status),
+                _sanitize_csv_value(alert.notes),
+            ]
+        )
 
     return Response(
         content=buffer.getvalue(),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=no_show_alerts.csv"},
     )
-

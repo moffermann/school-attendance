@@ -44,12 +44,8 @@ async def list_courses(
     limit: int = Query(default=50, ge=1, le=100, description="Items per page"),
     offset: int = Query(default=0, ge=0, description="Items to skip"),
     grade: str | None = Query(None, max_length=32, description="Filter by grade"),
-    status_filter: str = Query(
-        default="ACTIVE", alias="status", description="Filter by status"
-    ),
-    search: str | None = Query(
-        None, max_length=100, description="Search in name/grade"
-    ),
+    status_filter: str = Query(default="ACTIVE", alias="status", description="Filter by status"),
+    search: str | None = Query(None, max_length=100, description="Search in name/grade"),
     service: CourseService = Depends(deps.get_course_service),
     user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> PaginatedCourses:
@@ -66,9 +62,7 @@ async def list_courses(
 async def export_courses(
     request: Request,
     grade: str | None = Query(None, max_length=32, description="Filter by grade"),
-    status_filter: str = Query(
-        default="ACTIVE", alias="status", description="Filter by status"
-    ),
+    status_filter: str = Query(default="ACTIVE", alias="status", description="Filter by status"),
     service: CourseService = Depends(deps.get_course_service),
     user: TenantAuthUser = Depends(deps.get_current_tenant_user),
 ) -> Response:

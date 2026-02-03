@@ -8,8 +8,8 @@ Revises: 0014_attendance_source
 Create Date: 2026-01-13
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0015_smtp_email_support"
@@ -23,39 +23,35 @@ def upgrade() -> None:
     op.add_column(
         "tenant_configs",
         sa.Column("email_provider", sa.String(16), nullable=True, server_default="ses"),
-        schema="public"
+        schema="public",
     )
 
     # Add SMTP configuration columns
     op.add_column(
-        "tenant_configs",
-        sa.Column("smtp_host", sa.String(255), nullable=True),
-        schema="public"
+        "tenant_configs", sa.Column("smtp_host", sa.String(255), nullable=True), schema="public"
     )
     op.add_column(
         "tenant_configs",
         sa.Column("smtp_port", sa.Integer(), nullable=True, server_default="587"),
-        schema="public"
+        schema="public",
     )
     op.add_column(
-        "tenant_configs",
-        sa.Column("smtp_user", sa.String(255), nullable=True),
-        schema="public"
+        "tenant_configs", sa.Column("smtp_user", sa.String(255), nullable=True), schema="public"
     )
     op.add_column(
         "tenant_configs",
         sa.Column("smtp_password_encrypted", sa.LargeBinary(), nullable=True),
-        schema="public"
+        schema="public",
     )
     op.add_column(
         "tenant_configs",
         sa.Column("smtp_use_tls", sa.Boolean(), nullable=True, server_default="true"),
-        schema="public"
+        schema="public",
     )
     op.add_column(
         "tenant_configs",
         sa.Column("smtp_from_name", sa.String(255), nullable=True),
-        schema="public"
+        schema="public",
     )
 
 

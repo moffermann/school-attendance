@@ -14,7 +14,6 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-
 revision = "0023_sequence_corrections"
 down_revision = "0022_notification_dedup"
 branch_labels = None

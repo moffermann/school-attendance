@@ -38,7 +38,7 @@ class CourseService:
     # Roles that can export courses
     EXPORT_ROLES = {"ADMIN", "DIRECTOR", "INSPECTOR"}
 
-    def __init__(self, session: "AsyncSession"):
+    def __init__(self, session: AsyncSession):
         self.session = session
         self.course_repo = CourseRepository(session)
         self.teacher_repo = TeacherRepository(session)
@@ -49,7 +49,7 @@ class CourseService:
 
     async def list_courses(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         filters: CourseFilters,
         *,
         limit: int = 50,
@@ -86,7 +86,7 @@ class CourseService:
 
     async def list_courses_for_export(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         filters: CourseFilters,
         request: Request | None = None,
     ) -> list[CourseWithStats]:
@@ -140,7 +140,7 @@ class CourseService:
 
     async def get_course_detail(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         course_id: int,
         request: Request | None = None,
     ) -> CourseWithStats:
@@ -190,7 +190,7 @@ class CourseService:
 
     async def create_course(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         payload: CourseCreate,
         request: Request | None = None,
     ) -> CourseRead:
@@ -282,7 +282,7 @@ class CourseService:
 
     async def update_course(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         course_id: int,
         payload: CourseUpdate,
         request: Request | None = None,
@@ -311,9 +311,7 @@ class CourseService:
 
         # 3. Validate unique name (if changing)
         if payload.name and payload.name != course.name:
-            existing = await self.course_repo.get_by_name(
-                payload.name, exclude_id=course_id
-            )
+            existing = await self.course_repo.get_by_name(payload.name, exclude_id=course_id)
             if existing:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -404,7 +402,7 @@ class CourseService:
 
     async def delete_course(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         course_id: int,
         request: Request | None = None,
     ) -> bool:
@@ -484,7 +482,7 @@ class CourseService:
 
     async def search_courses(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         query: str,
         *,
         limit: int = 20,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
@@ -80,7 +80,7 @@ async def super_admin_login(
         )
 
     # Update last login
-    admin.last_login_at = datetime.now(timezone.utc)
+    admin.last_login_at = datetime.now(UTC)
     await session.commit()
 
     # Generate tokens

@@ -18,7 +18,6 @@ from app.schemas.notifications import (
 from app.services.notification_service import NotificationService
 from app.services.notifications.dispatcher import NotificationDispatcher
 
-
 router = APIRouter()
 
 
@@ -34,7 +33,7 @@ def _sanitize_csv_value(val: str | None) -> str:
         return ""
     val = str(val)
     stripped = val.lstrip()
-    if stripped and stripped[0] in '=+-@':
+    if stripped and stripped[0] in "=+-@":
         return "'" + val  # Prefix with quote to prevent formula interpretation
     return val
 
@@ -94,22 +93,36 @@ async def export_notifications(
 
     buffer = StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["ts_created", "ts_sent", "channel", "template", "status", "retries", "guardian_id", "student_id", "recipient"])
+    writer.writerow(
+        [
+            "ts_created",
+            "ts_sent",
+            "channel",
+            "template",
+            "status",
+            "retries",
+            "guardian_id",
+            "student_id",
+            "recipient",
+        ]
+    )
     for item in logs:
         recipient = ""
         if isinstance(item.payload, dict):
             recipient = item.payload.get("recipient") or item.payload.get("email") or ""
-        writer.writerow([
-            item.ts_created,
-            item.ts_sent or "",
-            item.channel,
-            item.template,
-            item.status,
-            item.retries or 0,
-            item.guardian_id,
-            item.student_id or "",
-            _sanitize_csv_value(recipient),
-        ])
+        writer.writerow(
+            [
+                item.ts_created,
+                item.ts_sent or "",
+                item.channel,
+                item.template,
+                item.status,
+                item.retries or 0,
+                item.guardian_id,
+                item.student_id or "",
+                _sanitize_csv_value(recipient),
+            ]
+        )
 
     return Response(
         content=buffer.getvalue(),

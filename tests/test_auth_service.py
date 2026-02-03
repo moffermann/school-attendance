@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -42,8 +42,12 @@ class TestAuthService:
         auth_service.user_repo.get_by_email = AsyncMock(return_value=fake_user)
 
         with patch("app.services.auth_service.verify_password", return_value=True):
-            with patch("app.services.auth_service.create_access_token", return_value="access_token"):
-                with patch("app.services.auth_service.create_refresh_token", return_value="refresh_token"):
+            with patch(
+                "app.services.auth_service.create_access_token", return_value="access_token"
+            ):
+                with patch(
+                    "app.services.auth_service.create_refresh_token", return_value="refresh_token"
+                ):
                     result = await auth_service.authenticate("test@example.com", "password123")
 
         assert result.access_token == "access_token"
@@ -138,7 +142,9 @@ class TestAuthService:
 
         with patch("app.core.security.decode_token", return_value={"sub": "1"}):
             with patch("app.services.auth_service.create_access_token", return_value="new_access"):
-                with patch("app.services.auth_service.create_refresh_token", return_value="new_refresh"):
+                with patch(
+                    "app.services.auth_service.create_refresh_token", return_value="new_refresh"
+                ):
                     result = await auth_service.refresh("old_refresh_token")
 
         assert result.access_token == "new_access"

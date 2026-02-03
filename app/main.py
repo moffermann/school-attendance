@@ -1,10 +1,9 @@
 """FastAPI application entry point."""
 
 import logging
-import os
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -65,7 +64,11 @@ def create_app() -> FastAPI:
     ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins if settings.cors_origins else ["*"] if settings.app_env == "development" else [],  # type: ignore[list-item]
+        allow_origins=settings.cors_origins
+        if settings.cors_origins
+        else ["*"]
+        if settings.app_env == "development"
+        else [],  # type: ignore[list-item]
         allow_credentials=True,
         allow_methods=allowed_methods,
         allow_headers=allowed_headers,
@@ -80,17 +83,35 @@ def create_app() -> FastAPI:
 
     # Mount frontend SPAs (only if directories exist)
     if (FRONTEND_BASE / "kiosk-app").exists():
-        app.mount("/kiosk", StaticFiles(directory=str(FRONTEND_BASE / "kiosk-app"), html=True), name="kiosk")
+        app.mount(
+            "/kiosk",
+            StaticFiles(directory=str(FRONTEND_BASE / "kiosk-app"), html=True),
+            name="kiosk",
+        )
     if (FRONTEND_BASE / "teacher-pwa").exists():
-        app.mount("/teacher", StaticFiles(directory=str(FRONTEND_BASE / "teacher-pwa"), html=True), name="teacher")
+        app.mount(
+            "/teacher",
+            StaticFiles(directory=str(FRONTEND_BASE / "teacher-pwa"), html=True),
+            name="teacher",
+        )
     if (FRONTEND_BASE / "web-app" / "dist").exists():
-        app.mount("/app", StaticFiles(directory=str(FRONTEND_BASE / "web-app" / "dist"), html=True), name="webapp")
+        app.mount(
+            "/app",
+            StaticFiles(directory=str(FRONTEND_BASE / "web-app" / "dist"), html=True),
+            name="webapp",
+        )
     elif (FRONTEND_BASE / "web-app").exists():
-        app.mount("/app", StaticFiles(directory=str(FRONTEND_BASE / "web-app"), html=True), name="webapp")
+        app.mount(
+            "/app", StaticFiles(directory=str(FRONTEND_BASE / "web-app"), html=True), name="webapp"
+        )
 
     # Mount login-app assets (served under /login-assets)
     if (FRONTEND_BASE / "login-app").exists():
-        app.mount("/login-assets", StaticFiles(directory=str(FRONTEND_BASE / "login-app")), name="login-assets")
+        app.mount(
+            "/login-assets",
+            StaticFiles(directory=str(FRONTEND_BASE / "login-app")),
+            name="login-assets",
+        )
 
     app.include_router(api_router, prefix="/api/v1")
     app.include_router(web_router)
@@ -107,8 +128,9 @@ async def healthcheck() -> dict[str, str]:
 
     R8-C5 fix: Verify database connectivity for proper health status.
     """
-    from app.db.session import async_session
     from sqlalchemy import text
+
+    from app.db.session import async_session
 
     try:
         async with async_session() as session:

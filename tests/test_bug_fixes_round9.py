@@ -6,12 +6,8 @@ These tests verify fixes for:
 - R9-K: Kiosk JS bugs (code inspection only)
 """
 
-import ast
 import inspect
 import re
-from datetime import time
-
-import pytest
 
 
 # =============================================================================
@@ -103,7 +99,6 @@ class TestR9M8EnrollmentUnique:
         has_unique_constraint = "UniqueConstraint" in source
 
         # Should reference the three fields
-        has_student_id = "student_id" in source and "course_id" in source and "year" in source
 
         assert has_table_args, "Enrollment should have __table_args__ for constraints"
         assert has_unique_constraint, (
@@ -125,7 +120,9 @@ class TestR9M3EnrollmentBackPopulates:
 
         # Find the course relationship definition
         # Should have back_populates="enrollments"
-        course_pattern = r'course\s*=\s*relationship\([^)]*back_populates\s*=\s*["\']enrollments["\']'
+        course_pattern = (
+            r'course\s*=\s*relationship\([^)]*back_populates\s*=\s*["\']enrollments["\']'
+        )
 
         assert re.search(course_pattern, source), (
             "Enrollment.course should have back_populates='enrollments'"
@@ -169,9 +166,7 @@ class TestR9W7AsyncioTimeout:
         # Should have timeout protection
         # Either asyncio.wait_for or a custom timeout mechanism
         has_timeout = (
-            "wait_for" in source
-            or "timeout" in source.lower()
-            or "asyncio.timeout" in source
+            "wait_for" in source or "timeout" in source.lower() or "asyncio.timeout" in source
         )
 
         assert has_timeout, (
@@ -190,7 +185,7 @@ class TestR9K1AudioContextLeak:
         """R9-K1: playSuccessBeep should call audioContext.close() to prevent leak."""
         home_js_path = "src/kiosk-app/js/views/home.js"
 
-        with open(home_js_path, "r", encoding="utf-8") as f:
+        with open(home_js_path, encoding="utf-8") as f:
             content = f.read()
 
         # Find playSuccessBeep function
@@ -230,7 +225,7 @@ class TestR9K3BiometricAudioLeak:
         """R9-K3: playSuccessFeedback in biometric_enroll should close AudioContext."""
         biometric_js_path = "src/kiosk-app/js/views/biometric_enroll.js"
 
-        with open(biometric_js_path, "r", encoding="utf-8") as f:
+        with open(biometric_js_path, encoding="utf-8") as f:
             content = f.read()
 
         # Find playSuccessFeedback function
@@ -273,7 +268,7 @@ class TestR9K6CountdownIntervalLeak:
         """R9-K6: showWarning should clear existing interval before creating new one."""
         admin_js_path = "src/kiosk-app/js/views/admin_panel.js"
 
-        with open(admin_js_path, "r", encoding="utf-8") as f:
+        with open(admin_js_path, encoding="utf-8") as f:
             content = f.read()
 
         # Find showWarning function
@@ -288,7 +283,7 @@ class TestR9K6CountdownIntervalLeak:
                 start = content.find("showWarning")
 
             # Get reasonable chunk of code after showWarning
-            chunk = content[start:start + 1000]
+            chunk = content[start : start + 1000]
 
             # Before setInterval, should clear the interval
             setinterval_pos = chunk.find("setInterval")
@@ -309,14 +304,11 @@ class TestR9K7SyncIntervalCleanup:
         """R9-K7: Sync intervals should be cleared before creating new ones."""
         sync_js_path = "src/kiosk-app/js/sync.js"
 
-        with open(sync_js_path, "r", encoding="utf-8") as f:
+        with open(sync_js_path, encoding="utf-8") as f:
             content = f.read()
 
         # Should have stopIntervals or similar cleanup
-        has_cleanup = (
-            "stopIntervals" in content
-            or "clearInterval" in content
-        )
+        has_cleanup = "stopIntervals" in content or "clearInterval" in content
 
         # If creating intervals, should check/clear existing first
         if "setInterval" in content:
@@ -341,15 +333,13 @@ class TestR9M6ConsentIndexes:
 
         # Check that FK fields have index=True
         # Pattern: student_id ... index=True or mapped_column(...index=True...)
-        student_has_index = re.search(
-            r'student_id.*index\s*=\s*True', source, re.DOTALL
-        )
-        guardian_has_index = re.search(
-            r'guardian_id.*index\s*=\s*True', source, re.DOTALL
-        )
+        student_has_index = re.search(r"student_id.*index\s*=\s*True", source, re.DOTALL)
+        guardian_has_index = re.search(r"guardian_id.*index\s*=\s*True", source, re.DOTALL)
 
         assert student_has_index, "Consent.student_id should have index=True for query performance"
-        assert guardian_has_index, "Consent.guardian_id should have index=True for query performance"
+        assert guardian_has_index, (
+            "Consent.guardian_id should have index=True for query performance"
+        )
 
 
 # =============================================================================
@@ -366,13 +356,12 @@ class TestR9W9NoIngresoLogging:
 
         # Find the main function and its error handling
         # Should log target_dt when an error occurs
-        has_context_logging = (
-            "target_dt" in source
-            and ("logger.error" in source or "logger.exception" in source)
+        has_context_logging = "target_dt" in source and (
+            "logger.error" in source or "logger.exception" in source
         )
 
         # Check if error handler includes target_dt
-        error_section = source[source.find("except"):] if "except" in source else ""
+        error_section = source[source.find("except") :] if "except" in source else ""
         logs_target_in_error = "target_dt" in error_section or "target" in error_section
 
         assert has_context_logging or logs_target_in_error, (

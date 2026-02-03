@@ -4,9 +4,9 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.models.teacher import Teacher
 from app.db.models.course import Course
 from app.db.models.student import Student
+from app.db.models.teacher import Teacher
 
 
 class TeacherRepository:
@@ -20,9 +20,7 @@ class TeacherRepository:
     async def get_with_courses(self, teacher_id: int) -> Teacher | None:
         """Get teacher with courses eagerly loaded."""
         stmt = (
-            select(Teacher)
-            .where(Teacher.id == teacher_id)
-            .options(selectinload(Teacher.courses))
+            select(Teacher).where(Teacher.id == teacher_id).options(selectinload(Teacher.courses))
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
@@ -167,10 +165,7 @@ class TeacherRepository:
 
         # Apply pagination and ordering
         paginated_query = (
-            base_query
-            .order_by(Teacher.full_name)
-            .offset((page - 1) * page_size)
-            .limit(page_size)
+            base_query.order_by(Teacher.full_name).offset((page - 1) * page_size).limit(page_size)
         )
 
         result = await self.session.execute(paginated_query)
@@ -355,11 +350,7 @@ class TeacherRepository:
         status: str | None = None,
     ) -> list[Teacher]:
         """List all teachers for CSV export (no pagination)."""
-        stmt = (
-            select(Teacher)
-            .options(selectinload(Teacher.courses))
-            .order_by(Teacher.full_name)
-        )
+        stmt = select(Teacher).options(selectinload(Teacher.courses)).order_by(Teacher.full_name)
 
         if status:
             stmt = stmt.where(Teacher.status == status)

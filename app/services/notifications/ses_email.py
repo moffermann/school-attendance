@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -85,7 +85,7 @@ class SESEmailClient:
 class TenantSESEmailClient:
     """SES email client using tenant-specific credentials."""
 
-    def __init__(self, config: "DecryptedTenantConfig") -> None:
+    def __init__(self, config: DecryptedTenantConfig) -> None:
         """
         Initialize with decrypted tenant configuration.
 

@@ -3,8 +3,6 @@
 import time
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.core.token_blacklist import TokenBlacklist
 
 

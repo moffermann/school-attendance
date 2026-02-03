@@ -39,9 +39,7 @@ class SequenceCorrectionRepository:
         await self.session.flush()
         return correction
 
-    async def list_by_date(
-        self, target_date: date, limit: int = 100
-    ) -> list[SequenceCorrection]:
+    async def list_by_date(self, target_date: date, limit: int = 100) -> list[SequenceCorrection]:
         """List corrections for a specific date (for dashboard)."""
         stmt = (
             select(SequenceCorrection)

@@ -3,8 +3,8 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
-    alerts,
     absences,
+    alerts,
     attendance,
     auth,
     broadcast,
@@ -26,7 +26,6 @@ from app.api.v1 import (
     webauthn,
 )
 from app.api.v1.super_admin import super_admin_router
-
 
 api_router = APIRouter()
 

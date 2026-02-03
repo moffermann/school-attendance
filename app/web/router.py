@@ -1,27 +1,29 @@
 """Router for server-rendered pages."""
 
-from datetime import date, timezone
+from datetime import date
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import deps
 from app.core.auth import AuthUser
-from app.core.security import create_access_token, create_refresh_token, decode_session, encode_session
-from app.db.models.attendance_event import AttendanceEvent
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_session,
+    encode_session,
+)
 from app.db.models.course import Course
 from app.db.models.guardian import Guardian
 from app.db.models.schedule import Schedule
 from app.db.models.student import Student
-from urllib.parse import urlencode
-
 from app.db.repositories.users import UserRepository
-from app.services.attendance_service import AttendanceService
 from app.services.alert_service import AlertService
-
+from app.services.attendance_service import AttendanceService
 
 templates = Jinja2Templates(directory="app/web/templates")
 
@@ -29,7 +31,9 @@ web_router = APIRouter()
 
 
 async def _require_staff_user(
-    request: Request, session: AsyncSession, allowed_roles: tuple[str, ...] = ("ADMIN", "DIRECTOR", "INSPECTOR")
+    request: Request,
+    session: AsyncSession,
+    allowed_roles: tuple[str, ...] = ("ADMIN", "DIRECTOR", "INSPECTOR"),
 ):
     next_path = request.url.path
     session_token = request.cookies.get("session_token")
@@ -46,7 +50,9 @@ async def _require_staff_user(
     if not user or user.role not in allowed_roles:
         return RedirectResponse(f"/login?next={next_path}", status_code=303)
 
-    auth_user = AuthUser(id=user.id, role=user.role, full_name=user.full_name, guardian_id=user.guardian_id)
+    auth_user = AuthUser(
+        id=user.id, role=user.role, full_name=user.full_name, guardian_id=user.guardian_id
+    )
     api_token = create_access_token(str(user.id), role=user.role, guardian_id=user.guardian_id)
     return auth_user, api_token
 
@@ -68,9 +74,7 @@ async def login_page(request: Request) -> HTMLResponse | RedirectResponse:
 
 
 @web_router.post("/login", response_class=HTMLResponse)
-async def login_submit(
-    request: Request, auth_service=Depends(deps.get_auth_service)
-):
+async def login_submit(request: Request, auth_service=Depends(deps.get_auth_service)):
     form = await request.form()
     email = str(form.get("email", "")).strip().lower()
     password = str(form.get("password", ""))
@@ -263,7 +267,9 @@ async def alerts_page(
         "resolved_today": sum(
             1
             for alert in alerts
-            if alert.status == "RESOLVED" and alert.resolved_at and alert.resolved_at.date() == date.today()
+            if alert.status == "RESOLVED"
+            and alert.resolved_at
+            and alert.resolved_at.date() == date.today()
         ),
         "courses": len({alert.course_name for alert in alerts if alert.course_name}),
     }
@@ -308,7 +314,9 @@ async def photos_page(
                 "event": event,
                 "student_name": getattr(student, "full_name", "Alumno"),
                 "course_name": getattr(course, "name", "Curso"),
-                "url": attendance_service.get_photo_url(event.photo_ref) if event.photo_ref else None,
+                "url": attendance_service.get_photo_url(event.photo_ref)
+                if event.photo_ref
+                else None,
             }
         )
 

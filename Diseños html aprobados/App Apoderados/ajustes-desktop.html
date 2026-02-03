@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Ajustes de Apoderado NEUVOX Desktop</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6366f1", // Purple/Indigo base
+                        secondary: "#0ea5e9", // Blue accent
+                        "background-light": "#f8fafc", // Very light gray for clean look
+                        "background-dark": "#0f172a",
+                        "sidebar-dark": "#1e1b4b",
+                        "sidebar-hover": "#312e81",
+                        "card-light": "#ffffff",
+                        "card-dark": "#1e293b",
+                        "text-light": "#1f2937",
+                        "text-dark": "#e2e8f0",
+                        "muted-light": "#6b7280",
+                        "muted-dark": "#94a3b8",
+                        "border-light": "#e5e7eb",
+                        "border-dark": "#334155",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        'lg': '0.75rem',
+                        'xl': '1rem',
+                        '2xl': '1.5rem',
+                    },
+                },
+            },
+        };
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .nav-item.active {
+            color: #6366f1;
+        }
+        .nav-item.active span {
+            font-variation-settings: 'FILL' 1;
+        }.toggle-checkbox:checked {
+            right: 0;
+            border-color: #6366f1;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #6366f1;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 antialiased h-screen flex flex-col md:flex-row overflow-hidden">
+<aside class="w-64 bg-white dark:bg-card-dark border-r border-gray-200 dark:border-border-dark flex-shrink-0 flex flex-col transition-all duration-300 hidden md:flex z-20">
+<div class="h-20 flex items-center px-6 border-b border-gray-100 dark:border-border-dark">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center shadow-lg text-white font-bold">
+                    N
+                </div>
+<h1 class="text-xl font-bold tracking-tight text-indigo-900 dark:text-white">NEUVOX</h1>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto py-6 space-y-1 px-3">
+<a class="flex items-center px-3 py-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-indigo-600 rounded-lg group transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">home</span>
+<span class="font-medium text-sm">Inicio</span>
+</a>
+<a class="flex items-center px-3 py-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-indigo-600 rounded-lg group transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">history</span>
+<span class="font-medium text-sm">Historial</span>
+</a>
+<a class="flex items-center px-3 py-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-indigo-600 rounded-lg group transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">event_busy</span>
+<span class="font-medium text-sm">Ausencias</span>
+</a>
+<a class="flex items-center px-3 py-2.5 bg-indigo-50 text-indigo-700 rounded-lg group transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">settings</span>
+<span class="font-medium text-sm">Ajustes</span>
+</a>
+</nav>
+</aside>
+<main class="flex-1 flex flex-col overflow-hidden relative bg-[#f8fafc] dark:bg-background-dark">
+<header class="h-auto py-4 md:h-20 bg-white dark:bg-card-dark border-b border-gray-200 dark:border-border-dark flex flex-col md:flex-row items-center justify-between px-6 md:px-8 z-10 shadow-sm gap-4 md:gap-0">
+<div class="flex flex-col gap-1 w-full md:w-auto">
+<a class="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 mb-1" href="#">
+<span class="material-symbols-outlined text-sm">arrow_back</span> Volver al inicio
+                </a>
+<h2 class="text-xl font-bold text-gray-900 dark:text-white">Preferencias de Notificación</h2>
+</div>
+<div class="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+<div class="hidden md:block text-sm text-gray-500 mr-4">
+<p class="text-xs text-right">Configure cómo y cuándo desea recibir notificaciones</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+<span class="material-symbols-outlined text-xl">refresh</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm font-medium text-gray-700 dark:text-gray-300">
+<span class="material-symbols-outlined text-xl">logout</span>
+<span class="hidden sm:inline">Salir</span>
+</button>
+</div>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
+<div class="max-w-4xl mx-auto space-y-6 pb-20">
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-gray-100 dark:border-border-dark overflow-hidden">
+<div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-400">notifications_active</span>
+<h3 class="font-semibold text-gray-900 dark:text-white">Canales de Notificación</h3>
+</div>
+<div class="divide-y divide-gray-50 dark:divide-gray-800">
+<div class="p-4 md:px-6 md:py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined">login</span>
+</div>
+<div>
+<h4 class="text-sm font-medium text-gray-900 dark:text-white">Ingreso registrado</h4>
+<p class="text-xs text-gray-500 dark:text-gray-400">Cuando su hijo/a ingresa al colegio</p>
+</div>
+</div>
+<div class="flex items-center gap-6 pl-14 md:pl-0">
+<label class="inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox" value=""/>
+<div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+<span class="ms-2 text-sm font-medium text-gray-600 dark:text-gray-300">WhatsApp</span>
+</label>
+<label class="inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+<span class="ms-2 text-sm font-medium text-gray-600 dark:text-gray-300">Email</span>
+</label>
+</div>
+</div>
+<div class="p-4 md:px-6 md:py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined">logout</span>
+</div>
+<div>
+<h4 class="text-sm font-medium text-gray-900 dark:text-white">Salida registrada</h4>
+<p class="text-xs text-gray-500 dark:text-gray-400">Cuando su hijo/a sale del colegio</p>
+</div>
+</div>
+<div class="flex items-center gap-6 pl-14 md:pl-0">
+<label class="inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox" value=""/>
+<div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+<span class="ms-2 text-sm font-medium text-gray-600 dark:text-gray-300">WhatsApp</span>
+</label>
+<label class="inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+<span class="ms-2 text-sm font-medium text-gray-600 dark:text-gray-300">Email</span>
+</label>
+</div>
+</div>
+<div class="p-4 md:px-6 md:py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined">warning</span>
+</div>
+<div>
+<h4 class="text-sm font-medium text-gray-900 dark:text-white">Alerta de no ingreso</h4>
+<p class="text-xs text-gray-500 dark:text-gray-400">Si no registra ingreso antes del horario límite</p>
+</div>
+</div>
+<div class="flex items-center gap-6 pl-14 md:pl-0">
+<label class="inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+<span class="ms-2 text-sm font-medium text-gray-600 dark:text-gray-300">WhatsApp</span>
+</label>
+<label class="inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+<span class="ms-2 text-sm font-medium text-gray-600 dark:text-gray-300">Email</span>
+</label>
+</div>
+</div>
+<div class="p-4 md:px-6 md:py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined">schedule</span>
+</div>
+<div>
+<h4 class="text-sm font-medium text-gray-900 dark:text-white">Cambios de horario</h4>
+<p class="text-xs text-gray-500 dark:text-gray-400">Modificaciones en el horario de clases</p>
+</div>
+</div>
+<div class="flex items-center gap-6 pl-14 md:pl-0">
+<label class="inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox" value=""/>
+<div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+<span class="ms-2 text-sm font-medium text-gray-600 dark:text-gray-300">WhatsApp</span>
+</label>
+<label class="inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+<span class="ms-2 text-sm font-medium text-gray-600 dark:text-gray-300">Email</span>
+</label>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-gray-100 dark:border-border-dark overflow-hidden">
+<div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-400">photo_camera</span>
+<h3 class="font-semibold text-gray-900 dark:text-white">Tipo de Evidencia</h3>
+</div>
+</div>
+<div class="p-6">
+<div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 mb-6 text-xs text-gray-500 dark:text-gray-400">
+                             Seleccione el tipo de evidencia que desea capturar durante el registro de asistencia. <br/>
+<strong>Retención:</strong> 60 días • <strong>Uso:</strong> Solo evidencia de asistencia
+                        </div>
+<div class="border border-green-500 rounded-xl p-4 mb-4 bg-white dark:bg-card-dark relative overflow-hidden">
+<div class="absolute top-0 right-0 p-2">
+<span class="text-[10px] font-bold text-green-600 flex items-center gap-1"><span class="material-symbols-outlined text-sm">image</span> Foto</span>
+</div>
+<div class="flex items-center gap-3 mb-4">
+<div class="w-8 h-8 rounded bg-indigo-500 text-white flex items-center justify-center text-sm font-bold">L</div>
+<div>
+<h4 class="text-sm font-bold text-gray-900 dark:text-white">Luna Torres Prada</h4>
+<p class="text-xs text-gray-500">2º Básico B</p>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-2">
+<button class="flex flex-col items-center justify-center p-3 rounded-lg border-2 border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-400 text-indigo-700 dark:text-indigo-300 transition-all">
+<span class="material-symbols-outlined mb-1">photo_camera</span>
+<span class="text-xs font-medium">Foto</span>
+</button>
+<button class="flex flex-col items-center justify-center p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all">
+<span class="material-symbols-outlined mb-1">mic</span>
+<span class="text-xs font-medium">Audio</span>
+</button>
+<button class="flex flex-col items-center justify-center p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all">
+<span class="material-symbols-outlined mb-1">block</span>
+<span class="text-xs font-medium">Sin evidencia</span>
+</button>
+</div>
+</div>
+<div class="border border-green-500 rounded-xl p-4 mb-4 bg-white dark:bg-card-dark relative overflow-hidden">
+<div class="absolute top-0 right-0 p-2">
+<span class="text-[10px] font-bold text-green-600 flex items-center gap-1"><span class="material-symbols-outlined text-sm">image</span> Foto</span>
+</div>
+<div class="flex items-center gap-3 mb-4">
+<div class="w-8 h-8 rounded bg-purple-500 text-white flex items-center justify-center text-sm font-bold">N</div>
+<div>
+<h4 class="text-sm font-bold text-gray-900 dark:text-white">Noah Josefina</h4>
+<p class="text-xs text-gray-500">5º Básico A</p>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-2">
+<button class="flex flex-col items-center justify-center p-3 rounded-lg border-2 border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-400 text-indigo-700 dark:text-indigo-300 transition-all">
+<span class="material-symbols-outlined mb-1">photo_camera</span>
+<span class="text-xs font-medium">Foto</span>
+</button>
+<button class="flex flex-col items-center justify-center p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all">
+<span class="material-symbols-outlined mb-1">mic</span>
+<span class="text-xs font-medium">Audio</span>
+</button>
+<button class="flex flex-col items-center justify-center p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all">
+<span class="material-symbols-outlined mb-1">block</span>
+<span class="text-xs font-medium">Sin evidencia</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-gray-100 dark:border-border-dark overflow-hidden">
+<div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-400">contacts</span>
+<h3 class="font-semibold text-gray-900 dark:text-white">Contactos Registrados</h3>
+</div>
+<div class="p-4 space-y-3">
+<div class="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-blue-100 text-blue-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">mail</span>
+</div>
+<div>
+<p class="text-sm font-medium text-gray-900 dark:text-white">aquariusrt@gmail.com</p>
+<p class="text-xs text-gray-500">Email</p>
+</div>
+</div>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                Verificado
+                            </span>
+</div>
+<div class="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-blue-100 text-blue-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">sms</span>
+</div>
+<div>
+<p class="text-sm font-medium text-gray-900 dark:text-white">+5491157363177</p>
+<p class="text-xs text-gray-500">Phone</p>
+</div>
+</div>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                Verificado
+                            </span>
+</div>
+<div class="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-green-100 text-green-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">chat</span>
+</div>
+<div>
+<p class="text-sm font-medium text-gray-900 dark:text-white">+5491157363177</p>
+<p class="text-xs text-gray-500">Whatsapp</p>
+</div>
+</div>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                Verificado
+                            </span>
+</div>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-gray-100 dark:border-border-dark overflow-hidden">
+<div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-400">notifications</span>
+<h3 class="font-semibold text-gray-900 dark:text-white">Notificaciones Push</h3>
+</div>
+<div class="p-6">
+<div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 mb-4 text-xs text-gray-500 dark:text-gray-400">
+                            Activa las notificaciones push para recibir alertas instantaneas cuando tu hijo ingrese o salga del colegio.
+                        </div>
+<button class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:shadow-lg shadow-indigo-200 dark:shadow-none transition-all transform hover:-translate-y-0.5 font-medium text-sm">
+<span class="material-symbols-outlined text-lg">notifications_active</span>
+                            Activar notificaciones push
+                        </button>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-gray-100 dark:border-border-dark overflow-hidden">
+<div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-400">fingerprint</span>
+<h3 class="font-semibold text-gray-900 dark:text-white">Seguridad - Acceso Biometrico</h3>
+</div>
+<div class="p-6">
+<div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 mb-4 text-xs text-gray-500 dark:text-gray-400">
+                            Registra tu huella digital o Face ID para iniciar sesion sin contraseña. <br/>
+                            Es mas rapido y seguro.
+                        </div>
+<button class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors text-sm font-medium">
+<span class="material-symbols-outlined text-lg">fingerprint</span>
+                            Agregar huella / Face ID
+                        </button>
+</div>
+</div>
+<div class="flex flex-col-reverse md:flex-row items-center gap-3 pt-4">
+<button class="w-full md:w-auto flex-1 bg-white dark:bg-card-dark border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium py-3 px-6 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                        Cancelar
+                    </button>
+<button class="w-full md:w-auto flex-[2] bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg shadow-indigo-200 dark:shadow-none transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-lg">save</span>
+                        Guardar Preferencias
+                    </button>
+</div>
+</div>
+</div>
+<div class="md:hidden bg-white dark:bg-card-dark border-t border-gray-200 dark:border-border-dark flex justify-around items-center h-16 px-2 z-30 pb-safe">
+<a class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">home</span>
+<span class="text-[10px] font-medium">Inicio</span>
+</a>
+<a class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">history</span>
+<span class="text-[10px] font-medium">Historial</span>
+</a>
+<a class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">event_busy</span>
+<span class="text-[10px] font-medium">Ausencias</span>
+</a>
+<a class="nav-item active flex flex-col items-center justify-center w-full h-full text-indigo-600 dark:text-indigo-400" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">settings</span>
+<span class="text-[10px] font-medium">Ajustes</span>
+</a>
+</div>
+</main>
+
+</body></html>

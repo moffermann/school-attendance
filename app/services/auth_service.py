@@ -1,8 +1,5 @@
 """Authentication service."""
 
-from datetime import datetime
-from typing import Optional
-
 from fastapi import HTTPException, status
 
 from app.core.security import (
@@ -17,7 +14,7 @@ from app.schemas.auth import TokenPair
 
 
 class AuthService:
-    def __init__(self, session, tenant_id: Optional[int] = None, tenant_slug: Optional[str] = None):
+    def __init__(self, session, tenant_id: int | None = None, tenant_slug: str | None = None):
         self.session = session
         self.user_repo = UserRepository(session)
         # BUG-MT-001 fix: Store tenant context for token generation
@@ -29,7 +26,9 @@ class AuthService:
         normalized_email = email.lower()
         user = await self.user_repo.get_by_email(normalized_email)
         if not user or not verify_password(password, user.hashed_password) or not user.is_active:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas"
+            )
         return user
 
     async def authenticate(self, email: str, password: str) -> TokenPair:
@@ -51,7 +50,9 @@ class AuthService:
             )
         else:
             # Fallback for backwards compatibility (non-tenant contexts)
-            access_token = create_access_token(str(user.id), role=user.role, guardian_id=user.guardian_id)
+            access_token = create_access_token(
+                str(user.id), role=user.role, guardian_id=user.guardian_id
+            )
             refresh_token = create_refresh_token(str(user.id))
 
         return TokenPair(access_token=access_token, refresh_token=refresh_token)
@@ -92,7 +93,9 @@ class AuthService:
                 tenant_id=token_tenant_id,
             )
         else:
-            access_token = create_access_token(str(user.id), role=user.role, guardian_id=user.guardian_id)
+            access_token = create_access_token(
+                str(user.id), role=user.role, guardian_id=user.guardian_id
+            )
             new_refresh = create_refresh_token(str(user.id))
 
         return TokenPair(access_token=access_token, refresh_token=new_refresh)

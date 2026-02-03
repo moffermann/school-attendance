@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -11,7 +11,6 @@ from fastapi import HTTPException
 from app.db.models.webauthn_credential import WebAuthnCredential
 from app.db.repositories.webauthn import WebAuthnRepository
 from app.services.webauthn_service import WebAuthnService, _challenge_store
-
 
 # ============================================================================
 # WebAuthn Repository Tests
@@ -233,8 +232,7 @@ class TestWebAuthnService:
         """Should raise 400 for invalid challenge."""
         with pytest.raises(HTTPException) as exc_info:
             await webauthn_service.complete_student_registration(
-                "invalid_challenge_id",
-                {"id": "test", "response": {}}
+                "invalid_challenge_id", {"id": "test", "response": {}}
             )
 
         assert exc_info.value.status_code == 400
@@ -262,8 +260,7 @@ class TestWebAuthnService:
         """Should raise 400 for invalid challenge."""
         with pytest.raises(HTTPException) as exc_info:
             await webauthn_service.verify_student_authentication(
-                "invalid_challenge_id",
-                {"id": "test", "response": {}}
+                "invalid_challenge_id", {"id": "test", "response": {}}
             )
 
         assert exc_info.value.status_code == 400
@@ -277,15 +274,14 @@ class TestWebAuthnService:
         _challenge_store[challenge_id] = {
             "challenge": b"test_challenge_bytes",
             "entity_type": "student_auth",
-            "expires": datetime.now(timezone.utc).replace(year=2099),
+            "expires": datetime.now(UTC).replace(year=2099),
         }
 
         webauthn_service.credential_repo.get_by_credential_id = AsyncMock(return_value=None)
 
         with pytest.raises(HTTPException) as exc_info:
             await webauthn_service.verify_student_authentication(
-                challenge_id,
-                {"id": "unknown_credential", "response": {}}
+                challenge_id, {"id": "unknown_credential", "response": {}}
             )
 
         assert exc_info.value.status_code == 401
@@ -451,8 +447,7 @@ class TestWebAuthnUserService:
         """Should raise 400 for invalid challenge."""
         with pytest.raises(HTTPException) as exc_info:
             await webauthn_service.complete_user_registration(
-                "invalid_challenge_id",
-                {"id": "test", "response": {}}
+                "invalid_challenge_id", {"id": "test", "response": {}}
             )
 
         assert exc_info.value.status_code == 400

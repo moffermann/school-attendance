@@ -1,6 +1,6 @@
 """WebAuthn Credential model for biometric authentication."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 def _utc_now() -> datetime:
     """R6-M3 fix: Return timezone-aware UTC datetime."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class WebAuthnCredential(Base):

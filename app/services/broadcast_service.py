@@ -1,7 +1,6 @@
 """Broadcast service implementation."""
 
 import secrets
-from typing import Set
 
 from loguru import logger
 from redis import Redis
@@ -28,9 +27,9 @@ class BroadcastService:
         if self.redis:
             self.redis.close()
 
-    async def _resolve_guardian_ids(self, payload: BroadcastCreate) -> Set[int]:
+    async def _resolve_guardian_ids(self, payload: BroadcastCreate) -> set[int]:
         audience = payload.audience
-        guardian_ids: Set[int] = set()
+        guardian_ids: set[int] = set()
 
         # R7-S6 fix: Use elif to prevent multiple scopes being processed
         if audience.scope.lower() == "global":

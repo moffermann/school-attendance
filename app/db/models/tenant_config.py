@@ -72,7 +72,7 @@ class TenantConfig(Base):
     )
 
     # Relationships
-    tenant: Mapped["Tenant"] = relationship("Tenant", back_populates="tenant_config")
+    tenant: Mapped[Tenant] = relationship("Tenant", back_populates="tenant_config")
 
     def __repr__(self) -> str:
         return f"<TenantConfig(tenant_id={self.tenant_id})>"

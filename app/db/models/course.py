@@ -1,7 +1,7 @@
 """Course model."""
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 
 from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -10,7 +10,7 @@ from app.db.base import Base
 from app.db.models.associations import teacher_course_table
 
 
-class CourseStatus(str, Enum):
+class CourseStatus(StrEnum):
     """Status enum para cursos (patron de AbsenceStatus)."""
 
     ACTIVE = "ACTIVE"
@@ -27,18 +27,16 @@ class Course(Base):
     grade: Mapped[str] = mapped_column(String(32), nullable=False)
 
     # Soft delete con enum
-    status: Mapped[str] = mapped_column(
-        String(32), default=CourseStatus.ACTIVE.value, index=True
-    )
+    status: Mapped[str] = mapped_column(String(32), default=CourseStatus.ACTIVE.value, index=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     students = relationship("Student", back_populates="course")

@@ -3,18 +3,18 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from loguru import logger
 
 from app.core.config import settings
+from app.db.repositories.attendance import AttendanceRepository
 from app.db.session import async_session
 from app.services.photo_service import PhotoService
-from app.db.repositories.attendance import AttendanceRepository
 
 
 async def _cleanup() -> None:
-    cutoff = datetime.now(timezone.utc) - timedelta(days=settings.photo_retention_days)
+    cutoff = datetime.now(UTC) - timedelta(days=settings.photo_retention_days)
     async with async_session() as session:
         repo = AttendanceRepository(session)
         photo_service = PhotoService()

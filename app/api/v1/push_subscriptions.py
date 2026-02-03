@@ -39,7 +39,9 @@ async def get_vapid_public_key() -> VapidPublicKeyResponse:
     return VapidPublicKeyResponse(public_key=settings.vapid_public_key)
 
 
-@router.post("/subscribe", response_model=PushSubscriptionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/subscribe", response_model=PushSubscriptionResponse, status_code=status.HTTP_201_CREATED
+)
 async def subscribe(
     subscription: PushSubscriptionCreate,
     current_user: Annotated[User, Depends(get_current_user)],

@@ -1,6 +1,6 @@
 """UserInvitation repository."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,7 +41,7 @@ class UserInvitationRepository:
         stmt = (
             update(UserInvitation)
             .where(UserInvitation.id == invitation_id)
-            .values(used_at=datetime.now(timezone.utc))
+            .values(used_at=datetime.now(UTC))
         )
         await self.session.execute(stmt)
 
@@ -54,6 +54,6 @@ class UserInvitationRepository:
                 UserInvitation.purpose == purpose,
                 UserInvitation.used_at.is_(None),
             )
-            .values(used_at=datetime.now(timezone.utc))
+            .values(used_at=datetime.now(UTC))
         )
         await self.session.execute(stmt)

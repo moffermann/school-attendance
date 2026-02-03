@@ -4,7 +4,6 @@ from sqlalchemy import Column, ForeignKey, Table
 
 from app.db.base import Base
 
-
 student_guardian_table = Table(
     "student_guardians",
     Base.metadata,

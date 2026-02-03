@@ -1,7 +1,5 @@
 """Schedule service implementation."""
 
-from typing import List
-
 from app.db.repositories.schedules import ScheduleRepository
 from app.schemas.schedules import (
     ScheduleCreate,
@@ -16,7 +14,7 @@ class ScheduleService:
         self.session = session
         self.repository = ScheduleRepository(session)
 
-    async def list_course_schedule(self, course_id: int) -> List[ScheduleRead]:
+    async def list_course_schedule(self, course_id: int) -> list[ScheduleRead]:
         schedules = await self.repository.list_by_course(course_id)
         return [ScheduleRead.model_validate(s, from_attributes=True) for s in schedules]
 
@@ -42,7 +40,9 @@ class ScheduleService:
         await self.session.commit()
         return ScheduleRead.model_validate(schedule, from_attributes=True)
 
-    async def update_schedule_entry(self, schedule_id: int, payload: ScheduleCreate) -> ScheduleRead:
+    async def update_schedule_entry(
+        self, schedule_id: int, payload: ScheduleCreate
+    ) -> ScheduleRead:
         schedule = await self.repository.update(
             schedule_id,
             weekday=payload.weekday,

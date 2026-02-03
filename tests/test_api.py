@@ -9,18 +9,28 @@ from fastapi.testclient import TestClient
 from app import main
 from app.core import deps
 from app.core.auth import AuthUser
-from app.schemas.webapp import DashboardSnapshot, DashboardStats, ReportsSnapshot, ReportCourseSummary, ReportTrendPoint
-from app.schemas.notifications import NotificationSummaryResponse
 from app.schemas.absences import AbsenceStatus
 from app.schemas.devices import DeviceRead
+from app.schemas.notifications import NotificationSummaryResponse
+from app.schemas.webapp import (
+    DashboardSnapshot,
+    DashboardStats,
+    ReportCourseSummary,
+    ReportsSnapshot,
+    ReportTrendPoint,
+)
 
 
 @pytest.fixture
 def client():
     app = main.app
     # Auth overrides
-    app.dependency_overrides[deps.get_current_user] = lambda: AuthUser(id=1, role="DIRECTOR", full_name="Dir", guardian_id=None)
-    app.dependency_overrides[deps.get_current_user_optional] = lambda: AuthUser(id=1, role="DIRECTOR", full_name="Dir", guardian_id=None)
+    app.dependency_overrides[deps.get_current_user] = lambda: AuthUser(
+        id=1, role="DIRECTOR", full_name="Dir", guardian_id=None
+    )
+    app.dependency_overrides[deps.get_current_user_optional] = lambda: AuthUser(
+        id=1, role="DIRECTOR", full_name="Dir", guardian_id=None
+    )
     app.dependency_overrides[deps.verify_device_key] = lambda: True
     # Service overrides (set per-test)
     overrides = []
@@ -40,7 +50,9 @@ def test_dashboard_endpoint(client):
         async def get_snapshot(self, **kwargs):
             return DashboardSnapshot(
                 date=date.today(),
-                stats=DashboardStats(total_in=1, total_out=2, late_count=0, no_in_count=0, with_photos=0),
+                stats=DashboardStats(
+                    total_in=1, total_out=2, late_count=0, no_in_count=0, with_photos=0
+                ),
                 events=[],
             )
 
@@ -62,7 +74,17 @@ def test_reports_endpoint(client):
             return ReportsSnapshot(
                 start_date=date.today(),
                 end_date=date.today(),
-                courses=[ReportCourseSummary(course_id=1, course_name="1A", total_students=10, present=9, late=1, absent=1, attendance_pct=90.0)],
+                courses=[
+                    ReportCourseSummary(
+                        course_id=1,
+                        course_name="1A",
+                        total_students=10,
+                        present=9,
+                        late=1,
+                        absent=1,
+                        attendance_pct=90.0,
+                    )
+                ],
                 trend=[ReportTrendPoint(date=date.today(), present=9)],
             )
 
@@ -83,14 +105,14 @@ def test_devices_endpoint(client):
         async def list_devices(self):
             return [
                 DeviceRead(
-                  id=1,
-                  device_id="DEV-1",
-                  gate_id="G1",
-                  firmware_version="1.0",
-                  battery_pct=80,
-                  pending_events=0,
-                  online=True,
-                  last_sync=datetime.now(),
+                    id=1,
+                    device_id="DEV-1",
+                    gate_id="G1",
+                    firmware_version="1.0",
+                    battery_pct=80,
+                    pending_events=0,
+                    online=True,
+                    last_sync=datetime.now(),
                 )
             ]
 

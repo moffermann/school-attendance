@@ -1,6 +1,6 @@
 """Notification repository stub."""
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Any
 
 from loguru import logger
@@ -31,7 +31,7 @@ class NotificationRepository:
             payload=payload,
             event_id=event_id,
             status="queued",
-            ts_created=datetime.now(timezone.utc),
+            ts_created=datetime.now(UTC),
             ts_sent=None,
             retries=0,
         )
@@ -44,7 +44,7 @@ class NotificationRepository:
 
     async def mark_sent(self, notification: Notification) -> Notification:
         notification.status = "sent"
-        notification.ts_sent = datetime.now(timezone.utc)
+        notification.ts_sent = datetime.now(UTC)
         await self.session.flush()
         return notification
 
@@ -107,7 +107,7 @@ class NotificationRepository:
         notification_date = date.today()
 
         # For attendance notifications, check for existing
-        if template in ('INGRESO_OK', 'SALIDA_OK') and context_id is not None:
+        if template in ("INGRESO_OK", "SALIDA_OK") and context_id is not None:
             existing = await self._find_existing(
                 guardian_id=guardian_id,
                 channel=channel,
@@ -133,7 +133,7 @@ class NotificationRepository:
             context_id=context_id,
             notification_date=notification_date,
             status="queued",
-            ts_created=datetime.now(timezone.utc),
+            ts_created=datetime.now(UTC),
             ts_sent=None,
             retries=0,
         )

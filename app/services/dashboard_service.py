@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import csv
 import io
+from collections.abc import Iterable
 from datetime import date, datetime, timedelta
-from typing import Iterable
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,8 +22,8 @@ from app.schemas.webapp import (
     DashboardSnapshot,
     DashboardStats,
     ReportCourseSummary,
-    ReportTrendPoint,
     ReportsSnapshot,
+    ReportTrendPoint,
 )
 from app.services.photo_service import PhotoService
 
@@ -79,7 +79,17 @@ class DashboardService:
         buffer = io.StringIO()
         writer = csv.writer(buffer)
         writer.writerow(
-            ["Fecha", "Hora", "Alumno", "Curso", "Tipo", "Puerta", "Dispositivo", "Foto", "URL foto"]
+            [
+                "Fecha",
+                "Hora",
+                "Alumno",
+                "Curso",
+                "Tipo",
+                "Puerta",
+                "Dispositivo",
+                "Foto",
+                "URL foto",
+            ]
         )
 
         for event in snapshot.events:
@@ -117,15 +127,13 @@ class DashboardService:
         courses: list[Course] = list((await self.session.execute(course_stmt)).scalars().all())
         course_ids = {course.id for course in courses}
         if not course_ids:
-            return ReportsSnapshot(
-                start_date=start_date, end_date=end_date, courses=[], trend=[]
-            )
+            return ReportsSnapshot(start_date=start_date, end_date=end_date, courses=[], trend=[])
 
         schedules = await self.schedule_repo.list_by_course_ids(course_ids)
         schedules_map = {(schedule.course_id, schedule.weekday): schedule for schedule in schedules}
 
         students = await self.student_repo.list_by_course_ids(course_ids)
-        student_course = {student.id: student.course_id for student in students}
+        {student.id: student.course_id for student in students}
         students_by_course: dict[int, list[Student]] = {cid: [] for cid in course_ids}
         for student in students:
             students_by_course.setdefault(student.course_id, []).append(student)
@@ -201,9 +209,7 @@ class DashboardService:
                     if first_in > threshold:
                         late_total += 1
 
-            attendance_pct = (
-                (present_total / expected_sessions) * 100 if expected_sessions else 0.0
-            )
+            attendance_pct = (present_total / expected_sessions) * 100 if expected_sessions else 0.0
 
             course_summaries.append(
                 ReportCourseSummary(
@@ -312,7 +318,9 @@ class DashboardService:
             if threshold and first_in_at > threshold:
                 late_students.add(student_id)
 
-        no_in_count = len([student_id for student_id in student_course if student_id not in first_in_by_student])
+        no_in_count = len(
+            [student_id for student_id in student_course if student_id not in first_in_by_student]
+        )
 
         return DashboardStats(
             total_in=total_in,
@@ -322,12 +330,18 @@ class DashboardService:
             with_photos=photo_count,
         )
 
-    async def _map_events_async(self, events: list[tuple[AttendanceEvent, Student, Course]]) -> list[DashboardEvent]:
+    async def _map_events_async(
+        self, events: list[tuple[AttendanceEvent, Student, Course]]
+    ) -> list[DashboardEvent]:
         """R12-P5 fix: Map events asynchronously for presigned URL generation."""
         import asyncio
 
         async def _map_single(event, student, course):
-            photo_url = await self.photo_service.generate_presigned_url(event.photo_ref) if event.photo_ref else None
+            photo_url = (
+                await self.photo_service.generate_presigned_url(event.photo_ref)
+                if event.photo_ref
+                else None
+            )
             return DashboardEvent(
                 id=event.id,
                 student_id=student.id,
@@ -345,7 +359,9 @@ class DashboardService:
 
         return await asyncio.gather(*[_map_single(e, s, c) for e, s, c in events])
 
-    def _map_event(self, event: AttendanceEvent, student: Student, course: Course) -> DashboardEvent:
+    def _map_event(
+        self, event: AttendanceEvent, student: Student, course: Course
+    ) -> DashboardEvent:
         """Sync version for backwards compatibility (no photo URL)."""
         return DashboardEvent(
             id=event.id,

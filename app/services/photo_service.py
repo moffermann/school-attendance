@@ -117,7 +117,7 @@ class PhotoService:
 
             # Replace internal endpoint with public URL if configured
             if settings.s3_public_url and url:
-                url = url.replace(settings.s3_endpoint, settings.s3_public_url.rstrip('/'))
+                url = url.replace(settings.s3_endpoint, settings.s3_public_url.rstrip("/"))
 
             return url
         except Exception as exc:  # pragma: no cover - best effort URL generation

@@ -4,7 +4,18 @@ import csv
 import io
 from io import StringIO
 
-from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, Request, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Path,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from loguru import logger
 from PIL import Image
 
@@ -23,10 +34,10 @@ from app.schemas.students import (
 )
 from app.services.student_service import StudentService
 
-
 # Register HEIC support with Pillow
 try:
     import pillow_heif
+
     pillow_heif.register_heif_opener()
     HEIC_SUPPORTED = True
 except ImportError:
@@ -113,22 +124,32 @@ async def export_students(
 
     buffer = StringIO()
     writer = csv.writer(buffer)
-    writer.writerow([
-        "ID", "Nombre", "RUT/ID Nacional", "Curso",
-        "Estado", "Apoderados", "Eventos Asistencia", "Creado"
-    ])
+    writer.writerow(
+        [
+            "ID",
+            "Nombre",
+            "RUT/ID Nacional",
+            "Curso",
+            "Estado",
+            "Apoderados",
+            "Eventos Asistencia",
+            "Creado",
+        ]
+    )
 
     for s in students:
-        writer.writerow([
-            s.id,
-            _sanitize_csv_value(s.full_name),
-            _sanitize_csv_value(s.national_id) if s.national_id else "",
-            _sanitize_csv_value(s.course_name) if s.course_name else "",
-            s.status,
-            s.guardians_count,
-            s.attendance_events_count,
-            s.created_at.isoformat() if s.created_at else "",
-        ])
+        writer.writerow(
+            [
+                s.id,
+                _sanitize_csv_value(s.full_name),
+                _sanitize_csv_value(s.national_id) if s.national_id else "",
+                _sanitize_csv_value(s.course_name) if s.course_name else "",
+                s.status,
+                s.guardians_count,
+                s.attendance_events_count,
+                s.created_at.isoformat() if s.created_at else "",
+            ]
+        )
 
     return Response(
         content=buffer.getvalue(),
@@ -167,9 +188,13 @@ async def list_students(
     request: Request,
     skip: int = Query(0, ge=0, alias="offset", description="Registros a omitir (offset)"),
     limit: int = Query(50, ge=1, le=200, description="Maximo de registros (1-200)"),
-    q: str | None = Query(None, min_length=2, max_length=100, alias="search", description="Buscar por nombre o RUT"),
+    q: str | None = Query(
+        None, min_length=2, max_length=100, alias="search", description="Buscar por nombre o RUT"
+    ),
     course_id: int | None = Query(None, ge=1, description="Filtrar por curso"),
-    status_filter: str | None = Query(None, alias="status", description="Filtrar por estado (ACTIVE, INACTIVE, DELETED)"),
+    status_filter: str | None = Query(
+        None, alias="status", description="Filtrar por estado (ACTIVE, INACTIVE, DELETED)"
+    ),
     include_deleted: bool = Query(False, description="Incluir eliminados"),
     service: StudentService = Depends(deps.get_student_service),
     user: TenantAuthUser = Depends(deps.get_current_tenant_user),
@@ -297,14 +322,14 @@ async def upload_student_photo(
         allowed_list = ", ".join(sorted(all_allowed))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Tipo de archivo no permitido. Use: {allowed_list}"
+            detail=f"Tipo de archivo no permitido. Use: {allowed_list}",
         )
 
     # Check HEIC support
     if is_heic and not HEIC_SUPPORTED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Formato HEIC no soportado. Por favor convierta a JPEG."
+            detail="Formato HEIC no soportado. Por favor convierta a JPEG.",
         )
 
     # Read file content
@@ -314,7 +339,7 @@ async def upload_student_photo(
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Archivo demasiado grande. Máximo: {MAX_FILE_SIZE // (1024*1024)}MB"
+            detail=f"Archivo demasiado grande. Máximo: {MAX_FILE_SIZE // (1024 * 1024)}MB",
         )
 
     # Convert HEIC to JPEG
@@ -326,7 +351,7 @@ async def upload_student_photo(
             logger.error(f"Failed to convert HEIC: {e}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Error al convertir imagen HEIC. Por favor use otro formato."
+                detail="Error al convertir imagen HEIC. Por favor use otro formato.",
             ) from e
 
     # Delegate to service

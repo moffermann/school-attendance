@@ -10,9 +10,6 @@ from slowapi.util import get_remote_address
 
 from app.core import deps
 from app.core.deps import TenantAuthUser
-from app.db.repositories.users import UserRepository
-from app.services.guardian_service import GuardianService
-from app.services.user_invitation_service import UserInvitationService
 from app.schemas.guardians import (
     GuardianCreateRequest,
     GuardianFilters,
@@ -23,6 +20,8 @@ from app.schemas.guardians import (
     GuardianWithStats,
     PaginatedGuardians,
 )
+from app.services.guardian_service import GuardianService
+from app.services.user_invitation_service import UserInvitationService
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -59,20 +58,24 @@ async def export_guardians(
 
     buffer = StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["ID", "Nombre", "Email", "Teléfono", "WhatsApp", "Estado", "Estudiantes", "Creado"])
+    writer.writerow(
+        ["ID", "Nombre", "Email", "Teléfono", "WhatsApp", "Estado", "Estudiantes", "Creado"]
+    )
 
     for g in guardians:
         contacts = g.contacts or {}
-        writer.writerow([
-            g.id,
-            _sanitize_csv_value(g.full_name),
-            _sanitize_csv_value(contacts.get("email")) if contacts.get("email") else "",
-            _sanitize_csv_value(contacts.get("phone")) if contacts.get("phone") else "",
-            _sanitize_csv_value(contacts.get("whatsapp")) if contacts.get("whatsapp") else "",
-            g.status,
-            g.students_count,
-            g.created_at.isoformat() if g.created_at else "",
-        ])
+        writer.writerow(
+            [
+                g.id,
+                _sanitize_csv_value(g.full_name),
+                _sanitize_csv_value(contacts.get("email")) if contacts.get("email") else "",
+                _sanitize_csv_value(contacts.get("phone")) if contacts.get("phone") else "",
+                _sanitize_csv_value(contacts.get("whatsapp")) if contacts.get("whatsapp") else "",
+                g.status,
+                g.students_count,
+                g.created_at.isoformat() if g.created_at else "",
+            ]
+        )
 
     return Response(
         content=buffer.getvalue(),
@@ -187,7 +190,6 @@ async def resend_invitation(
             detail="Solo directores pueden reenviar invitaciones",
         )
     # Find user linked to this guardian
-    from sqlalchemy.ext.asyncio import AsyncSession
     session = invitation_service.session
     user_repo = invitation_service.user_repo
     parent_user = await user_repo.get_by_guardian_id(guardian_id)

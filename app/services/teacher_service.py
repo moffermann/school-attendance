@@ -37,7 +37,7 @@ class TeacherService:
     # Roles that can export teachers
     EXPORT_ROLES = {"ADMIN", "DIRECTOR", "INSPECTOR"}
 
-    def __init__(self, session: "AsyncSession"):
+    def __init__(self, session: AsyncSession):
         self.session = session
         self.teacher_repo = TeacherRepository(session)
         self.course_repo = CourseRepository(session)
@@ -48,7 +48,7 @@ class TeacherService:
 
     async def list_teachers(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         filters: TeacherFilters,
         *,
         limit: int = 50,
@@ -83,7 +83,7 @@ class TeacherService:
 
     async def list_teachers_for_export(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         filters: TeacherFilters,
         request: Request | None = None,
     ) -> list[TeacherWithStats]:
@@ -133,7 +133,7 @@ class TeacherService:
 
     async def get_teacher_detail(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         teacher_id: int,
         request: Request | None = None,
     ) -> TeacherWithStats:
@@ -170,7 +170,7 @@ class TeacherService:
 
     async def create_teacher(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         payload: TeacherCreate,
         request: Request | None = None,
     ) -> TeacherRead:
@@ -242,7 +242,7 @@ class TeacherService:
 
     async def update_teacher(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         teacher_id: int,
         payload: TeacherUpdate,
         request: Request | None = None,
@@ -287,11 +287,17 @@ class TeacherService:
                 changes["email"] = {"old": teacher.email, "new": payload.email}
             if payload.status and payload.status != teacher.status:
                 changes["status"] = {"old": teacher.status, "new": payload.status}
-            if payload.can_enroll_biometric is not None and payload.can_enroll_biometric != teacher.can_enroll_biometric:
-                changes["can_enroll_biometric"] = {"old": teacher.can_enroll_biometric, "new": payload.can_enroll_biometric}
+            if (
+                payload.can_enroll_biometric is not None
+                and payload.can_enroll_biometric != teacher.can_enroll_biometric
+            ):
+                changes["can_enroll_biometric"] = {
+                    "old": teacher.can_enroll_biometric,
+                    "new": payload.can_enroll_biometric,
+                }
 
             # 5. Update teacher
-            updated = await self.teacher_repo.update(
+            await self.teacher_repo.update(
                 teacher_id,
                 full_name=payload.full_name,
                 email=payload.email,
@@ -332,7 +338,7 @@ class TeacherService:
 
     async def delete_teacher(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         teacher_id: int,
         request: Request | None = None,
     ) -> bool:
@@ -392,7 +398,7 @@ class TeacherService:
 
     async def restore_teacher(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         teacher_id: int,
         request: Request | None = None,
     ) -> TeacherRead:
@@ -451,7 +457,7 @@ class TeacherService:
 
     async def search_teachers(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         query: str,
         *,
         limit: int = 20,
@@ -477,7 +483,7 @@ class TeacherService:
 
     async def assign_course(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         teacher_id: int,
         course_id: int,
         request: Request | None = None,
@@ -529,7 +535,7 @@ class TeacherService:
 
     async def unassign_course(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         teacher_id: int,
         course_id: int,
         request: Request | None = None,

@@ -1,14 +1,14 @@
 """Audit logging for security-sensitive events."""
 
 import json
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Optional
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Any
 
 from loguru import logger
 
 
-class AuditEvent(str, Enum):
+class AuditEvent(StrEnum):
     """Security-sensitive events that should be audited."""
 
     # Authentication events
@@ -73,11 +73,11 @@ class AuditEvent(str, Enum):
 def audit_log(
     event: AuditEvent,
     *,
-    user_id: Optional[int] = None,
-    ip_address: Optional[str] = None,
-    resource_type: Optional[str] = None,
-    resource_id: Optional[int] = None,
-    details: Optional[dict[str, Any]] = None,
+    user_id: int | None = None,
+    ip_address: str | None = None,
+    resource_type: str | None = None,
+    resource_id: int | None = None,
+    details: dict[str, Any] | None = None,
     success: bool = True,
 ) -> None:
     """Log a security audit event.
@@ -92,7 +92,7 @@ def audit_log(
         success: Whether the action succeeded
     """
     audit_entry = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "event": event.value,
         "success": success,
         "user_id": user_id,
@@ -100,7 +100,9 @@ def audit_log(
         "resource": {
             "type": resource_type,
             "id": resource_id,
-        } if resource_type else None,
+        }
+        if resource_type
+        else None,
         "details": details,
     }
 

@@ -3,26 +3,25 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, List, TYPE_CHECKING
-
-from datetime import datetime, timedelta, timezone
 import uuid
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
+from app.core.config import settings
 from app.db.repositories.attendance import AttendanceRepository
 from app.db.repositories.guardians import GuardianRepository
-from app.db.repositories.schedules import ScheduleRepository
-from app.db.repositories.students import StudentRepository
 from app.db.repositories.no_show_alerts import NoShowAlertRepository
+from app.db.repositories.schedules import ScheduleRepository
 from app.db.repositories.sequence_corrections import SequenceCorrectionRepository
+from app.db.repositories.students import StudentRepository
 from app.schemas.attendance import AttendanceEventCreate, AttendanceEventRead
-from app.core.config import settings
 from app.services.photo_service import PhotoService
 
 if TYPE_CHECKING:
-    from app.services.attendance_notification_service import AttendanceNotificationService
     from app.db.models.attendance_event import AttendanceEvent
+    from app.services.attendance_notification_service import AttendanceNotificationService
 
 
 class AttendanceService:
@@ -106,11 +105,9 @@ class AttendanceService:
                 ),
                 timeout=5.0,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Lock timeout - fail gracefully, don't correct
-            logger.warning(
-                f"Lock timeout for student {student_id}, skipping sequence validation"
-            )
+            logger.warning(f"Lock timeout for student {student_id}, skipping sequence validation")
             return requested_type, False
 
         # Determine expected type based on chronologically previous event
@@ -162,7 +159,7 @@ class AttendanceService:
                 "device_id": event.device_id,
                 "gate_id": event.gate_id,
                 "occurred_at": event.occurred_at.isoformat() if event.occurred_at else None,
-            }
+            },
         )
 
     async def _send_attendance_notifications(self, event, student=None) -> None:
@@ -173,7 +170,7 @@ class AttendanceService:
 
         if not self._notification_service:
             logger.debug("Notification service not configured, skipping notifications")
-            logger.warning(f"[DEBUG-NOTIF] SKIPPED: notification_service is None!")
+            logger.warning("[DEBUG-NOTIF] SKIPPED: notification_service is None!")
             return
 
         try:
@@ -195,27 +192,27 @@ class AttendanceService:
                             expires=24 * 3600,  # 24 hours
                         )
 
-            logger.info(f"[DEBUG-NOTIF] Calling notify_attendance_event for event {event.id}, photo_url: {bool(photo_url)}")
+            logger.info(
+                f"[DEBUG-NOTIF] Calling notify_attendance_event for event {event.id}, photo_url: {bool(photo_url)}"
+            )
             notification_ids = await self._notification_service.notify_attendance_event(
                 event=event,
                 photo_url=photo_url,
             )
             logger.info(f"[DEBUG-NOTIF] notify_attendance_event returned: {notification_ids}")
             await self.session.commit()
-            logger.info(f"[DEBUG-NOTIF] Session committed after notifications")
+            logger.info("[DEBUG-NOTIF] Session committed after notifications")
 
             if notification_ids:
-                logger.info(
-                    f"Queued {len(notification_ids)} notifications for event {event.id}"
-                )
+                logger.info(f"Queued {len(notification_ids)} notifications for event {event.id}")
             else:
                 logger.warning(f"[DEBUG-NOTIF] NO notifications created for event {event.id}")
         except Exception as e:
             # Don't fail the attendance registration if notifications fail
             logger.error(f"Failed to send notifications for event {event.id}: {e}")
-            logger.exception(f"[DEBUG-NOTIF] Full exception trace:")
+            logger.exception("[DEBUG-NOTIF] Full exception trace:")
 
-    async def list_events_by_student(self, student_id: int) -> List[AttendanceEventRead]:
+    async def list_events_by_student(self, student_id: int) -> list[AttendanceEventRead]:
         events = await self.attendance_repo.list_by_student(student_id)
         return [AttendanceEventRead.model_validate(event, from_attributes=True) for event in events]
 
@@ -223,10 +220,10 @@ class AttendanceService:
         # R15-DT2 fix: Work with timezone-aware datetimes consistently
         # Ensure current_dt is UTC-aware for consistent comparisons
         if current_dt.tzinfo:
-            current_dt_utc = current_dt.astimezone(timezone.utc)
+            current_dt_utc = current_dt.astimezone(UTC)
         else:
             # Assume naive datetime is UTC
-            current_dt_utc = current_dt.replace(tzinfo=timezone.utc)
+            current_dt_utc = current_dt.replace(tzinfo=UTC)
 
         weekday = current_dt_utc.weekday()
         schedules = await self.schedule_repo.list_by_weekday(weekday)
@@ -237,7 +234,7 @@ class AttendanceService:
         for schedule in schedules:
             # Course is eager-loaded via selectinload in list_by_weekday
             # R15-DT2 fix: datetime.combine with explicit UTC timezone to avoid naive datetime
-            threshold = datetime.combine(target_date, schedule.in_time, tzinfo=timezone.utc) + grace
+            threshold = datetime.combine(target_date, schedule.in_time, tzinfo=UTC) + grace
             if current_dt_utc < threshold:
                 continue
 

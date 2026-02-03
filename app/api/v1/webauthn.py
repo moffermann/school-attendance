@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import deps
 from app.core.auth import AuthUser
 from app.core.rate_limiter import limiter
-from app.services.feature_flag_service import FEATURE_WEBAUTHN
 from app.db.repositories.teachers import TeacherRepository
 from app.schemas.webauthn import (
     BiometricStatusResponse,
@@ -20,11 +19,10 @@ from app.schemas.webauthn import (
     StartAuthenticationResponse,
     StartRegistrationRequest,
     StartRegistrationResponse,
-    StudentAuthenticationResponse,
     VerifyAuthenticationRequest,
 )
+from app.services.feature_flag_service import FEATURE_WEBAUTHN
 from app.services.webauthn_service import WebAuthnService
-
 
 router = APIRouter()
 
@@ -55,10 +53,7 @@ async def kiosk_start_student_registration(
     Retorna las opciones WebAuthn para pasar a navigator.credentials.create()
     """
     if not device_authenticated:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Device key inválida"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Device key inválida")
 
     result = await webauthn_service.start_student_registration(
         student_id=request.student_id,
@@ -88,10 +83,7 @@ async def kiosk_complete_student_registration(
     Recibe la respuesta de navigator.credentials.create() y verifica la credencial.
     """
     if not device_authenticated:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Device key inválida"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Device key inválida")
 
     credential = await webauthn_service.complete_student_registration(
         challenge_id=request.challenge_id,
@@ -124,10 +116,7 @@ async def kiosk_start_authentication(
     Retorna las opciones WebAuthn para pasar a navigator.credentials.get()
     """
     if not device_authenticated:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Device key inválida"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Device key inválida")
 
     result = await webauthn_service.start_student_authentication()
 
@@ -156,10 +145,7 @@ async def kiosk_verify_authentication(
     con el flujo de registro de asistencia.
     """
     if not device_authenticated:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Device key inválida"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Device key inválida")
 
     student = await webauthn_service.verify_student_authentication(
         challenge_id=request.challenge_id,
@@ -195,10 +181,7 @@ async def kiosk_check_biometric_status(
     o si ofrecer el registro.
     """
     if not device_authenticated:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Device key inválida"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Device key inválida")
 
     credentials = await webauthn_service.list_student_credentials(student_id)
 
@@ -325,8 +308,7 @@ async def admin_delete_student_credential(
             f"student_id={student_id}"
         )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Credencial no encontrada"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Credencial no encontrada"
         )
 
     return DeleteCredentialResponse(
@@ -359,19 +341,13 @@ async def check_teacher_can_enroll(
     Usado por el kiosk para mostrar/ocultar la opción de registro.
     """
     if not device_authenticated:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Device key inválida"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Device key inválida")
 
     teacher_repo = TeacherRepository(session)
     teacher = await teacher_repo.get(teacher_id)
 
     if not teacher:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profesor no encontrado"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profesor no encontrado")
 
     return {
         "teacher_id": teacher_id,
@@ -476,8 +452,7 @@ async def delete_my_passkey(
 
     if not deleted:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Credencial no encontrada"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Credencial no encontrada"
         )
 
     return DeleteCredentialResponse(

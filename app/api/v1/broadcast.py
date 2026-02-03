@@ -9,7 +9,6 @@ from app.schemas.notifications import BroadcastCreate, BroadcastPreview
 from app.services.broadcast_service import BroadcastService
 from app.services.feature_flag_service import FEATURE_BROADCASTS
 
-
 router = APIRouter()
 
 

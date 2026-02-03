@@ -1,6 +1,6 @@
 """WebAuthn credential repository."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,19 +46,13 @@ class WebAuthnRepository:
 
     async def get_all_student_credentials(self) -> list[WebAuthnCredential]:
         """Get all credentials linked to students (for kiosk authentication)."""
-        stmt = (
-            select(WebAuthnCredential)
-            .where(WebAuthnCredential.student_id.isnot(None))
-        )
+        stmt = select(WebAuthnCredential).where(WebAuthnCredential.student_id.isnot(None))
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def get_all_user_credentials(self) -> list[WebAuthnCredential]:
         """Get all credentials linked to users (for web-app passkey authentication)."""
-        stmt = (
-            select(WebAuthnCredential)
-            .where(WebAuthnCredential.user_id.isnot(None))
-        )
+        stmt = select(WebAuthnCredential).where(WebAuthnCredential.user_id.isnot(None))
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -73,7 +67,7 @@ class WebAuthnRepository:
         stmt = (
             update(WebAuthnCredential)
             .where(WebAuthnCredential.credential_id == credential_id)
-            .values(sign_count=new_sign_count, last_used_at=datetime.now(timezone.utc))
+            .values(sign_count=new_sign_count, last_used_at=datetime.now(UTC))
         )
         await self.session.execute(stmt)
 
@@ -91,10 +85,7 @@ class WebAuthnRepository:
 
         R7-B2 fix: Use bulk delete instead of N+1 pattern.
         """
-        stmt = (
-            delete(WebAuthnCredential)
-            .where(WebAuthnCredential.student_id == student_id)
-        )
+        stmt = delete(WebAuthnCredential).where(WebAuthnCredential.student_id == student_id)
         result = await self.session.execute(stmt)
         await self.session.flush()
         return result.rowcount
@@ -104,10 +95,7 @@ class WebAuthnRepository:
 
         R7-B2 fix: Use bulk delete instead of N+1 pattern.
         """
-        stmt = (
-            delete(WebAuthnCredential)
-            .where(WebAuthnCredential.user_id == user_id)
-        )
+        stmt = delete(WebAuthnCredential).where(WebAuthnCredential.user_id == user_id)
         result = await self.session.execute(stmt)
         await self.session.flush()
         return result.rowcount

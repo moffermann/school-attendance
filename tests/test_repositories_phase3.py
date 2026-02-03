@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.absence_request import AbsenceRequest
 from app.db.models.course import Course
-from app.db.models.device import Device
-from app.db.models.schedule import Schedule
-from app.db.models.schedule_exception import ScheduleException
 from app.db.models.student import Student
 from app.db.models.user import User
 from app.db.repositories.absences import AbsenceRepository
@@ -19,10 +15,10 @@ from app.db.repositories.devices import DeviceRepository
 from app.db.repositories.schedules import ScheduleRepository
 from app.db.repositories.users import UserRepository
 
-
 # =============================================================================
 # Absence Repository Tests
 # =============================================================================
+
 
 class TestAbsenceRepository:
     """Tests for AbsenceRepository."""
@@ -32,7 +28,9 @@ class TestAbsenceRepository:
         return AbsenceRepository(db_session)
 
     @pytest.fixture
-    async def sample_student_for_absence(self, db_session: AsyncSession, sample_course: Course) -> Student:
+    async def sample_student_for_absence(
+        self, db_session: AsyncSession, sample_course: Course
+    ) -> Student:
         student = Student(full_name="Test Student", course_id=sample_course.id)
         db_session.add(student)
         await db_session.flush()
@@ -48,7 +46,7 @@ class TestAbsenceRepository:
             end_date=date(2025, 1, 16),
             comment="Enfermo con gripe",
             attachment_ref=None,
-            submitted_at=datetime.now(timezone.utc),
+            submitted_at=datetime.now(UTC),
         )
         assert absence.id is not None
         assert absence.type == "SICK"
@@ -64,7 +62,7 @@ class TestAbsenceRepository:
             end_date=date(2025, 1, 16),
             comment=None,
             attachment_ref=None,
-            submitted_at=datetime.now(timezone.utc),
+            submitted_at=datetime.now(UTC),
         )
 
         absences = await absence_repo.list_all()
@@ -80,7 +78,7 @@ class TestAbsenceRepository:
             end_date=date(2025, 2, 5),
             comment=None,
             attachment_ref=None,
-            submitted_at=datetime.now(timezone.utc),
+            submitted_at=datetime.now(UTC),
         )
 
         absences = await absence_repo.list_by_student_ids([sample_student_for_absence.id])
@@ -103,7 +101,7 @@ class TestAbsenceRepository:
             end_date=date(2025, 3, 1),
             comment="Cita médica",
             attachment_ref=None,
-            submitted_at=datetime.now(timezone.utc),
+            submitted_at=datetime.now(UTC),
         )
 
         updated = await absence_repo.update_status(absence.id, "APPROVED")
@@ -119,6 +117,7 @@ class TestAbsenceRepository:
 # =============================================================================
 # Schedule Repository Tests
 # =============================================================================
+
 
 class TestScheduleRepository:
     """Tests for ScheduleRepository."""
@@ -143,8 +142,12 @@ class TestScheduleRepository:
     @pytest.mark.asyncio
     async def test_list_by_course(self, schedule_repo, sample_course):
         """Should list schedules by course."""
-        await schedule_repo.create(sample_course.id, weekday=0, in_time=time(8, 0), out_time=time(13, 0))
-        await schedule_repo.create(sample_course.id, weekday=1, in_time=time(8, 0), out_time=time(13, 0))
+        await schedule_repo.create(
+            sample_course.id, weekday=0, in_time=time(8, 0), out_time=time(13, 0)
+        )
+        await schedule_repo.create(
+            sample_course.id, weekday=1, in_time=time(8, 0), out_time=time(13, 0)
+        )
 
         schedules = await schedule_repo.list_by_course(sample_course.id)
         assert len(schedules) >= 2
@@ -177,7 +180,9 @@ class TestScheduleRepository:
     @pytest.mark.asyncio
     async def test_list_by_weekday(self, schedule_repo, sample_course):
         """Should list schedules by weekday."""
-        await schedule_repo.create(sample_course.id, weekday=4, in_time=time(8, 0), out_time=time(13, 0))
+        await schedule_repo.create(
+            sample_course.id, weekday=4, in_time=time(8, 0), out_time=time(13, 0)
+        )
 
         schedules = await schedule_repo.list_by_weekday(4)
         assert len(schedules) >= 1
@@ -186,7 +191,9 @@ class TestScheduleRepository:
     @pytest.mark.asyncio
     async def test_list_by_course_ids(self, schedule_repo, sample_course):
         """Should list schedules by course IDs."""
-        await schedule_repo.create(sample_course.id, weekday=3, in_time=time(8, 0), out_time=time(13, 0))
+        await schedule_repo.create(
+            sample_course.id, weekday=3, in_time=time(8, 0), out_time=time(13, 0)
+        )
 
         schedules = await schedule_repo.list_by_course_ids({sample_course.id})
         assert len(schedules) >= 1
@@ -239,6 +246,7 @@ class TestScheduleRepository:
 # Device Repository Tests
 # =============================================================================
 
+
 class TestDeviceRepository:
     """Tests for DeviceRepository."""
 
@@ -284,6 +292,7 @@ class TestDeviceRepository:
 # =============================================================================
 # User Repository Tests
 # =============================================================================
+
 
 class TestUserRepository:
     """Tests for UserRepository."""

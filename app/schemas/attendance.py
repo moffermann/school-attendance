@@ -1,22 +1,23 @@
 """Attendance schemas."""
 
-from datetime import datetime, timedelta, timezone
-from enum import Enum
+from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 
 from pydantic import BaseModel, Field, field_validator
 
 
-class AttendanceType(str, Enum):
+class AttendanceType(StrEnum):
     IN = "IN"
     OUT = "OUT"
 
 
-class AttendanceSource(str, Enum):
+class AttendanceSource(StrEnum):
     """Method used to register attendance."""
+
     BIOMETRIC = "BIOMETRIC"  # WebAuthn/Passkey fingerprint
-    QR = "QR"                # QR code scan
-    NFC = "NFC"              # NFC card/tag
-    MANUAL = "MANUAL"        # Manual entry by staff
+    QR = "QR"  # QR code scan
+    NFC = "NFC"  # NFC card/tag
+    MANUAL = "MANUAL"  # Manual entry by staff
 
 
 class AttendanceEventCreate(BaseModel):
@@ -24,7 +25,7 @@ class AttendanceEventCreate(BaseModel):
     device_id: str = Field(..., max_length=64)
     gate_id: str = Field(..., max_length=64)
     type: AttendanceType
-    occurred_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    occurred_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     photo_ref: str | None = None
     audio_ref: str | None = None
     local_seq: int | None = None
@@ -34,10 +35,10 @@ class AttendanceEventCreate(BaseModel):
     @classmethod
     def validate_occurred_at(cls, v: datetime) -> datetime:
         # Ensure timezone-aware comparison
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         # Make v timezone-aware if it isn't
         if v.tzinfo is None:
-            v = v.replace(tzinfo=timezone.utc)
+            v = v.replace(tzinfo=UTC)
         # Allow events up to 1 hour in the future (clock sync tolerance)
         max_future = now + timedelta(hours=1)
         # Allow events up to 7 days in the past (offline sync)

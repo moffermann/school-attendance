@@ -6,9 +6,9 @@ and notification deduplication works correctly.
 
 from __future__ import annotations
 
-from datetime import datetime, date, time, timezone, timedelta
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -18,7 +18,7 @@ from app.services.attendance_service import AttendanceService
 
 def today_at(hour: int, minute: int = 0) -> datetime:
     """Helper to create a datetime for today at specified time."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return now.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
 
@@ -312,9 +312,7 @@ class TestOutOfOrderSync:
     """Tests for out-of-order synchronization scenarios."""
 
     @pytest.mark.anyio("asyncio")
-    async def test_offline_event_synced_later_uses_timestamp_context(
-        self, monkeypatch
-    ) -> None:
+    async def test_offline_event_synced_later_uses_timestamp_context(self, monkeypatch) -> None:
         """Event synced later is validated against events BEFORE its timestamp.
 
         Scenario:
@@ -347,9 +345,7 @@ class TestOutOfOrderSync:
                 return existing_event
             return None
 
-        service.attendance_repo.get_event_before_timestamp = AsyncMock(
-            side_effect=mock_get_before
-        )
+        service.attendance_repo.get_event_before_timestamp = AsyncMock(side_effect=mock_get_before)
 
         created_events = []
 
@@ -389,9 +385,7 @@ class TestOutOfOrderSync:
         assert created_events[0].conflict_corrected is True
 
     @pytest.mark.anyio("asyncio")
-    async def test_retroactive_event_validated_against_earlier_events(
-        self, monkeypatch
-    ) -> None:
+    async def test_retroactive_event_validated_against_earlier_events(self, monkeypatch) -> None:
         """Event inserted retroactively is validated against EARLIER events only.
 
         Scenario:

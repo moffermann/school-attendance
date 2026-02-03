@@ -124,7 +124,7 @@ class WhatsAppClient:
 class TenantWhatsAppClient:
     """WhatsApp client using tenant-specific credentials."""
 
-    def __init__(self, config: "DecryptedTenantConfig") -> None:
+    def __init__(self, config: DecryptedTenantConfig) -> None:
         """
         Initialize with decrypted tenant configuration.
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from app.db.repositories.no_show_alerts import NoShowAlertRepository
 from app.schemas.alerts import NoShowAlertRead
@@ -39,7 +39,7 @@ class AlertService:
         return [NoShowAlertRead.model_validate(row) for row in rows]
 
     async def resolve_alert(self, alert_id: int, notes: str | None = None) -> NoShowAlertRead:
-        resolved = await self.repository.mark_resolved(alert_id, notes, datetime.now(timezone.utc))
+        resolved = await self.repository.mark_resolved(alert_id, notes, datetime.now(UTC))
         if resolved is None:
             raise ValueError("Alerta no encontrada")
         await self.session.commit()

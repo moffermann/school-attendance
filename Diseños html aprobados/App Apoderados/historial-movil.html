@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Historial de Asistencia NEUVOX Móvil</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6366f1", // Purple/Indigo base
+                        secondary: "#0ea5e9", // Blue accent
+                        "background-light": "#f8fafc", 
+                        "background-dark": "#0f172a",
+                        "card-light": "#ffffff",
+                        "card-dark": "#1e293b",
+                        "text-light": "#1f2937",
+                        "text-dark": "#e2e8f0",
+                        "muted-light": "#6b7280",
+                        "muted-dark": "#94a3b8",
+                        "success-light": "#dcfce7",
+                        "success-text": "#166534",
+                        "warning-light": "#fef9c3",
+                        "warning-text": "#854d0e",
+                        "danger-light": "#fee2e2",
+                        "danger-text": "#991b1b",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        'lg': '0.75rem',
+                        'xl': '1rem',
+                        '2xl': '1.5rem',
+                    },
+                },
+            },
+        };
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .nav-item.active {
+            color: #6366f1;
+        }
+        .nav-item.active span {
+            font-variation-settings: 'FILL' 1;
+        }.calendar-dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 antialiased h-screen flex flex-col overflow-hidden">
+<header class="bg-white dark:bg-card-dark border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between shrink-0 z-20">
+<div class="flex items-center gap-3 w-full">
+<button class="p-2 -ml-2 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<div class="flex-1 relative">
+<button class="flex items-center gap-2 w-full">
+<div class="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                    L
+                </div>
+<div class="flex flex-col items-start">
+<span class="text-sm font-bold text-gray-900 dark:text-white leading-tight">Luna Torres Prada</span>
+<span class="text-[10px] text-gray-500 dark:text-gray-400">2º Básico B</span>
+</div>
+<span class="material-symbols-outlined text-gray-400 ml-auto">expand_more</span>
+</button>
+</div>
+<button class="p-2 -mr-2 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+</div>
+</header>
+<main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-background-dark scroll-smooth pb-24">
+<div class="bg-white dark:bg-card-dark shadow-sm pb-4 rounded-b-2xl mb-4">
+<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800 mb-2">
+<button class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500">
+<span class="material-symbols-outlined text-lg">chevron_left</span>
+</button>
+<h2 class="text-base font-semibold text-gray-900 dark:text-white">Marzo 2026</h2>
+<button class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500">
+<span class="material-symbols-outlined text-lg">chevron_right</span>
+</button>
+</div>
+<div class="grid grid-cols-7 text-center mb-2 px-2">
+<div class="text-[10px] font-medium text-gray-400">Lun</div>
+<div class="text-[10px] font-medium text-gray-400">Mar</div>
+<div class="text-[10px] font-medium text-gray-400">Mié</div>
+<div class="text-[10px] font-medium text-gray-400">Jue</div>
+<div class="text-[10px] font-medium text-gray-400">Vie</div>
+<div class="text-[10px] font-medium text-gray-400 text-red-400">Sáb</div>
+<div class="text-[10px] font-medium text-gray-400 text-red-400">Dom</div>
+</div>
+<div class="grid grid-cols-7 text-center px-2 gap-y-1">
+<div class="h-10 flex flex-col items-center justify-center text-gray-300 text-sm">24</div>
+<div class="h-10 flex flex-col items-center justify-center text-gray-300 text-sm">25</div>
+<div class="h-10 flex flex-col items-center justify-center text-gray-300 text-sm">26</div>
+<div class="h-10 flex flex-col items-center justify-center text-gray-300 text-sm">27</div>
+<div class="h-10 flex flex-col items-center justify-center text-gray-300 text-sm">28</div>
+<div class="h-10 flex flex-col items-center justify-center text-gray-400 text-sm">1</div>
+<div class="h-10 flex flex-col items-center justify-center text-gray-400 text-sm">2</div>
+<div class="h-10 flex flex-col items-center justify-center cursor-pointer">
+<span class="text-sm font-medium text-gray-700 dark:text-gray-300">3</span>
+<div class="calendar-dot bg-green-500"></div>
+</div>
+<div class="h-10 flex flex-col items-center justify-center cursor-pointer">
+<span class="text-sm font-medium text-gray-700 dark:text-gray-300">4</span>
+<div class="calendar-dot bg-green-500"></div>
+</div>
+<div class="h-10 flex flex-col items-center justify-center cursor-pointer">
+<span class="text-sm font-medium text-gray-700 dark:text-gray-300">5</span>
+<div class="calendar-dot bg-yellow-500"></div>
+</div>
+<div class="h-10 flex flex-col items-center justify-center cursor-pointer">
+<span class="text-sm font-medium text-gray-700 dark:text-gray-300">6</span>
+<div class="calendar-dot bg-green-500"></div>
+</div>
+<div class="h-10 flex flex-col items-center justify-center cursor-pointer">
+<span class="text-sm font-medium text-gray-700 dark:text-gray-300">7</span>
+<div class="calendar-dot bg-red-500"></div>
+</div>
+<div class="h-10 flex flex-col items-center justify-center text-gray-400 text-sm">8</div>
+<div class="h-10 flex flex-col items-center justify-center text-gray-400 text-sm">9</div>
+<div class="h-10 flex flex-col items-center justify-center cursor-pointer">
+<span class="text-sm font-medium text-gray-700 dark:text-gray-300">10</span>
+<div class="calendar-dot bg-green-500"></div>
+</div>
+<div class="h-10 flex flex-col items-center justify-center cursor-pointer">
+<span class="text-sm font-medium text-gray-700 dark:text-gray-300">11</span>
+<div class="calendar-dot bg-green-500"></div>
+</div>
+<div class="h-10 flex flex-col items-center justify-center cursor-pointer relative">
+<div class="absolute inset-1 bg-indigo-600 rounded-lg -z-10 shadow-sm"></div>
+<span class="text-sm font-bold text-white">12</span>
+<div class="calendar-dot bg-white"></div>
+</div>
+<div class="h-10 flex flex-col items-center justify-center cursor-pointer">
+<span class="text-sm font-medium text-gray-700 dark:text-gray-300">13</span>
+</div>
+<div class="h-10 flex flex-col items-center justify-center cursor-pointer">
+<span class="text-sm font-medium text-gray-700 dark:text-gray-300">14</span>
+</div>
+<div class="h-10 flex flex-col items-center justify-center text-gray-400 text-sm">15</div>
+<div class="h-10 flex flex-col items-center justify-center text-gray-400 text-sm">16</div>
+</div>
+<div class="flex justify-center mt-2">
+<div class="w-12 h-1 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+</div>
+</div>
+<div class="px-4 mb-6">
+<h3 class="text-sm font-bold text-gray-900 dark:text-white mb-3 px-1">Resumen Mensual</h3>
+<div class="grid grid-cols-3 gap-3">
+<div class="bg-white dark:bg-card-dark rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col items-center">
+<span class="text-2xl font-bold text-green-600 dark:text-green-400">18</span>
+<span class="text-[10px] font-medium text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wide">Presente</span>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col items-center">
+<span class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">2</span>
+<span class="text-[10px] font-medium text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wide">Atrasos</span>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col items-center">
+<span class="text-2xl font-bold text-red-600 dark:text-red-400">1</span>
+<span class="text-[10px] font-medium text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wide">Ausencias</span>
+</div>
+</div>
+</div>
+<div class="px-4">
+<div class="flex items-center justify-between mb-3 px-1">
+<h3 class="text-sm font-bold text-gray-900 dark:text-white">Actividad: Miércoles 12</h3>
+<span class="text-xs text-indigo-600 font-medium">Hoy</span>
+</div>
+<div class="space-y-4 relative pl-2">
+<div class="absolute left-[27px] top-4 bottom-4 w-0.5 bg-gray-200 dark:bg-gray-700 -z-10"></div>
+<div class="flex gap-4 items-start">
+<div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center shrink-0 shadow-sm border-2 border-white dark:border-background-dark">
+<span class="material-symbols-outlined text-xl">login</span>
+</div>
+<div class="bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex-1">
+<div class="flex justify-between items-start mb-1">
+<span class="font-semibold text-gray-900 dark:text-white text-sm">Entrada Registrada</span>
+<span class="text-xs font-mono text-gray-500 dark:text-gray-400">07:55 AM</span>
+</div>
+<p class="text-xs text-gray-500 dark:text-gray-400">Ingreso puntual por pórtico principal.</p>
+</div>
+</div>
+<div class="flex gap-4 items-start opacity-60">
+<div class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 flex items-center justify-center shrink-0 shadow-sm border-2 border-white dark:border-background-dark">
+<span class="material-symbols-outlined text-xl">logout</span>
+</div>
+<div class="bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex-1 border-dashed">
+<div class="flex justify-between items-start mb-1">
+<span class="font-semibold text-gray-500 dark:text-gray-400 text-sm">Salida Estimada</span>
+<span class="text-xs font-mono text-gray-400">15:30 PM</span>
+</div>
+<p class="text-xs text-gray-400">Jornada Escolar Completa</p>
+</div>
+</div>
+<div class="pt-2 pb-1">
+<h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Ayer, Martes 11</h4>
+</div>
+<div class="flex gap-4 items-start">
+<div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center shrink-0 shadow-sm border-2 border-white dark:border-background-dark">
+<span class="material-symbols-outlined text-xl">login</span>
+</div>
+<div class="bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex-1">
+<div class="flex justify-between items-start mb-1">
+<span class="font-semibold text-gray-900 dark:text-white text-sm">Entrada Registrada</span>
+<span class="text-xs font-mono text-gray-500 dark:text-gray-400">08:02 AM</span>
+</div>
+<p class="text-xs text-gray-500 dark:text-gray-400">Ingreso registrado.</p>
+</div>
+</div>
+<div class="flex gap-4 items-start">
+<div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 shadow-sm border-2 border-white dark:border-background-dark">
+<span class="material-symbols-outlined text-xl">logout</span>
+</div>
+<div class="bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex-1">
+<div class="flex justify-between items-start mb-1">
+<span class="font-semibold text-gray-900 dark:text-white text-sm">Salida Registrada</span>
+<span class="text-xs font-mono text-gray-500 dark:text-gray-400">15:35 PM</span>
+</div>
+<p class="text-xs text-gray-500 dark:text-gray-400">Retiro por apoderado suplente.</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<nav class="bg-white dark:bg-card-dark border-t border-gray-200 dark:border-gray-800 flex justify-around items-center h-[72px] px-2 z-30 pb-safe fixed bottom-0 w-full shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+<a class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">home</span>
+<span class="text-[10px] font-medium">Inicio</span>
+</a>
+<a class="nav-item active flex flex-col items-center justify-center w-full h-full text-indigo-600 dark:text-indigo-400" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">history</span>
+<span class="text-[10px] font-medium">Historial</span>
+</a>
+<a class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">event_busy</span>
+<span class="text-[10px] font-medium">Ausencias</span>
+</a>
+<a class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">settings</span>
+<span class="text-[10px] font-medium">Ajustes</span>
+</a>
+</nav>
+
+</body></html>

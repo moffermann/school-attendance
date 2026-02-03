@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
@@ -50,6 +49,7 @@ def app_with_parent_auth():
 # /teachers/me tests
 # ============================================================================
 
+
 def test_teacher_me_success(app_with_teacher_auth):
     """Teacher can get their own profile and courses."""
     app = app_with_teacher_auth
@@ -68,6 +68,7 @@ def test_teacher_me_success(app_with_teacher_auth):
             )
 
     from app.api.v1.teachers import get_teacher_repo
+
     app.dependency_overrides[get_teacher_repo] = lambda: FakeTeacherRepo()
 
     with TestClient(app) as client:
@@ -96,6 +97,7 @@ def test_teacher_me_parent_forbidden(app_with_parent_auth):
 # /teachers/courses/{id}/students tests
 # ============================================================================
 
+
 def test_teacher_course_students_success(app_with_teacher_auth):
     """Teacher can list students from their assigned course."""
     app = app_with_teacher_auth
@@ -114,6 +116,7 @@ def test_teacher_course_students_success(app_with_teacher_auth):
             ]
 
     from app.api.v1.teachers import get_teacher_repo
+
     app.dependency_overrides[get_teacher_repo] = lambda: FakeTeacherRepo()
 
     with TestClient(app) as client:
@@ -139,6 +142,7 @@ def test_teacher_course_students_not_assigned(app_with_teacher_auth):
             return []  # No students because teacher not assigned
 
     from app.api.v1.teachers import get_teacher_repo
+
     app.dependency_overrides[get_teacher_repo] = lambda: FakeTeacherRepo()
 
     with TestClient(app) as client:
@@ -149,6 +153,7 @@ def test_teacher_course_students_not_assigned(app_with_teacher_auth):
 # ============================================================================
 # /teachers/attendance/bulk tests
 # ============================================================================
+
 
 def test_teacher_bulk_attendance_success(app_with_teacher_auth):
     """Teacher can submit bulk attendance."""
@@ -169,21 +174,25 @@ def test_teacher_bulk_attendance_success(app_with_teacher_auth):
         async def commit(self):
             pass
 
-    from app.api.v1.teachers import get_teacher_repo, get_attendance_repo
+    from app.api.v1.teachers import get_attendance_repo, get_teacher_repo
+
     app.dependency_overrides[get_teacher_repo] = lambda: FakeTeacherRepo()
     app.dependency_overrides[get_attendance_repo] = lambda: FakeAttendanceRepo()
     app.dependency_overrides[deps.get_db] = lambda: FakeSession()
 
     with TestClient(app) as client:
-        resp = client.post("/api/v1/teachers/attendance/bulk", json={
-            "course_id": 1,
-            "gate_id": "GATE-A",
-            "device_id": "PWA-001",
-            "events": [
-                {"student_id": 1, "type": "IN"},
-                {"student_id": 2, "type": "IN"},
-            ]
-        })
+        resp = client.post(
+            "/api/v1/teachers/attendance/bulk",
+            json={
+                "course_id": 1,
+                "gate_id": "GATE-A",
+                "device_id": "PWA-001",
+                "events": [
+                    {"student_id": 1, "type": "IN"},
+                    {"student_id": 2, "type": "IN"},
+                ],
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["processed"] == 2
@@ -202,13 +211,17 @@ def test_teacher_bulk_attendance_wrong_course(app_with_teacher_auth):
             )
 
     from app.api.v1.teachers import get_teacher_repo
+
     app.dependency_overrides[get_teacher_repo] = lambda: FakeTeacherRepo()
 
     with TestClient(app) as client:
-        resp = client.post("/api/v1/teachers/attendance/bulk", json={
-            "course_id": 999,  # Not assigned
-            "gate_id": "GATE-A",
-            "device_id": "PWA-001",
-            "events": [{"student_id": 1, "type": "IN"}]
-        })
+        resp = client.post(
+            "/api/v1/teachers/attendance/bulk",
+            json={
+                "course_id": 999,  # Not assigned
+                "gate_id": "GATE-A",
+                "device_id": "PWA-001",
+                "events": [{"student_id": 1, "type": "IN"}],
+            },
+        )
         assert resp.status_code == 403

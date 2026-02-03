@@ -1,7 +1,6 @@
 """Tag repository with race condition protection."""
 
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,16 +12,14 @@ class TagRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create_pending(
-        self, *, student_id: int, tag_hash: str, tag_preview: str
-    ) -> Tag:
+    async def create_pending(self, *, student_id: int, tag_hash: str, tag_preview: str) -> Tag:
         # R15-DT1 fix: Use datetime.now(timezone.utc) instead of deprecated utcnow()
         tag = Tag(
             student_id=student_id,
             tag_token_hash=tag_hash,
             tag_token_preview=tag_preview,
             status="PENDING",
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         self.session.add(tag)
         await self.session.flush()
@@ -37,9 +34,7 @@ class TagRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_preview_for_update(
-        self, student_id: int, tag_preview: str
-    ) -> Tag | None:
+    async def get_by_preview_for_update(self, student_id: int, tag_preview: str) -> Tag | None:
         """Get tag with row-level lock to prevent race conditions during confirmation.
 
         Uses SELECT FOR UPDATE to lock the row until the transaction completes.
@@ -89,7 +84,7 @@ class TagRepository:
             raise ValueError("Tag not found")
         tag.status = "REVOKED"
         # R15-DT1 fix: Use datetime.now(timezone.utc) instead of deprecated utcnow()
-        tag.revoked_at = datetime.now(timezone.utc)
+        tag.revoked_at = datetime.now(UTC)
         await self.session.flush()
         return tag
 
@@ -104,7 +99,7 @@ class TagRepository:
 
         Used to prevent concurrent enrollment attempts.
         """
-        cutoff = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+        cutoff = datetime.now(UTC) - timedelta(minutes=minutes)
         stmt = select(Tag).where(
             Tag.student_id == student_id,
             Tag.status == "PENDING",
@@ -121,7 +116,7 @@ class TagRepository:
         stmt = (
             update(Tag)
             .where(Tag.student_id == student_id, Tag.status == "ACTIVE")
-            .values(status="REVOKED", revoked_at=datetime.now(timezone.utc))
+            .values(status="REVOKED", revoked_at=datetime.now(UTC))
         )
         result = await self.session.execute(stmt)
         return result.rowcount
@@ -131,7 +126,7 @@ class TagRepository:
 
         Returns the count of expired tags.
         """
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
         stmt = (
             update(Tag)
             .where(Tag.status == "PENDING", Tag.created_at < cutoff)

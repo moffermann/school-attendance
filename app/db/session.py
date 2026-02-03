@@ -20,10 +20,10 @@ engine = create_async_engine(
     settings.database_url,
     echo=False,
     future=True,
-    pool_size=20,          # Default connections in pool
-    max_overflow=10,       # Extra connections when pool exhausted
-    pool_pre_ping=True,    # Verify connection before use (detect stale)
-    pool_recycle=3600,     # Recycle connections after 1 hour
+    pool_size=20,  # Default connections in pool
+    max_overflow=10,  # Extra connections when pool exhausted
+    pool_pre_ping=True,  # Verify connection before use (detect stale)
+    pool_recycle=3600,  # Recycle connections after 1 hour
 )
 
 async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
@@ -100,7 +100,7 @@ async def get_tenant_session(schema_name: str) -> AsyncGenerator[AsyncSession, N
                 pass  # Connection may be in bad state, will be recycled
 
 
-async def get_session_for_tenant(tenant: "Tenant") -> AsyncGenerator[AsyncSession, None]:
+async def get_session_for_tenant(tenant: Tenant) -> AsyncGenerator[AsyncSession, None]:
     """
     Get a database session for a specific tenant.
 
@@ -162,7 +162,8 @@ async def schema_exists(schema_name: str) -> bool:
     async with async_session() as session:
         result = await session.execute(
             text(
-                "SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = :schema)"
+                "SELECT EXISTS("
+                "SELECT 1 FROM information_schema.schemata WHERE schema_name = :schema)"
             ),
             {"schema": schema_name},
         )
@@ -190,10 +191,10 @@ def create_worker_engine():
         settings.database_url,
         echo=False,
         future=True,
-        pool_size=5,           # Smaller pool for workers
+        pool_size=5,  # Smaller pool for workers
         max_overflow=5,
         pool_pre_ping=True,
-        pool_recycle=300,      # Shorter recycle for workers
+        pool_recycle=300,  # Shorter recycle for workers
     )
 
 
@@ -212,9 +213,11 @@ async def get_worker_session(schema_name: str | None = None) -> AsyncGenerator[A
         AsyncSession configured for the worker job
     """
     worker_engine = create_worker_engine()
-    WorkerSession = async_sessionmaker(worker_engine, expire_on_commit=False, class_=AsyncSession)
+    worker_session_factory = async_sessionmaker(
+        worker_engine, expire_on_commit=False, class_=AsyncSession
+    )
 
-    async with WorkerSession() as session:
+    async with worker_session_factory() as session:
         try:
             if schema_name:
                 validate_schema_name(schema_name)

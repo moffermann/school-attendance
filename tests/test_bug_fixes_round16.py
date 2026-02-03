@@ -24,6 +24,7 @@ class TestR16CONC1ChallengeStoreSafety:
     def test_webauthn_challenge_store_has_lock_or_redis(self):
         """R16-CONC1: Challenge store should use lock or Redis."""
         from app.services import webauthn_service
+
         source = inspect.getsource(webauthn_service)
 
         # Check for thread safety mechanisms
@@ -33,9 +34,7 @@ class TestR16CONC1ChallengeStoreSafety:
 
         # At minimum should have awareness comment
         has_awareness = (
-            "thread" in source.lower() or
-            "concurrent" in source.lower() or
-            "race" in source.lower()
+            "thread" in source.lower() or "concurrent" in source.lower() or "race" in source.lower()
         )
 
         assert has_lock or has_redis or has_semaphore or has_awareness, (
@@ -54,7 +53,7 @@ class TestR16CONC2SyncFlagProtection:
         """R16-CONC2: Kiosk sync should have isSyncing protection."""
         sync_path = "src/kiosk-app/js/sync.js"
 
-        with open(sync_path, "r", encoding="utf-8") as f:
+        with open(sync_path, encoding="utf-8") as f:
             content = f.read()
 
         # Check for sync flag
@@ -76,7 +75,7 @@ class TestR16ERR1JSONParseSafety:
         """R16-ERR1: Kiosk state JSON.parse should have try-catch."""
         state_path = "src/kiosk-app/js/state.js"
 
-        with open(state_path, "r", encoding="utf-8") as f:
+        with open(state_path, encoding="utf-8") as f:
             content = f.read()
 
         # Check for try-catch around JSON.parse
@@ -94,16 +93,14 @@ class TestR16ERR1JSONParseSafety:
         """R16-ERR1: Web app state JSON.parse should have try-catch."""
         state_path = "src/web-app/js/state.js"
 
-        with open(state_path, "r", encoding="utf-8") as f:
+        with open(state_path, encoding="utf-8") as f:
             content = f.read()
 
         has_try_catch = "try" in content and "catch" in content
         has_json_parse = "JSON.parse" in content
 
         if has_json_parse:
-            assert has_try_catch, (
-                "Web app state should have try-catch around JSON.parse."
-            )
+            assert has_try_catch, "Web app state should have try-catch around JSON.parse."
 
 
 # =============================================================================
@@ -115,6 +112,7 @@ class TestR16CFG1SecretsValidation:
     def test_config_validates_all_critical_secrets(self):
         """R16-CFG1: Config should validate all critical secrets in production."""
         from app.core import config
+
         source = inspect.getsource(config)
 
         # Check for validation of key secrets
@@ -129,11 +127,12 @@ class TestR16CFG1SecretsValidation:
     def test_config_rejects_default_secrets(self):
         """R16-CFG1: Config should reject default secret values."""
         from app.core import config
+
         source = inspect.getsource(config)
 
         # Check for default value rejection
         has_change_me_check = "CHANGE-ME" in source or "change-me" in source.lower()
-        has_dummy_check = "dummy" in source.lower()
+        "dummy" in source.lower()
         has_raise = "raise" in source
 
         assert has_change_me_check and has_raise, (
@@ -150,11 +149,12 @@ class TestR16CFG2CORSConfiguration:
     def test_main_cors_not_wildcard_default(self):
         """R16-CFG2: CORS should not default to wildcard in non-dev."""
         from app import main
+
         source = inspect.getsource(main)
 
         # Check for CORS configuration
         has_cors = "CORS" in source or "cors" in source.lower()
-        has_origins = "origins" in source.lower()
+        "origins" in source.lower()
 
         # Should check environment
         checks_env = "app_env" in source or "APP_ENV" in source or "development" in source
@@ -173,15 +173,13 @@ class TestR16VAL1PathValidation:
     def test_webauthn_student_id_has_validation(self):
         """R16-VAL1: WebAuthn student_id should have Path validation."""
         from app.api.v1 import webauthn
+
         source = inspect.getsource(webauthn)
 
         # Check for Path validation with ge=1
         has_path_import = "Path" in source
-        has_ge_validation = "ge=" in source or "gt=" in source
 
-        assert has_path_import, (
-            "WebAuthn API should use Path() for parameter validation."
-        )
+        assert has_path_import, "WebAuthn API should use Path() for parameter validation."
 
 
 # =============================================================================
@@ -193,22 +191,19 @@ class TestR16VAL2ExportLimits:
     def test_alerts_export_has_limit_param(self):
         """R16-VAL2: Alerts export should have limit parameter."""
         from app.api.v1 import alerts
+
         source = inspect.getsource(alerts)
 
         # Find export function
         export_match = re.search(
-            r"def export.*?(?=\nasync def |\ndef |\nclass |\Z)",
-            source,
-            re.DOTALL
+            r"def export.*?(?=\nasync def |\ndef |\nclass |\Z)", source, re.DOTALL
         )
 
         if export_match:
             export_source = export_match.group(0)
             has_limit = "limit" in export_source.lower()
 
-            assert has_limit, (
-                "Alerts export should accept a limit parameter."
-            )
+            assert has_limit, "Alerts export should accept a limit parameter."
 
 
 # =============================================================================
@@ -220,6 +215,7 @@ class TestR16LOG1LoggingFormat:
     def test_attendance_service_logging_format(self):
         """R16-LOG1: Logging should use parameterized format, not f-strings."""
         from app.services import attendance_service
+
         source = inspect.getsource(attendance_service)
 
         # Check for proper logging format
@@ -233,9 +229,7 @@ class TestR16LOG1LoggingFormat:
             # Should prefer parameterized or at least have awareness
             has_any_logging = fstring_logs > 0 or param_logs > 0
 
-            assert has_any_logging, (
-                "Attendance service should have logging statements."
-            )
+            assert has_any_logging, "Attendance service should have logging statements."
 
 
 # =============================================================================
@@ -247,21 +241,16 @@ class TestR16LOG2SensitiveLogging:
     def test_auth_api_doesnt_log_passwords(self):
         """R16-LOG2: Auth API should not log passwords."""
         from app.api.v1 import auth
+
         source = inspect.getsource(auth)
 
         # Check that password is not directly logged
-        logs_password = re.search(
-            r'logger\.\w+\([^)]*password[^)]*\)',
-            source,
-            re.IGNORECASE
-        )
+        logs_password = re.search(r"logger\.\w+\([^)]*password[^)]*\)", source, re.IGNORECASE)
 
         # Should mask if logging
         has_mask = "***" in source or "mask" in source.lower()
 
-        assert not logs_password or has_mask, (
-            "Auth API should not log passwords in plaintext."
-        )
+        assert not logs_password or has_mask, "Auth API should not log passwords in plaintext."
 
 
 # =============================================================================
@@ -273,6 +262,7 @@ class TestR16DEP1ModernTyping:
     def test_no_deprecated_typing_list(self):
         """R16-DEP1: Should use list instead of typing.List."""
         from app.services import attendance_service
+
         source = inspect.getsource(attendance_service)
 
         # Check for deprecated typing imports
@@ -296,6 +286,7 @@ class TestR16ERR2ExceptionHandling:
     def test_detect_no_ingreso_has_specific_except(self):
         """R16-ERR2: detect_no_ingreso should have specific exception handling."""
         from app.workers.jobs import detect_no_ingreso
+
         source = inspect.getsource(detect_no_ingreso)
 
         # Check for exception handling
@@ -316,6 +307,7 @@ class TestR16ERR3SilentExceptions:
     def test_token_blacklist_logs_redis_errors(self):
         """R16-ERR3: Token blacklist should log Redis connection errors."""
         from app.core import token_blacklist
+
         source = inspect.getsource(token_blacklist)
 
         # Check for Redis error logging
@@ -324,9 +316,7 @@ class TestR16ERR3SilentExceptions:
         has_logging = "logger" in source or "warning" in source.lower()
 
         if has_redis and has_except:
-            assert has_logging, (
-                "Token blacklist should log Redis connection errors."
-            )
+            assert has_logging, "Token blacklist should log Redis connection errors."
 
 
 # =============================================================================
@@ -338,6 +328,7 @@ class TestR16CONC3SignCountAtomic:
     def test_webauthn_sign_count_update_exists(self):
         """R16-CONC3: Sign count should be updated after verification."""
         from app.services import webauthn_service
+
         source = inspect.getsource(webauthn_service)
 
         # Check for sign count handling
@@ -358,18 +349,15 @@ class TestR16VAL3EnumValidation:
     def test_alerts_list_uses_enum_filter(self):
         """R16-VAL3: Alerts list should use enum for status filter."""
         from app.api.v1 import alerts
+
         source = inspect.getsource(alerts)
 
         # Check for enum usage
-        has_enum = "Enum" in source or "enum" in source
         has_status_filter = "status" in source.lower()
 
         # Should have some form of validation
-        has_validation = "AlertStatusFilter" in source or "Literal[" in source
 
-        assert has_status_filter, (
-            "Alerts API should have status filter parameter."
-        )
+        assert has_status_filter, "Alerts API should have status filter parameter."
 
 
 # =============================================================================
@@ -381,15 +369,14 @@ class TestR16LOG3AuditLogging:
     def test_auth_has_audit_logging(self):
         """R16-LOG3: Auth endpoints should have audit logging."""
         from app.api.v1 import auth
+
         source = inspect.getsource(auth)
 
         # Check for audit logging
         has_audit = "audit" in source.lower()
         has_login = "login" in source.lower()
 
-        assert has_audit and has_login, (
-            "Auth API should have audit logging for login attempts."
-        )
+        assert has_audit and has_login, "Auth API should have audit logging for login attempts."
 
 
 # =============================================================================
@@ -401,15 +388,14 @@ class TestR16CFG3OpenAPIDocs:
     def test_main_has_docs_configuration(self):
         """R16-CFG3: OpenAPI docs should be configurable."""
         from app import main
+
         source = inspect.getsource(main)
 
         # Check for docs configuration
         has_docs_url = "docs_url" in source
         has_openapi = "openapi" in source.lower()
 
-        assert has_docs_url or has_openapi, (
-            "FastAPI app should have configurable docs_url."
-        )
+        assert has_docs_url or has_openapi, "FastAPI app should have configurable docs_url."
 
 
 # =============================================================================
@@ -421,6 +407,7 @@ class TestR16ERR4CleanupErrorHandling:
     def test_notification_service_del_has_try_except(self):
         """R16-ERR4: __del__ methods should have try-except."""
         from app.services import attendance_notification_service
+
         source = inspect.getsource(attendance_notification_service)
 
         # Check for __del__ with error handling
@@ -428,11 +415,7 @@ class TestR16ERR4CleanupErrorHandling:
 
         if has_del:
             # Find __del__ method and check for try-except
-            del_match = re.search(
-                r"def __del__.*?(?=\n    def |\nclass |\Z)",
-                source,
-                re.DOTALL
-            )
+            del_match = re.search(r"def __del__.*?(?=\n    def |\nclass |\Z)", source, re.DOTALL)
             if del_match:
                 del_source = del_match.group(0)
                 has_try = "try:" in del_source
@@ -452,6 +435,7 @@ class TestR16CONC4NoShowRaceCondition:
     def test_no_show_alerts_has_get_or_create(self):
         """R16-CONC4: No-show alerts should use get_or_create pattern."""
         from app.db.repositories import no_show_alerts
+
         source = inspect.getsource(no_show_alerts)
 
         # Check for race condition handling

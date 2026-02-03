@@ -66,8 +66,35 @@ target-version = ["py311"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N", "S", "ASYNC"]
-ignore = ["E203", "S101", "B008"]
+ignore = ["E203", "S101", "B008", "ASYNC110"]  # ASYNC110: scheduler pattern is intentional
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S105", "S106", "N801", "B015", "B017", "F401", "N806", "E402", "S110", "S112", "E501", "E741", "B007"]
+"app/core/config.py" = ["S105", "S104"]  # Host binding and token type defaults
+"app/core/audit.py" = ["S105"]  # Event type strings, not passwords
+"app/core/deps.py" = ["S105"]  # token type comparison strings, not passwords
+"app/core/tenant_middleware.py" = ["S110"]  # Optional exception handling
+"app/db/migrations/*" = ["E402"]
+"app/db/session.py" = ["S110"]  # Optional exception handling for connection cleanup
+"app/db/models/tenant_audit_log.py" = ["S105"]  # Event type strings
+"app/api/v1/super_admin/auth.py" = ["S105"]  # token_type field
+"app/api/v1/super_admin/tenants.py" = ["S105", "S608", "S110"]  # token_type, validated schema, optional pass
+"app/api/v1/webapp_routes.py" = ["S110"]  # Optional exception handling
+"app/schemas/*.py" = ["S105"]  # token_type fields
+"app/services/tenant_admin_service.py" = ["S105", "S110"]  # token_type field, optional pass
+"app/services/feature_flag_service.py" = ["S110"]  # Optional exception handling
+"app/services/attendance_notification_service.py" = ["S110", "E501"]  # Cleanup, debug logging
+"app/services/attendance_service.py" = ["E501"]  # Debug logging
+"app/services/dashboard_service.py" = ["B007"]  # Unused loop variable intentional
+"app/services/guardian_service.py" = ["S106"]  # Placeholder password, not hardcoded
+"app/services/no_show_service.py" = ["S112"]  # Continue in exception is intentional
+"app/services/notifications/*.py" = ["S110"]  # Cleanup exception handling
+"app/services/photo_service.py" = ["S110"]  # Cleanup exception handling
+"app/services/webauthn_service.py" = ["E501"]  # Comment line explaining dict structure
+"app/workers/jobs/*.py" = ["S110", "S112", "E501"]  # Exception handling, HTML templates
 
 [tool.mypy]
 python_version = "3.11"

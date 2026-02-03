@@ -1,12 +1,10 @@
 """Teacher endpoints for PWA and admin CRUD."""
 
 import csv
-import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import StringIO
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response, status
-from loguru import logger
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,9 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import deps
 from app.core.auth import AuthUser
 from app.core.deps import TenantAuthUser
-from app.db.repositories.teachers import TeacherRepository
 from app.db.repositories.attendance import AttendanceRepository
-from app.services.teacher_service import TeacherService
+from app.db.repositories.teachers import TeacherRepository
 from app.schemas.teachers import (
     BulkAttendanceRequest,
     BulkAttendanceResponse,
@@ -24,13 +21,13 @@ from app.schemas.teachers import (
     TeacherCourseRead,
     TeacherCreate,
     TeacherFilters,
-    TeacherListResponse,
     TeacherMeResponse,
     TeacherRead,
     TeacherStudentRead,
     TeacherUpdate,
     TeacherWithStats,
 )
+from app.services.teacher_service import TeacherService
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -46,7 +43,9 @@ def get_teacher_repo(session: AsyncSession = Depends(deps.get_tenant_db)) -> Tea
     return TeacherRepository(session)
 
 
-def get_attendance_repo(session: AsyncSession = Depends(deps.get_tenant_db)) -> AttendanceRepository:
+def get_attendance_repo(
+    session: AsyncSession = Depends(deps.get_tenant_db),
+) -> AttendanceRepository:
     return AttendanceRepository(session)
 
 
@@ -167,8 +166,7 @@ async def submit_bulk_attendance(
 
     # Admin roles without teacher_id can submit for any course
     is_admin_without_profile = (
-        user.role in ("DIRECTOR", "INSPECTOR", "ADMIN", "SUPER_ADMIN")
-        and not user.teacher_id
+        user.role in ("DIRECTOR", "INSPECTOR", "ADMIN", "SUPER_ADMIN") and not user.teacher_id
     )
 
     if not is_admin_without_profile:
@@ -199,9 +197,7 @@ async def submit_bulk_attendance(
     for item in payload.events:
         try:
             occurred_at = (
-                datetime.fromisoformat(item.occurred_at)
-                if item.occurred_at
-                else datetime.now(timezone.utc)
+                datetime.fromisoformat(item.occurred_at) if item.occurred_at else datetime.now(UTC)
             )
 
             await attendance_repo.create_event(
@@ -255,18 +251,22 @@ async def export_teachers(
 
     buffer = StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["ID", "Nombre", "Email", "Estado", "Cursos", "Puede Inscribir Biom.", "Creado"])
+    writer.writerow(
+        ["ID", "Nombre", "Email", "Estado", "Cursos", "Puede Inscribir Biom.", "Creado"]
+    )
 
     for t in teachers:
-        writer.writerow([
-            t.id,
-            _sanitize_csv_value(t.full_name),
-            _sanitize_csv_value(t.email) if t.email else "",
-            t.status,
-            t.courses_count,
-            "Sí" if t.can_enroll_biometric else "No",
-            t.created_at.isoformat() if t.created_at else "",
-        ])
+        writer.writerow(
+            [
+                t.id,
+                _sanitize_csv_value(t.full_name),
+                _sanitize_csv_value(t.email) if t.email else "",
+                t.status,
+                t.courses_count,
+                "Sí" if t.can_enroll_biometric else "No",
+                t.created_at.isoformat() if t.created_at else "",
+            ]
+        )
 
     return Response(
         content=buffer.getvalue(),

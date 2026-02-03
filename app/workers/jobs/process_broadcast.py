@@ -9,7 +9,11 @@ from typing import Any
 from loguru import logger
 
 from app.db.session import async_session, get_tenant_session
-from app.schemas.notifications import NotificationChannel, NotificationDispatchRequest, NotificationType
+from app.schemas.notifications import (
+    NotificationChannel,
+    NotificationDispatchRequest,
+    NotificationType,
+)
 from app.services.notifications.dispatcher import NotificationDispatcher
 
 
@@ -35,7 +39,9 @@ async def _process(job_payload: dict[str, Any]) -> None:
     variables_base = {"message": message, "subject": subject}
 
     async with _get_session(tenant_schema) as session:
-        dispatcher = NotificationDispatcher(session, tenant_id=tenant_id, tenant_schema=tenant_schema)
+        dispatcher = NotificationDispatcher(
+            session, tenant_id=tenant_id, tenant_schema=tenant_schema
+        )
         notification_template = payload.get("template", NotificationType.CAMBIO_HORARIO.value)
         template_enum = (
             notification_template

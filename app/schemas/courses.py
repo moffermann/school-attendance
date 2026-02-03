@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from app.db.models.course import Course
 
 
-class CourseStatus(str, Enum):
+class CourseStatus(StrEnum):
     """Status enum for courses."""
 
     ACTIVE = "ACTIVE"
@@ -64,7 +64,7 @@ class CourseRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     @classmethod
-    def from_orm_with_teachers(cls, course: "Course") -> "CourseRead":
+    def from_orm_with_teachers(cls, course: Course) -> CourseRead:
         """Create CourseRead with teacher_ids populated from relationship."""
         return cls(
             id=course.id,

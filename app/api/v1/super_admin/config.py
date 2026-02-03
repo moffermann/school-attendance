@@ -7,8 +7,8 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import deps
-from app.db.repositories.tenants import TenantRepository
 from app.db.repositories.tenant_configs import TenantConfigRepository
+from app.db.repositories.tenants import TenantRepository
 
 router = APIRouter()
 

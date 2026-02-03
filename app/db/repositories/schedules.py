@@ -26,22 +26,23 @@ class ScheduleRepository:
 
     async def get_by_course_and_weekday(self, course_id: int, weekday: int) -> Schedule | None:
         """Get schedule by course_id and weekday for upsert operations."""
-        stmt = select(Schedule).where(
-            Schedule.course_id == course_id,
-            Schedule.weekday == weekday
-        )
+        stmt = select(Schedule).where(Schedule.course_id == course_id, Schedule.weekday == weekday)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def create(
         self, course_id: int, *, weekday: int, in_time: time, out_time: time
     ) -> Schedule:
-        schedule = Schedule(course_id=course_id, weekday=weekday, in_time=in_time, out_time=out_time)
+        schedule = Schedule(
+            course_id=course_id, weekday=weekday, in_time=in_time, out_time=out_time
+        )
         self.session.add(schedule)
         await self.session.flush()
         return schedule
 
-    async def update(self, schedule_id: int, *, weekday: int | None = None, in_time: time, out_time: time) -> Schedule:
+    async def update(
+        self, schedule_id: int, *, weekday: int | None = None, in_time: time, out_time: time
+    ) -> Schedule:
         schedule = await self.session.get(Schedule, schedule_id)
         if schedule is None:
             raise ValueError("Horario no encontrado")
@@ -85,7 +86,11 @@ class ScheduleRepository:
         return True
 
     async def list_by_weekday(self, weekday: int) -> list[Schedule]:
-        stmt = select(Schedule).where(Schedule.weekday == weekday).options(selectinload(Schedule.course))
+        stmt = (
+            select(Schedule)
+            .where(Schedule.weekday == weekday)
+            .options(selectinload(Schedule.course))
+        )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 

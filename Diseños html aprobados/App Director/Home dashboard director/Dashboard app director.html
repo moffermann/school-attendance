@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Tablero en Vivo | NEUVOX</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6366f1", // Purple/Indigo base
+                        secondary: "#0ea5e9", // Blue accent
+                        "background-light": "#f3f4f6",
+                        "background-dark": "#0f172a",
+                        "sidebar-dark": "#1e1b4b", // Deep indigo for sidebar
+                        "sidebar-hover": "#312e81",
+                        "card-light": "#ffffff",
+                        "card-dark": "#1e293b",
+                        "text-light": "#1f2937",
+                        "text-dark": "#e2e8f0",
+                        "muted-light": "#6b7280",
+                        "muted-dark": "#94a3b8",
+                        "border-light": "#e5e7eb",
+                        "border-dark": "#334155",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        'lg': '0.75rem',
+                        'xl': '1rem',
+                        '2xl': '1.5rem',
+                    },
+                },
+            },
+        };
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }.nav-item.active {
+            background: rgba(99, 102, 241, 0.1);
+            color: #818cf8;
+            border-left: 3px solid #818cf8;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 antialiased h-screen flex overflow-hidden">
+<aside class="w-64 bg-[#1e1b4b] text-gray-300 flex-shrink-0 flex flex-col transition-all duration-300 hidden md:flex border-r border-indigo-900/50 shadow-2xl z-20">
+<div class="h-20 flex items-center px-6 border-b border-indigo-900/50">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg">
+<div class="w-4 h-4 bg-indigo-900 rounded-full"></div>
+</div>
+<h1 class="text-xl font-bold tracking-tight text-white">NEUVOX</h1>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto py-6 space-y-1">
+<a class="flex items-center px-6 py-3 bg-indigo-800/50 text-white border-l-4 border-indigo-500 group transition-colors" href="#">
+<span class="material-icons-round mr-3">dashboard</span>
+<span class="font-medium text-sm">Tablero</span>
+</a>
+<a class="flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent" href="#">
+<span class="material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors">analytics</span>
+<span class="font-medium text-sm">Reportes</span>
+</a>
+<a class="flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent" href="#">
+<span class="material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors">bar_chart</span>
+<span class="font-medium text-sm">Métricas</span>
+</a>
+<a class="flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent" href="#">
+<span class="material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors">schedule</span>
+<span class="font-medium text-sm">Horarios</span>
+</a>
+<a class="flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent" href="#">
+<span class="material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors">event_busy</span>
+<span class="font-medium text-sm">Excepciones</span>
+</a>
+<a class="flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent" href="#">
+<span class="material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors">campaign</span>
+<span class="font-medium text-sm">Comunicados</span>
+</a>
+<a class="flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent" href="#">
+<span class="material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors">devices</span>
+<span class="font-medium text-sm">Dispositivos</span>
+</a>
+<a class="flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent" href="#">
+<span class="material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors">school</span>
+<span class="font-medium text-sm">Alumnos</span>
+</a>
+<a class="flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent" href="#">
+<span class="material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors">family_restroom</span>
+<span class="font-medium text-sm">Apoderados</span>
+</a>
+<a class="flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent" href="#">
+<span class="material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors">badge</span>
+<span class="font-medium text-sm">Profesores</span>
+</a>
+<a class="flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent" href="#">
+<span class="material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors">class</span>
+<span class="font-medium text-sm">Cursos</span>
+</a>
+<a class="flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent" href="#">
+<span class="material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors">person_off</span>
+<span class="font-medium text-sm">Ausencias</span>
+</a>
+<a class="flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent" href="#">
+<span class="material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors">notifications</span>
+<span class="font-medium text-sm">Notificaciones</span>
+</a>
+<a class="flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent" href="#">
+<span class="material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors">fingerprint</span>
+<span class="font-medium text-sm">Biometría</span>
+</a>
+</nav>
+</aside>
+<main class="flex-1 flex flex-col overflow-hidden relative bg-gray-50 dark:bg-background-dark">
+<header class="h-20 bg-white dark:bg-card-dark border-b border-border-light dark:border-border-dark flex items-center justify-between px-8 z-10 shadow-sm">
+<div class="flex items-center gap-4">
+<button class="md:hidden text-muted-light dark:text-muted-dark hover:text-primary transition-colors">
+<span class="material-icons-round text-2xl">menu</span>
+</button>
+<h2 class="text-xl font-bold text-gray-800 dark:text-text-dark hidden sm:block">Tablero en Vivo</h2>
+</div>
+<div class="flex items-center gap-4 flex-1 justify-end">
+<div class="flex items-center gap-2">
+<span class="text-xs font-medium px-3 py-1 bg-green-100 text-green-700 rounded-full flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-green-500"></span> En vivo
+                 </span>
+</div>
+<div class="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-2"></div>
+<div class="flex items-center gap-3">
+<button class="p-2 rounded-full hover:bg-background-light dark:hover:bg-white/5 transition-colors text-muted-light dark:text-muted-dark" onclick="document.documentElement.classList.toggle('dark')">
+<span class="material-icons-round dark:hidden">dark_mode</span>
+<span class="material-icons-round hidden dark:block">light_mode</span>
+</button>
+<div class="flex items-center gap-2 cursor-pointer">
+<img alt="Director Profile" class="w-9 h-9 rounded-full border border-gray-200" src="https://lh3.googleusercontent.com/aida-public/AB6AXuATXMQmi4tc7pyne9xfBmiC-sFhXXQQEdTxo6ZDE0Q-eRWdGZBH2BTfopIwMNch7WMQs3jqypUW8CwaAibyRPmpxYHhg6FanoPAy_lwRfvUTluZBH2vXxXbvuLktNGGnny4MP-PI-hEiex0Uy6LJ2PKivLuLYTXEgc405KL9Fg9II3UevScTAVd93VMXTXnd3BHsG9sTm8mg0IlVXQ538Inht1J82954c4vIe5loFMc5hsCAYmN4JZv8yafQ7w00rthZa7fCeHlKV0"/>
+<div class="hidden md:block text-right">
+<p class="text-sm font-semibold text-gray-700 dark:text-gray-200">Director</p>
+</div>
+</div>
+<a class="ml-2 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 border px-3 py-1.5 rounded-md hover:bg-gray-50" href="#">
+<span class="material-icons-round text-lg">logout</span> Salir
+                </a>
+</div>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8 scroll-smooth">
+<div class="flex justify-between items-center mb-2">
+<div class="text-sm text-gray-500">Lunes, 19 De Enero</div>
+<div class="text-xs text-gray-400">Actualizado: 11:50 a. m.</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="relative bg-white dark:bg-card-dark p-6 rounded-xl shadow-sm border border-gray-100 dark:border-border-dark group transition-all">
+<div class="flex justify-between items-start mb-4">
+<p class="text-xs font-bold text-gray-500 uppercase tracking-wide">INGRESOS HOY</p>
+<div class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+<span class="material-icons-round text-blue-500">login</span>
+</div>
+</div>
+<h3 class="text-4xl font-bold text-blue-600 dark:text-blue-400">1</h3>
+</div>
+<div class="relative bg-white dark:bg-card-dark p-6 rounded-xl shadow-sm border border-gray-100 dark:border-border-dark group transition-all">
+<div class="flex justify-between items-start mb-4">
+<p class="text-xs font-bold text-gray-500 uppercase tracking-wide">SALIDAS HOY</p>
+<div class="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+<span class="material-icons-round text-indigo-500">logout</span>
+</div>
+</div>
+<h3 class="text-4xl font-bold text-indigo-600 dark:text-indigo-400">1</h3>
+</div>
+<div class="relative bg-white dark:bg-card-dark p-6 rounded-xl shadow-sm border border-gray-100 dark:border-border-dark group transition-all">
+<div class="flex justify-between items-start mb-4">
+<p class="text-xs font-bold text-gray-500 uppercase tracking-wide">ATRASOS</p>
+<div class="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+<span class="material-icons-round text-yellow-500">access_time</span>
+</div>
+</div>
+<h3 class="text-4xl font-bold text-yellow-600 dark:text-yellow-400">1</h3>
+</div>
+<div class="relative bg-white dark:bg-card-dark p-6 rounded-xl shadow-sm border border-gray-100 dark:border-border-dark group transition-all">
+<div class="flex justify-between items-start mb-4">
+<p class="text-xs font-bold text-gray-500 uppercase tracking-wide">SIN INGRESO</p>
+<div class="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
+<span class="material-icons-round text-red-500">close</span>
+</div>
+</div>
+<h3 class="text-4xl font-bold text-red-600 dark:text-red-400">63</h3>
+</div>
+</div>
+<div class="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+<div class="flex items-center gap-4">
+<div class="bg-red-100 dark:bg-red-800 p-2 rounded-full flex-shrink-0">
+<img alt="alert" class="w-6 h-6" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmdbfWGePiTyZJzUzhi16JLvQsTCqmqn9N56G5IeWZ8BJaClOOpbetsRg98TqwWtkMHvc3xc6BgYss7JzknbxcgGONHvbQUzOTbfJVkY17O51ASSi6A06x7GSROv68Ark4hMbrSAkxTBut7Jl25iJohviH05TlXdZqMBr-N6rGkI7TJYmTf7WXOwoVgjOi6zWkbQHtpPKnU95kEs6q9AWbWk4BfWydm_GbNc6RnHA4ci3BW4L5PtPfEzmNt19GShUGAsMiUkUhyMA"/>
+</div>
+<div>
+<h4 class="text-red-800 dark:text-red-200 font-bold text-lg">63 alumnos <span class="font-medium text-red-600 dark:text-red-300">sin registro de entrada</span></h4>
+<p class="text-sm text-red-500 dark:text-red-400">Estos alumnos no han registrado ingreso hoy.</p>
+</div>
+</div>
+<div class="flex gap-3 w-full md:w-auto">
+<button class="flex-1 md:flex-none px-4 py-2 bg-white dark:bg-card-dark border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center justify-center gap-2">
+<span class="material-icons-round text-base">visibility</span> Ver Lista
+                </button>
+<button class="flex-1 md:flex-none px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm shadow-indigo-200 flex items-center justify-center gap-2">
+<span class="material-icons-round text-base">assessment</span> Ir a Reportes
+                </button>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-gray-100 dark:border-border-dark overflow-hidden">
+<div class="p-6 border-b border-gray-100 dark:border-border-dark flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<h3 class="text-lg font-bold text-gray-800 dark:text-text-dark">Eventos de Hoy</h3>
+<div class="flex gap-3">
+<button class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 bg-white dark:bg-card-dark border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+<span class="material-icons-round text-base">file_download</span> Exportar CSV
+                    </button>
+<button class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 bg-white dark:bg-card-dark border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+<span class="material-icons-round text-base">photo_camera</span> Ver Fotos
+                    </button>
+</div>
+</div>
+<div class="p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-end bg-gray-50/50 dark:bg-white/5">
+<div class="md:col-span-3">
+<label class="block text-xs font-semibold text-gray-500 mb-1.5">Curso</label>
+<div class="relative">
+<select class="w-full pl-3 pr-10 py-2.5 text-sm border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 shadow-sm appearance-none">
+<option>Todos los cursos</option>
+<option>2° Básico A</option>
+<option>2° Básico B</option>
+</select>
+<span class="absolute right-3 top-2.5 pointer-events-none text-gray-400 material-icons-round text-lg">expand_more</span>
+</div>
+</div>
+<div class="md:col-span-3">
+<label class="block text-xs font-semibold text-gray-500 mb-1.5">Tipo de Evento</label>
+<div class="relative">
+<select class="w-full pl-3 pr-10 py-2.5 text-sm border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 shadow-sm appearance-none">
+<option>Todos</option>
+<option>Ingreso</option>
+<option>Salida</option>
+</select>
+<span class="absolute right-3 top-2.5 pointer-events-none text-gray-400 material-icons-round text-lg">expand_more</span>
+</div>
+</div>
+<div class="md:col-span-4">
+<label class="block text-xs font-semibold text-gray-500 mb-1.5">Buscar alumno</label>
+<input class="w-full pl-4 pr-4 py-2.5 text-sm border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 shadow-sm" placeholder="Escriba un nombre..." type="text"/>
+</div>
+<div class="md:col-span-2">
+<button class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-md shadow-indigo-200 transition-colors">
+                        Aplicar Filtros
+                    </button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-gray-50 dark:bg-white/5 border-y border-gray-200 dark:border-border-dark">
+<th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">ALUMNO</th>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">CURSO</th>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">TIPO</th>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">FUENTE</th>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">PUERTA</th>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">HORA</th>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">FOTO</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-gray-100 dark:divide-border-dark text-sm bg-white dark:bg-card-dark">
+<tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">Luna Torres Prada</td>
+<td class="px-6 py-4 text-gray-500 dark:text-gray-400">2° Básico B</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                    Salida
+                                </span>
+</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-200 bg-gray-50 text-xs font-medium text-gray-600">
+<span class="material-icons-round text-sm">qr_code</span> QR
+                                </span>
+</td>
+<td class="px-6 py-4 text-gray-500 dark:text-gray-400">GATE-1</td>
+<td class="px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">11:41 a. m.</td>
+<td class="px-6 py-4 text-center">
+<button class="text-gray-400 hover:text-indigo-600 transition-colors">
+<span class="material-icons-round">photo_camera</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">Luna Torres Prada</td>
+<td class="px-6 py-4 text-gray-500 dark:text-gray-400">2° Básico B</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                                    Ingreso
+                                </span>
+</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-200 bg-gray-50 text-xs font-medium text-gray-600">
+<span class="material-icons-round text-sm">qr_code</span> QR
+                                </span>
+</td>
+<td class="px-6 py-4 text-gray-500 dark:text-gray-400">GATE-1</td>
+<td class="px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">11:37 a. m.</td>
+<td class="px-6 py-4 text-center">
+<button class="text-gray-400 hover:text-indigo-600 transition-colors">
+<span class="material-icons-round">photo_camera</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-6 py-4 border-t border-gray-100 dark:border-border-dark flex items-center justify-between">
+<span class="text-sm text-gray-500">Mostrando 1 a 2 de 2 entradas</span>
+<div class="flex gap-2">
+<button class="p-1 rounded hover:bg-gray-100 text-gray-400 cursor-not-allowed">
+<span class="material-icons-round">chevron_left</span>
+</button>
+<button class="p-1 rounded hover:bg-gray-100 text-gray-400 cursor-not-allowed">
+<span class="material-icons-round">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<footer class="text-center text-xs text-muted-light dark:text-muted-dark pt-8 pb-4">
+                © 2024 NEUVOX. Todos los derechos reservados.
+        </footer>
+</div>
+</main>
+
+</body></html>

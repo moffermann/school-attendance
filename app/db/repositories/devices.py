@@ -1,7 +1,7 @@
 """Device repository with race condition protection."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -17,7 +17,9 @@ class DeviceRepository:
         self.session = session
 
     async def list_all(self) -> list[Device]:
-        result = await self.session.execute(select(Device).order_by(Device.gate_id, Device.device_id))
+        result = await self.session.execute(
+            select(Device).order_by(Device.gate_id, Device.device_id)
+        )
         return list(result.scalars().all())
 
     async def get_by_id(self, device_id: int) -> Device | None:
@@ -56,7 +58,7 @@ class DeviceRepository:
             device.pending_events = pending_events
             device.online = online
             # R7-B1 fix: Use timezone-aware datetime
-            device.last_sync = datetime.now(timezone.utc)
+            device.last_sync = datetime.now(UTC)
             await self.session.flush()
             return device
 
@@ -68,7 +70,7 @@ class DeviceRepository:
             battery_pct=battery_pct,
             pending_events=pending_events,
             online=online,
-            last_sync=datetime.now(timezone.utc),  # R7-B1 fix
+            last_sync=datetime.now(UTC),  # R7-B1 fix
         )
         self.session.add(device)
 
@@ -88,7 +90,7 @@ class DeviceRepository:
                 device.pending_events = pending_events
                 device.online = online
                 # R7-B1 fix: Use timezone-aware datetime
-                device.last_sync = datetime.now(timezone.utc)
+                device.last_sync = datetime.now(UTC)
                 await self.session.flush()
                 return device
             # This shouldn't happen, but re-raise if it does
@@ -96,7 +98,7 @@ class DeviceRepository:
 
     async def touch_ping(self, device: Device) -> Device:
         # R7-B1 fix: Use timezone-aware datetime
-        device.last_sync = datetime.now(timezone.utc)
+        device.last_sync = datetime.now(UTC)
         device.online = True
         await self.session.flush()
         return device

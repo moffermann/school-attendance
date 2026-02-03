@@ -1,7 +1,7 @@
 """Repository for absence requests."""
 
-from datetime import datetime, date, timezone
-from typing import Iterable
+from collections.abc import Iterable
+from datetime import UTC, date, datetime
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,9 +25,7 @@ class AbsenceRepository:
         """Get absence request by ID with student and course relationships loaded."""
         stmt = (
             select(AbsenceRequest)
-            .options(
-                selectinload(AbsenceRequest.student).selectinload(Student.course)
-            )
+            .options(selectinload(AbsenceRequest.student).selectinload(Student.course))
             .where(AbsenceRequest.id == absence_id)
         )
         if not include_deleted:
@@ -64,7 +62,7 @@ class AbsenceRepository:
         absence = await self.get(absence_id)
         if not absence:
             return None
-        absence.deleted_at = datetime.now(timezone.utc)
+        absence.deleted_at = datetime.now(UTC)
         absence.deleted_by_id = deleted_by_id
         await self.session.flush()
         return absence
@@ -120,11 +118,15 @@ class AbsenceRepository:
         offset: int = 0,
     ) -> tuple[list[AbsenceRequest], int]:
         """List absences with SQL filtering and pagination."""
-        stmt = select(AbsenceRequest).options(
-            selectinload(AbsenceRequest.student).selectinload(Student.course)
-        ).where(AbsenceRequest.deleted_at.is_(None))
-        count_stmt = select(func.count()).select_from(AbsenceRequest).where(
-            AbsenceRequest.deleted_at.is_(None)
+        stmt = (
+            select(AbsenceRequest)
+            .options(selectinload(AbsenceRequest.student).selectinload(Student.course))
+            .where(AbsenceRequest.deleted_at.is_(None))
+        )
+        count_stmt = (
+            select(func.count())
+            .select_from(AbsenceRequest)
+            .where(AbsenceRequest.deleted_at.is_(None))
         )
 
         # Filtros SQL (no in-memory)
@@ -164,9 +166,11 @@ class AbsenceRepository:
         end_date: date | None = None,
     ) -> list[AbsenceRequest]:
         """List all absences for export (no pagination)."""
-        stmt = select(AbsenceRequest).options(
-            selectinload(AbsenceRequest.student).selectinload(Student.course)
-        ).where(AbsenceRequest.deleted_at.is_(None))
+        stmt = (
+            select(AbsenceRequest)
+            .options(selectinload(AbsenceRequest.student).selectinload(Student.course))
+            .where(AbsenceRequest.deleted_at.is_(None))
+        )
 
         if student_ids is not None:
             stmt = stmt.where(AbsenceRequest.student_id.in_(student_ids))
@@ -190,10 +194,14 @@ class AbsenceRepository:
         student_ids: list[int] | None = None,
     ) -> dict[str, int]:
         """Count absences grouped by status (excludes soft-deleted)."""
-        stmt = select(
-            AbsenceRequest.status,
-            func.count().label("total"),
-        ).where(AbsenceRequest.deleted_at.is_(None)).group_by(AbsenceRequest.status)
+        stmt = (
+            select(
+                AbsenceRequest.status,
+                func.count().label("total"),
+            )
+            .where(AbsenceRequest.deleted_at.is_(None))
+            .group_by(AbsenceRequest.status)
+        )
 
         if student_ids is not None:
             stmt = stmt.where(AbsenceRequest.student_id.in_(student_ids))
@@ -223,9 +231,7 @@ class AbsenceRepository:
                     func.lower(AbsenceRequest.comment).contains(query.lower()),
                 )
             )
-            .options(
-                selectinload(AbsenceRequest.student).selectinload(Student.course)
-            )
+            .options(selectinload(AbsenceRequest.student).selectinload(Student.course))
             .order_by(AbsenceRequest.created_at.desc())
             .limit(limit)
         )
@@ -261,7 +267,7 @@ class AbsenceRepository:
             return None
 
         absence.status = "APPROVED"
-        absence.ts_resolved = datetime.now(timezone.utc)
+        absence.ts_resolved = datetime.now(UTC)
         absence.resolved_by_id = resolved_by_id
         await self.session.flush()
         return absence
@@ -279,7 +285,7 @@ class AbsenceRepository:
             return None
 
         absence.status = "REJECTED"
-        absence.ts_resolved = datetime.now(timezone.utc)
+        absence.ts_resolved = datetime.now(UTC)
         absence.resolved_by_id = resolved_by_id
         absence.rejection_reason = rejection_reason
         await self.session.flush()

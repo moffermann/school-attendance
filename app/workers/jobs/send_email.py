@@ -202,7 +202,9 @@ def _build_email_content(template: str, variables: dict[str, Any]) -> tuple[str,
         Tuple of (subject, body_html)
     """
     # Escape all variables for HTML safety
-    safe_vars = {k: _escape_html_value(str(v)) if v is not None else "" for k, v in variables.items()}
+    safe_vars = {
+        k: _escape_html_value(str(v)) if v is not None else "" for k, v in variables.items()
+    }
 
     # Build photo section if photo is available
     photo_url = variables.get("photo_url")
@@ -268,7 +270,9 @@ async def _send(
                 return
 
         # Use tenant-specific client if tenant_id is provided
-        client: SESEmailClient | TenantSESEmailClient | SMTPEmailClient | TenantSMTPEmailClient | None = None
+        client: (
+            SESEmailClient | TenantSESEmailClient | SMTPEmailClient | TenantSMTPEmailClient | None
+        ) = None
         if tenant_id:
             try:
                 config_repo = TenantConfigRepository(session)
@@ -285,7 +289,8 @@ async def _send(
             except Exception as e:
                 logger.warning(
                     "Failed to load tenant email config for tenant_id={}, falling back to default: {}",
-                    tenant_id, e
+                    tenant_id,
+                    e,
                 )
 
         # Fall back to global client if no tenant config
@@ -308,7 +313,9 @@ async def _send(
                 await session.commit()
             logger.info(
                 "[Worker] Email sent notification_id={} to={} template={}",
-                notification_id, mask_email(to), template
+                notification_id,
+                mask_email(to),
+                template,
             )
         except TRANSIENT_ERRORS as exc:
             if notification:
@@ -319,7 +326,10 @@ async def _send(
                     await session.commit()
                     logger.warning(
                         "Email transient error notification_id={} retry={}/{} error={}",
-                        notification_id, current_retries + 1, MAX_RETRIES, exc
+                        notification_id,
+                        current_retries + 1,
+                        MAX_RETRIES,
+                        exc,
                     )
                     raise  # Let RQ retry the job
                 else:
@@ -327,11 +337,18 @@ async def _send(
                     await session.commit()
                     logger.error(
                         "Email send failed after {} retries notification_id={} error={}",
-                        MAX_RETRIES, notification_id, exc
+                        MAX_RETRIES,
+                        notification_id,
+                        exc,
                     )
                     raise
             else:
-                logger.warning("Email transient error to={} template={} error={}", mask_email(to), template, exc)
+                logger.warning(
+                    "Email transient error to={} template={} error={}",
+                    mask_email(to),
+                    template,
+                    exc,
+                )
                 raise
         except Exception as exc:  # pragma: no cover - permanent failure
             if notification:
@@ -375,8 +392,11 @@ def send_email_message(
     else:
         # Loop is already running - run in separate thread with new event loop
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(
-                lambda: asyncio.run(_send(notification_id, to, template, variables, tenant_id, tenant_schema))
+                lambda: asyncio.run(
+                    _send(notification_id, to, template, variables, tenant_id, tenant_schema)
+                )
             )
             future.result()  # Wait for completion

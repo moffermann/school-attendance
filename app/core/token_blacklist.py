@@ -6,7 +6,6 @@ Tokens are stored until their expiration time, then automatically cleaned up.
 
 import hashlib
 import time
-from typing import Optional
 
 import redis
 from loguru import logger
@@ -22,7 +21,7 @@ class TokenBlacklist:
 
     def __init__(self):
         self._memory_store: dict[str, int] = {}  # hash -> expiration timestamp
-        self._redis: Optional[redis.Redis] = None
+        self._redis: redis.Redis | None = None
         self._redis_available = False
         self._last_cleanup = 0
         self._init_redis()
@@ -41,7 +40,7 @@ class TokenBlacklist:
         """Hash token for storage (don't store raw tokens)."""
         return hashlib.sha256(token.encode()).hexdigest()[:32]
 
-    def add(self, token: str, exp: Optional[int] = None) -> None:
+    def add(self, token: str, exp: int | None = None) -> None:
         """Add a token to the blacklist.
 
         Args:

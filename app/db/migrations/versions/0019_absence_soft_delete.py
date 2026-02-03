@@ -5,9 +5,9 @@ Revises: 0018_absence_requests_updates
 Create Date: 2026-01-16
 
 """
-from alembic import op
-import sqlalchemy as sa
 
+import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0019_absence_soft_delete"

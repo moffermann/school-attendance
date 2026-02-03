@@ -6,7 +6,7 @@ import hashlib
 import logging
 import re
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import text
@@ -17,9 +17,8 @@ from app.db.models.tenant import Tenant
 from app.db.models.tenant_admin_invitation import TenantAdminInvitation
 from app.db.models.tenant_config import TenantConfig
 from app.db.models.tenant_feature import TenantFeature
-from app.db.repositories.tenants import TenantRepository
 from app.db.repositories.tenant_features import TenantFeatureRepository
-from app.db.session import create_tenant_schema
+from app.db.repositories.tenants import TenantRepository
 
 logger = logging.getLogger(__name__)
 
@@ -140,13 +139,6 @@ class TenantProvisioningService:
         # In production, you might want to use Alembic programmatically
 
         # Get all table definitions from models (excluding public schema tables)
-        from app.db.base import Base
-        from app.db.models import (
-            Student, Guardian, Course, Enrollment, Device, Tag,
-            AttendanceEvent, AbsenceRequest, Notification, Consent,
-            Schedule, ScheduleException, AuditLog, User, Teacher,
-            NoShowAlert, WebAuthnCredential,
-        )
 
         # Set search path to target schema
         await self.session.execute(text(f"SET search_path TO {schema_name}"))
@@ -156,15 +148,28 @@ class TenantProvisioningService:
         # Alembic's programmatic API with schema_translate_map
         tables_to_create = [
             # Core tables
-            "courses", "guardians", "students", "teachers", "users",
-            "devices", "tags", "enrollments",
+            "courses",
+            "guardians",
+            "students",
+            "teachers",
+            "users",
+            "devices",
+            "tags",
+            "enrollments",
             # Association tables
-            "student_guardian", "teacher_course",
+            "student_guardian",
+            "teacher_course",
             # Event tables
-            "attendance_events", "absence_requests", "notifications",
-            "schedules", "schedule_exceptions", "no_show_alerts",
+            "attendance_events",
+            "absence_requests",
+            "notifications",
+            "schedules",
+            "schedule_exceptions",
+            "no_show_alerts",
             # Other tables
-            "consents", "audit_logs", "webauthn_credentials",
+            "consents",
+            "audit_logs",
+            "webauthn_credentials",
         ]
 
         # Create tables by executing raw SQL (simplified approach)
@@ -239,7 +244,7 @@ class TenantProvisioningService:
         # Generate secure token
         token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=48)
+        expires_at = datetime.now(UTC) + timedelta(hours=48)
 
         invitation = TenantAdminInvitation(
             tenant_id=tenant_id,
@@ -318,7 +323,7 @@ class TenantProvisioningService:
             return None
 
         # Check if expired
-        if row.expires_at < datetime.now(timezone.utc):
+        if row.expires_at < datetime.now(UTC):
             return None
 
         return TenantAdminInvitation(
@@ -387,7 +392,7 @@ class TenantProvisioningService:
                 SET used_at = :used_at
                 WHERE id = :id
             """),
-            {"used_at": datetime.now(timezone.utc), "id": invitation.id},
+            {"used_at": datetime.now(UTC), "id": invitation.id},
         )
         await self.session.commit()
 
@@ -413,9 +418,7 @@ class TenantProvisioningService:
 
         if cascade:
             # Drop the schema and all its objects
-            await self.session.execute(
-                text(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
-            )
+            await self.session.execute(text(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE"))
             logger.warning(f"Dropped schema with cascade: {schema_name}")
 
         # Delete tenant record (cascades to features, config, invitations)

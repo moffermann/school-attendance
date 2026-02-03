@@ -5,9 +5,9 @@ Revises: 0019_absence_soft_delete
 Create Date: 2026-01-23
 
 """
-from alembic import op
-import sqlalchemy as sa
 
+import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0020_user_invitations"
@@ -21,7 +21,9 @@ def upgrade() -> None:
     op.create_table(
         "user_invitations",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("user_id", sa.Integer(), nullable=False),  # No FK to avoid multi-tenant schema issues
+        sa.Column(
+            "user_id", sa.Integer(), nullable=False
+        ),  # No FK to avoid multi-tenant schema issues
         sa.Column("email", sa.String(255), nullable=False),
         sa.Column("token_hash", sa.String(64), nullable=False),
         sa.Column("purpose", sa.String(32), nullable=False),

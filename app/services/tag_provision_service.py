@@ -36,10 +36,12 @@ class TagProvisionService:
         # should remain active simultaneously when enrolled.
 
         token = secrets.token_urlsafe(16)
-        tag_hash = hmac.new(settings.secret_key.encode(), token.encode(), hashlib.sha256).hexdigest()
+        tag_hash = hmac.new(
+            settings.secret_key.encode(), token.encode(), hashlib.sha256
+        ).hexdigest()
         preview = token[:8].upper()
 
-        tag = await self.repository.create_pending(
+        await self.repository.create_pending(
             student_id=payload.student_id,
             tag_hash=tag_hash,
             tag_preview=preview,
@@ -57,7 +59,7 @@ class TagProvisionService:
 
         # R17-CRYPTO1 fix: Verify checksum/signature if provided to prevent tag forgery
         # The checksum was generated during provision and should match
-        if hasattr(payload, 'checksum') and payload.checksum:
+        if hasattr(payload, "checksum") and payload.checksum:
             expected_checksum = tag.tag_token_hash[:12] if tag.tag_token_hash else None
             if expected_checksum and payload.checksum != expected_checksum:
                 raise ValueError("Invalid tag checksum - possible forgery attempt")

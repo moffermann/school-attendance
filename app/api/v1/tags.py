@@ -9,7 +9,6 @@ from app.core.auth import AuthUser
 from app.schemas.tags import TagConfirmRequest, TagProvisionRequest, TagProvisionResponse, TagRead
 from app.services.tag_provision_service import ConcurrentEnrollmentError, TagProvisionService
 
-
 router = APIRouter()
 
 

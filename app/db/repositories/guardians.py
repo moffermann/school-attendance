@@ -2,13 +2,12 @@
 
 from typing import Any
 
-from sqlalchemy import case, delete, func, or_, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.models.guardian import Guardian
 from app.db.models.student import Student
-from app.db.models.associations import student_guardian_table
 
 
 class GuardianRepository:
@@ -171,8 +170,7 @@ class GuardianRepository:
 
         # Get paginated results with students eagerly loaded
         paginated_query = (
-            base_query
-            .options(selectinload(Guardian.students))
+            base_query.options(selectinload(Guardian.students))
             .order_by(Guardian.full_name)
             .offset(skip)
             .limit(limit)
@@ -306,9 +304,7 @@ class GuardianRepository:
 
         if search:
             search_term = f"%{search}%"
-            stmt = stmt.where(
-                func.lower(Guardian.full_name).like(func.lower(search_term))
-            )
+            stmt = stmt.where(func.lower(Guardian.full_name).like(func.lower(search_term)))
 
         result = await self.session.execute(stmt)
         return result.scalar() or 0
@@ -377,9 +373,7 @@ class GuardianRepository:
     ) -> list[Guardian]:
         """List all guardians for CSV export (no pagination)."""
         stmt = (
-            select(Guardian)
-            .options(selectinload(Guardian.students))
-            .order_by(Guardian.full_name)
+            select(Guardian).options(selectinload(Guardian.students)).order_by(Guardian.full_name)
         )
 
         if status:

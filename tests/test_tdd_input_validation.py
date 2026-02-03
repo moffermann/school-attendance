@@ -9,8 +9,6 @@ Bug categories tested:
 from __future__ import annotations
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi import HTTPException, Path
 
 
 class TestBug4_1_SchemaNameSanitization:
@@ -27,8 +25,9 @@ class TestBug4_1_SchemaNameSanitization:
         Currently uses: f"SET search_path TO {schema_name}, public"
         Should validate schema_name first to prevent SQL injection.
         """
-        from app.db import session as session_module
         import inspect
+
+        from app.db import session as session_module
 
         source = inspect.getsource(session_module.get_tenant_session)
 
@@ -81,8 +80,9 @@ class TestBug4_2_TenantIdValidation:
 
         Should use Path(..., ge=1) to ensure tenant_id >= 1.
         """
-        from app.api.v1.super_admin import tenants
         import inspect
+
+        from app.api.v1.super_admin import tenants
 
         # Get the function signature
         sig = inspect.signature(tenants.impersonate_tenant)
@@ -94,32 +94,21 @@ class TestBug4_2_TenantIdValidation:
 
         # The annotation should include Path with ge=1
         source = inspect.getsource(tenants.impersonate_tenant)
-        has_validation = (
-            "ge=1" in source
-            or "gt=0" in source
-            or "Path(" in source
-        )
-        assert has_validation, (
-            "tenant_id should have Path validation with ge=1"
-        )
+        has_validation = "ge=1" in source or "gt=0" in source or "Path(" in source
+        assert has_validation, "tenant_id should have Path validation with ge=1"
 
     @pytest.mark.asyncio
     async def test_get_tenant_endpoint_validates_tenant_id(self):
         """get_tenant endpoint should validate tenant_id range."""
-        from app.api.v1.super_admin import tenants
         import inspect
+
+        from app.api.v1.super_admin import tenants
 
         source = inspect.getsource(tenants.get_tenant)
 
         # Should have validation for tenant_id
-        has_validation = (
-            "ge=1" in source
-            or "gt=0" in source
-            or "Path(" in source
-        )
-        assert has_validation, (
-            "get_tenant should validate tenant_id with Path(ge=1)"
-        )
+        has_validation = "ge=1" in source or "gt=0" in source or "Path(" in source
+        assert has_validation, "get_tenant should validate tenant_id with Path(ge=1)"
 
 
 class TestBug4_3_EmailNormalization:
@@ -135,39 +124,33 @@ class TestBug4_3_EmailNormalization:
         Currently searches with payload.email directly.
         Should normalize: admin = await repo.get_by_email(payload.email.lower())
         """
-        from app.api.v1.super_admin import auth
         import inspect
+
+        from app.api.v1.super_admin import auth
 
         source = inspect.getsource(auth.super_admin_login)
 
         # Should normalize email before lookup
         has_normalization = (
-            ".lower()" in source
-            or "lower" in source.lower()
-            or "normalize" in source.lower()
+            ".lower()" in source or "lower" in source.lower() or "normalize" in source.lower()
         )
-        assert has_normalization, (
-            "super_admin_login should normalize email to lowercase"
-        )
+        assert has_normalization, "super_admin_login should normalize email to lowercase"
 
     @pytest.mark.asyncio
     async def test_tenant_login_normalizes_email(self):
         """Tenant user login should also normalize email."""
-        from app.services import auth_service
         import inspect
+
+        from app.services import auth_service
 
         # The normalization is done in _verify_user which is called by authenticate
         source = inspect.getsource(auth_service.AuthService._verify_user)
 
         # Should normalize email
         has_normalization = (
-            ".lower()" in source
-            or "lower" in source.lower()
-            or "normalize" in source.lower()
+            ".lower()" in source or "lower" in source.lower() or "normalize" in source.lower()
         )
-        assert has_normalization, (
-            "AuthService._verify_user should normalize email to lowercase"
-        )
+        assert has_normalization, "AuthService._verify_user should normalize email to lowercase"
 
     @pytest.mark.asyncio
     async def test_email_stored_normalized(self):

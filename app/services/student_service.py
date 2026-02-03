@@ -40,7 +40,7 @@ class StudentService:
     # Roles that can export students
     EXPORT_ROLES = {"ADMIN", "DIRECTOR", "INSPECTOR"}
 
-    def __init__(self, session: "AsyncSession"):
+    def __init__(self, session: AsyncSession):
         self.session = session
         self.student_repo = StudentRepository(session)
         self.course_repo = CourseRepository(session)
@@ -52,7 +52,7 @@ class StudentService:
 
     async def list_students(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         filters: StudentFilters,
         *,
         limit: int = 50,
@@ -88,7 +88,7 @@ class StudentService:
 
     async def list_students_for_export(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         filters: StudentFilters,
         request: Request | None = None,
     ) -> list[StudentWithStats]:
@@ -149,7 +149,7 @@ class StudentService:
 
     async def get_student_detail(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         student_id: int,
         request: Request | None = None,
     ) -> StudentWithStats:
@@ -194,7 +194,7 @@ class StudentService:
 
     async def create_student(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         payload: StudentCreate,
         request: Request | None = None,
     ) -> StudentRead:
@@ -261,7 +261,7 @@ class StudentService:
 
     async def update_student(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         student_id: int,
         payload: StudentUpdate,
         request: Request | None = None,
@@ -306,8 +306,14 @@ class StudentService:
                 changes["national_id"] = {"old": student.national_id, "new": payload.national_id}
             if payload.course_id and payload.course_id != student.course_id:
                 changes["course_id"] = {"old": student.course_id, "new": payload.course_id}
-            if payload.evidence_preference and payload.evidence_preference != student.evidence_preference:
-                changes["evidence_preference"] = {"old": student.evidence_preference, "new": payload.evidence_preference}
+            if (
+                payload.evidence_preference
+                and payload.evidence_preference != student.evidence_preference
+            ):
+                changes["evidence_preference"] = {
+                    "old": student.evidence_preference,
+                    "new": payload.evidence_preference,
+                }
             if payload.status and payload.status != student.status:
                 changes["status"] = {"old": student.status, "new": payload.status}
 
@@ -325,9 +331,9 @@ class StudentService:
                 update_data["status"] = payload.status
 
             if update_data:
-                updated = await self.student_repo.update(student_id, **update_data)
+                await self.student_repo.update(student_id, **update_data)
             else:
-                updated = student
+                pass
 
             # 6. Commit and get fresh instance
             await self.session.commit()
@@ -363,7 +369,7 @@ class StudentService:
 
     async def delete_student(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         student_id: int,
         request: Request | None = None,
     ) -> StudentDeleteResponse:
@@ -432,7 +438,7 @@ class StudentService:
 
     async def restore_student(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         student_id: int,
         request: Request | None = None,
     ) -> StudentRead:
@@ -491,7 +497,7 @@ class StudentService:
 
     async def search_students(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         query: str,
         *,
         limit: int = 20,
@@ -522,7 +528,7 @@ class StudentService:
 
     async def upload_photo(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         student_id: int,
         content: bytes,
         content_type: str,
@@ -599,7 +605,7 @@ class StudentService:
 
     async def delete_photo(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         student_id: int,
         request: Request | None = None,
     ) -> StudentRead:

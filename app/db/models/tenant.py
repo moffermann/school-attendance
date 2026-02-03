@@ -8,9 +8,8 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import Boolean, DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.types import JSONBCompatible
-
 from app.db.base import Base
+from app.db.types import JSONBCompatible
 
 if TYPE_CHECKING:
     from app.db.models.tenant_config import TenantConfig
@@ -40,10 +39,10 @@ class Tenant(Base):
     )
 
     # Relationships
-    features: Mapped[list["TenantFeature"]] = relationship(
+    features: Mapped[list[TenantFeature]] = relationship(
         "TenantFeature", back_populates="tenant", cascade="all, delete-orphan"
     )
-    tenant_config: Mapped["TenantConfig"] = relationship(
+    tenant_config: Mapped[TenantConfig] = relationship(
         "TenantConfig", back_populates="tenant", uselist=False, cascade="all, delete-orphan"
     )
 

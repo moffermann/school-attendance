@@ -10,8 +10,8 @@ from fastapi import HTTPException, Request, status
 from app.core.audit import AuditEvent, audit_log
 from app.db.repositories.guardians import GuardianRepository
 from app.db.repositories.students import StudentRepository
-from app.db.repositories.users import UserRepository
 from app.db.repositories.user_invitations import UserInvitationRepository
+from app.db.repositories.users import UserRepository
 from app.schemas.guardians import (
     GuardianCreateRequest,
     GuardianFilters,
@@ -42,7 +42,7 @@ class GuardianService:
 
     def __init__(
         self,
-        session: "AsyncSession",
+        session: AsyncSession,
         *,
         tenant_id: int | None = None,
         tenant_schema: str | None = None,
@@ -61,7 +61,7 @@ class GuardianService:
 
     async def list_guardians(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         filters: GuardianFilters,
         *,
         limit: int = 50,
@@ -103,7 +103,7 @@ class GuardianService:
 
     async def list_guardians_for_export(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         filters: GuardianFilters,
         request: Request | None = None,
     ) -> list[GuardianWithStats]:
@@ -153,7 +153,7 @@ class GuardianService:
 
     async def get_guardian_detail(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         guardian_id: int,
         request: Request | None = None,
     ) -> GuardianWithStats:
@@ -190,7 +190,7 @@ class GuardianService:
 
     async def create_guardian(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         payload: GuardianCreateRequest,
         request: Request | None = None,
     ) -> GuardianResponse:
@@ -284,7 +284,7 @@ class GuardianService:
 
     async def update_guardian(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         guardian_id: int,
         payload: GuardianUpdateRequest,
         request: Request | None = None,
@@ -376,7 +376,7 @@ class GuardianService:
 
     async def delete_guardian(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         guardian_id: int,
         request: Request | None = None,
     ) -> bool:
@@ -436,7 +436,7 @@ class GuardianService:
 
     async def restore_guardian(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         guardian_id: int,
         request: Request | None = None,
     ) -> GuardianResponse:
@@ -504,7 +504,7 @@ class GuardianService:
 
     async def search_guardians(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         query: str,
         *,
         limit: int = 20,
@@ -540,7 +540,7 @@ class GuardianService:
 
     async def set_students(
         self,
-        user: "TenantAuthUser",
+        user: TenantAuthUser,
         guardian_id: int,
         student_ids: list[int],
         request: Request | None = None,
