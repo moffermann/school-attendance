@@ -231,3 +231,18 @@ class TenantConfigRepository:
         new_key = secrets.token_urlsafe(32)
         await self.update_device_api_key(tenant_id, new_key)
         return new_key
+
+    async def update_timezone(
+        self,
+        tenant_id: int,
+        tz_name: str,
+    ) -> TenantConfig | None:
+        """Update tenant timezone (IANA timezone name, e.g., America/Santiago)."""
+        config = await self.get(tenant_id)
+        if not config:
+            return None
+
+        config.timezone = tz_name
+        config.updated_at = datetime.now(timezone.utc)
+        await self.session.flush()
+        return config

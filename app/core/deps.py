@@ -277,6 +277,7 @@ async def get_attendance_notification_service(
 async def get_attendance_service(
     request: Request,
     session: AsyncSession = Depends(get_tenant_db),
+    public_session: AsyncSession = Depends(get_public_db),
 ) -> AttendanceService:
     # FIX: Create notification_service with the SAME session as attendance_service.
     # Previously, Depends(get_attendance_notification_service) created a separate session
@@ -287,8 +288,21 @@ async def get_attendance_service(
     tenant = getattr(request.state, "tenant", None)
     tenant_id = tenant.id if tenant else None
     tenant_schema = getattr(request.state, "tenant_schema", None)
+
+    # MT-TIMEZONE-FIX: Get tenant-specific timezone from tenant_configs (public schema)
+    tenant_timezone = None
+    if tenant_id:
+        from app.db.repositories.tenant_configs import TenantConfigRepository
+        config_repo = TenantConfigRepository(public_session)
+        config = await config_repo.get(tenant_id)
+        if config and config.timezone:
+            tenant_timezone = config.timezone
+
     notification_service = AttendanceNotificationService(
-        session, tenant_id=tenant_id, tenant_schema=tenant_schema
+        session,
+        tenant_id=tenant_id,
+        tenant_schema=tenant_schema,
+        tenant_timezone=tenant_timezone,
     )
     return AttendanceService(session, notification_service=notification_service)
 

@@ -58,6 +58,12 @@ class TenantConfig(Base):
     # Device API key (encrypted with Fernet)
     device_api_key_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
 
+    # Timezone for displaying times in notifications and reports (IANA timezone name)
+    # Examples: America/Santiago, America/Bogota, America/Mexico_City
+    timezone: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, default="America/Santiago"
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
