@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import List, TYPE_CHECKING
 
 from datetime import datetime, timedelta, timezone
@@ -14,12 +15,14 @@ from app.db.repositories.guardians import GuardianRepository
 from app.db.repositories.schedules import ScheduleRepository
 from app.db.repositories.students import StudentRepository
 from app.db.repositories.no_show_alerts import NoShowAlertRepository
+from app.db.repositories.sequence_corrections import SequenceCorrectionRepository
 from app.schemas.attendance import AttendanceEventCreate, AttendanceEventRead
 from app.core.config import settings
 from app.services.photo_service import PhotoService
 
 if TYPE_CHECKING:
     from app.services.attendance_notification_service import AttendanceNotificationService
+    from app.db.models.attendance_event import AttendanceEvent
 
 
 class AttendanceService:
@@ -31,6 +34,7 @@ class AttendanceService:
         self.guardian_repo = GuardianRepository(session)
         self.photo_service = PhotoService()
         self.no_show_repo = NoShowAlertRepository(session)
+        self.correction_repo = SequenceCorrectionRepository(session)
         self._notification_service = notification_service
 
     async def register_event(self, payload: AttendanceEventCreate) -> AttendanceEventRead:
@@ -38,24 +42,128 @@ class AttendanceService:
         if not student:
             raise ValueError("Student not found")
 
+        # Validate and correct sequence if feature flag enabled
+        if settings.enable_sequence_validation:
+            corrected_type, was_corrected = await self._validate_and_correct_sequence(
+                student_id=payload.student_id,
+                requested_type=payload.type.value,
+                occurred_at=payload.occurred_at,
+            )
+        else:
+            corrected_type, was_corrected = payload.type.value, False
+
         event = await self.attendance_repo.create_event(
             student_id=payload.student_id,
-            event_type=payload.type.value,
+            event_type=corrected_type,
             gate_id=payload.gate_id,
             device_id=payload.device_id,
             occurred_at=payload.occurred_at,
             photo_ref=payload.photo_ref,
             local_seq=payload.local_seq,
             source=payload.source.value if payload.source else None,
+            conflict_corrected=was_corrected,
         )
 
         await self.session.commit()
+
+        # If sequence was corrected, create audit record and alert staff
+        if was_corrected:
+            await self._create_conflict_alert(event, payload.type.value, corrected_type)
 
         # Trigger notifications to guardians
         # R12-P1 fix: Pass student to avoid duplicate fetch
         await self._send_attendance_notifications(event, student)
 
         return AttendanceEventRead.model_validate(event, from_attributes=True)
+
+    async def _validate_and_correct_sequence(
+        self,
+        student_id: int,
+        requested_type: str,
+        occurred_at: datetime,
+    ) -> tuple[str, bool]:
+        """Validate event sequence against chronologically previous event.
+
+        Uses FOR UPDATE lock to prevent race conditions.
+        Validates against timestamp, not creation order.
+        Includes timeout to avoid deadlocks in high concurrency.
+
+        Returns:
+            Tuple of (corrected_type, was_corrected)
+        """
+        target_date = occurred_at.date()
+
+        try:
+            # CRITICAL: Find event BEFORE timestamp (not last created)
+            # Use FOR UPDATE for row lock to prevent race conditions
+            # 5 second timeout to avoid deadlocks
+            previous_event = await asyncio.wait_for(
+                self.attendance_repo.get_event_before_timestamp(
+                    student_id=student_id,
+                    before_timestamp=occurred_at,
+                    target_date=target_date,
+                    for_update=True,
+                ),
+                timeout=5.0,
+            )
+        except asyncio.TimeoutError:
+            # Lock timeout - fail gracefully, don't correct
+            logger.warning(
+                f"Lock timeout for student {student_id}, skipping sequence validation"
+            )
+            return requested_type, False
+
+        # Determine expected type based on chronologically previous event
+        if previous_event is None:
+            # No event before this timestamp today → must be IN
+            expected_type = "IN"
+        else:
+            # Toggle from previous event
+            expected_type = "OUT" if previous_event.type == "IN" else "IN"
+
+        # Check if correction needed
+        if requested_type != expected_type:
+            logger.warning(
+                f"Sequence correction for student {student_id}: "
+                f"requested={requested_type}, expected={expected_type}, "
+                f"previous_event={previous_event.type if previous_event else 'None'}, "
+                f"occurred_at={occurred_at}"
+            )
+            return expected_type, True
+
+        return requested_type, False
+
+    async def _create_conflict_alert(
+        self,
+        event: AttendanceEvent,
+        requested_type: str,
+        corrected_type: str,
+    ) -> None:
+        """Create audit record when event sequence was auto-corrected."""
+        # 1. Create structured audit record
+        await self.correction_repo.create(
+            event_id=event.id,
+            student_id=event.student_id,
+            requested_type=requested_type,
+            corrected_type=corrected_type,
+            device_id=event.device_id,
+            gate_id=event.gate_id,
+            occurred_at=event.occurred_at,
+        )
+
+        # 2. Structured log for monitoring (ELK/CloudWatch)
+        logger.warning(
+            "Sequence correction applied",
+            extra={
+                "event_id": event.id,
+                "student_id": event.student_id,
+                "requested_type": requested_type,
+                "corrected_type": corrected_type,
+                "device_id": event.device_id,
+                "gate_id": event.gate_id,
+                "occurred_at": event.occurred_at.isoformat() if event.occurred_at else None,
+            }
+        )
 
     async def _send_attendance_notifications(self, event, student=None) -> None:
         """Send notifications to guardians after attendance event is registered."""

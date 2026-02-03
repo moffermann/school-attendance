@@ -30,6 +30,7 @@ from app.db.models.no_show_alert import NoShowAlert
 from app.db.models.webauthn_credential import WebAuthnCredential
 from app.db.models.push_subscription import PushSubscription
 from app.db.models.user_invitation import UserInvitation
+from app.db.models.sequence_correction import SequenceCorrection
 
 __all__ = [
     # Multi-tenant models
@@ -62,4 +63,5 @@ __all__ = [
     "WebAuthnCredential",
     "PushSubscription",
     "UserInvitation",
+    "SequenceCorrection",
 ]

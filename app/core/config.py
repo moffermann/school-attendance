@@ -133,6 +133,25 @@ class Settings(BaseSettings):
         description="Fernet encryption key for tenant credentials. Must be 32 url-safe base64 chars."
     )
 
+    # Feature flags for sequence validation and notification deduplication
+    enable_sequence_validation: bool = Field(
+        default=True,
+        env="ENABLE_SEQUENCE_VALIDATION",
+        description="Enable server-side IN/OUT sequence validation and auto-correction"
+    )
+    enable_notification_dedup: bool = Field(
+        default=True,
+        env="ENABLE_NOTIFICATION_DEDUP",
+        description="Enable notification deduplication (1 per type/student/day)"
+    )
+
+    # Timezone configuration for display (notifications, reports)
+    school_timezone: str = Field(
+        default="America/Santiago",
+        env="SCHOOL_TIMEZONE",
+        description="Timezone for displaying times in notifications (IANA timezone name)"
+    )
+
     def validate_production_secrets(self) -> list[str]:
         """Check if secrets are using insecure defaults.
 

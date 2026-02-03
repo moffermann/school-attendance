@@ -3,7 +3,7 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -40,6 +40,10 @@ class AttendanceEvent(Base):
         SAEnum(AttendanceSourceEnum, name="attendance_source"),
         nullable=True,  # Nullable for backward compatibility with existing records
         index=True
+    )
+    # Flag for events with auto-corrected sequence (IN↔OUT)
+    conflict_corrected: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
     )
 
     student = relationship("Student")

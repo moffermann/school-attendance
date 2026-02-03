@@ -25,6 +25,7 @@ class AttendanceRepository:
         photo_ref: str | None = None,
         local_seq: int | None = None,
         source: str | None = None,
+        conflict_corrected: bool = False,
     ) -> AttendanceEvent:
         event = AttendanceEvent(
             student_id=student_id,
@@ -35,6 +36,7 @@ class AttendanceRepository:
             photo_ref=photo_ref,
             local_seq=local_seq,
             source=source,
+            conflict_corrected=conflict_corrected,
         )
         self.session.add(event)
         await self.session.flush()
@@ -135,3 +137,43 @@ class AttendanceRepository:
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_event_before_timestamp(
+        self,
+        student_id: int,
+        before_timestamp: datetime,
+        target_date: date,
+        for_update: bool = False,
+    ) -> AttendanceEvent | None:
+        """Get the closest event BEFORE a specific timestamp on the same date.
+
+        CRÍTICO para sincronización fuera de orden:
+        - Si evento llega con timestamp 10:00 pero se procesa a las 11:00
+        - Buscamos eventos ANTES de 10:00, no antes de 11:00
+
+        Args:
+            student_id: Student to check
+            before_timestamp: Find events that occurred BEFORE this time
+            target_date: Only consider events on this date
+            for_update: If True, use SELECT FOR UPDATE to prevent race conditions
+
+        Returns:
+            The most recent event before the given timestamp, or None
+        """
+        stmt = (
+            select(AttendanceEvent)
+            .where(
+                AttendanceEvent.student_id == student_id,
+                func.date(AttendanceEvent.occurred_at) == target_date,
+                AttendanceEvent.occurred_at < before_timestamp,
+            )
+            .order_by(AttendanceEvent.occurred_at.desc())
+            .limit(1)
+        )
+
+        # CRÍTICO: Lock de fila para prevenir race conditions
+        if for_update:
+            stmt = stmt.with_for_update()
+
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
