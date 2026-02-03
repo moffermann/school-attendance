@@ -34,6 +34,11 @@ const Router = {
     // Tenant setup route (public - no auth required)
     this.addRoute('/setup', Views.tenantAdminSetup, null, false);
 
+    // Parent registration & password recovery (public - no auth required)
+    this.addRoute('/parent-setup', Views.parentSetup, null, false);
+    this.addRoute('/forgot-password', Views.forgotPassword, null, false);
+    this.addRoute('/reset-password', Views.resetPassword, null, false);
+
     // Listen for hash changes
     window.addEventListener('hashchange', () => this.handleRoute());
 

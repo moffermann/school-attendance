@@ -1,4 +1,5 @@
 // Director Schedules - Redesigned with Approved HTML Design
+// Uses centralized Components.directorSidebar()
 Views.directorSchedules = function() {
   const app = document.getElementById('app');
 
@@ -12,73 +13,23 @@ Views.directorSchedules = function() {
   let selectedCourseFilter = 'all';
   const currentPath = '/director/schedules';
 
-  // Helper: check if nav item is active
-  const isActive = (path) => currentPath === path;
-  const navItemClass = (path) => isActive(path)
-    ? 'flex items-center px-6 py-3 bg-indigo-800/50 text-white border-l-4 border-indigo-500 group transition-colors'
-    : 'flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent';
-  const iconClass = (path) => isActive(path)
-    ? 'material-icons-round mr-3'
-    : 'material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors';
-
-  // Navigation items - del diseño aprobado
-  const navItems = [
-    { path: '/director/dashboard', icon: 'dashboard', label: 'Tablero' },
-    { path: '/director/reports', icon: 'analytics', label: 'Reportes' },
-    { path: '/director/metrics', icon: 'bar_chart', label: 'Métricas' },
-    { path: '/director/schedules', icon: 'schedule', label: 'Horarios' },
-    { path: '/director/exceptions', icon: 'event_busy', label: 'Excepciones' },
-    { path: '/director/broadcast', icon: 'campaign', label: 'Comunicados' },
-    { path: '/director/devices', icon: 'devices', label: 'Dispositivos' },
-    { path: '/director/students', icon: 'school', label: 'Alumnos' },
-    { path: '/director/guardians', icon: 'family_restroom', label: 'Apoderados' },
-    { path: '/director/teachers', icon: 'badge', label: 'Profesores' },
-    { path: '/director/courses', icon: 'class', label: 'Cursos' },
-    { path: '/director/absences', icon: 'person_off', label: 'Ausencias' },
-    { path: '/director/notifications', icon: 'notifications', label: 'Notificaciones' },
-    { path: '/director/biometric', icon: 'fingerprint', label: 'Biometría' },
-  ];
-
   // ==================== LAYOUT RENDER ====================
 
   function renderLayout() {
     const user = State.getCurrentUser() || {};
+    const userName = user.full_name || user.name || 'Director';
     const courses = State.getCourses() || [];
 
     app.innerHTML = `
 <div class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 antialiased h-screen flex overflow-hidden">
-  <!-- Mobile Backdrop -->
-  <div id="sidebar-backdrop" class="fixed inset-0 bg-black/50 z-40 hidden" onclick="Views.directorSchedules.toggleMobileSidebar()"></div>
-
-  <!-- Sidebar - EXACTO del diseño aprobado -->
-  <aside class="w-64 bg-sidebar-dark text-gray-300 flex-shrink-0 flex-col transition-all duration-300 mobile-hidden border-r border-indigo-900/50 shadow-2xl z-50">
-    <div class="h-20 flex items-center justify-between px-6 border-b border-indigo-900/50">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg">
-          <div class="w-4 h-4 bg-indigo-900 rounded-full"></div>
-        </div>
-        <h1 class="text-xl font-bold tracking-tight text-white">NEUVOX</h1>
-      </div>
-      <button class="desktop-hidden text-gray-400 hover:text-white p-1" onclick="Views.directorSchedules.toggleMobileSidebar()">
-        <span class="material-icons-round">close</span>
-      </button>
-    </div>
-    <nav class="flex-1 overflow-y-auto py-6 space-y-1">
-      ${navItems.map(item => `
-        <a class="${navItemClass(item.path)}" href="#${item.path}">
-          <span class="${iconClass(item.path)}">${item.icon}</span>
-          <span class="font-medium text-sm">${item.label}</span>
-        </a>
-      `).join('')}
-    </nav>
-  </aside>
+  ${Components.directorSidebar(currentPath)}
 
   <!-- Main Content -->
   <main class="flex-1 flex flex-col overflow-hidden relative bg-gray-50 dark:bg-background-dark">
-          <!-- Header - Estandarizado con Dashboard -->
+          <!-- Header - Custom with course filter -->
           <header class="h-20 bg-white dark:bg-card-dark border-b border-border-light dark:border-border-dark flex items-center justify-between px-8 z-10 shadow-sm">
             <div class="flex items-center gap-4">
-              <button class="desktop-hidden text-muted-light dark:text-muted-dark hover:text-primary transition-colors" onclick="Views.directorSchedules.toggleMobileSidebar()">
+              <button class="desktop-hidden text-muted-light dark:text-muted-dark hover:text-primary transition-colors" onclick="Components.toggleDirectorSidebar()">
                 <span class="material-icons-round text-2xl">menu</span>
               </button>
               <h2 class="text-xl font-bold text-gray-800 dark:text-text-dark">Gestión de Horarios</h2>
@@ -89,7 +40,7 @@ Views.directorSchedules = function() {
                 <span class="text-xs font-semibold text-gray-500 uppercase">Filtrar:</span>
                 <select id="course-filter" class="text-sm border-gray-300 dark:border-slate-600 dark:bg-slate-700 rounded-lg py-1.5 focus:ring-indigo-500 min-w-[180px]">
                   <option value="all">Todos los cursos</option>
-                  ${courses.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                  ${courses.map(c => `<option value="${c.id}">${Components.escapeHtml(c.name)}</option>`).join('')}
                 </select>
               </div>
             </div>
@@ -100,10 +51,10 @@ Views.directorSchedules = function() {
                 </button>
                 <div class="flex items-center gap-2 cursor-pointer">
                   <div class="w-9 h-9 rounded-full border border-gray-200 bg-indigo-600 flex items-center justify-center text-white font-semibold">
-                    ${(user.full_name || user.name || 'D').charAt(0).toUpperCase()}
+                    ${userName.charAt(0).toUpperCase()}
                   </div>
                   <div class="text-right mobile-hidden">
-                    <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">${Components.escapeHtml(user.full_name || user.name || 'Director')}</p>
+                    <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">${Components.escapeHtml(userName)}</p>
                   </div>
                 </div>
                 <a class="ml-1 md:ml-2 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 border px-2 md:px-3 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-white/5 dark:border-gray-600" href="#" onclick="event.preventDefault(); State.logout(); Router.navigate('/login')">
@@ -738,23 +689,7 @@ Views.directorSchedules = function() {
 
   // ==================== HEADER FUNCTIONS ====================
 
-  // Toggle mobile sidebar
-  Views.directorSchedules.toggleMobileSidebar = function() {
-    const sidebar = document.querySelector('aside.mobile-hidden');
-    const backdrop = document.getElementById('sidebar-backdrop');
-
-    if (sidebar) {
-      sidebar.classList.toggle('mobile-hidden');
-      sidebar.classList.toggle('fixed');
-      sidebar.classList.toggle('inset-y-0');
-      sidebar.classList.toggle('left-0');
-      sidebar.classList.toggle('z-50');
-    }
-
-    if (backdrop) {
-      backdrop.classList.toggle('hidden');
-    }
-  };
+  // toggleMobileSidebar now uses centralized Components.toggleDirectorSidebar()
 
   // Toggle dark mode
   Views.directorSchedules.toggleDarkMode = function() {

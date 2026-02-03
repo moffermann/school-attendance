@@ -846,6 +846,156 @@ const Components = {
     ctx.stroke();
   },
 
+  // ============================================================================
+  // DIRECTOR LAYOUT COMPONENTS - Centralized sidebar, header, and toggle
+  // ============================================================================
+
+  // Director navigation items - single source of truth
+  directorNav: [
+    { path: '/director/dashboard', icon: 'dashboard', label: 'Tablero' },
+    { path: '/director/reports', icon: 'analytics', label: 'Reportes' },
+    { path: '/director/metrics', icon: 'bar_chart', label: 'Métricas' },
+    { path: '/director/schedules', icon: 'schedule', label: 'Horarios' },
+    { path: '/director/exceptions', icon: 'event_busy', label: 'Excepciones' },
+    { path: '/director/broadcast', icon: 'campaign', label: 'Comunicados' },
+    { path: '/director/devices', icon: 'devices', label: 'Dispositivos' },
+    { path: '/director/students', icon: 'school', label: 'Alumnos' },
+    { path: '/director/guardians', icon: 'family_restroom', label: 'Apoderados' },
+    { path: '/director/teachers', icon: 'badge', label: 'Profesores' },
+    { path: '/director/courses', icon: 'class', label: 'Cursos' },
+    { path: '/director/absences', icon: 'person_off', label: 'Ausencias' },
+    { path: '/director/notifications', icon: 'notifications', label: 'Notificaciones' },
+    { path: '/director/biometric', icon: 'fingerprint', label: 'Biometría' },
+  ],
+
+  // Toggle director sidebar (mobile) - centralized function
+  toggleDirectorSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (sidebar && backdrop) {
+      sidebar.classList.toggle('mobile-hidden');
+      backdrop.classList.toggle('hidden');
+    }
+  },
+
+  // Generate director sidebar HTML
+  // currentPath: e.g., '/director/dashboard'
+  directorSidebar(currentPath) {
+    const isActive = (path) => currentPath === path;
+    const navItemClass = (path) => isActive(path)
+      ? 'flex items-center px-6 py-3 bg-indigo-800/50 text-white border-l-4 border-indigo-500 group transition-colors'
+      : 'flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent';
+    const iconClass = (path) => isActive(path)
+      ? 'material-icons-round mr-3'
+      : 'material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors';
+
+    return `
+      <!-- Mobile Backdrop -->
+      <div id="sidebar-backdrop" class="fixed inset-0 bg-black/50 z-40 hidden" onclick="Components.toggleDirectorSidebar()"></div>
+
+      <!-- Sidebar -->
+      <aside id="sidebar" class="w-64 bg-sidebar-dark text-gray-300 flex-shrink-0 flex flex-col h-full transition-all duration-300 mobile-hidden border-r border-indigo-900/50 shadow-2xl z-50">
+        <div class="h-20 flex items-center justify-between px-6 border-b border-indigo-900/50">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg">
+              <div class="w-4 h-4 bg-indigo-900 rounded-full"></div>
+            </div>
+            <h1 class="text-xl font-bold tracking-tight text-white">NEUVOX</h1>
+          </div>
+          <button class="desktop-hidden text-gray-400 hover:text-white p-1" onclick="Components.toggleDirectorSidebar()">
+            <span class="material-icons-round">close</span>
+          </button>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-6 space-y-1">
+          ${this.directorNav.map(item => `
+            <a class="${navItemClass(item.path)}" href="#${item.path}">
+              <span class="${iconClass(item.path)}">${item.icon}</span>
+              <span class="font-medium text-sm">${item.label}</span>
+            </a>
+          `).join('')}
+        </nav>
+      </aside>
+    `;
+  },
+
+  // Generate director header HTML
+  // title: Header title text
+  // userName: User's display name
+  // options: { showLiveIndicator, showDarkMode, onToggleLive, onToggleDarkMode }
+  directorHeader(title, userName, options = {}) {
+    const userInitial = userName ? userName.charAt(0).toUpperCase() : 'D';
+    const escapedName = this.escapeHtml(userName || 'Director');
+
+    // Optional live indicator (for dashboard)
+    const liveIndicatorHTML = options.showLiveIndicator ? `
+      <div class="flex items-center gap-2">
+        <span id="live-indicator" class="text-xs font-medium px-2 md:px-3 py-1 bg-green-100 text-green-700 rounded-full flex items-center gap-1 cursor-pointer" onclick="${options.onToggleLive || ''}">
+          <span class="w-2 h-2 rounded-full bg-green-500" id="live-dot"></span>
+          <span id="live-text" class="mobile-hidden">En vivo</span>
+        </span>
+      </div>
+      <div class="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1 md:mx-2 mobile-hidden"></div>
+    ` : '';
+
+    // Optional dark mode toggle
+    const darkModeHTML = options.showDarkMode ? `
+      <button class="p-2 rounded-full hover:bg-background-light dark:hover:bg-white/5 transition-colors text-muted-light dark:text-muted-dark" onclick="${options.onToggleDarkMode || 'Components.toggleDirectorDarkMode()'}">
+        <span class="material-icons-round" id="dark-mode-icon">dark_mode</span>
+      </button>
+    ` : '';
+
+    return `
+      <header class="h-20 bg-white dark:bg-card-dark border-b border-border-light dark:border-border-dark flex items-center justify-between px-8 z-10 shadow-sm">
+        <div class="flex items-center gap-4">
+          <button class="desktop-hidden text-muted-light dark:text-muted-dark hover:text-primary transition-colors" onclick="Components.toggleDirectorSidebar()">
+            <span class="material-icons-round text-2xl">menu</span>
+          </button>
+          <h2 class="text-xl font-bold text-gray-800 dark:text-text-dark">${this.escapeHtml(title)}</h2>
+        </div>
+        <div class="flex items-center gap-2 md:gap-4 flex-1 justify-end">
+          ${liveIndicatorHTML}
+          <div class="flex items-center gap-2 md:gap-3">
+            ${darkModeHTML}
+            <div class="flex items-center gap-2 cursor-pointer">
+              <div class="w-9 h-9 rounded-full border border-gray-200 bg-indigo-600 flex items-center justify-center text-white font-semibold">
+                ${userInitial}
+              </div>
+              <div class="text-right mobile-hidden">
+                <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">${escapedName}</p>
+              </div>
+            </div>
+            <a class="ml-1 md:ml-2 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 border px-2 md:px-3 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-white/5 dark:border-gray-600" href="#" onclick="event.preventDefault(); State.logout(); Router.navigate('/login')">
+              <span class="material-icons-round text-lg">logout</span>
+              <span class="mobile-hidden">Salir</span>
+            </a>
+          </div>
+        </div>
+      </header>
+    `;
+  },
+
+  // Toggle dark mode for director views
+  toggleDirectorDarkMode() {
+    document.documentElement.classList.toggle('dark');
+    const isDark = document.documentElement.classList.contains('dark');
+    localStorage.setItem('directorDarkMode', isDark ? 'true' : 'false');
+    const icon = document.getElementById('dark-mode-icon');
+    if (icon) {
+      icon.textContent = isDark ? 'light_mode' : 'dark_mode';
+    }
+  },
+
+  // Initialize director dark mode from saved preference
+  initDirectorDarkMode() {
+    if (localStorage.getItem('directorDarkMode') === 'true') {
+      document.documentElement.classList.add('dark');
+      const icon = document.getElementById('dark-mode-icon');
+      if (icon) icon.textContent = 'light_mode';
+    }
+  },
+
+  // ============================================================================
+
   // Show student profile modal (reusable from any view)
   // Options: { onBack: Function, backLabel: String }
   showStudentProfile(studentId, options = {}) {

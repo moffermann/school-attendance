@@ -1,4 +1,5 @@
 // Director Students Management
+// Uses centralized Components for sidebar and navigation
 // Counter for race condition protection when loading photos
 let photoLoadCounter = 0;
 
@@ -7,33 +8,6 @@ Views.directorStudents = function () {
 
   // Current path for active state
   const currentPath = '/director/students';
-
-  // Helper: check if nav item is active
-  const isActive = (path) => currentPath === path;
-  const navItemClass = (path) => isActive(path)
-    ? 'flex items-center px-6 py-3 bg-indigo-800/50 text-white border-l-4 border-indigo-500 group transition-colors'
-    : 'flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent';
-  const iconClass = (path) => isActive(path)
-    ? 'material-icons-round mr-3'
-    : 'material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors';
-
-  // Navigation items - del diseño aprobado
-  const navItems = [
-    { path: '/director/dashboard', icon: 'dashboard', label: 'Tablero' },
-    { path: '/director/reports', icon: 'analytics', label: 'Reportes' },
-    { path: '/director/metrics', icon: 'bar_chart', label: 'Métricas' },
-    { path: '/director/schedules', icon: 'schedule', label: 'Horarios' },
-    { path: '/director/exceptions', icon: 'event_busy', label: 'Excepciones' },
-    { path: '/director/broadcast', icon: 'campaign', label: 'Comunicados' },
-    { path: '/director/devices', icon: 'devices', label: 'Dispositivos' },
-    { path: '/director/students', icon: 'school', label: 'Alumnos' },
-    { path: '/director/guardians', icon: 'family_restroom', label: 'Apoderados' },
-    { path: '/director/teachers', icon: 'badge', label: 'Profesores' },
-    { path: '/director/courses', icon: 'class', label: 'Cursos' },
-    { path: '/director/absences', icon: 'person_off', label: 'Ausencias' },
-    { path: '/director/notifications', icon: 'notifications', label: 'Notificaciones' },
-    { path: '/director/biometric', icon: 'fingerprint', label: 'Biometría' },
-  ];
 
   // Get user info
   const user = State.getCurrentUser();
@@ -57,16 +31,6 @@ Views.directorStudents = function () {
     document.documentElement.classList.toggle('dark');
     localStorage.setItem('darkMode', isDarkMode() ? 'enabled' : 'disabled');
     renderStudents();
-  };
-
-  // Toggle mobile sidebar
-  window.toggleMobileSidebar = function () {
-    const sidebar = document.getElementById('sidebar');
-    const backdrop = document.getElementById('sidebar-backdrop');
-    if (sidebar && backdrop) {
-      sidebar.classList.toggle('mobile-hidden');
-      backdrop.classList.toggle('hidden');
-    }
   };
 
   // Helper to get progress bar color based on percentage
@@ -230,38 +194,14 @@ Views.directorStudents = function () {
 
     app.innerHTML = `
       <div class="h-screen flex overflow-hidden bg-slate-50 dark:bg-background-dark">
-        <!-- Sidebar -->
-        <aside id="sidebar" class="w-64 bg-sidebar-dark text-gray-300 flex-shrink-0 flex-col transition-all duration-300 mobile-hidden border-r border-indigo-900/50 shadow-2xl z-50">
-          <div class="h-20 flex items-center justify-between px-6 border-b border-indigo-900/50">
-            <div class="flex items-center gap-3">
-              <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg">
-                <div class="w-4 h-4 bg-indigo-900 rounded-full"></div>
-              </div>
-              <h1 class="text-xl font-bold tracking-tight text-white">NEUVOX</h1>
-            </div>
-            <button class="desktop-hidden text-gray-400 hover:text-white p-1" onclick="toggleMobileSidebar()">
-              <span class="material-icons-round">close</span>
-            </button>
-          </div>
-          <nav class="flex-1 overflow-y-auto py-6 space-y-1">
-            ${navItems.map(item => `
-              <a class="${navItemClass(item.path)}" href="#${item.path}">
-                <span class="${iconClass(item.path)}">${item.icon}</span>
-                <span class="font-medium text-sm">${item.label}</span>
-              </a>
-            `).join('')}
-          </nav>
-        </aside>
-
-        <!-- Mobile Sidebar Backdrop -->
-        <div id="sidebar-backdrop" class="fixed inset-0 bg-black/50 z-40 hidden desktop-hidden" onclick="toggleMobileSidebar()"></div>
+        ${Components.directorSidebar(currentPath)}
 
         <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden">
           <!-- Header -->
           <header class="h-20 bg-white dark:bg-card-dark border-b border-slate-200 dark:border-border-dark flex items-center justify-between px-8 z-10">
             <div class="flex items-center gap-4">
-              <button class="desktop-hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg" onclick="toggleMobileSidebar()">
+              <button class="desktop-hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg" onclick="Components.toggleDirectorSidebar()">
                 <span class="material-icons-round text-2xl text-slate-600 dark:text-slate-300">menu</span>
               </button>
               <h2 class="text-xl font-bold text-slate-800 dark:text-white">
