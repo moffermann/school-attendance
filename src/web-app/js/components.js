@@ -173,6 +173,17 @@ const Components = {
     }
   },
 
+  // Toggle dark mode for parent portal
+  toggleParentDarkMode() {
+    document.documentElement.classList.toggle('dark');
+    const isDark = document.documentElement.classList.contains('dark');
+    localStorage.setItem('darkMode', isDark ? 'true' : 'false');
+    const icon = document.getElementById('parent-dark-mode-icon');
+    if (icon) {
+      icon.textContent = isDark ? 'light_mode' : 'dark_mode';
+    }
+  },
+
   // Initialize mobile menu events
   initMobileMenu() {
     // Close menu when clicking a nav link
@@ -189,57 +200,82 @@ const Components = {
   },
 
   // Layout
-  createLayout(role) {
+  createLayout(role, options) {
     // Skip link for keyboard/screen reader users
     const skipLink = '<a href="#view-content" class="skip-link">Saltar al contenido principal</a>';
 
     if (role === 'parent') {
+      // Initialize dark mode from saved preference
+      if (localStorage.getItem('darkMode') === 'true') {
+        document.documentElement.classList.add('dark');
+      } else if (localStorage.getItem('darkMode') === 'false') {
+        document.documentElement.classList.remove('dark');
+      }
+
+      const activeView = (options && options.activeView) || '';
+      const navItems = [
+        { id: 'home', href: '#/parent/home', icon: 'home', label: 'Inicio' },
+        { id: 'history', href: '#/parent/history', icon: 'history', label: 'Historial' },
+        { id: 'absences', href: '#/parent/absences', icon: 'event_busy', label: 'Ausencias' },
+        { id: 'prefs', href: '#/parent/prefs', icon: 'settings', label: 'Ajustes' }
+      ];
+
+      const guardian = State.getGuardian(State.currentGuardianId);
+      const guardianName = guardian ? guardian.full_name : 'Apoderado';
+      const isDark = document.documentElement.classList.contains('dark');
+
       return `
         ${skipLink}
-        <div class="app-layout parent-portal">
-          <div class="main-content no-sidebar">
-            <header class="header">
-              <h1 class="header-title">Portal de Apoderados</h1>
-              <div class="header-actions">
-                <button class="btn btn-secondary btn-sm" onclick="Components.switchApp()" aria-label="Cambiar aplicación" title="Cambiar aplicación">
-                  🔄
+        <div class="h-screen flex flex-col md:flex-row overflow-hidden bg-[#f8fafc] dark:bg-slate-900">
+          <!-- Desktop Sidebar -->
+          <aside class="parent-sidebar">
+            <div class="h-20 flex items-center justify-center px-4 border-b border-gray-100 dark:border-slate-800">
+              <img src="assets/LOGO Neuvox 1000X1000.png" class="h-14" alt="NEUVOX">
+            </div>
+            <nav class="flex-1 overflow-y-auto py-6 space-y-1 px-3">
+              ${navItems.map(item => `
+                <a href="${item.href}" class="parent-nav-item ${activeView === item.id ? 'active' : ''}">
+                  <span class="material-symbols-outlined mr-3">${item.icon}</span>
+                  <span>${item.label}</span>
+                </a>
+              `).join('')}
+            </nav>
+          </aside>
+
+          <!-- Main Content -->
+          <main class="flex-1 flex flex-col overflow-hidden">
+            <header class="h-auto py-4 md:h-20 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700
+                           flex flex-col md:flex-row items-center justify-between px-4 md:px-8 z-10 shadow-sm gap-4 md:gap-0">
+              <h2 class="text-xl font-bold text-gray-900 dark:text-white">Portal de Apoderados</h2>
+              <div class="flex items-center gap-3">
+                <span class="hidden md:flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 font-medium">
+                  <span class="material-symbols-outlined text-lg text-indigo-500">person</span>
+                  ${Components.escapeHtml(guardianName)}
+                </span>
+                <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
+                        onclick="Components.toggleParentDarkMode()" title="Cambiar tema">
+                  <span class="material-symbols-outlined text-xl" id="parent-dark-mode-icon">${isDark ? 'light_mode' : 'dark_mode'}</span>
                 </button>
-                <button class="btn btn-secondary btn-sm" onclick="State.logout(); Router.navigate('/auth')" aria-label="Cerrar sesión">
-                  ${this.icons.logout}
-                  <span>Salir</span>
-                </button>
+                <a href="#/auth" class="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700
+                                        hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium text-gray-700 dark:text-gray-300"
+                   onclick="State.logout()">
+                  <span class="material-symbols-outlined text-xl">logout</span>
+                  <span class="hidden sm:inline">Salir</span>
+                </a>
               </div>
             </header>
-            <main class="content" id="view-content" tabindex="-1"></main>
-          </div>
-          <!-- Mobile bottom navigation for parents -->
-          <nav class="mobile-bottom-nav" aria-label="Navegación móvil">
-            <ul class="mobile-bottom-nav-list">
-              <li>
-                <a href="#/parent/home" role="menuitem">
-                  ${this.icons.home}
-                  <span>Inicio</span>
-                </a>
-              </li>
-              <li>
-                <a href="#/parent/history" role="menuitem">
-                  ${this.icons.history}
-                  <span>Historial</span>
-                </a>
-              </li>
-              <li>
-                <a href="#/parent/absences" role="menuitem">
-                  ${this.icons.calendar}
-                  <span>Ausencias</span>
-                </a>
-              </li>
-              <li>
-                <a href="#/parent/prefs" role="menuitem">
-                  ${this.icons.settings}
-                  <span>Ajustes</span>
-                </a>
-              </li>
-            </ul>
+            <div id="view-content" class="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8" tabindex="-1"></div>
+          </main>
+
+          <!-- Mobile Bottom Nav -->
+          <nav class="parent-bottom-nav" aria-label="Navegación móvil">
+            ${navItems.map(item => `
+              <a href="${item.href}" class="flex flex-col items-center gap-1 w-16
+                                             ${activeView === item.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600'}">
+                <span class="material-symbols-outlined text-2xl">${item.icon}</span>
+                <span class="text-[10px] font-medium">${item.label}</span>
+              </a>
+            `).join('')}
           </nav>
         </div>
       `;

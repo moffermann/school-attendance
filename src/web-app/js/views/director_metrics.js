@@ -1,82 +1,447 @@
-// Director Advanced Metrics (Métricas Extendidas)
+// Director Advanced Metrics (Métricas Extendidas) - NEUVOX Design
+// Chart.js loaded via CDN in index.html
+
 Views.directorMetrics = function() {
   const app = document.getElementById('app');
-  app.innerHTML = Components.createLayout(State.currentRole);
 
-  const content = document.getElementById('view-content');
-  const pageTitle = document.getElementById('page-title');
-  if (pageTitle) pageTitle.textContent = 'Métricas Avanzadas';
-
+  // Get data from State
   const courses = State.getCourses();
   const students = State.getStudents();
   const events = State.getAttendanceEvents();
+  const user = State.getCurrentUser();
+  const userName = user?.full_name || 'Director General';
+  const currentPath = '/director/metrics';
+
+  // Helper: check if nav item is active
+  const isActive = (path) => currentPath === path;
+  const navItemClass = (path) => isActive(path)
+    ? 'flex items-center px-6 py-3 bg-indigo-800/50 text-white border-l-4 border-indigo-500 group transition-colors'
+    : 'flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent';
+  const iconClass = (path) => isActive(path)
+    ? 'material-icons-round mr-3'
+    : 'material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors';
+
+  // Navigation items - del diseño aprobado
+  const navItems = [
+    { path: '/director/dashboard', icon: 'dashboard', label: 'Tablero' },
+    { path: '/director/reports', icon: 'analytics', label: 'Reportes' },
+    { path: '/director/metrics', icon: 'bar_chart', label: 'Métricas' },
+    { path: '/director/schedules', icon: 'schedule', label: 'Horarios' },
+    { path: '/director/exceptions', icon: 'event_busy', label: 'Excepciones' },
+    { path: '/director/broadcast', icon: 'campaign', label: 'Comunicados' },
+    { path: '/director/devices', icon: 'devices', label: 'Dispositivos' },
+    { path: '/director/students', icon: 'school', label: 'Alumnos' },
+    { path: '/director/guardians', icon: 'family_restroom', label: 'Apoderados' },
+    { path: '/director/teachers', icon: 'badge', label: 'Profesores' },
+    { path: '/director/courses', icon: 'class', label: 'Cursos' },
+    { path: '/director/absences', icon: 'person_off', label: 'Ausencias' },
+    { path: '/director/notifications', icon: 'notifications', label: 'Notificaciones' },
+    { path: '/director/biometric', icon: 'fingerprint', label: 'Biometría' },
+  ];
+
+  // State variables
+  let riskStudentsPage = 1;
+  const riskStudentsPerPage = 3;
+  let chartDistribution = null;
+  let chartTrend = null;
 
   // Calculate metrics
   const metrics = calculateMetrics(events, students, courses);
 
-  content.innerHTML = `
-    <div class="cards-grid">
-      ${Components.createStatCard('Tasa de Asistencia', metrics.attendanceRate + '%')}
-      ${Components.createStatCard('Promedio Atrasos/Día', metrics.avgLatePerDay.toFixed(1))}
-      ${Components.createStatCard('Alumnos Con Atrasos Frecuentes', metrics.frequentLateStudents)}
-      ${Components.createStatCard('Días Sin Incidentes', metrics.daysWithoutIncidents)}
-    </div>
+  // Render main layout
+  app.innerHTML = `
+<div class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 antialiased h-screen flex overflow-hidden">
+  <!-- Mobile Backdrop -->
+  <div id="sidebar-backdrop" class="fixed inset-0 bg-black/50 z-40 hidden" onclick="Views.directorMetrics.toggleMobileSidebar()"></div>
 
-    <div style="margin-bottom: 1rem;">
-      <button class="btn btn-secondary" onclick="Views.directorMetrics.exportFullPDF()">Exportar Reporte Completo PDF</button>
-    </div>
-
-    <div class="grid-2-cols" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem;">
-      <div class="card">
-        <div class="card-header">Top 10 Alumnos con Más Atrasos</div>
-        <div class="card-body">
-          ${renderLateStudentsTable(metrics.lateStudentsRanking)}
+  <!-- Sidebar - EXACTO del diseño aprobado -->
+  <aside class="w-64 bg-sidebar-dark text-gray-300 flex-shrink-0 flex-col transition-all duration-300 mobile-hidden border-r border-indigo-900/50 shadow-2xl z-50">
+    <div class="h-20 flex items-center justify-between px-6 border-b border-indigo-900/50">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg">
+          <div class="w-4 h-4 bg-indigo-900 rounded-full"></div>
         </div>
+        <h1 class="text-xl font-bold tracking-tight text-white">NEUVOX</h1>
       </div>
+      <button class="desktop-hidden text-gray-400 hover:text-white p-1" onclick="Views.directorMetrics.toggleMobileSidebar()">
+        <span class="material-icons-round">close</span>
+      </button>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-6 space-y-1">
+      ${navItems.map(item => `
+        <a class="${navItemClass(item.path)}" href="#${item.path}">
+          <span class="${iconClass(item.path)}">${item.icon}</span>
+          <span class="font-medium text-sm">${item.label}</span>
+        </a>
+      `).join('')}
+    </nav>
+  </aside>
 
-      <div class="card">
-        <div class="card-header">Distribución de Atrasos por Hora</div>
-        <div class="card-body">
-          <canvas id="late-by-hour-chart" width="400" height="250"></canvas>
+  <!-- Main Content -->
+  <main class="flex-1 flex flex-col overflow-hidden relative bg-gray-50 dark:bg-background-dark">
+        <!-- Header - Estandarizado con Dashboard -->
+        <header class="h-20 bg-white dark:bg-card-dark border-b border-border-light dark:border-border-dark flex items-center justify-between px-8 z-10 shadow-sm">
+          <div class="flex items-center gap-4">
+            <button class="desktop-hidden text-muted-light dark:text-muted-dark hover:text-primary transition-colors" onclick="Views.directorMetrics.toggleMobileSidebar()">
+              <span class="material-icons-round text-2xl">menu</span>
+            </button>
+            <h2 class="text-xl font-bold text-gray-800 dark:text-text-dark">Métricas Avanzadas</h2>
+          </div>
+          <div class="flex items-center gap-2 md:gap-4 flex-1 justify-end">
+            <div class="flex items-center gap-2 md:gap-3">
+              <button class="p-2 rounded-full hover:bg-background-light dark:hover:bg-white/5 transition-colors text-muted-light dark:text-muted-dark" onclick="Views.directorMetrics.toggleDarkMode()">
+                <span class="material-icons-round" id="dark-mode-icon">dark_mode</span>
+              </button>
+              <div class="flex items-center gap-2 cursor-pointer">
+                <div class="w-9 h-9 rounded-full border border-gray-200 bg-indigo-600 flex items-center justify-center text-white font-semibold">
+                  ${userName.charAt(0).toUpperCase()}
+                </div>
+                <div class="text-right mobile-hidden">
+                  <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">${Components.escapeHtml(userName)}</p>
+                </div>
+              </div>
+              <a class="ml-1 md:ml-2 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 border px-2 md:px-3 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-white/5 dark:border-gray-600" href="#" onclick="event.preventDefault(); State.logout(); Router.navigate('/login')">
+                <span class="material-icons-round text-lg">logout</span>
+                <span class="mobile-hidden">Salir</span>
+              </a>
+            </div>
+          </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 md:space-y-8 bg-[#f8fafc] dark:bg-slate-900">
+          <!-- KPI Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <!-- Tasa de Asistencia -->
+            <div class="kpi-card">
+              <div class="kpi-card-border bg-indigo-500"></div>
+              <p class="kpi-card-label">Tasa de Asistencia</p>
+              <h3 class="kpi-card-value text-indigo-600 dark:text-indigo-400">${metrics.attendanceRate}%</h3>
+            </div>
+            <!-- Promedio Atrasos/Día -->
+            <div class="kpi-card">
+              <div class="kpi-card-border bg-blue-500"></div>
+              <p class="kpi-card-label">Promedio Atrasos/Día</p>
+              <h3 class="kpi-card-value text-blue-600 dark:text-blue-400">${metrics.avgLatePerDay.toFixed(1)}</h3>
+            </div>
+            <!-- Alumnos con Atrasos Frecuentes -->
+            <div class="kpi-card">
+              <div class="kpi-card-border bg-purple-500"></div>
+              <p class="kpi-card-label">Alumnos con Atrasos Frecuentes</p>
+              <h3 class="kpi-card-value text-purple-600 dark:text-purple-400">${metrics.frequentLateStudents}</h3>
+            </div>
+            <!-- Días Sin Incidentes -->
+            <div class="kpi-card">
+              <div class="kpi-card-border bg-emerald-500"></div>
+              <p class="kpi-card-label">Días Sin Incidentes</p>
+              <h3 class="kpi-card-value text-emerald-600 dark:text-emerald-400">${metrics.daysWithoutIncidents}</h3>
+            </div>
+          </div>
+
+          <!-- Export Button -->
+          <div class="flex justify-start">
+            <button onclick="Views.directorMetrics.exportFullPDF()" class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
+              <span class="material-icons-round text-[18px]">picture_as_pdf</span>
+              Exportar Reporte Completo PDF
+            </button>
+          </div>
+
+          <!-- Top 10 + Distribution Chart Grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Top 10 Alumnos con Más Atrasos -->
+            <div class="lg:col-span-5 bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col">
+              <div class="p-5 border-b border-gray-50 dark:border-slate-700 bg-gray-50/30 dark:bg-slate-700/30">
+                <h4 class="text-sm font-bold text-slate-700 dark:text-slate-200">Top 10 Alumnos con Más Atrasos</h4>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                  <thead class="bg-white dark:bg-slate-800">
+                    <tr class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-slate-700">
+                      <th class="px-5 py-3 w-12 text-center">#</th>
+                      <th class="px-5 py-3">Alumno</th>
+                      <th class="px-5 py-3">Curso</th>
+                      <th class="px-5 py-3 text-center">Atrasos</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-50 dark:divide-slate-700" id="top10-tbody">
+                    ${renderTop10Rows(metrics.lateStudentsRanking, courses)}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Distribución de Atrasos por Hora -->
+            <div class="lg:col-span-7 bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden">
+              <div class="p-5 border-b border-gray-50 dark:border-slate-700 bg-gray-50/30 dark:bg-slate-700/30">
+                <h4 class="text-sm font-bold text-slate-700 dark:text-slate-200">Distribución de Atrasos por Hora</h4>
+              </div>
+              <div class="p-4 md:p-8 h-[300px]">
+                <canvas id="distribucionChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Análisis por Curso -->
+          <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div class="p-5 border-b border-gray-50 dark:border-slate-700 bg-gray-50/30 dark:bg-slate-700/30">
+              <h4 class="text-sm font-bold text-slate-700 dark:text-slate-200">Análisis por Curso</h4>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead>
+                  <tr class="bg-gray-50 dark:bg-slate-700/50 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    <th class="px-4 md:px-8 py-3">Curso</th>
+                    <th class="px-4 md:px-8 py-3">Alumnos</th>
+                    <th class="px-4 md:px-8 py-3">% Asistencia</th>
+                    <th class="px-4 md:px-8 py-3">Atrasos Totales</th>
+                    <th class="px-4 md:px-8 py-3">Prom. Atrasos/Alumno</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
+                  ${renderCourseAnalysisRows(metrics.courseMetrics)}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Tendencia de Asistencia -->
+          <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div class="p-5 border-b border-gray-50 dark:border-slate-700 bg-gray-50/30 dark:bg-slate-700/30">
+              <h4 class="text-sm font-bold text-slate-700 dark:text-slate-200">Tendencia de Asistencia (Últimos 30 días)</h4>
+            </div>
+            <div class="p-4 md:p-8 h-[350px]">
+              <canvas id="tendenciaChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Alumnos en Riesgo -->
+          <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div class="p-5 border-b border-gray-50 dark:border-slate-700 bg-gray-50/30 dark:bg-slate-700/30 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+              <div>
+                <h4 class="text-sm font-bold text-slate-700 dark:text-slate-200">Alumnos en Riesgo</h4>
+                <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">&gt;3 ausencias o &gt;5 atrasos en el mes</p>
+              </div>
+              <button onclick="Views.directorMetrics.exportRiskReport()" class="px-3 py-1.5 border border-gray-200 dark:border-slate-600 rounded text-[10px] font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700">Exportar</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead>
+                  <tr class="bg-gray-50 dark:bg-slate-700/50 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    <th class="px-4 md:px-8 py-3">Alumno</th>
+                    <th class="px-4 md:px-8 py-3">Curso</th>
+                    <th class="px-4 md:px-8 py-3">Ausencias</th>
+                    <th class="px-4 md:px-8 py-3">Atrasos</th>
+                    <th class="px-4 md:px-8 py-3 text-center">Riesgo</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-slate-700" id="risk-students-tbody">
+                  ${renderRiskStudentsRows(metrics.riskStudents, courses, riskStudentsPage, riskStudentsPerPage)}
+                </tbody>
+              </table>
+            </div>
+            <!-- Pagination -->
+            <div class="px-4 md:px-8 py-4 bg-gray-50/50 dark:bg-slate-700/30 flex items-center justify-between">
+              <span id="risk-pagination-info" class="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+                Mostrando ${Math.min(riskStudentsPerPage, metrics.riskStudents.length)} de ${metrics.riskStudents.length} alumnos
+              </span>
+              <div class="flex gap-2">
+                <button id="risk-prev-btn" onclick="Views.directorMetrics.prevRiskPage()" class="px-3 py-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded text-[10px] font-bold ${riskStudentsPage === 1 ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed' : 'text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'}">Anterior</button>
+                <button id="risk-next-btn" onclick="Views.directorMetrics.nextRiskPage()" class="px-3 py-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded text-[10px] font-bold ${riskStudentsPage * riskStudentsPerPage >= metrics.riskStudents.length ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed' : 'text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'}">Siguiente</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <footer class="text-center text-[10px] text-gray-400 dark:text-gray-500 pt-8 pb-4">
+            © 2026 NEUVOX. Todos los derechos reservados.
+          </footer>
         </div>
-      </div>
-    </div>
-
-    <div class="card mt-3">
-      <div class="card-header">Análisis por Curso</div>
-      <div class="card-body">
-        ${renderCourseAnalysis(metrics.courseMetrics)}
-      </div>
-    </div>
-
-    <div class="card mt-3">
-      <div class="card-header">Tendencia de Asistencia (Últimos 30 días)</div>
-      <div class="card-body">
-        <canvas id="attendance-trend-chart" width="800" height="300"></canvas>
-      </div>
-    </div>
-
-    <div class="card mt-3">
-      <div class="card-header">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span>Alumnos en Riesgo (>3 ausencias o >5 atrasos en el mes)</span>
-          <button class="btn btn-secondary btn-sm" onclick="Views.directorMetrics.exportRiskReport()">Exportar</button>
-        </div>
-      </div>
-      <div class="card-body">
-        ${renderRiskStudents(metrics.riskStudents)}
-      </div>
+      </main>
     </div>
   `;
 
-  // Draw charts after render
-  setTimeout(() => drawCharts(metrics), 100);
+  // Initialize charts after render
+  setTimeout(() => initCharts(metrics), 100);
+
+  // ===== HELPER FUNCTIONS =====
+
+  function getDelayBadgeColor(count) {
+    if (count >= 5) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+    if (count >= 3) return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400';
+    return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400';
+  }
+
+  function getAttendanceChipColor(rate) {
+    const percentage = parseFloat(rate);
+    if (percentage >= 90) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+    if (percentage >= 70) return 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400';
+    return 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400';
+  }
+
+  function renderTop10Rows(ranking, courses) {
+    if (ranking.length === 0) {
+      return `<tr><td colspan="4" class="px-5 py-8 text-center text-xs text-gray-400 dark:text-gray-500">Sin datos de atrasos</td></tr>`;
+    }
+
+    return ranking.map((item, idx) => {
+      const course = courses.find(c => c.id === item.student.course_id);
+      return `
+        <tr class="hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors">
+          <td class="px-5 py-3 text-[11px] text-gray-400 dark:text-gray-500 text-center">${idx + 1}</td>
+          <td class="px-5 py-3 text-xs font-semibold text-slate-700 dark:text-slate-200">${Components.escapeHtml(item.student.full_name)}</td>
+          <td class="px-5 py-3 text-xs text-gray-500 dark:text-gray-400">${course ? Components.escapeHtml(course.name) : '-'}</td>
+          <td class="px-5 py-3 text-center">
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full ${getDelayBadgeColor(item.count)} text-[10px] font-bold">${item.count}</span>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderCourseAnalysisRows(courseMetrics) {
+    return courseMetrics.map(m => `
+      <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+        <td class="px-4 md:px-8 py-4 text-xs font-semibold text-slate-700 dark:text-slate-200">${Components.escapeHtml(m.course.name)}</td>
+        <td class="px-4 md:px-8 py-4 text-xs text-slate-600 dark:text-slate-300">${m.students}</td>
+        <td class="px-4 md:px-8 py-4">
+          <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${getAttendanceChipColor(m.attendanceRate)}">${m.attendanceRate}%</span>
+        </td>
+        <td class="px-4 md:px-8 py-4 text-xs text-slate-600 dark:text-slate-300">${m.totalLate}</td>
+        <td class="px-4 md:px-8 py-4 text-xs text-slate-600 dark:text-slate-300">${m.avgLate}</td>
+      </tr>
+    `).join('');
+  }
+
+  function renderRiskStudentsRows(riskStudents, courses, page, perPage) {
+    if (riskStudents.length === 0) {
+      return `<tr><td colspan="5" class="px-8 py-8 text-center text-xs text-gray-400 dark:text-gray-500">No hay alumnos en riesgo</td></tr>`;
+    }
+
+    const start = (page - 1) * perPage;
+    const end = start + perPage;
+    const pageStudents = riskStudents.slice(start, end);
+
+    return pageStudents.map(item => {
+      const course = courses.find(c => c.id === item.student.course_id);
+      const riskLevel = (item.absences > 5 || item.lateCount > 8) ? 'Alto' : 'Medio';
+      const riskClass = riskLevel === 'Alto'
+        ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+        : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400';
+
+      return `
+        <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+          <td class="px-4 md:px-8 py-4 text-xs font-semibold text-slate-700 dark:text-slate-200">${Components.escapeHtml(item.student.full_name)}</td>
+          <td class="px-4 md:px-8 py-4 text-xs text-slate-600 dark:text-slate-300">${course ? Components.escapeHtml(course.name) : '-'}</td>
+          <td class="px-4 md:px-8 py-4 text-xs text-slate-600 dark:text-slate-300">${item.absences}</td>
+          <td class="px-4 md:px-8 py-4 text-xs text-slate-600 dark:text-slate-300">${item.lateCount}</td>
+          <td class="px-4 md:px-8 py-4 text-center">
+            <span class="inline-flex px-2.5 py-1 rounded text-[10px] font-bold ${riskClass}">${riskLevel}</span>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function initCharts(metrics) {
+    const isDark = document.documentElement.classList.contains('dark');
+    const textColor = isDark ? '#94a3b8' : '#6b7280';
+    const gridColor = isDark ? '#334155' : '#e5e7eb';
+
+    // Distribution Chart (Bar)
+    const distCanvas = document.getElementById('distribucionChart');
+    if (distCanvas) {
+      const ctx = distCanvas.getContext('2d');
+      const hours = ['08', '09', '10', '11', '12'];
+      const hourData = hours.map(h => metrics.lateByHour[h] || 0);
+
+      chartDistribution = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: hours.map(h => h + ':00'),
+          datasets: [{
+            data: hourData,
+            backgroundColor: '#6366f1',
+            borderRadius: 4,
+            barThickness: 24
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: gridColor, drawBorder: false },
+              ticks: { font: { size: 10 }, color: textColor, stepSize: 1 }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 10 }, color: textColor }
+            }
+          }
+        }
+      });
+    }
+
+    // Trend Chart (Line)
+    const trendCanvas = document.getElementById('tendenciaChart');
+    if (trendCanvas && metrics.dailyTrend.length > 0) {
+      const ctx = trendCanvas.getContext('2d');
+
+      // Create gradient
+      const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+      gradient.addColorStop(0, 'rgba(99, 102, 241, 0.2)');
+      gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
+
+      // Sample every 3rd day for readability
+      const sampledData = metrics.dailyTrend.filter((_, i) => i % 3 === 0 || i === metrics.dailyTrend.length - 1);
+      const sampledLabels = metrics.trendLabels.filter((_, i) => i % 3 === 0 || i === metrics.trendLabels.length - 1);
+
+      chartTrend = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: sampledLabels,
+          datasets: [{
+            label: 'Asistencia',
+            data: sampledData,
+            borderColor: '#6366f1',
+            borderWidth: 2,
+            fill: true,
+            backgroundColor: gradient,
+            tension: 0.4,
+            pointBackgroundColor: '#fff',
+            pointBorderColor: '#6366f1',
+            pointBorderWidth: 2,
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: gridColor, drawBorder: false },
+              ticks: { font: { size: 10 }, color: textColor }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 10 }, color: textColor }
+            }
+          }
+        }
+      });
+    }
+  }
+
+  // ===== CALCULATION LOGIC (PRESERVED FROM ORIGINAL) =====
 
   function calculateMetrics(events, students, courses) {
     const schedules = State.getSchedules();
     const exceptions = State.getScheduleExceptions();
 
-    // Helper: Get last 30 calendar days (not days with events)
     const getLast30Days = () => {
       const days = [];
       const today = new Date();
@@ -91,10 +456,8 @@ Views.directorMetrics = function() {
       return days;
     };
 
-    // Helper: Check if student was late based on course schedule
     const isLate = (eventTime, scheduleInTime) => {
       if (!eventTime || !scheduleInTime) return false;
-      // Add 10 minutes grace period
       const [h, m] = scheduleInTime.split(':').map(Number);
       const graceMinutes = h * 60 + m + 10;
       const [eh, em] = eventTime.split(':').map(Number);
@@ -102,45 +465,34 @@ Views.directorMetrics = function() {
       return eventMinutes > graceMinutes;
     };
 
-    // Helper: Get weekday (0=Monday...6=Sunday) from date string
     const getWeekday = (dateStr) => {
       const d = new Date(`${dateStr}T00:00:00`);
-      const jsDay = d.getDay(); // 0=Sunday
-      return jsDay === 0 ? 6 : jsDay - 1; // Convert to 0=Monday
+      const jsDay = d.getDay();
+      return jsDay === 0 ? 6 : jsDay - 1;
     };
 
-    // Helper: Get exception for a date and course (if any)
     const getException = (courseId, dateStr) => {
-      // First check for GLOBAL exception (applies to all courses)
       const global = exceptions.find(e => e.scope === 'GLOBAL' && e.date === dateStr);
       if (global) return global;
-      // Then check for COURSE-specific exception
       return exceptions.find(e => e.scope === 'COURSE' && e.course_id === courseId && e.date === dateStr);
     };
 
-    // Helper: Check if course has class on a given date (considering exceptions)
     const hasSchedule = (courseId, dateStr) => {
       const weekday = getWeekday(dateStr);
       const baseSchedule = schedules.some(s => s.course_id === courseId && s.weekday === weekday);
       if (!baseSchedule) return false;
-
-      // Check for exception (no class if exception exists without in_time)
       const exception = getException(courseId, dateStr);
-      if (exception && !exception.in_time) return false; // Suspended day
+      if (exception && !exception.in_time) return false;
       return true;
     };
 
-    // Helper: Get schedule for course on a date (considering exceptions)
     const getScheduleForDate = (courseId, dateStr) => {
       const weekday = getWeekday(dateStr);
       const baseSchedule = schedules.find(s => s.course_id === courseId && s.weekday === weekday);
       if (!baseSchedule) return null;
-
-      // Check for exception with modified schedule
       const exception = getException(courseId, dateStr);
       if (exception) {
-        if (!exception.in_time) return null; // No class this day
-        // Return modified schedule from exception
+        if (!exception.in_time) return null;
         return { ...baseSchedule, in_time: exception.in_time, out_time: exception.out_time };
       }
       return baseSchedule;
@@ -148,12 +500,9 @@ Views.directorMetrics = function() {
 
     const last30Days = getLast30Days();
     const inEvents = events.filter(e => e.type === 'IN');
-
-    // Filter events to last 30 days
     const last30DaysSet = new Set(last30Days);
     const recentInEvents = inEvents.filter(e => last30DaysSet.has(e.ts.split('T')[0]));
 
-    // Calculate attendance rate (only count school days)
     let totalPossibleDays = 0;
     let totalPresentDays = 0;
 
@@ -161,7 +510,6 @@ Views.directorMetrics = function() {
       last30Days.forEach(date => {
         if (hasSchedule(student.course_id, date)) {
           totalPossibleDays++;
-          // Check if student has IN event on this day
           const hasAttended = recentInEvents.some(
             e => e.student_id === student.id && e.ts.startsWith(date)
           );
@@ -174,7 +522,6 @@ Views.directorMetrics = function() {
       ? ((totalPresentDays / totalPossibleDays) * 100).toFixed(1)
       : 0;
 
-    // Late events (using actual course schedule)
     const lateEvents = [];
     recentInEvents.forEach(e => {
       const student = students.find(s => s.id === e.student_id);
@@ -187,59 +534,48 @@ Views.directorMetrics = function() {
       }
     });
 
-    // Average late per day (only school days)
     const schoolDays = last30Days.filter(date =>
       courses.some(c => hasSchedule(c.id, date))
     );
     const lateDays = new Set(lateEvents.map(e => e.ts.split('T')[0]));
     const avgLatePerDay = schoolDays.length > 0 ? lateEvents.length / schoolDays.length : 0;
 
-    // Late students ranking (count unique late days, not events)
     const lateByStudent = {};
     lateEvents.forEach(e => {
-      const key = `${e.student_id}-${e.ts.split('T')[0]}`;
       if (!lateByStudent[e.student_id]) lateByStudent[e.student_id] = new Set();
       lateByStudent[e.student_id].add(e.ts.split('T')[0]);
     });
 
-    // TDD-R5-BUG1 fix: Use parseInt with radix 10
     const lateStudentsRanking = Object.entries(lateByStudent)
       .map(([studentId, dates]) => ({
         student: students.find(s => s.id === parseInt(studentId, 10)),
-        count: dates.size // Count unique days, not events
+        count: dates.size
       }))
       .filter(x => x.student)
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // Frequent late students (more than 3 days)
     const frequentLateStudents = Object.values(lateByStudent).filter(dates => dates.size > 3).length;
-
-    // Days without incidents (no late arrivals on school days)
     const daysWithLate = lateDays.size;
     const daysWithoutIncidents = Math.max(0, schoolDays.length - daysWithLate);
 
-    // Late by hour distribution
     const lateByHour = {};
     lateEvents.forEach(e => {
       const hour = e.ts.split('T')[1].substring(0, 2);
       lateByHour[hour] = (lateByHour[hour] || 0) + 1;
     });
 
-    // Course metrics
     const courseMetrics = courses.map(course => {
       const courseStudents = students.filter(s => s.course_id === course.id);
       const courseScheduleDays = last30Days.filter(date => hasSchedule(course.id, date));
       const courseScheduleDaysSet = new Set(courseScheduleDays);
 
-      // Get events for this course's students ONLY on days with schedule
       const courseEvents = recentInEvents.filter(e => {
         const eventDate = e.ts.split('T')[0];
         return courseStudents.some(s => s.id === e.student_id) &&
-               courseScheduleDaysSet.has(eventDate); // Only count school days
+               courseScheduleDaysSet.has(eventDate);
       });
 
-      // Group events by student-day and find first IN time
       const firstInByStudentDay = {};
       courseEvents.forEach(e => {
         const date = e.ts.split('T')[0];
@@ -250,20 +586,17 @@ Views.directorMetrics = function() {
         }
       });
 
-      // Count student-days with attendance (unique student-day pairs)
       const studentDaysPresent = Object.keys(firstInByStudentDay).length;
 
-      // Count late student-days (where first IN was after schedule + grace)
       let lateStudentDays = 0;
       Object.entries(firstInByStudentDay).forEach(([key, firstInTime]) => {
-        const date = key.split('-').slice(1).join('-'); // Extract date from "studentId-YYYY-MM-DD"
+        const date = key.split('-').slice(1).join('-');
         const schedule = getScheduleForDate(course.id, date);
         if (schedule && isLate(firstInTime, schedule.in_time)) {
           lateStudentDays++;
         }
       });
 
-      // totalDays = alumnos × días con clase
       const totalDays = courseStudents.length * courseScheduleDays.length;
       const rate = totalDays > 0 ? ((studentDaysPresent / totalDays) * 100).toFixed(1) : 0;
 
@@ -276,14 +609,12 @@ Views.directorMetrics = function() {
       };
     });
 
-    // Risk students (>3 absences or >5 late days in month)
     const riskStudents = students.map(student => {
       const studentScheduleDays = last30Days.filter(date => hasSchedule(student.course_id, date));
       const studentEvents = recentInEvents.filter(e => e.student_id === student.id);
       const studentPresentDays = new Set(studentEvents.map(e => e.ts.split('T')[0])).size;
       const absences = Math.max(0, studentScheduleDays.length - studentPresentDays);
 
-      // Count late days
       let lateDays = 0;
       studentEvents.forEach(e => {
         const date = e.ts.split('T')[0];
@@ -302,9 +633,7 @@ Views.directorMetrics = function() {
       };
     }).filter(x => x.isRisk);
 
-    // Daily attendance trend (only school days)
     const dailyTrend = last30Days.map(date => {
-      // Only count if it's a school day for at least one course
       const isSchoolDay = courses.some(c => hasSchedule(c.id, date));
       if (!isSchoolDay) return 0;
       const dayEvents = recentInEvents.filter(e => e.ts.startsWith(date));
@@ -328,88 +657,80 @@ Views.directorMetrics = function() {
     };
   }
 
-  function renderLateStudentsTable(ranking) {
-    if (ranking.length === 0) {
-      return Components.createEmptyState('Sin datos', 'No hay registros de atrasos');
+  // ===== EVENT HANDLERS =====
+
+  Views.directorMetrics.toggleDarkMode = function() {
+    document.documentElement.classList.toggle('dark');
+    localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+    // Redraw charts with new colors
+    if (chartDistribution) chartDistribution.destroy();
+    if (chartTrend) chartTrend.destroy();
+    initCharts(metrics);
+  };
+
+  Views.directorMetrics.toggleMobileSidebar = function() {
+    const sidebar = document.getElementById('mobile-sidebar');
+    const overlay = document.getElementById('mobile-sidebar-overlay');
+    if (sidebar && overlay) {
+      sidebar.classList.toggle('-translate-x-full');
+      overlay.classList.toggle('hidden');
+    }
+  };
+
+  Views.directorMetrics.prevRiskPage = function() {
+    if (riskStudentsPage > 1) {
+      riskStudentsPage--;
+      updateRiskTable();
+    }
+  };
+
+  Views.directorMetrics.nextRiskPage = function() {
+    const totalPages = Math.ceil(metrics.riskStudents.length / riskStudentsPerPage);
+    if (riskStudentsPage < totalPages) {
+      riskStudentsPage++;
+      updateRiskTable();
+    }
+  };
+
+  function updateRiskTable() {
+    const tbody = document.getElementById('risk-students-tbody');
+    const paginationInfo = document.getElementById('risk-pagination-info');
+    const prevBtn = document.getElementById('risk-prev-btn');
+    const nextBtn = document.getElementById('risk-next-btn');
+    const totalPages = Math.ceil(metrics.riskStudents.length / riskStudentsPerPage);
+
+    // Update table body
+    if (tbody) {
+      tbody.innerHTML = renderRiskStudentsRows(metrics.riskStudents, courses, riskStudentsPage, riskStudentsPerPage);
     }
 
-    const headers = ['#', 'Alumno', 'Curso', 'Atrasos'];
-    const rows = ranking.map((item, idx) => {
-      const course = courses.find(c => c.id === item.student.course_id);
-      return [
-        idx + 1,
-        Components.escapeHtml(item.student.full_name),
-        course ? Components.escapeHtml(course.name) : '-',
-        Components.createChip(item.count, item.count > 5 ? 'error' : item.count > 3 ? 'warning' : 'gray')
-      ];
-    });
-
-    return Components.createTable(headers, rows);
-  }
-
-  function renderCourseAnalysis(courseMetrics) {
-    const headers = ['Curso', 'Alumnos', '% Asistencia', 'Atrasos Totales', 'Prom. Atrasos/Alumno'];
-    const rows = courseMetrics.map(m => [
-      Components.escapeHtml(m.course.name),
-      m.students,
-      Components.createChip(m.attendanceRate + '%', parseFloat(m.attendanceRate) >= 90 ? 'success' : parseFloat(m.attendanceRate) >= 75 ? 'warning' : 'error'),
-      m.totalLate,
-      m.avgLate
-    ]);
-
-    return Components.createTable(headers, rows);
-  }
-
-  function renderRiskStudents(riskStudents) {
-    if (riskStudents.length === 0) {
-      return Components.createEmptyState('Sin alumnos en riesgo', 'No hay alumnos que superen los umbrales de ausencias o atrasos');
+    // Update pagination info
+    if (paginationInfo) {
+      const start = (riskStudentsPage - 1) * riskStudentsPerPage + 1;
+      const end = Math.min(riskStudentsPage * riskStudentsPerPage, metrics.riskStudents.length);
+      paginationInfo.textContent = `Mostrando ${start}-${end} de ${metrics.riskStudents.length} alumnos`;
     }
 
-    const headers = ['Alumno', 'Curso', 'Ausencias', 'Atrasos', 'Riesgo'];
-    const rows = riskStudents.map(item => {
-      const course = courses.find(c => c.id === item.student.course_id);
-      const riskLevel = (item.absences > 5 || item.lateCount > 8) ? 'Alto' : 'Medio';
-      const riskChip = riskLevel === 'Alto'
-        ? Components.createChip('Alto', 'error')
-        : Components.createChip('Medio', 'warning');
-
-      return [
-        Components.escapeHtml(item.student.full_name),
-        course ? Components.escapeHtml(course.name) : '-',
-        item.absences,
-        item.lateCount,
-        riskChip
-      ];
-    });
-
-    return Components.createTable(headers, rows);
-  }
-
-  function drawCharts(metrics) {
-    // Late by hour chart
-    const hourCanvas = document.getElementById('late-by-hour-chart');
-    if (hourCanvas) {
-      const hours = ['08', '09', '10', '11', '12'];
-      const hourData = hours.map(h => metrics.lateByHour[h] || 0);
-      const hourLabels = hours.map(h => h + ':00');
-      Components.drawBarChart(hourCanvas, hourData, hourLabels);
+    // Update prev button state
+    if (prevBtn) {
+      if (riskStudentsPage === 1) {
+        prevBtn.className = 'px-3 py-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded text-[10px] font-bold text-gray-400 dark:text-gray-600 cursor-not-allowed';
+      } else {
+        prevBtn.className = 'px-3 py-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30';
+      }
     }
 
-    // Attendance trend chart
-    const trendCanvas = document.getElementById('attendance-trend-chart');
-    if (trendCanvas && metrics.dailyTrend.length > 0) {
-      // Sample every 3rd day for readability
-      const sampledData = metrics.dailyTrend.filter((_, i) => i % 3 === 0 || i === metrics.dailyTrend.length - 1);
-      const sampledLabels = metrics.trendLabels.filter((_, i) => i % 3 === 0 || i === metrics.trendLabels.length - 1);
-      Components.drawLineChart(trendCanvas, sampledData, sampledLabels, {
-        yAxisLabel: 'Alumnos presentes'
-      });
+    // Update next button state
+    if (nextBtn) {
+      if (riskStudentsPage >= totalPages) {
+        nextBtn.className = 'px-3 py-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded text-[10px] font-bold text-gray-400 dark:text-gray-600 cursor-not-allowed';
+      } else {
+        nextBtn.className = 'px-3 py-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30';
+      }
     }
   }
 
   Views.directorMetrics.exportRiskReport = function() {
-    const metrics = calculateMetrics(events, students, courses);
-
     if (metrics.riskStudents.length === 0) {
       Components.showToast('No hay alumnos en riesgo para exportar', 'info');
       return;
@@ -435,26 +756,21 @@ Views.directorMetrics = function() {
 
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    // TDD-R5-BUG3 fix: Store URL to revoke after download to prevent memory leak
     const blobUrl = URL.createObjectURL(blob);
     link.href = blobUrl;
     link.download = `alumnos_riesgo_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
-    // Revoke blob URL after download to free memory
     setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
 
     Components.showToast(`${metrics.riskStudents.length} alumnos exportados`, 'success');
   };
 
   Views.directorMetrics.exportFullPDF = function() {
-    const metrics = calculateMetrics(events, students, courses);
-
     const doc = Components.generatePDF('Reporte de Métricas Avanzadas');
     if (!doc) return;
 
     let y = 40;
 
-    // KPIs section
     y = Components.addPDFSection(doc, 'Indicadores Clave (KPIs)', y);
     y = Components.addPDFText(doc, `Tasa de Asistencia General: ${metrics.attendanceRate}%`, y);
     y = Components.addPDFText(doc, `Promedio de Atrasos por Día: ${metrics.avgLatePerDay.toFixed(1)}`, y);
@@ -462,7 +778,6 @@ Views.directorMetrics = function() {
     y = Components.addPDFText(doc, `Días Sin Incidentes: ${metrics.daysWithoutIncidents}`, y);
     y += 5;
 
-    // Top late students
     if (metrics.lateStudentsRanking.length > 0) {
       y = Components.addPDFSection(doc, 'Top 10 Alumnos con Más Atrasos', y);
       const lateHeaders = ['#', 'Alumno', 'Curso', 'Atrasos'];
@@ -478,7 +793,6 @@ Views.directorMetrics = function() {
       y = Components.addPDFTable(doc, lateHeaders, lateRows, y);
     }
 
-    // Course analysis
     y = Components.addPDFSection(doc, 'Análisis por Curso', y);
     const courseHeaders = ['Curso', 'Alumnos', '% Asistencia', 'Atrasos', 'Prom/Alumno'];
     const courseRows = metrics.courseMetrics.map(m => [
@@ -490,9 +804,7 @@ Views.directorMetrics = function() {
     ]);
     y = Components.addPDFTable(doc, courseHeaders, courseRows, y);
 
-    // Risk students
     if (metrics.riskStudents.length > 0) {
-      // Check if need new page
       if (y > 220) {
         doc.addPage();
         y = 20;
@@ -514,7 +826,6 @@ Views.directorMetrics = function() {
       y = Components.addPDFTable(doc, riskHeaders, riskRows, y);
     }
 
-    // Footer
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
@@ -525,8 +836,12 @@ Views.directorMetrics = function() {
       doc.text(`Página ${i} de ${pageCount}`, doc.internal.pageSize.getWidth() - 30, pageHeight - 10);
     }
 
-    // Save
     const filename = `metricas_${new Date().toISOString().split('T')[0]}.pdf`;
     Components.savePDF(doc, filename);
   };
+
+  // Initialize dark mode from localStorage
+  if (localStorage.getItem('darkMode') === 'true') {
+    document.documentElement.classList.add('dark');
+  }
 };

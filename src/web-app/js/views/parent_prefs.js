@@ -1,7 +1,7 @@
 // Parent Notification Preferences - Preferencias de Notificación
 Views.parentPrefs = async function() {
   const app = document.getElementById('app');
-  app.innerHTML = Components.createLayout('parent');
+  app.innerHTML = Components.createLayout('parent', { activeView: 'prefs' });
 
   const content = document.getElementById('view-content');
 
@@ -46,121 +46,143 @@ Views.parentPrefs = async function() {
   }
 
   const notificationTypes = [
-    { key: 'INGRESO_OK', label: 'Ingreso registrado', desc: 'Cuando su hijo/a ingresa al colegio', icon: '📥' },
-    { key: 'SALIDA_OK', label: 'Salida registrada', desc: 'Cuando su hijo/a sale del colegio', icon: '📤' },
-    { key: 'NO_INGRESO_UMBRAL', label: 'Alerta de no ingreso', desc: 'Si no registra ingreso antes del horario límite', icon: '⚠️' },
-    { key: 'CAMBIO_HORARIO', label: 'Cambios de horario', desc: 'Modificaciones en el horario de clases', icon: '📅' }
+    { key: 'INGRESO_OK', label: 'Ingreso registrado', desc: 'Cuando su hijo/a ingresa al colegio', icon: 'login', color: 'green' },
+    { key: 'SALIDA_OK', label: 'Salida registrada', desc: 'Cuando su hijo/a sale del colegio', icon: 'logout', color: 'indigo' },
+    { key: 'NO_INGRESO_UMBRAL', label: 'Alerta de no ingreso', desc: 'Si no registra ingreso antes del horario límite', icon: 'warning', color: 'red' },
+    { key: 'CAMBIO_HORARIO', label: 'Cambios de horario', desc: 'Modificaciones en el horario de clases', icon: 'schedule', color: 'blue' }
   ];
 
-  content.innerHTML = `
-    <div style="margin-bottom: 1.5rem;">
-      <a href="#/parent/home" class="btn btn-secondary btn-sm" style="margin-bottom: 1rem;">
-        ← Volver al inicio
-      </a>
-      <h2 style="font-size: 1.75rem; font-weight: 700; color: var(--color-gray-900); margin-bottom: 0.5rem;">
-        Preferencias de Notificación
-      </h2>
-      <p style="color: var(--color-gray-500);">Configure cómo y cuándo desea recibir notificaciones</p>
-    </div>
+  // Helper: Create toggle switch with Tailwind peer-checked
+  function createToggle(id, checked, onChange) {
+    return `
+      <label class="inline-flex items-center cursor-pointer">
+        <input type="checkbox" class="sr-only peer" id="${id}"
+               ${checked ? 'checked' : ''} onchange="${onChange}">
+        <div class="relative w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full peer
+                    peer-checked:bg-indigo-600
+                    after:content-[''] after:absolute after:top-[2px] after:start-[2px]
+                    after:bg-white after:rounded-full after:h-4 after:w-4
+                    after:transition-all peer-checked:after:translate-x-full
+                    rtl:peer-checked:after:-translate-x-full"></div>
+      </label>
+    `;
+  }
 
-    <!-- Canales de Notificación -->
-    <div class="card" style="margin-bottom: 1.5rem;">
-      <div class="card-header" style="display: flex; align-items: center; gap: 0.75rem;">
-        ${Components.icons.notifications}
-        <span>Canales de Notificación</span>
-      </div>
-      <div class="card-body" style="padding: 0;">
-        ${notificationTypes.map((type, index) => `
-          <div style="display: flex; align-items: center; padding: 1.25rem 1.5rem; ${index < notificationTypes.length - 1 ? 'border-bottom: 1px solid var(--color-gray-100);' : ''}">
-            <div style="width: 48px; height: 48px; background: var(--color-primary-50); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-right: 1rem; flex-shrink: 0;">
-              ${type.icon}
-            </div>
-            <div style="flex: 1; min-width: 0;">
-              <div style="font-weight: 600; color: var(--color-gray-900);">${type.label}</div>
-              <div style="font-size: 0.85rem; color: var(--color-gray-500);">${type.desc}</div>
-            </div>
-            <div style="display: flex; gap: 1.5rem; flex-shrink: 0;">
-              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                <input type="checkbox" id="pref_${type.key}_whatsapp" class="form-checkbox"
-                  ${prefs[type.key]?.whatsapp ? 'checked' : ''}>
-                <span style="font-size: 0.85rem; color: var(--color-gray-600);">WhatsApp</span>
-              </label>
-              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                <input type="checkbox" id="pref_${type.key}_email" class="form-checkbox"
-                  ${prefs[type.key]?.email ? 'checked' : ''}>
-                <span style="font-size: 0.85rem; color: var(--color-gray-600);">Email</span>
-              </label>
-            </div>
-          </div>
+  // Helper: Create evidence option buttons
+  function createEvidenceOptions(studentId, currentOption) {
+    const options = [
+      { value: 'photo', icon: 'photo_camera', label: 'Foto' },
+      { value: 'audio', icon: 'mic', label: 'Audio' },
+      { value: 'none', icon: 'block', label: 'Sin evidencia' }
+    ];
+
+    return `
+      <div class="grid grid-cols-3 gap-2" id="evidence-options-${studentId}">
+        ${options.map(opt => `
+          <button type="button"
+                  class="evidence-option-btn ${currentOption === opt.value ? 'active' : ''}"
+                  data-student="${studentId}" data-option="${opt.value}"
+                  onclick="Views.parentPrefs.selectEvidenceOption(${studentId}, '${opt.value}')">
+            <span class="material-symbols-outlined text-xl mb-1">${opt.icon}</span>
+            <span class="text-xs font-medium">${opt.label}</span>
+          </button>
         `).join('')}
       </div>
+    `;
+  }
+
+  const colorMap = {
+    green: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-600 dark:text-green-400' },
+    indigo: { bg: 'bg-indigo-100 dark:bg-indigo-900/30', text: 'text-indigo-600 dark:text-indigo-400' },
+    red: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-600 dark:text-red-400' },
+    blue: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400' }
+  };
+
+  content.innerHTML = `
+    <div class="mb-6">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-1">Preferencias</h2>
+      <p class="text-gray-500 dark:text-gray-400 text-sm">Configure cómo y cuándo desea recibir notificaciones</p>
     </div>
 
-    <!-- Captura de Evidencia -->
-    <div class="card" style="margin-bottom: 1.5rem;">
-      <div class="card-header" style="display: flex; align-items: center; gap: 0.75rem;">
-        📸
-        <span>Tipo de Evidencia</span>
+    <!-- Notification Channels -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 mb-4">
+      <div class="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+          <span class="material-symbols-outlined text-lg text-indigo-600 dark:text-indigo-400">notifications_active</span>
+        </div>
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Canales de Notificación</h3>
       </div>
-      <div class="card-body">
-        <div style="background: var(--color-gray-50); border-radius: 12px; padding: 1rem; margin-bottom: 1.25rem;">
-          <p style="color: var(--color-gray-600); font-size: 0.9rem; margin: 0;">
-            Seleccione el tipo de evidencia que desea capturar durante el registro de asistencia.
-            <br><strong>Retención:</strong> 60 días &nbsp;•&nbsp; <strong>Uso:</strong> Solo evidencia de asistencia
+      <div class="divide-y divide-gray-50 dark:divide-gray-800">
+        ${notificationTypes.map(type => {
+          const colors = colorMap[type.color] || colorMap.indigo;
+          return `
+            <div class="p-4 flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg ${colors.bg} flex items-center justify-center flex-shrink-0">
+                <span class="material-symbols-outlined text-lg ${colors.text}">${type.icon}</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">${type.label}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">${type.desc}</p>
+              </div>
+              <div class="flex items-center gap-4 flex-shrink-0">
+                <div class="flex flex-col items-center gap-1">
+                  ${createToggle(`pref_${type.key}_whatsapp`, prefs[type.key]?.whatsapp, '')}
+                  <span class="text-[10px] text-gray-400 font-medium">WhatsApp</span>
+                </div>
+                <div class="flex flex-col items-center gap-1">
+                  ${createToggle(`pref_${type.key}_email`, prefs[type.key]?.email, '')}
+                  <span class="text-[10px] text-gray-400 font-medium">Email</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Evidence Type -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 mb-4">
+      <div class="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+          <span class="material-symbols-outlined text-lg text-purple-600 dark:text-purple-400">photo_camera</span>
+        </div>
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Tipo de Evidencia</h3>
+      </div>
+      <div class="p-4">
+        <div class="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 mb-4">
+          <p class="text-xs text-gray-600 dark:text-gray-400">
+            Seleccione el tipo de evidencia durante el registro de asistencia.
+            <span class="font-medium">Retención:</span> 60 días &bull; <span class="font-medium">Uso:</span> Solo evidencia de asistencia
           </p>
         </div>
 
-        ${students.length === 0 ? '<p style="color: var(--color-gray-500);">No hay estudiantes asociados.</p>' : `
-          <div style="display: flex; flex-direction: column; gap: 1rem;">
+        ${students.length === 0 ? '<p class="text-sm text-gray-500">No hay estudiantes asociados.</p>' : `
+          <div class="flex flex-col gap-4">
             ${students.map(student => {
               const evidencePref = photoConsents[String(student.id)] === true ? 'photo' :
                                    photoConsents[String(student.id)] === 'audio' ? 'audio' : 'none';
               const course = State.getCourse(student.course_id);
-              const statusColors = { photo: 'var(--color-success)', audio: 'var(--color-primary)', none: 'var(--color-gray-400)' };
-              const statusLabels = { photo: '📷 Foto', audio: '🎤 Audio', none: '⊘ Sin evidencia' };
+
+              const avatarColors = [
+                { bg: 'bg-indigo-100 dark:bg-indigo-900/30', text: 'text-indigo-600 dark:text-indigo-400' },
+                { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-600 dark:text-purple-400' },
+                { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400' },
+                { bg: 'bg-pink-100 dark:bg-pink-900/30', text: 'text-pink-600 dark:text-pink-400' }
+              ];
+              const avatarColor = avatarColors[student.id % avatarColors.length];
+
               return `
-                <div style="padding: 1rem; background: white; border: 2px solid ${statusColors[evidencePref]}; border-radius: 12px; transition: all 0.2s;" id="evidence-card-${student.id}">
-                  <div style="display: flex; align-items: center; margin-bottom: 1rem;">
-                    <div style="width: 44px; height: 44px; background: var(--gradient-primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.1rem; margin-right: 1rem;">
+                <div class="border border-gray-100 dark:border-slate-700 rounded-xl p-4" id="evidence-card-${student.id}">
+                  <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-full ${avatarColor.bg} ${avatarColor.text} flex items-center justify-center text-base font-bold">
                       ${Components.escapeHtml(student.full_name.charAt(0))}
                     </div>
-                    <div style="flex: 1;">
-                      <div style="font-weight: 600; color: var(--color-gray-900);">${Components.escapeHtml(student.full_name)}</div>
-                      <div style="font-size: 0.85rem; color: var(--color-gray-500);">${course ? Components.escapeHtml(course.name) : ''}</div>
+                    <div class="flex-1">
+                      <p class="text-sm font-semibold text-gray-900 dark:text-white">${Components.escapeHtml(student.full_name)}</p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">${course ? Components.escapeHtml(course.name) : ''}</p>
                     </div>
-                    <span id="evidence-status-${student.id}" style="font-size: 0.85rem; font-weight: 500; color: ${statusColors[evidencePref]};">
-                      ${statusLabels[evidencePref]}
-                    </span>
                   </div>
-                  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                    <label style="flex: 1; min-width: 100px;">
-                      <input type="radio" name="evidence_${student.id}" value="photo" ${evidencePref === 'photo' ? 'checked' : ''}
-                        onchange="Views.parentPrefs.updateEvidencePreference(${student.id}, 'photo')" style="display: none;">
-                      <div class="evidence-option ${evidencePref === 'photo' ? 'selected' : ''}" id="opt-photo-${student.id}"
-                           onclick="document.querySelector('input[name=evidence_${student.id}][value=photo]').click()">
-                        <span style="font-size: 1.5rem;">📷</span>
-                        <span>Foto</span>
-                      </div>
-                    </label>
-                    <label style="flex: 1; min-width: 100px;">
-                      <input type="radio" name="evidence_${student.id}" value="audio" ${evidencePref === 'audio' ? 'checked' : ''}
-                        onchange="Views.parentPrefs.updateEvidencePreference(${student.id}, 'audio')" style="display: none;">
-                      <div class="evidence-option ${evidencePref === 'audio' ? 'selected' : ''}" id="opt-audio-${student.id}"
-                           onclick="document.querySelector('input[name=evidence_${student.id}][value=audio]').click()">
-                        <span style="font-size: 1.5rem;">🎤</span>
-                        <span>Audio</span>
-                      </div>
-                    </label>
-                    <label style="flex: 1; min-width: 100px;">
-                      <input type="radio" name="evidence_${student.id}" value="none" ${evidencePref === 'none' ? 'checked' : ''}
-                        onchange="Views.parentPrefs.updateEvidencePreference(${student.id}, 'none')" style="display: none;">
-                      <div class="evidence-option ${evidencePref === 'none' ? 'selected' : ''}" id="opt-none-${student.id}"
-                           onclick="document.querySelector('input[name=evidence_${student.id}][value=none]').click()">
-                        <span style="font-size: 1.5rem;">⊘</span>
-                        <span>Sin evidencia</span>
-                      </div>
-                    </label>
-                  </div>
+                  ${createEvidenceOptions(student.id, evidencePref)}
                 </div>
               `;
             }).join('')}
@@ -169,129 +191,128 @@ Views.parentPrefs = async function() {
       </div>
     </div>
 
-    <!-- Contactos Registrados -->
-    <div class="card" style="margin-bottom: 1.5rem;">
-      <div class="card-header" style="display: flex; align-items: center; gap: 0.75rem;">
-        📱
-        <span>Contactos Registrados</span>
+    <!-- Contacts -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 mb-4">
+      <div class="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+          <span class="material-symbols-outlined text-lg text-green-600 dark:text-green-400">contacts</span>
+        </div>
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Contactos Registrados</h3>
       </div>
-      <div class="card-body">
+      <div class="p-4">
         ${guardian.contacts && guardian.contacts.length > 0 ? `
-          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div class="flex flex-col gap-3">
             ${guardian.contacts.map(c => `
-              <div style="display: flex; align-items: center; padding: 1rem; background: var(--color-gray-50); border-radius: 12px;">
-                <div style="width: 40px; height: 40px; background: ${c.type === 'whatsapp' ? '#25D366' : 'var(--color-primary)'}; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; margin-right: 1rem;">
-                  ${c.type === 'whatsapp' ? '📱' : '✉️'}
+              <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0
+                            ${c.type === 'whatsapp' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}">
+                  <span class="material-symbols-outlined text-lg
+                               ${c.type === 'whatsapp' ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}">
+                    ${c.type === 'whatsapp' ? 'chat' : c.type === 'phone' || c.type === 'sms' ? 'sms' : 'mail'}
+                  </span>
                 </div>
-                <div style="flex: 1;">
-                  <div style="font-weight: 500; color: var(--color-gray-900);">${c.value}</div>
-                  <div style="font-size: 0.8rem; color: var(--color-gray-500); text-transform: capitalize;">${c.type}</div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-900 dark:text-white truncate">${c.value}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 capitalize">${c.type}</p>
                 </div>
                 ${c.verified
-                  ? '<span class="chip chip-success">Verificado</span>'
-                  : '<span class="chip chip-warning">Pendiente</span>'}
+                  ? `<span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 font-medium">
+                      <span class="material-symbols-outlined text-xs">verified</span> Verificado
+                    </span>`
+                  : `<span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 font-medium">
+                      <span class="material-symbols-outlined text-xs">pending</span> Pendiente
+                    </span>`}
               </div>
             `).join('')}
           </div>
         ` : `
-          <div style="text-align: center; padding: 2rem; color: var(--color-gray-500);">
-            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📭</div>
-            <p>No hay contactos registrados.</p>
-            <p style="font-size: 0.9rem;">Contacte al colegio para actualizar sus datos.</p>
+          <div class="text-center py-6">
+            <span class="material-symbols-outlined text-3xl text-gray-300 dark:text-gray-600 mb-2 block">contact_mail</span>
+            <p class="text-sm text-gray-500 dark:text-gray-400">No hay contactos registrados.</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Contacte al colegio para actualizar sus datos.</p>
           </div>
         `}
       </div>
     </div>
 
     <!-- Push Notifications -->
-    <div class="card" style="margin-bottom: 1.5rem;" id="push-section">
-      <div class="card-header" style="display: flex; align-items: center; gap: 0.75rem;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-        </svg>
-        <span>Notificaciones Push</span>
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 mb-4" id="push-section">
+      <div class="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+          <span class="material-symbols-outlined text-lg text-orange-600 dark:text-orange-400">notifications</span>
+        </div>
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Notificaciones Push</h3>
       </div>
-      <div class="card-body" id="push-content">
-        <div id="push-loading" style="text-align: center; padding: 2rem;">
-          <div class="spinner"></div>
-          <p style="color: var(--color-gray-500); margin-top: 1rem;">Cargando...</p>
+      <div class="p-4" id="push-content">
+        <div class="flex items-center justify-center py-4">
+          <div class="animate-spin w-5 h-5 border-2 border-indigo-200 border-t-indigo-600 rounded-full"></div>
         </div>
       </div>
     </div>
 
-    <!-- Seguridad - Passkeys -->
-    <div class="card" style="margin-bottom: 1.5rem;" id="passkey-section">
-      <div class="card-header" style="display: flex; align-items: center; gap: 0.75rem;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/>
-        </svg>
-        <span>Seguridad - Acceso Biometrico</span>
+    <!-- Passkeys / Biometric -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 mb-6" id="passkey-section">
+      <div class="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
+          <span class="material-symbols-outlined text-lg text-pink-600 dark:text-pink-400">fingerprint</span>
+        </div>
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Acceso Biométrico</h3>
       </div>
-      <div class="card-body" id="passkey-content">
-        <div id="passkey-loading" style="text-align: center; padding: 2rem;">
-          <div class="spinner"></div>
-          <p style="color: var(--color-gray-500); margin-top: 1rem;">Cargando...</p>
+      <div class="p-4" id="passkey-content">
+        <div class="flex items-center justify-center py-4">
+          <div class="animate-spin w-5 h-5 border-2 border-indigo-200 border-t-indigo-600 rounded-full"></div>
         </div>
       </div>
     </div>
 
-    <!-- Botones de acción -->
-    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-      <button class="btn btn-primary btn-lg" id="btn-save-prefs" onclick="Views.parentPrefs.savePreferences()" style="flex: 1; min-width: 200px;">
-        ${Components.icons.settings}
+    <!-- Action Buttons -->
+    <div class="flex flex-col sm:flex-row gap-3">
+      <button class="btn-gradient flex-1" id="btn-save-prefs" onclick="Views.parentPrefs.savePreferences()">
+        <span class="material-symbols-outlined">save</span>
         Guardar Preferencias
       </button>
-      <a href="#/parent/home" class="btn btn-secondary btn-lg" style="flex: 1; min-width: 200px; justify-content: center;">
+      <a href="#/parent/home"
+         class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
+                hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-semibold text-gray-700 dark:text-gray-300 text-center">
+        <span class="material-symbols-outlined">close</span>
         Cancelar
       </a>
     </div>
   `;
 
-  // Dynamic evidence preference update
+  // Evidence option handler
+  Views.parentPrefs.selectEvidenceOption = function(studentId, option) {
+    const container = document.getElementById(`evidence-options-${studentId}`);
+    if (container) {
+      container.querySelectorAll('.evidence-option-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.option === option);
+      });
+    }
+  };
+
+  // Dynamic evidence preference update (legacy compatibility)
   Views.parentPrefs.updateEvidencePreference = function(studentId, preference) {
-    const card = document.getElementById(`evidence-card-${studentId}`);
-    const status = document.getElementById(`evidence-status-${studentId}`);
-    const statusColors = { photo: 'var(--color-success)', audio: 'var(--color-primary)', none: 'var(--color-gray-400)' };
-    const statusLabels = { photo: '📷 Foto', audio: '🎤 Audio', none: '⊘ Sin evidencia' };
-
-    // Update card border
-    if (card) {
-      card.style.borderColor = statusColors[preference];
-    }
-
-    // Update status text
-    if (status) {
-      status.textContent = statusLabels[preference];
-      status.style.color = statusColors[preference];
-    }
-
-    // Update option buttons
-    ['photo', 'audio', 'none'].forEach(opt => {
-      const optEl = document.getElementById(`opt-${opt}-${studentId}`);
-      if (optEl) {
-        optEl.classList.toggle('selected', opt === preference);
-      }
-    });
+    Views.parentPrefs.selectEvidenceOption(studentId, preference);
   };
 
   // Legacy support
   Views.parentPrefs.updatePhotoStatus = function(studentId, checked) {
-    Views.parentPrefs.updateEvidencePreference(studentId, checked ? 'photo' : 'none');
+    Views.parentPrefs.selectEvidenceOption(studentId, checked ? 'photo' : 'none');
   };
 
   Views.parentPrefs.savePreferences = async function() {
     const btn = document.getElementById('btn-save-prefs');
     const originalHTML = btn.innerHTML;
-    btn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div> Guardando...';
+    btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Guardando...';
     btn.disabled = true;
+    btn.classList.add('opacity-60');
 
     const newPrefs = {
       preferences: {},
       photo_consents: {}
     };
 
-    // Collect notification preferences
+    // Collect notification preferences from toggles
     notificationTypes.forEach(type => {
       newPrefs.preferences[type.key] = {
         whatsapp: document.getElementById(`pref_${type.key}_whatsapp`)?.checked || false,
@@ -299,18 +320,19 @@ Views.parentPrefs = async function() {
       };
     });
 
-    // Collect evidence preferences (stored in photo_consents for compatibility)
-    // Values: true = photo, "audio" = audio, false = none
+    // Collect evidence preferences from active buttons
     students.forEach(student => {
-      const photoRadio = document.querySelector(`input[name="evidence_${student.id}"][value="photo"]`);
-      const audioRadio = document.querySelector(`input[name="evidence_${student.id}"][value="audio"]`);
-
-      if (photoRadio?.checked) {
-        newPrefs.photo_consents[String(student.id)] = true;
-      } else if (audioRadio?.checked) {
-        newPrefs.photo_consents[String(student.id)] = 'audio';
-      } else {
-        newPrefs.photo_consents[String(student.id)] = false;
+      const container = document.getElementById(`evidence-options-${student.id}`);
+      if (container) {
+        const activeBtn = container.querySelector('.evidence-option-btn.active');
+        const option = activeBtn ? activeBtn.dataset.option : 'none';
+        if (option === 'photo') {
+          newPrefs.photo_consents[String(student.id)] = true;
+        } else if (option === 'audio') {
+          newPrefs.photo_consents[String(student.id)] = 'audio';
+        } else {
+          newPrefs.photo_consents[String(student.id)] = false;
+        }
       }
     });
 
@@ -320,12 +342,11 @@ Views.parentPrefs = async function() {
       Components.showToast('Preferencias guardadas exitosamente', 'success');
     } catch (error) {
       console.error('Error saving preferences:', error);
-      // R4-F8 fix: Don't save to localStorage if API fails to prevent inconsistency
-      // User must retry when online
       Components.showToast('Error al guardar. Verifique su conexión e intente de nuevo.', 'error');
     } finally {
       btn.innerHTML = originalHTML;
       btn.disabled = false;
+      btn.classList.remove('opacity-60');
     }
   };
 
@@ -333,14 +354,15 @@ Views.parentPrefs = async function() {
   initPushSection();
 
   async function initPushSection() {
-    const content = document.getElementById('push-content');
+    const pushContent = document.getElementById('push-content');
     const section = document.getElementById('push-section');
 
     // Check if push notifications are supported
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      content.innerHTML = `
-        <div style="text-align: center; padding: 1.5rem; color: var(--color-gray-500);">
-          <p>Tu navegador no soporta notificaciones push.</p>
+      pushContent.innerHTML = `
+        <div class="text-center py-4 text-gray-500 dark:text-gray-400">
+          <span class="material-symbols-outlined text-2xl mb-1 block">notifications_off</span>
+          <p class="text-sm">Tu navegador no soporta notificaciones push.</p>
         </div>
       `;
       return;
@@ -350,11 +372,11 @@ Views.parentPrefs = async function() {
     const permission = Notification.permission;
 
     if (permission === 'denied') {
-      content.innerHTML = `
-        <div style="background: var(--color-warning-50); border-radius: 12px; padding: 1rem; color: var(--color-warning-700);">
-          <p style="margin: 0;"><strong>Notificaciones bloqueadas</strong></p>
-          <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">
-            Has bloqueado las notificaciones. Para activarlas, debes cambiar los permisos en la configuracion de tu navegador.
+      pushContent.innerHTML = `
+        <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3">
+          <p class="text-sm font-medium text-yellow-700 dark:text-yellow-400">Notificaciones bloqueadas</p>
+          <p class="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
+            Has bloqueado las notificaciones. Para activarlas, cambia los permisos en la configuración de tu navegador.
           </p>
         </div>
       `;
@@ -367,38 +389,34 @@ Views.parentPrefs = async function() {
       const existingSubscription = await registration.pushManager.getSubscription();
 
       if (existingSubscription) {
-        // Already subscribed
-        content.innerHTML = `
-          <div style="background: var(--color-success-50); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem;">
-            <div style="width: 32px; height: 32px; background: var(--color-success); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
+        pushContent.innerHTML = `
+          <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 mb-3 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-base text-white">check</span>
             </div>
             <div>
-              <div style="font-weight: 600; color: var(--color-success-700);">Notificaciones push activadas</div>
-              <div style="font-size: 0.85rem; color: var(--color-success-600);">Recibiras alertas cuando tu hijo ingrese o salga del colegio</div>
+              <p class="text-sm font-medium text-green-700 dark:text-green-400">Notificaciones push activadas</p>
+              <p class="text-xs text-green-600 dark:text-green-500">Recibirás alertas cuando tu hijo ingrese o salga del colegio</p>
             </div>
           </div>
-          <button class="btn btn-secondary" id="btn-unsubscribe-push" style="width: 100%;">
+          <button class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700
+                         hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium text-gray-700 dark:text-gray-300"
+                  id="btn-unsubscribe-push">
+            <span class="material-symbols-outlined text-lg">notifications_off</span>
             Desactivar notificaciones push
           </button>
         `;
 
         document.getElementById('btn-unsubscribe-push')?.addEventListener('click', handleUnsubscribePush);
       } else {
-        // Not subscribed
-        content.innerHTML = `
-          <div style="background: var(--color-gray-50); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;">
-            <p style="color: var(--color-gray-600); font-size: 0.9rem; margin: 0;">
-              Activa las notificaciones push para recibir alertas instantaneas cuando tu hijo ingrese o salga del colegio.
+        pushContent.innerHTML = `
+          <div class="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 mb-3">
+            <p class="text-xs text-gray-600 dark:text-gray-400">
+              Activa las notificaciones push para recibir alertas instantáneas cuando tu hijo ingrese o salga del colegio.
             </p>
           </div>
-          <button class="btn btn-primary" id="btn-subscribe-push" style="width: 100%;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.5rem;">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-            </svg>
+          <button class="btn-gradient w-full" id="btn-subscribe-push">
+            <span class="material-symbols-outlined">notifications_active</span>
             Activar notificaciones push
           </button>
         `;
@@ -407,10 +425,12 @@ Views.parentPrefs = async function() {
       }
     } catch (error) {
       console.error('Error checking push subscription:', error);
-      content.innerHTML = `
-        <div style="text-align: center; padding: 1.5rem; color: var(--color-gray-500);">
-          <p>Error al verificar el estado de notificaciones.</p>
-          <button class="btn btn-secondary btn-sm" onclick="Views.parentPrefs.reloadPushSection()">Reintentar</button>
+      pushContent.innerHTML = `
+        <div class="text-center py-4 text-gray-500 dark:text-gray-400">
+          <span class="material-symbols-outlined text-2xl mb-1 block">error</span>
+          <p class="text-sm">Error al verificar el estado de notificaciones.</p>
+          <button class="mt-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline"
+                  onclick="Views.parentPrefs.reloadPushSection()">Reintentar</button>
         </div>
       `;
     }
@@ -422,55 +442,49 @@ Views.parentPrefs = async function() {
     const btn = document.getElementById('btn-subscribe-push');
     const originalHTML = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div> Activando...';
+    btn.classList.add('opacity-60');
+    btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Activando...';
 
     try {
-      // Request notification permission
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         Components.showToast('Debes permitir las notificaciones', 'error');
         btn.disabled = false;
+        btn.classList.remove('opacity-60');
         btn.innerHTML = originalHTML;
         return;
       }
 
-      // Get VAPID public key from server
       const vapidResponse = await API.fetch('/push/vapid-public-key');
       if (!vapidResponse.ok) {
         throw new Error('No se pudo obtener la clave del servidor');
       }
       const { public_key: vapidPublicKey } = await vapidResponse.json();
 
-      // Subscribe to push
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
       });
 
-      // Get device name
       const deviceName = navigator.userAgent.includes('iPhone') ? 'iPhone' :
                         navigator.userAgent.includes('iPad') ? 'iPad' :
                         navigator.userAgent.includes('Android') ? 'Android' :
                         navigator.userAgent.includes('Mac') ? 'Mac' :
                         navigator.userAgent.includes('Windows') ? 'Windows' : 'Dispositivo';
 
-      // Send subscription to server
       const subJson = subscription.toJSON();
       const response = await API.fetch('/push/subscribe', {
         method: 'POST',
         body: JSON.stringify({
           endpoint: subJson.endpoint,
-          keys: {
-            p256dh: subJson.keys.p256dh,
-            auth: subJson.keys.auth,
-          },
+          keys: { p256dh: subJson.keys.p256dh, auth: subJson.keys.auth },
           device_name: deviceName,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Error al registrar la suscripcion');
+        throw new Error('Error al registrar la suscripción');
       }
 
       Components.showToast('Notificaciones push activadas', 'success');
@@ -479,6 +493,7 @@ Views.parentPrefs = async function() {
       console.error('Error subscribing to push:', error);
       Components.showToast(error.message || 'Error al activar notificaciones', 'error');
       btn.disabled = false;
+      btn.classList.remove('opacity-60');
       btn.innerHTML = originalHTML;
     }
   }
@@ -487,17 +502,15 @@ Views.parentPrefs = async function() {
     const btn = document.getElementById('btn-unsubscribe-push');
     const originalHTML = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div> Desactivando...';
+    btn.classList.add('opacity-60');
+    btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Desactivando...';
 
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
 
       if (subscription) {
-        // Unsubscribe from browser
         await subscription.unsubscribe();
-
-        // Notify server
         const subJson = subscription.toJSON();
         await API.fetch(`/push/unsubscribe?endpoint=${encodeURIComponent(subJson.endpoint)}`, {
           method: 'DELETE',
@@ -510,6 +523,7 @@ Views.parentPrefs = async function() {
       console.error('Error unsubscribing from push:', error);
       Components.showToast(error.message || 'Error al desactivar notificaciones', 'error');
       btn.disabled = false;
+      btn.classList.remove('opacity-60');
       btn.innerHTML = originalHTML;
     }
   }
@@ -530,7 +544,7 @@ Views.parentPrefs = async function() {
   initPasskeySection();
 
   async function initPasskeySection() {
-    const content = document.getElementById('passkey-content');
+    const passkeyContent = document.getElementById('passkey-content');
     const section = document.getElementById('passkey-section');
 
     // Check if WebAuthn is supported
@@ -541,75 +555,75 @@ Views.parentPrefs = async function() {
 
     const hasPlatformAuth = await WebAuthn.isPlatformAuthenticatorAvailable();
     if (!hasPlatformAuth) {
-      content.innerHTML = `
-        <div style="text-align: center; padding: 1.5rem; color: var(--color-gray-500);">
-          <p>Tu dispositivo no soporta autenticacion biometrica.</p>
+      passkeyContent.innerHTML = `
+        <div class="text-center py-4 text-gray-500 dark:text-gray-400">
+          <span class="material-symbols-outlined text-2xl mb-1 block">no_encryption</span>
+          <p class="text-sm">Tu dispositivo no soporta autenticación biométrica.</p>
         </div>
       `;
       return;
     }
 
-    // Load passkeys
     await loadPasskeys();
   }
 
   async function loadPasskeys() {
-    const content = document.getElementById('passkey-content');
+    const passkeyContent = document.getElementById('passkey-content');
 
     try {
       const passkeys = await WebAuthn.listPasskeys();
 
       if (passkeys.length === 0) {
-        content.innerHTML = `
-          <div style="background: var(--color-gray-50); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;">
-            <p style="color: var(--color-gray-600); font-size: 0.9rem; margin: 0;">
-              Registra tu huella digital o Face ID para iniciar sesion sin contraseña.
-              <br>Es mas rapido y seguro.
+        passkeyContent.innerHTML = `
+          <div class="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 mb-3">
+            <p class="text-xs text-gray-600 dark:text-gray-400">
+              Registra tu huella digital o Face ID para iniciar sesión sin contraseña. Es más rápido y seguro.
             </p>
           </div>
-          <button class="btn btn-primary" id="btn-add-passkey" style="width: 100%;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.5rem;">
-              <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/>
-            </svg>
+          <button class="btn-gradient w-full" id="btn-add-passkey">
+            <span class="material-symbols-outlined">fingerprint</span>
             Agregar huella / Face ID
           </button>
         `;
       } else {
-        content.innerHTML = `
-          <div style="background: var(--color-success-50); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem;">
-            <div style="width: 32px; height: 32px; background: var(--color-success); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
+        passkeyContent.innerHTML = `
+          <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 mb-3 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-base text-white">check</span>
             </div>
             <div>
-              <div style="font-weight: 600; color: var(--color-success-700);">Acceso biometrico activado</div>
-              <div style="font-size: 0.85rem; color: var(--color-success-600);">Puedes iniciar sesion con tu huella o Face ID</div>
+              <p class="text-sm font-medium text-green-700 dark:text-green-400">Acceso biométrico activado</p>
+              <p class="text-xs text-green-600 dark:text-green-500">Puedes iniciar sesión con tu huella o Face ID</p>
             </div>
           </div>
 
-          <div style="margin-bottom: 1rem;">
-            <div style="font-weight: 500; color: var(--color-gray-700); margin-bottom: 0.75rem;">Dispositivos registrados:</div>
-            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <div class="mb-3">
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Dispositivos registrados</p>
+            <div class="flex flex-col gap-2">
               ${passkeys.map(pk => `
-                <div style="display: flex; align-items: center; padding: 0.875rem 1rem; background: var(--color-gray-50); border-radius: 10px;">
-                  <div style="flex: 1;">
-                    <div style="font-weight: 500; color: var(--color-gray-800);">${Components.escapeHtml(pk.device_name || 'Dispositivo')}</div>
-                    <div style="font-size: 0.8rem; color: var(--color-gray-500);">
+                <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+                  <span class="material-symbols-outlined text-lg text-gray-400">devices</span>
+                  <div class="flex-1">
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">${Components.escapeHtml(pk.device_name || 'Dispositivo')}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
                       Registrado: ${new Date(pk.created_at).toLocaleDateString('es-CL')}
-                      ${pk.last_used_at ? ` • Ultimo uso: ${new Date(pk.last_used_at).toLocaleDateString('es-CL')}` : ''}
-                    </div>
+                      ${pk.last_used_at ? ` &bull; Último uso: ${new Date(pk.last_used_at).toLocaleDateString('es-CL')}` : ''}
+                    </p>
                   </div>
-                  <button class="btn btn-secondary btn-sm btn-delete-passkey" data-credential-id="${Components.escapeHtml(pk.credential_id)}" style="padding: 0.5rem 0.75rem;">
-                    Eliminar
+                  <button class="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-600 btn-delete-passkey"
+                          data-credential-id="${Components.escapeHtml(pk.credential_id)}">
+                    <span class="material-symbols-outlined text-lg">delete</span>
                   </button>
                 </div>
               `).join('')}
             </div>
           </div>
 
-          <button class="btn btn-secondary" id="btn-add-passkey" style="width: 100%;">
-            + Agregar otro dispositivo
+          <button class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700
+                         hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium text-gray-700 dark:text-gray-300"
+                  id="btn-add-passkey">
+            <span class="material-symbols-outlined text-lg">add</span>
+            Agregar otro dispositivo
           </button>
         `;
       }
@@ -622,17 +636,19 @@ Views.parentPrefs = async function() {
 
       document.querySelectorAll('.btn-delete-passkey').forEach(btn => {
         btn.addEventListener('click', (e) => {
-          const credentialId = e.target.dataset.credentialId;
+          const credentialId = e.currentTarget.dataset.credentialId;
           handleDeletePasskey(credentialId);
         });
       });
 
     } catch (error) {
       console.error('Error loading passkeys:', error);
-      content.innerHTML = `
-        <div style="text-align: center; padding: 1.5rem; color: var(--color-gray-500);">
-          <p>Error al cargar passkeys.</p>
-          <button class="btn btn-secondary btn-sm" onclick="Views.parentPrefs.reloadPasskeys()">Reintentar</button>
+      passkeyContent.innerHTML = `
+        <div class="text-center py-4 text-gray-500 dark:text-gray-400">
+          <span class="material-symbols-outlined text-2xl mb-1 block">error</span>
+          <p class="text-sm">Error al cargar passkeys.</p>
+          <button class="mt-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline"
+                  onclick="Views.parentPrefs.reloadPasskeys()">Reintentar</button>
         </div>
       `;
     }
@@ -644,10 +660,10 @@ Views.parentPrefs = async function() {
     const btn = document.getElementById('btn-add-passkey');
     const originalHTML = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div> Registrando...';
+    btn.classList.add('opacity-60');
+    btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Registrando...';
 
     try {
-      // Get device name
       const deviceName = navigator.userAgent.includes('iPhone') ? 'iPhone' :
                         navigator.userAgent.includes('iPad') ? 'iPad' :
                         navigator.userAgent.includes('Android') ? 'Android' :
@@ -661,6 +677,7 @@ Views.parentPrefs = async function() {
       console.error('Error registering passkey:', error);
       Components.showToast(error.message || 'Error al registrar passkey', 'error');
       btn.disabled = false;
+      btn.classList.remove('opacity-60');
       btn.innerHTML = originalHTML;
     }
   }
@@ -668,9 +685,9 @@ Views.parentPrefs = async function() {
   async function handleDeletePasskey(credentialId) {
     const confirmed = await new Promise(resolve => {
       Components.showModal('Eliminar Passkey', `
-        <p>¿Estas seguro de que deseas eliminar este passkey?</p>
+        <p>¿Estás seguro de que deseas eliminar este passkey?</p>
         <p style="font-size: 0.9rem; color: var(--color-gray-500);">
-          Ya no podras usar este dispositivo para iniciar sesion sin contraseña.
+          Ya no podrás usar este dispositivo para iniciar sesión sin contraseña.
         </p>
       `, [
         { label: 'Cancelar', action: 'close', className: 'btn-secondary', onClick: () => resolve(false) },

@@ -420,12 +420,188 @@ export default {
 
     // Gradient direction
     'bg-gradient-to-br',
+
+    // ===== AUTH REDESIGN 2026 =====
+    // Gradient mesh background
+    'bg-gradient-mesh',
+
+    // Auth card
+    'auth-card-new',
+    'rounded-[2.5rem]',
+    'shadow-2xl',
+
+    // Role cards
+    'role-card', 'role-icon',
+
+    // Brand gradient button
+    'bg-brand-gradient',
+    'shadow-indigo-500/30',
+
+    // Brand text colors
+    'text-brand-blue', 'text-brand-darkblue', 'text-brand-purple',
+    'dark:text-brand-blue', 'dark:text-brand-purple',
+    'text-[#000080]',
+
+    // Typography
+    'tracking-tighter',
+    'font-black',
+
+    // Blur decorations
+    'blur-decoration',
+    'bg-primary/20', 'bg-purple-500/20', 'bg-indigo-500/20',
+
+    // Auth inputs
+    'auth-input',
+    'focus:ring-primary/20',
+    'focus:border-primary',
+
+    // Buttons
+    'py-3.5',
+    'sm:w-1/3', 'sm:flex-1',
+    'rounded-xl',
+
+    // Dark mode borders
+    'border-slate-200/50', 'border-slate-800/50',
+    'dark:border-slate-700',
+    'hover:border-primary',
+
+    // Backgrounds with opacity
+    'bg-slate-50/50', 'bg-slate-800/30',
+
+    // Layout
+    'max-w-[480px]',
+    'space-y-4', 'space-y-5',
+    'flex-grow',
+
+    // Hover effects
+    'group-hover:text-white', 'group-hover:text-primary',
+
+    // Footer buttons
+    'rounded-full',
+    'hover:text-primary',
+
+    // Role cards - new design
+    'rounded-2xl',
+    'gap-5', 'p-5',
+    'w-14', 'h-14',
+    'bg-indigo-100', 'bg-purple-100',
+    'text-indigo-600', 'text-purple-600',
+    'dark:text-indigo-400', 'dark:text-purple-400',
+    'group-hover:bg-indigo-500', 'group-hover:bg-purple-500',
+    'group-hover:text-indigo-600', 'group-hover:text-purple-600',
+    'dark:group-hover:text-indigo-400', 'dark:group-hover:text-purple-400',
+    'hover:text-indigo-500', 'hover:text-purple-500',
+    'hover:border-sky-500',
+    'border-indigo-200', 'dark:border-indigo-800',
+
+    // Logo gradient
+    'from-sky-500', 'to-purple-500',
+    'bg-gradient-to-br',
+    'rounded-lg',
+    'w-3', 'h-3',
+
+    // Passkey button
+    'h-14',
+    'bg-indigo-500/10', 'dark:bg-indigo-500/20',
+    'hover:bg-indigo-500/20',
+
+    // ===== PARENT MODULE REDESIGN 2026 =====
+    // Background colors
+    'bg-[#f8fafc]',
+    'bg-indigo-50', 'bg-indigo-100', 'bg-indigo-600',
+    'bg-purple-100', 'bg-purple-500',
+    'bg-green-50', 'bg-green-100', 'bg-green-500',
+    'bg-red-50', 'bg-red-100', 'bg-red-500',
+    'bg-yellow-50', 'bg-yellow-100', 'bg-yellow-500',
+    'bg-blue-50', 'bg-blue-100', 'bg-blue-500',
+    'bg-pink-100',
+
+    // Dark mode backgrounds
+    'dark:bg-slate-900', 'dark:bg-slate-800',
+    'dark:bg-indigo-900/30', 'dark:bg-indigo-800/30',
+    'dark:bg-purple-900/30',
+    'dark:bg-green-900/10', 'dark:bg-green-900/30', 'dark:bg-green-800/30',
+    'dark:bg-red-900/10', 'dark:bg-red-900/30', 'dark:bg-red-800/30',
+    'dark:bg-yellow-900/10', 'dark:bg-yellow-900/30', 'dark:bg-yellow-800/30',
+    'dark:bg-blue-900/10', 'dark:bg-blue-800/30',
+    'dark:bg-gray-700',
+
+    // Text colors
+    'text-indigo-600', 'text-indigo-400', 'text-indigo-900',
+    'text-purple-600', 'text-purple-400',
+    'text-green-600', 'text-green-400', 'text-green-700',
+    'text-red-600', 'text-red-400', 'text-red-700',
+    'text-yellow-600', 'text-yellow-400', 'text-yellow-700',
+    'text-blue-600', 'text-blue-400',
+    'text-pink-600', 'text-pink-400',
+    'dark:text-indigo-400', 'dark:text-green-400', 'dark:text-red-400',
+    'dark:text-yellow-400', 'dark:text-blue-400',
+
+    // Border colors
+    'border-green-100', 'border-red-100', 'border-yellow-100', 'border-blue-100',
+    'dark:border-green-900/20', 'dark:border-red-900/20',
+    'dark:border-yellow-900/20', 'dark:border-blue-900/20',
+    'border-gray-100', 'border-gray-200',
+    'dark:border-slate-700', 'dark:border-slate-800',
+
+    // Gradient
+    'bg-gradient-to-r', 'from-indigo-500', 'to-purple-600',
+    'shadow-indigo-200', 'shadow-indigo-500/30',
+
+    // Toggle switch (Tailwind peer approach)
+    'peer', 'sr-only',
+    'peer-checked:bg-indigo-600',
+    'peer-checked:after:translate-x-full',
+    "after:content-['']", 'after:absolute', 'after:top-[2px]', 'after:start-[2px]',
+    'after:bg-white', 'after:rounded-full', 'after:h-4', 'after:w-4',
+    'after:transition-all',
+    'rtl:peer-checked:after:-translate-x-full',
+
+    // Sizes and spacing
+    'w-5', 'h-5', 'w-9', 'w-12', 'h-12', 'w-16',
+    'text-[10px]',
+    'pb-24',
+    '-bottom-1', '-right-1',
+
+    // Misc utilities
+    'divide-y', 'divide-gray-100',
+    'rounded-xl', 'rounded-full',
+    'capitalize',
+    'tracking-wide',
+    'overflow-hidden',
+
+    // Parent module responsive classes (layout + views)
+    'md:flex-row', 'md:h-20', 'md:items-center', 'md:justify-end',
+    'md:px-8', 'md:p-8', 'md:pb-8', 'md:gap-0', 'md:w-auto',
+    'md:grid-cols-2', 'md:hidden', 'md:block', 'md:flex',
+    'sm:inline',
+    'flex-col', 'flex-shrink-0',
+    'h-screen',
+    'gap-4', 'gap-3',
+
+    // Parent home specific
+    'bg-indigo-500', 'bg-purple-500', 'bg-blue-500', 'bg-pink-500', 'bg-orange-500',
+    'border-gray-50', 'dark:border-gray-800',
+    'text-red-500', 'text-green-600', 'text-yellow-500', 'text-blue-500',
+    'bg-red-100', 'text-red-700', 'dark:text-red-300',
+    'bg-green-100', 'text-green-700', 'dark:text-green-300',
+    'bg-yellow-100', 'text-yellow-700', 'dark:text-yellow-300',
+    'bg-blue-100', 'text-blue-700', 'dark:text-blue-300',
+    'shadow-indigo-200', 'dark:shadow-none',
+    'hover:shadow-xl', 'hover:shadow-md',
+    'hover:-translate-y-0.5',
+    'group', 'group-hover:text-indigo-600',
   ],
   theme: {
     extend: {
       colors: {
         primary: "#6366f1",
         secondary: "#0ea5e9",
+        brand: {
+          blue: "#0ea5e9",
+          darkblue: "#000080",
+          purple: "#a855f7",
+        },
         "background-light": "#f3f4f6",
         "background-dark": "#0f172a",
         "sidebar-dark": "#1e1b4b",

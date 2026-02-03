@@ -1,11 +1,12 @@
 /**
- * API client for web-app
+ * API client for web-app (preview version)
  * Extends shared base with web-app specific methods
  *
  * Note: Requires api-base.js to be loaded first (createApiClient function)
  * Include in HTML: <script src="/lib/api-base.js"></script>
  */
-const API = Object.assign(createApiClient('webAppConfig'), {
+// Preview uses isolated config key to avoid affecting production settings
+const API = Object.assign(createApiClient(window.PREVIEW_CONFIG_KEY || 'webAppPreviewConfig'), {
 
   // ==================== Image Cache for Authenticated Photos ====================
   imageCache: new Map(),

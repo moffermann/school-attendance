@@ -1,14 +1,131 @@
-// Director Teachers Management (CRUD Profesores with API integration)
+// Director Teachers Management (CRUD Profesores with API integration) - Tailwind Redesign
 Views.directorTeachers = async function() {
   const app = document.getElementById('app');
-  app.innerHTML = Components.createLayout(State.currentRole);
+  const userName = State.currentUser?.name || State.currentUser?.full_name || 'Director';
+  const userInitial = userName.charAt(0).toUpperCase();
+  const isDark = document.documentElement.classList.contains('dark');
+
+  // Avatar colors for rotating (indigo, purple, blue, teal)
+  const avatarColors = [
+    { bg: 'bg-indigo-50 dark:bg-indigo-900/30', text: 'text-indigo-600 dark:text-indigo-400' },
+    { bg: 'bg-purple-50 dark:bg-purple-900/30', text: 'text-purple-600 dark:text-purple-400' },
+    { bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400' },
+    { bg: 'bg-teal-50 dark:bg-teal-900/30', text: 'text-teal-600 dark:text-teal-400' },
+  ];
+
+  // Helper to get initials
+  function getInitials(name) {
+    return name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
+  }
+
+  // Current path for active state
+  const currentPath = '/director/teachers';
+
+  // Helper: check if nav item is active
+  const isActive = (path) => currentPath === path;
+  const navItemClass = (path) => isActive(path)
+    ? 'flex items-center px-6 py-3 bg-indigo-800/50 text-white border-l-4 border-indigo-500 group transition-colors'
+    : 'flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent';
+  const iconClass = (path) => isActive(path)
+    ? 'material-icons-round mr-3'
+    : 'material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors';
+
+  // Navigation items - del diseño aprobado
+  const navItems = [
+    { path: '/director/dashboard', icon: 'dashboard', label: 'Tablero' },
+    { path: '/director/reports', icon: 'analytics', label: 'Reportes' },
+    { path: '/director/metrics', icon: 'bar_chart', label: 'Métricas' },
+    { path: '/director/schedules', icon: 'schedule', label: 'Horarios' },
+    { path: '/director/exceptions', icon: 'event_busy', label: 'Excepciones' },
+    { path: '/director/broadcast', icon: 'campaign', label: 'Comunicados' },
+    { path: '/director/devices', icon: 'devices', label: 'Dispositivos' },
+    { path: '/director/students', icon: 'school', label: 'Alumnos' },
+    { path: '/director/guardians', icon: 'family_restroom', label: 'Apoderados' },
+    { path: '/director/teachers', icon: 'badge', label: 'Profesores' },
+    { path: '/director/courses', icon: 'class', label: 'Cursos' },
+    { path: '/director/absences', icon: 'person_off', label: 'Ausencias' },
+    { path: '/director/notifications', icon: 'notifications', label: 'Notificaciones' },
+    { path: '/director/biometric', icon: 'fingerprint', label: 'Biometría' },
+  ];
+
+  // Build sidebar HTML
+  const sidebarHTML = navItems.map(item => `
+    <a class="${navItemClass(item.path)}" href="#${item.path}">
+      <span class="${iconClass(item.path)}">${item.icon}</span>
+      <span class="font-medium text-sm">${item.label}</span>
+    </a>
+  `).join('');
+
+  // Create main layout
+  app.innerHTML = `
+    <div class="h-screen flex overflow-hidden bg-background-light dark:bg-background-dark">
+      <!-- Sidebar -->
+      <aside id="sidebar" class="w-64 bg-sidebar-dark text-gray-300 flex-shrink-0 flex-col transition-all duration-300 mobile-hidden border-r border-indigo-900/50 shadow-2xl z-50">
+        <div class="h-20 flex items-center justify-between px-6 border-b border-indigo-900/50">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg">
+              <div class="w-4 h-4 bg-indigo-900 rounded-full"></div>
+            </div>
+            <h1 class="text-xl font-bold tracking-tight text-white">NEUVOX</h1>
+          </div>
+          <button class="desktop-hidden text-gray-400 hover:text-white p-1" onclick="Views.directorTeachers.toggleSidebar()">
+            <span class="material-icons-round">close</span>
+          </button>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-6 space-y-1">
+          ${sidebarHTML}
+        </nav>
+      </aside>
+      <div id="sidebar-backdrop" class="fixed inset-0 bg-black/50 z-40 hidden desktop-hidden" onclick="Views.directorTeachers.toggleSidebar()"></div>
+
+      <!-- Main content -->
+      <main class="flex-1 flex flex-col overflow-hidden">
+        <!-- Header -->
+        <header class="h-20 bg-white dark:bg-card-dark border-b border-border-light dark:border-border-dark flex items-center justify-between px-8 z-10 shadow-sm">
+          <div class="flex items-center gap-4">
+            <button class="desktop-hidden text-muted-light dark:text-muted-dark hover:text-primary transition-colors" onclick="Views.directorTeachers.toggleSidebar()">
+              <span class="material-icons-round text-2xl">menu</span>
+            </button>
+            <h2 class="text-xl font-bold text-gray-800 dark:text-text-dark">Gestion de Profesores</h2>
+          </div>
+          <div class="flex items-center gap-2 md:gap-4 flex-1 justify-end">
+            <div class="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1 md:mx-2 mobile-hidden"></div>
+            <div class="flex items-center gap-2 md:gap-3">
+              <button class="p-2 rounded-full hover:bg-background-light dark:hover:bg-white/5 transition-colors text-muted-light dark:text-muted-dark" onclick="Views.directorTeachers.toggleDarkMode()">
+                <span class="material-icons-round">${isDark ? 'light_mode' : 'dark_mode'}</span>
+              </button>
+              <div class="flex items-center gap-2 cursor-pointer">
+                <div class="w-9 h-9 rounded-full border border-gray-200 bg-indigo-600 flex items-center justify-center text-white font-semibold">
+                  ${userInitial}
+                </div>
+                <div class="text-right mobile-hidden">
+                  <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">${Components.escapeHtml(userName)}</p>
+                </div>
+              </div>
+              <a class="ml-1 md:ml-2 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 border px-2 md:px-3 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-white/5 dark:border-gray-600" href="#" onclick="event.preventDefault(); State.logout(); Router.navigate('/login')">
+                <span class="material-icons-round text-lg">logout</span>
+                <span class="mobile-hidden">Salir</span>
+              </a>
+            </div>
+          </div>
+        </header>
+
+        <!-- Content area -->
+        <div id="view-content" class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+          <div class="flex items-center justify-center h-32">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center text-xs text-gray-400 dark:text-gray-500 py-4 border-t border-gray-100 dark:border-gray-800">
+          &copy; 2026 NEUVOX. Todos los derechos reservados.
+        </footer>
+      </main>
+    </div>
+  `;
 
   const content = document.getElementById('view-content');
-  const pageTitle = document.getElementById('page-title');
-  if (pageTitle) pageTitle.textContent = 'Gestion de Profesores';
-
-  // Show loading state while fetching from API
-  content.innerHTML = Components.createLoader('Cargando profesores...');
 
   // Load fresh data from API
   let teachers = await State.refreshTeachers();
@@ -17,6 +134,7 @@ Views.directorTeachers = async function() {
   let currentPage = 1;
   let statusFilter = ''; // Empty = all, or ACTIVE, INACTIVE, ON_LEAVE, DELETED
   let courseFilter = ''; // Empty = all, or course ID
+  const PAGE_SIZE = 15;
 
   // Helper to get courses assigned to a teacher
   function getTeacherCourses(teacherId) {
@@ -55,89 +173,149 @@ Views.directorTeachers = async function() {
     return filtered;
   }
 
+  // Build course options for filter dropdown
+  const courseOptions = courses.map(c =>
+    `<option value="${c.id}" ${courseFilter === String(c.id) ? 'selected' : ''}>${Components.escapeHtml(c.name)}</option>`
+  ).join('');
+
   function renderTeachers() {
     const filtered = getFilteredTeachers();
+    const totalTeachers = teachers.length;
 
     content.innerHTML = `
-      <!-- Info card -->
-      <div class="card" style="background: var(--color-info-light); border-left: 4px solid var(--color-info); margin-bottom: 1.5rem;">
-        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
-          <span style="font-size: 1.5rem;">👩‍🏫</span>
-          <div>
-            <strong style="color: var(--color-info-dark);">Gestion de Profesores</strong>
-            <p style="margin: 0.25rem 0 0; font-size: 0.9rem; color: var(--color-gray-700);">
-              Aqui puedes crear, editar y asignar cursos a los profesores. Cada profesor puede tener multiples cursos asignados.
-            </p>
+      <!-- Info Card -->
+      <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4 flex items-center gap-4">
+        <div class="w-12 h-12 bg-white dark:bg-blue-800 rounded-lg shadow-sm flex items-center justify-center flex-shrink-0">
+          <span class="material-icons-round text-blue-600 dark:text-blue-400 text-2xl">badge</span>
+        </div>
+        <div>
+          <h4 class="text-blue-900 dark:text-blue-200 font-bold">Gestion de Profesores</h4>
+          <p class="text-sm text-blue-700 dark:text-blue-300">Aqui puedes crear, editar y asignar cursos a los profesores. Cada profesor puede tener multiples cursos asignados.</p>
+        </div>
+      </div>
+
+      <!-- Title + New Button -->
+      <div class="flex justify-between items-end">
+        <div>
+          <h3 class="text-xl font-bold text-slate-800 dark:text-white">
+            Profesores del Establecimiento <span class="text-slate-400 font-normal ml-1">(${totalTeachers})</span>
+          </h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400">${totalTeachers} profesor${totalTeachers !== 1 ? 'es' : ''} registrado${totalTeachers !== 1 ? 's' : ''}</p>
+        </div>
+        <button onclick="Views.directorTeachers.showCreateForm()"
+                class="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700
+                       text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-indigo-200
+                       dark:shadow-none flex items-center gap-2 transition-all">
+          <span class="material-icons-round text-lg">add</span>
+          Nuevo Profesor
+        </button>
+      </div>
+
+      <!-- Filters Card -->
+      <div class="bg-white dark:bg-card-dark rounded-xl p-6 shadow-sm border border-slate-100 dark:border-border-dark">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+          <!-- Search input (col-span-4) -->
+          <div class="md:col-span-4">
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Buscar profesor</label>
+            <div class="relative">
+              <span class="absolute left-3 top-2.5 text-slate-400 material-icons-round text-xl">search</span>
+              <input type="text" id="search-teacher"
+                     class="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg
+                            focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white dark:bg-slate-800
+                            text-slate-700 dark:text-slate-200 placeholder-slate-400"
+                     placeholder="Nombre, email..."
+                     value="${Components.escapeHtml(searchTerm)}"
+                     onkeyup="Views.directorTeachers.search(this.value)">
+            </div>
+          </div>
+
+          <!-- Course filter (col-span-3) -->
+          <div class="md:col-span-3">
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Curso</label>
+            <select id="filter-course"
+                    class="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg
+                           focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white dark:bg-slate-800
+                           text-slate-700 dark:text-slate-200"
+                    onchange="Views.directorTeachers.filterByCourse(this.value)">
+              <option value="">Todos los cursos</option>
+              ${courseOptions}
+            </select>
+          </div>
+
+          <!-- Status filter (col-span-2) -->
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Estado</label>
+            <select id="filter-status"
+                    class="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg
+                           focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white dark:bg-slate-800
+                           text-slate-700 dark:text-slate-200"
+                    onchange="Views.directorTeachers.filterByStatus(this.value)">
+              <option value="" ${!statusFilter ? 'selected' : ''}>Todos</option>
+              <option value="ACTIVE" ${statusFilter === 'ACTIVE' ? 'selected' : ''}>Activo</option>
+              <option value="INACTIVE" ${statusFilter === 'INACTIVE' ? 'selected' : ''}>Inactivo</option>
+              <option value="ON_LEAVE" ${statusFilter === 'ON_LEAVE' ? 'selected' : ''}>Con licencia</option>
+              <option value="DELETED" ${statusFilter === 'DELETED' ? 'selected' : ''}>Eliminados</option>
+            </select>
+          </div>
+
+          <!-- Buttons (col-span-3) -->
+          <div class="md:col-span-3 flex gap-2">
+            <button onclick="Views.directorTeachers.clearFilters()"
+                    class="flex-1 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300
+                           border border-slate-200 dark:border-slate-600 rounded-lg
+                           hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-center gap-2 transition-colors">
+              <span class="material-icons-round text-lg">close</span> Limpiar
+            </button>
+            <button onclick="Views.directorTeachers.exportCSV()"
+                    class="flex-1 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300
+                           border border-slate-200 dark:border-slate-600 rounded-lg
+                           hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-center gap-2 transition-colors">
+              <span class="material-icons-round text-lg">download</span> Exportar
+            </button>
           </div>
         </div>
       </div>
 
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
-        <div>
-          <h2 style="margin: 0; font-size: 1.25rem; color: var(--color-gray-900);">Profesores del Establecimiento</h2>
-          <p style="margin: 0.25rem 0 0 0; color: var(--color-gray-500); font-size: 0.9rem;">${teachers.length} profesor${teachers.length !== 1 ? 'es' : ''} registrado${teachers.length !== 1 ? 's' : ''}</p>
+      <!-- Teachers Table -->
+      <div class="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-border-dark overflow-hidden">
+        <!-- Table header -->
+        <div class="px-6 py-4 border-b border-slate-50 dark:border-slate-700">
+          <h4 class="font-bold text-slate-800 dark:text-white">Lista de Profesores (${filtered.length})</h4>
         </div>
-      </div>
 
-      <!-- Filtros con estilo unificado -->
-      <div class="filters" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1.5rem;">
-        <div class="filter-group" style="flex: 1; min-width: 200px;">
-          <label class="form-label">Buscar profesor</label>
-          <input type="text" id="search-teacher" class="form-input" placeholder="Nombre, email..." value="${Components.escapeHtml(searchTerm)}"
-            onkeyup="Views.directorTeachers.search(this.value)">
-        </div>
-        <div class="filter-group" style="flex: 1; min-width: 150px;">
-          <label class="form-label">Curso</label>
-          <select id="filter-course" class="form-select" onchange="Views.directorTeachers.filterByCourse(this.value)">
-            <option value="">Todos los cursos</option>
-            ${courses.map(c => `<option value="${c.id}" ${courseFilter === String(c.id) ? 'selected' : ''}>${Components.escapeHtml(c.name)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="filter-group" style="flex: 1; min-width: 120px;">
-          <label class="form-label">Estado</label>
-          <select id="filter-status" class="form-select" onchange="Views.directorTeachers.filterByStatus(this.value)">
-            <option value="" ${!statusFilter ? 'selected' : ''}>Todos</option>
-            <option value="ACTIVE" ${statusFilter === 'ACTIVE' ? 'selected' : ''}>Activos</option>
-            <option value="INACTIVE" ${statusFilter === 'INACTIVE' ? 'selected' : ''}>Inactivos</option>
-            <option value="ON_LEAVE" ${statusFilter === 'ON_LEAVE' ? 'selected' : ''}>Con licencia</option>
-            <option value="DELETED" ${statusFilter === 'DELETED' ? 'selected' : ''}>Eliminados</option>
-          </select>
-        </div>
-        <div class="filter-group" style="display: flex; gap: 0.5rem;">
-          <button class="btn btn-outline" onclick="Views.directorTeachers.clearFilters()" title="Limpiar filtros">✕ Limpiar</button>
-          <button class="btn btn-secondary" onclick="Views.directorTeachers.exportCSV()" title="Exportar a CSV">Exportar</button>
-          <button class="btn btn-primary" onclick="Views.directorTeachers.showCreateForm()">+ Nuevo Profesor</button>
-        </div>
-      </div>
+        ${filtered.length === 0 ? `
+          <div class="p-8 text-center">
+            <span class="material-icons-round text-4xl text-slate-300 dark:text-slate-600 mb-2">person_off</span>
+            <p class="text-slate-500 dark:text-slate-400">
+              ${searchTerm || courseFilter || statusFilter
+                ? 'No hay profesores que coincidan con los filtros'
+                : 'No hay profesores registrados. Haz clic en "Nuevo Profesor" para agregar uno.'}
+            </p>
+          </div>
+        ` : `
+          <!-- Table -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead>
+                <tr class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
+                  <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nombre</th>
+                  <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Email</th>
+                  <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Cursos Asignados</th>
+                  <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Estado</th>
+                  <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="teachers-tbody" class="divide-y divide-slate-50 dark:divide-slate-800">
+                ${renderTableRows(filtered)}
+              </tbody>
+            </table>
+          </div>
 
-      <div class="card">
-        <div class="card-header">Lista de Profesores (${filtered.length})</div>
-        <div class="card-body">
-          ${filtered.length === 0 ? Components.createEmptyState(
-            'Sin profesores',
-            searchTerm
-              ? 'No hay profesores que coincidan con la busqueda'
-              : 'No hay profesores registrados. Haga clic en "Nuevo Profesor" para agregar uno.'
-          ) : `
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Email</th>
-                <th>Cursos Asignados</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="teachers-tbody">
-              ${renderTableRows(filtered)}
-            </tbody>
-          </table>
+          <!-- Pagination -->
           <div id="teachers-pagination">
             ${renderPagination(filtered)}
           </div>
-          `}
-        </div>
+        `}
       </div>
     `;
   }
@@ -146,119 +324,196 @@ Views.directorTeachers = async function() {
     const filtered = getFilteredTeachers();
     const tbody = document.getElementById('teachers-tbody');
     const pagination = document.getElementById('teachers-pagination');
-    const cardBody = document.querySelector('.card-body');
+    const tableContainer = document.querySelector('.overflow-x-auto')?.parentElement;
+
+    if (!tableContainer) {
+      renderTeachers();
+      return;
+    }
 
     if (filtered.length === 0) {
-      cardBody.innerHTML = Components.createEmptyState(
-        'Sin profesores',
-        searchTerm
-          ? 'No hay profesores que coincidan con la busqueda'
-          : 'No hay profesores registrados.'
-      );
-    } else if (tbody) {
-      tbody.innerHTML = renderTableRows(filtered);
-      if (pagination) {
-        pagination.innerHTML = renderPagination(filtered);
-      }
-    } else {
-      cardBody.innerHTML = `
-        <table>
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Email</th>
-              <th>Cursos Asignados</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="teachers-tbody">
-            ${renderTableRows(filtered)}
-          </tbody>
-        </table>
-        <div id="teachers-pagination">
-          ${renderPagination(filtered)}
+      // Replace table with empty state
+      const headerDiv = tableContainer.querySelector('.px-6.py-4');
+      const emptyHTML = `
+        <div class="px-6 py-4 border-b border-slate-50 dark:border-slate-700">
+          <h4 class="font-bold text-slate-800 dark:text-white">Lista de Profesores (0)</h4>
+        </div>
+        <div class="p-8 text-center">
+          <span class="material-icons-round text-4xl text-slate-300 dark:text-slate-600 mb-2">person_off</span>
+          <p class="text-slate-500 dark:text-slate-400">
+            ${searchTerm || courseFilter || statusFilter
+              ? 'No hay profesores que coincidan con los filtros'
+              : 'No hay profesores registrados.'}
+          </p>
         </div>
       `;
+      tableContainer.innerHTML = emptyHTML;
+    } else {
+      if (tbody) {
+        tbody.innerHTML = renderTableRows(filtered);
+        if (pagination) {
+          pagination.innerHTML = renderPagination(filtered);
+        }
+        // Update header count
+        const headerH4 = tableContainer.querySelector('h4');
+        if (headerH4) {
+          headerH4.textContent = `Lista de Profesores (${filtered.length})`;
+        }
+      } else {
+        renderTeachers();
+      }
     }
   }
 
   function renderTableRows(filtered) {
-    const perPage = 15;
-    const start = (currentPage - 1) * perPage;
-    const paginated = filtered.slice(start, start + perPage);
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const paginated = filtered.slice(start, start + PAGE_SIZE);
 
-    return paginated.map(teacher => {
-      // Get courses assigned to this teacher using helper
+    return paginated.map((teacher, index) => {
+      // Get courses assigned to this teacher
       const teacherCourses = getTeacherCourses(teacher.id);
+      const colorIndex = (start + index) % avatarColors.length;
+      const avatarColor = avatarColors[colorIndex];
+      const initials = getInitials(teacher.full_name);
 
-      const coursesChips = teacherCourses.length > 0
-        ? teacherCourses.slice(0, 3).map(c => Components.createChip(c.name, 'info')).join(' ') +
-          (teacherCourses.length > 3 ? ` <span style="color: var(--color-gray-500);">+${teacherCourses.length - 3} mas</span>` : '')
-        : Components.createChip('Sin cursos', 'gray');
+      // Course badges
+      const courseBadges = teacherCourses.length > 0
+        ? `<div class="flex flex-wrap gap-1.5">
+            ${teacherCourses.slice(0, 3).map(c =>
+              `<span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">${Components.escapeHtml(c.name)}</span>`
+            ).join('')}
+            ${teacherCourses.length > 3 ? `<span class="text-xs text-slate-500 dark:text-slate-400 self-center">+${teacherCourses.length - 3} mas</span>` : ''}
+           </div>`
+        : `<span class="text-sm text-slate-400 dark:text-slate-500">Sin cursos</span>`;
 
       const isDeleted = teacher.status === 'DELETED';
-      const statusChip = teacher.status === 'ACTIVE'
-        ? Components.createChip('Activo', 'success')
-        : teacher.status === 'ON_LEAVE'
-        ? Components.createChip('Con licencia', 'warning')
-        : teacher.status === 'DELETED'
-        ? Components.createChip('Eliminado', 'error')
-        : Components.createChip('Inactivo', 'gray');
 
-      // Actions: different buttons for deleted vs active teachers
+      // Status badge with dot
+      let statusBadge;
+      if (teacher.status === 'ACTIVE' || !teacher.status) {
+        statusBadge = `
+          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Activo
+          </span>`;
+      } else if (teacher.status === 'ON_LEAVE') {
+        statusBadge = `
+          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span> Con licencia
+          </span>`;
+      } else if (teacher.status === 'DELETED') {
+        statusBadge = `
+          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+            <span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span> Eliminado
+          </span>`;
+      } else {
+        statusBadge = `
+          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+            <span class="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5"></span> Inactivo
+          </span>`;
+      }
+
+      // Action buttons
       const actionButtons = isDeleted
         ? `
-            <button class="btn btn-success btn-sm" onclick="Views.directorTeachers.confirmRestore(${teacher.id})" title="Restaurar">
-              ↩ Restaurar
-            </button>
-          `
+          <button onclick="Views.directorTeachers.confirmRestore(${teacher.id})"
+                  class="px-3 py-1.5 text-sm font-medium text-green-600 dark:text-green-400
+                         bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50
+                         rounded-lg border border-green-200 dark:border-green-800 flex items-center gap-1.5 transition-colors">
+            <span class="material-icons-round text-lg">restore</span>
+            Restaurar
+          </button>
+        `
         : `
-            <button class="btn btn-secondary btn-sm" onclick="Views.directorTeachers.viewProfile(${teacher.id})" title="Ver perfil">
-              👁
+          <div class="flex items-center gap-2">
+            <button onclick="Views.directorTeachers.viewProfile(${teacher.id})"
+                    class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50
+                           dark:hover:text-indigo-400 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                    title="Ver Perfil">
+              <span class="material-icons-round text-xl">visibility</span>
             </button>
-            <button class="btn btn-secondary btn-sm" onclick="Views.directorTeachers.showEditForm(${teacher.id})" title="Editar">
-              ✏
+            <button onclick="Views.directorTeachers.showEditForm(${teacher.id})"
+                    class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50
+                           dark:hover:text-indigo-400 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                    title="Editar">
+              <span class="material-icons-round text-xl">edit</span>
             </button>
-            <button class="btn btn-secondary btn-sm" onclick="Views.directorTeachers.assignCourses(${teacher.id})" title="Asignar cursos">
-              📚
+            <button onclick="Views.directorTeachers.assignCourses(${teacher.id})"
+                    class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50
+                           dark:hover:text-indigo-400 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                    title="Gestionar Cursos">
+              <span class="material-icons-round text-xl">book</span>
             </button>
-            <button class="btn btn-error btn-sm" onclick="Views.directorTeachers.confirmDelete(${teacher.id})" title="Eliminar">
-              🗑
+            <button onclick="Views.directorTeachers.confirmDelete(${teacher.id})"
+                    class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50
+                           dark:hover:text-red-400 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                    title="Eliminar">
+              <span class="material-icons-round text-xl">delete</span>
             </button>
-          `;
+          </div>
+        `;
 
       return `
-        <tr${isDeleted ? ' style="opacity: 0.7;"' : ''}>
-          <td><strong>${Components.escapeHtml(teacher.full_name)}</strong></td>
-          <td>${Components.escapeHtml(teacher.email || '-')}</td>
-          <td>${coursesChips}</td>
-          <td>${statusChip}</td>
-          <td style="white-space: nowrap;">
-            ${actionButtons}
+        <tr class="hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition-colors${isDeleted ? ' opacity-70' : ''}">
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full ${avatarColor.bg} flex items-center justify-center ${avatarColor.text} font-bold text-sm">
+                ${initials}
+              </div>
+              <span class="font-bold text-slate-800 dark:text-white">${Components.escapeHtml(teacher.full_name)}</span>
+            </div>
           </td>
+          <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">${Components.escapeHtml(teacher.email || '-')}</td>
+          <td class="px-6 py-4">${courseBadges}</td>
+          <td class="px-6 py-4">${statusBadge}</td>
+          <td class="px-6 py-4">${actionButtons}</td>
         </tr>
       `;
     }).join('');
   }
 
   function renderPagination(filtered) {
-    const perPage = 15;
-    const totalPages = Math.ceil(filtered.length / perPage);
+    const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
     if (totalPages <= 1) return '';
 
+    const start = (currentPage - 1) * PAGE_SIZE + 1;
+    const end = Math.min(currentPage * PAGE_SIZE, filtered.length);
+
     return `
-      <div class="pagination" style="margin-top: 1rem;">
-        <button class="btn btn-secondary btn-sm" ${currentPage === 1 ? 'disabled' : ''}
-          onclick="Views.directorTeachers.changePage(${currentPage - 1})">Anterior</button>
-        <span style="margin: 0 1rem;">Pagina ${currentPage} de ${totalPages}</span>
-        <button class="btn btn-secondary btn-sm" ${currentPage === totalPages ? 'disabled' : ''}
-          onclick="Views.directorTeachers.changePage(${currentPage + 1})">Siguiente</button>
+      <div class="px-6 py-4 border-t border-slate-50 dark:border-slate-700 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+        <span>Mostrando ${start} a ${end} de ${filtered.length} registros</span>
+        <div class="flex gap-2">
+          <button onclick="Views.directorTeachers.changePage(${currentPage - 1})"
+                  class="p-1 rounded border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  ${currentPage === 1 ? 'disabled' : ''}>
+            <span class="material-icons-round text-xl">chevron_left</span>
+          </button>
+          <button onclick="Views.directorTeachers.changePage(${currentPage + 1})"
+                  class="p-1 rounded border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  ${currentPage === totalPages ? 'disabled' : ''}>
+            <span class="material-icons-round text-xl">chevron_right</span>
+          </button>
+        </div>
       </div>
     `;
   }
 
-  // Public methods
+  // ==================== PUBLIC METHODS ====================
+
+  Views.directorTeachers.toggleSidebar = function() {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (sidebar && backdrop) {
+      sidebar.classList.toggle('mobile-hidden');
+      backdrop.classList.toggle('hidden');
+    }
+  };
+
+  Views.directorTeachers.toggleDarkMode = function() {
+    document.documentElement.classList.toggle('dark');
+    localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+    Views.directorTeachers();
+  };
+
   Views.directorTeachers.search = function(term) {
     searchTerm = term;
     currentPage = 1;
@@ -280,7 +535,6 @@ Views.directorTeachers = async function() {
   };
 
   Views.directorTeachers.clearFilters = async function() {
-    // Reset all filters
     searchTerm = '';
     courseFilter = '';
     currentPage = 1;
@@ -291,7 +545,6 @@ Views.directorTeachers = async function() {
       teachers = await State.refreshTeachers();
       renderTeachers();
     } else {
-      // Just re-render with cleared local filters
       renderTeachers();
     }
   };
@@ -725,5 +978,6 @@ Views.directorTeachers = async function() {
     }
   };
 
+  // Initial render
   renderTeachers();
 };

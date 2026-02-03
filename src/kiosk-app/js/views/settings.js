@@ -61,6 +61,22 @@ Views.settings = function() {
       </div>
 
       <div class="card">
+        <div class="card-header">Sincronización</div>
+
+        <div class="flex gap-2 flex-wrap">
+          <button class="btn btn-primary" onclick="Views.settings.forceSync()">
+            🔄 Sincronizar Datos del Servidor
+          </button>
+          <button class="btn btn-warning" onclick="Views.settings.clearCache()">
+            🗑️ Limpiar Cache Local
+          </button>
+        </div>
+        <p style="margin-top: 0.5rem; font-size: 0.875rem; color: #64748b;">
+          Sincroniza los datos de estudiantes, fotos y cursos desde el servidor.
+        </p>
+      </div>
+
+      <div class="card">
         <div class="card-header">${I18n.t('manual.test_tokens')}</div>
 
         <div class="flex gap-2 flex-wrap">
@@ -132,5 +148,59 @@ Views.settings = function() {
     State.persist();
     UI.showToast('Batería simulada en 15%', 'warning');
     Views.settings();
+  };
+
+  // Force sync from server - fetches fresh student data with course names and photos
+  Views.settings.forceSync = async function() {
+    if (!Sync.isRealApiMode()) {
+      UI.showToast('API no configurada. Configure la device key primero.', 'warning');
+      return;
+    }
+
+    UI.showToast('Sincronizando con el servidor...', 'info');
+
+    try {
+      // Clear image cache to force fresh photo loads
+      Sync.clearImageCache();
+
+      // Run bootstrap sync to get all data fresh
+      const success = await Sync.syncBootstrap();
+
+      if (success) {
+        UI.showToast('Sincronización completa. Datos actualizados.', 'success');
+        console.log('[Sync] Students after sync:', State.students.slice(0, 3).map(s => ({
+          id: s.id,
+          name: s.full_name,
+          course_name: s.course_name,
+          photo_url: s.photo_url
+        })));
+      } else {
+        UI.showToast('Error al sincronizar. Verifique la conexión.', 'error');
+      }
+    } catch (err) {
+      console.error('Force sync error:', err);
+      UI.showToast('Error: ' + err.message, 'error');
+    }
+  };
+
+  // Clear local cache and force fresh load from server
+  Views.settings.clearCache = function() {
+    if (confirm('¿Limpiar cache local? Los datos de estudiantes se recargarán del servidor.')) {
+      // Clear students to force fresh load
+      State.students = [];
+      State.tags = [];
+      State.teachers = [];
+
+      // Clear image cache
+      if (Sync && Sync.clearImageCache) {
+        Sync.clearImageCache();
+      }
+
+      // Clear localStorage
+      localStorage.removeItem('kioskData');
+
+      State.persist();
+      UI.showToast('Cache limpiado. Reinicie la aplicación o sincronice.', 'success');
+    }
   };
 };

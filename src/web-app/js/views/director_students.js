@@ -2,13 +2,42 @@
 // Counter for race condition protection when loading photos
 let photoLoadCounter = 0;
 
-Views.directorStudents = function() {
+Views.directorStudents = function () {
   const app = document.getElementById('app');
-  app.innerHTML = Components.createLayout(State.currentRole);
 
-  const content = document.getElementById('view-content');
-  const pageTitle = document.getElementById('page-title');
-  if (pageTitle) pageTitle.textContent = 'Alumnos y Cursos';
+  // Current path for active state
+  const currentPath = '/director/students';
+
+  // Helper: check if nav item is active
+  const isActive = (path) => currentPath === path;
+  const navItemClass = (path) => isActive(path)
+    ? 'flex items-center px-6 py-3 bg-indigo-800/50 text-white border-l-4 border-indigo-500 group transition-colors'
+    : 'flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent';
+  const iconClass = (path) => isActive(path)
+    ? 'material-icons-round mr-3'
+    : 'material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors';
+
+  // Navigation items - del diseño aprobado
+  const navItems = [
+    { path: '/director/dashboard', icon: 'dashboard', label: 'Tablero' },
+    { path: '/director/reports', icon: 'analytics', label: 'Reportes' },
+    { path: '/director/metrics', icon: 'bar_chart', label: 'Métricas' },
+    { path: '/director/schedules', icon: 'schedule', label: 'Horarios' },
+    { path: '/director/exceptions', icon: 'event_busy', label: 'Excepciones' },
+    { path: '/director/broadcast', icon: 'campaign', label: 'Comunicados' },
+    { path: '/director/devices', icon: 'devices', label: 'Dispositivos' },
+    { path: '/director/students', icon: 'school', label: 'Alumnos' },
+    { path: '/director/guardians', icon: 'family_restroom', label: 'Apoderados' },
+    { path: '/director/teachers', icon: 'badge', label: 'Profesores' },
+    { path: '/director/courses', icon: 'class', label: 'Cursos' },
+    { path: '/director/absences', icon: 'person_off', label: 'Ausencias' },
+    { path: '/director/notifications', icon: 'notifications', label: 'Notificaciones' },
+    { path: '/director/biometric', icon: 'fingerprint', label: 'Biometría' },
+  ];
+
+  // Get user info
+  const user = State.getCurrentUser();
+  const userName = user?.full_name || 'Director';
 
   const courses = State.getCourses();
   let filteredStudents = State.getStudents();
@@ -16,178 +45,380 @@ Views.directorStudents = function() {
   let selectedCourse = '';
   let selectedStatus = '';  // '', 'ACTIVE', 'INACTIVE', 'DELETED'
 
+  // Pagination state
+  const PAGE_SIZE = 10;
+  let currentPage = 1;
+
+  // Helper to get current dark mode state
+  const isDarkMode = () => document.documentElement.classList.contains('dark');
+
+  // Toggle dark mode
+  window.toggleDarkMode = function () {
+    document.documentElement.classList.toggle('dark');
+    localStorage.setItem('darkMode', isDarkMode() ? 'enabled' : 'disabled');
+    renderStudents();
+  };
+
+  // Toggle mobile sidebar
+  window.toggleMobileSidebar = function () {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (sidebar && backdrop) {
+      sidebar.classList.toggle('mobile-hidden');
+      backdrop.classList.toggle('hidden');
+    }
+  };
+
+  // Helper to get progress bar color based on percentage
+  const getProgressColor = (pct) => {
+    if (pct >= 70) return 'bg-emerald-500';
+    if (pct >= 40) return 'bg-amber-500';
+    return 'bg-red-500';
+  };
+
+  // Pagination helpers
+  const getTotalPages = () => Math.ceil(filteredStudents.length / PAGE_SIZE);
+  const getPaginatedStudents = () => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredStudents.slice(start, start + PAGE_SIZE);
+  };
+
   // Helper to render table rows
   function renderTableRows() {
-    return filteredStudents.map(student => {
+    const paginatedStudents = getPaginatedStudents();
+
+    if (paginatedStudents.length === 0) {
+      return `
+        <tr>
+          <td colspan="6" class="px-6 py-12 text-center">
+            <div class="flex flex-col items-center justify-center">
+              <span class="material-icons-round text-5xl text-slate-300 dark:text-slate-600 mb-3">school</span>
+              <p class="text-slate-500 dark:text-slate-400 font-medium">
+                ${searchTerm || selectedCourse || selectedStatus
+                  ? 'No hay alumnos que coincidan con los filtros'
+                  : 'No hay alumnos registrados'}
+              </p>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    return paginatedStudents.map(student => {
       const course = State.getCourse(student.course_id);
-      const photoChip = student.photo_pref_opt_in
-        ? Components.createChip('Sí', 'success')
-        : Components.createChip('No', 'gray');
       const stats = State.getStudentAttendanceStats(student.id);
-      const attendanceChip = stats.percentage >= 90
-        ? Components.createChip(stats.percentage + '%', 'success')
-        : stats.percentage >= 75
-          ? Components.createChip(stats.percentage + '%', 'warning')
-          : Components.createChip(stats.percentage + '%', 'error');
-
-      // Chip de estado
-      const statusChip = student.status === 'DELETED'
-        ? Components.createChip('Eliminado', 'error')
-        : student.status === 'INACTIVE'
-          ? Components.createChip('Inactivo', 'warning')
-          : Components.createChip('Activo', 'success');
-
-      // Acciones según estado
+      const percentage = stats.percentage || 0;
       const isDeleted = student.status === 'DELETED';
+      const isInactive = student.status === 'INACTIVE';
+
+      // Status badge
+      let statusBadge;
+      if (isDeleted) {
+        statusBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">Eliminado</span>`;
+      } else if (isInactive) {
+        statusBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">Inactivo</span>`;
+      } else {
+        statusBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Activo</span>`;
+      }
+
+      // Photo auth badge
+      const photoAuthBadge = student.photo_pref_opt_in
+        ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">SI</span>`
+        : `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">NO</span>`;
+
+      // Avatar (initial or photo)
+      const avatarContent = student.photo_url
+        ? `<img src="${student.photo_url}" class="w-full h-full object-cover" alt="${Components.escapeHtml(student.full_name)}" />`
+        : student.full_name.charAt(0).toUpperCase();
 
       return `
-        <tr ${isDeleted ? 'style="opacity: 0.7;"' : ''}>
-          <td><strong>${Components.escapeHtml(student.full_name)}</strong></td>
-          <td>${course ? Components.escapeHtml(course.name) : '-'}</td>
-          <td>${statusChip}</td>
-          <td>${attendanceChip}</td>
-          <td>${photoChip}</td>
-          <td style="white-space: nowrap;">
-            ${isDeleted ? `
-              <button class="btn btn-success btn-sm" onclick="Views.directorStudents.restoreStudent(${student.id})" title="Restaurar estudiante">
-                ♻️ Restaurar
-              </button>
-            ` : `
-              <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.viewProfile(${student.id})" title="Ver perfil">
-                👁️
-              </button>
-              <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.showEnrollMenu(${student.id})" title="Generar credencial QR/NFC">
-                💳
-              </button>
-              <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.viewAttendance(${student.id})" title="Ver asistencia">
-                📊
-              </button>
-              <button class="btn btn-secondary btn-sm" onclick="Views.directorStudents.showEditForm(${student.id})" title="Editar">
-                ✏️
-              </button>
-              <button class="btn btn-error btn-sm" onclick="Views.directorStudents.confirmDelete(${student.id})" title="Eliminar">
-                🗑️
-              </button>
-            `}
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group ${isDeleted ? 'opacity-70' : ''}">
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-100 dark:border-indigo-800 overflow-hidden">
+                ${avatarContent}
+              </div>
+              <span class="font-bold text-slate-700 dark:text-slate-200">${Components.escapeHtml(student.full_name)}</span>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-slate-500 dark:text-slate-400 text-sm">${course ? Components.escapeHtml(course.name) : '-'}</td>
+          <td class="px-6 py-4 text-center">${statusBadge}</td>
+          <td class="px-6 py-4 min-w-[160px]">
+            <div class="flex items-center gap-3">
+              <span class="text-sm font-bold text-slate-700 dark:text-slate-200">${percentage}%</span>
+              <div class="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div class="h-full ${getProgressColor(percentage)} rounded-full" style="width: ${percentage}%"></div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-center">${photoAuthBadge}</td>
+          <td class="px-6 py-4 text-right">
+            <div class="flex justify-end gap-1 opacity-80 group-hover:opacity-100">
+              ${isDeleted ? `
+                <button onclick="Views.directorStudents.restoreStudent(${student.id})"
+                        class="px-3 py-1.5 bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-900/50 text-green-600 dark:text-green-400 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1"
+                        title="Restaurar estudiante">
+                  <span class="material-icons-round text-[16px]">restore</span>
+                  Restaurar
+                </button>
+              ` : `
+                <button onclick="Views.directorStudents.viewProfile(${student.id})"
+                        class="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg transition-all duration-200"
+                        title="Ver Perfil">
+                  <span class="material-icons-round text-[20px]">visibility</span>
+                </button>
+                <button onclick="Views.directorStudents.showEnrollMenu(${student.id})"
+                        class="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg transition-all duration-200"
+                        title="Generar Credencial QR/NFC">
+                  <span class="material-icons-round text-[20px]">qr_code_2</span>
+                </button>
+                <button onclick="Views.directorStudents.viewAttendance(${student.id})"
+                        class="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-lg transition-all duration-200"
+                        title="Ver Asistencia">
+                  <span class="material-icons-round text-[20px]">calendar_today</span>
+                </button>
+                <button onclick="Views.directorStudents.showEditForm(${student.id})"
+                        class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-lg transition-all duration-200"
+                        title="Editar">
+                  <span class="material-icons-round text-[20px]">edit</span>
+                </button>
+                <button onclick="Views.directorStudents.confirmDelete(${student.id})"
+                        class="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 rounded-lg transition-all duration-200"
+                        title="Eliminar">
+                  <span class="material-icons-round text-[20px]">delete</span>
+                </button>
+              `}
+            </div>
           </td>
         </tr>
       `;
     }).join('');
   }
 
-  // Update only table content without re-rendering filters (keeps input focus)
+  // Update table content without full re-render
   function updateTableContent() {
-    const cardBody = document.querySelector('.card-body');
-    const cardHeader = document.querySelector('.card-header span');
+    const tbody = document.getElementById('students-tbody');
+    const countSpan = document.getElementById('student-count');
+    const paginationInfo = document.getElementById('pagination-info');
 
-    if (cardHeader) {
-      cardHeader.textContent = `Lista de Alumnos (${filteredStudents.length})`;
+    if (tbody) {
+      tbody.innerHTML = renderTableRows();
     }
 
-    if (!cardBody) return;
-
-    if (filteredStudents.length === 0) {
-      cardBody.innerHTML = Components.createEmptyState(
-        'Sin alumnos',
-        searchTerm || selectedCourse
-          ? 'No hay alumnos que coincidan con los filtros seleccionados'
-          : 'No hay alumnos registrados en el sistema'
-      );
-    } else {
-      const tbody = cardBody.querySelector('tbody');
-      if (tbody) {
-        // Table exists, just update rows
-        tbody.innerHTML = renderTableRows();
-      } else {
-        // Table doesn't exist, create it
-        cardBody.innerHTML = `
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Curso</th>
-                <th>Estado</th>
-                <th>Asistencia</th>
-                <th>Aut. Foto</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${renderTableRows()}
-            </tbody>
-          </table>
-        `;
-      }
+    if (countSpan) {
+      countSpan.textContent = `(${filteredStudents.length})`;
     }
+
+    // Update pagination
+    if (paginationInfo) {
+      const start = filteredStudents.length > 0 ? (currentPage - 1) * PAGE_SIZE + 1 : 0;
+      const end = Math.min(currentPage * PAGE_SIZE, filteredStudents.length);
+      paginationInfo.textContent = `Mostrando ${start} a ${end} de ${filteredStudents.length} alumnos`;
+    }
+
+    // Update pagination buttons state
+    const prevBtn = document.getElementById('prev-page-btn');
+    const nextBtn = document.getElementById('next-page-btn');
+    if (prevBtn) prevBtn.disabled = currentPage === 1;
+    if (nextBtn) nextBtn.disabled = currentPage >= getTotalPages();
   }
 
   function renderStudents() {
-    content.innerHTML = `
-      <div class="filters" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1.5rem;">
-        <div class="filter-group" style="flex: 1; min-width: 200px;">
-          <label class="form-label">Buscar alumno</label>
-          <input type="text" id="search-student" class="form-input" placeholder="Nombre..." value="${Components.escapeHtml(searchTerm)}"
-            onkeyup="Views.directorStudents.search(this.value)">
-        </div>
+    const totalStudents = filteredStudents.length;
+    const start = totalStudents > 0 ? (currentPage - 1) * PAGE_SIZE + 1 : 0;
+    const end = Math.min(currentPage * PAGE_SIZE, totalStudents);
 
-        <div class="filter-group" style="flex: 1; min-width: 150px;">
-          <label class="form-label">Curso</label>
-          <select id="filter-course" class="form-select" onchange="Views.directorStudents.filterByCourse(this.value)">
-            <option value="">Todos los cursos</option>
-            ${courses.map(c => `<option value="${c.id}" ${selectedCourse === String(c.id) ? 'selected' : ''}>${Components.escapeHtml(c.name)}</option>`).join('')}
-          </select>
-        </div>
+    app.innerHTML = `
+      <div class="h-screen flex overflow-hidden bg-slate-50 dark:bg-background-dark">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-64 bg-sidebar-dark text-gray-300 flex-shrink-0 flex-col transition-all duration-300 mobile-hidden border-r border-indigo-900/50 shadow-2xl z-50">
+          <div class="h-20 flex items-center justify-between px-6 border-b border-indigo-900/50">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg">
+                <div class="w-4 h-4 bg-indigo-900 rounded-full"></div>
+              </div>
+              <h1 class="text-xl font-bold tracking-tight text-white">NEUVOX</h1>
+            </div>
+            <button class="desktop-hidden text-gray-400 hover:text-white p-1" onclick="toggleMobileSidebar()">
+              <span class="material-icons-round">close</span>
+            </button>
+          </div>
+          <nav class="flex-1 overflow-y-auto py-6 space-y-1">
+            ${navItems.map(item => `
+              <a class="${navItemClass(item.path)}" href="#${item.path}">
+                <span class="${iconClass(item.path)}">${item.icon}</span>
+                <span class="font-medium text-sm">${item.label}</span>
+              </a>
+            `).join('')}
+          </nav>
+        </aside>
 
-        <div class="filter-group" style="flex: 1; min-width: 120px;">
-          <label class="form-label">Estado</label>
-          <select id="filter-status" class="form-select" onchange="Views.directorStudents.filterByStatus(this.value)">
-            <option value="" ${selectedStatus === '' ? 'selected' : ''}>Activos</option>
-            <option value="INACTIVE" ${selectedStatus === 'INACTIVE' ? 'selected' : ''}>Inactivos</option>
-            <option value="DELETED" ${selectedStatus === 'DELETED' ? 'selected' : ''}>Eliminados</option>
-            <option value="ALL" ${selectedStatus === 'ALL' ? 'selected' : ''}>Todos</option>
-          </select>
-        </div>
+        <!-- Mobile Sidebar Backdrop -->
+        <div id="sidebar-backdrop" class="fixed inset-0 bg-black/50 z-40 hidden desktop-hidden" onclick="toggleMobileSidebar()"></div>
 
-        <div class="filter-group" style="display: flex; gap: 0.5rem;">
-          <button class="btn btn-outline" onclick="Views.directorStudents.clearFilters()" title="Limpiar filtros">✕ Limpiar</button>
-          <button class="btn btn-primary" onclick="Views.directorStudents.showCreateForm()">+ Nuevo Alumno</button>
-        </div>
-      </div>
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+          <!-- Header -->
+          <header class="h-20 bg-white dark:bg-card-dark border-b border-slate-200 dark:border-border-dark flex items-center justify-between px-8 z-10">
+            <div class="flex items-center gap-4">
+              <button class="desktop-hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg" onclick="toggleMobileSidebar()">
+                <span class="material-icons-round text-2xl text-slate-600 dark:text-slate-300">menu</span>
+              </button>
+              <h2 class="text-xl font-bold text-slate-800 dark:text-white">
+                Gestion de Alumnos <span id="student-count" class="text-slate-400 font-medium ml-1">(${totalStudents})</span>
+              </h2>
+            </div>
+            <div class="flex items-center gap-4">
+              <!-- Dark Mode Toggle -->
+              <button onclick="toggleDarkMode()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" title="Cambiar tema">
+                <span class="material-icons-round text-xl text-slate-500 dark:text-slate-400">${isDarkMode() ? 'light_mode' : 'dark_mode'}</span>
+              </button>
+              <!-- User -->
+              <div class="flex items-center gap-2 cursor-pointer">
+                <div class="w-9 h-9 rounded-full border border-gray-200 bg-indigo-600 flex items-center justify-center text-white font-semibold">
+                  ${userName.charAt(0).toUpperCase()}
+                </div>
+                <div class="text-right mobile-hidden">
+                  <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">${Components.escapeHtml(userName)}</p>
+                </div>
+              </div>
+              <!-- Logout -->
+              <a class="ml-1 md:ml-2 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 border px-2 md:px-3 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-white/5 dark:border-gray-600" href="#" onclick="event.preventDefault(); State.logout(); Router.navigate('/login')">
+                <span class="material-icons-round text-lg">logout</span>
+                <span class="mobile-hidden">Salir</span>
+              </a>
+            </div>
+          </header>
 
-      <div class="card">
-        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-          <span>Lista de Alumnos (${filteredStudents.length})</span>
-        </div>
-        <div class="card-body">
-          ${filteredStudents.length === 0 ? Components.createEmptyState(
-            'Sin alumnos',
-            searchTerm || selectedCourse
-              ? 'No hay alumnos que coincidan con los filtros seleccionados'
-              : 'No hay alumnos registrados en el sistema'
-          ) : `
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Curso</th>
-                <th>Estado</th>
-                <th>Asistencia</th>
-                <th>Aut. Foto</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${renderTableRows()}
-            </tbody>
-          </table>
-          `}
-        </div>
+          <!-- Content Area -->
+          <div class="flex-1 overflow-y-auto p-8 space-y-6">
+            <!-- Filters Section -->
+            <div class="bg-white dark:bg-card-dark p-5 rounded-xl border border-slate-200 dark:border-border-dark shadow-sm flex flex-wrap items-end gap-4">
+              <!-- Search -->
+              <div class="flex-1 min-w-[240px]">
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Buscar alumno</label>
+                <div class="relative">
+                  <span class="material-icons-round absolute left-3 top-2.5 text-slate-400">search</span>
+                  <input type="text" id="search-student"
+                         class="w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                         placeholder="Buscar por nombre..."
+                         value="${Components.escapeHtml(searchTerm)}"
+                         onkeyup="Views.directorStudents.search(this.value)">
+                </div>
+              </div>
+
+              <!-- Course Filter -->
+              <div class="w-48">
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Curso</label>
+                <select id="filter-course"
+                        class="w-full py-2.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        onchange="Views.directorStudents.filterByCourse(this.value)">
+                  <option value="">Todos los cursos</option>
+                  ${courses.map(c => `<option value="${c.id}" ${selectedCourse === String(c.id) ? 'selected' : ''}>${Components.escapeHtml(c.name)}</option>`).join('')}
+                </select>
+              </div>
+
+              <!-- Status Filter -->
+              <div class="w-48">
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Estado</label>
+                <select id="filter-status"
+                        class="w-full py-2.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        onchange="Views.directorStudents.filterByStatus(this.value)">
+                  <option value="" ${selectedStatus === '' ? 'selected' : ''}>Activos</option>
+                  <option value="INACTIVE" ${selectedStatus === 'INACTIVE' ? 'selected' : ''}>Inactivos</option>
+                  <option value="DELETED" ${selectedStatus === 'DELETED' ? 'selected' : ''}>Eliminados</option>
+                  <option value="ALL" ${selectedStatus === 'ALL' ? 'selected' : ''}>Todos</option>
+                </select>
+              </div>
+
+              <!-- Clear Filters -->
+              <button onclick="Views.directorStudents.clearFilters()"
+                      class="px-5 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                Limpiar Filtros
+              </button>
+
+              <!-- New Student Button -->
+              <button onclick="Views.directorStudents.showCreateForm()"
+                      class="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 px-6 py-2.5 text-white rounded-lg text-sm font-bold shadow-lg shadow-indigo-200 dark:shadow-none flex items-center gap-2 transition-all">
+                <span class="material-icons-round text-xl">person_add</span>
+                + Nuevo Alumno
+              </button>
+            </div>
+
+            <!-- Students Table -->
+            <div class="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-border-dark shadow-sm overflow-hidden">
+              <!-- Table Header -->
+              <div class="p-5 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+                <h3 class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Lista de Alumnos</h3>
+              </div>
+
+              <!-- Table -->
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700">
+                      <th class="px-6 py-4">Nombre</th>
+                      <th class="px-6 py-4">Curso</th>
+                      <th class="px-6 py-4 text-center">Estado</th>
+                      <th class="px-6 py-4">Asistencia</th>
+                      <th class="px-6 py-4 text-center">Aut. Foto</th>
+                      <th class="px-6 py-4 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="students-tbody" class="divide-y divide-slate-50 dark:divide-slate-800">
+                    ${renderTableRows()}
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Pagination -->
+              <div class="px-6 py-4 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+                <span id="pagination-info">Mostrando ${start} a ${end} de ${totalStudents} alumnos</span>
+                <div class="flex gap-2">
+                  <button id="prev-page-btn" onclick="Views.directorStudents.prevPage()"
+                          class="px-3 py-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          ${currentPage === 1 ? 'disabled' : ''}>
+                    Anterior
+                  </button>
+                  <button id="next-page-btn" onclick="Views.directorStudents.nextPage()"
+                          class="px-3 py-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          ${currentPage >= getTotalPages() ? 'disabled' : ''}>
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="text-center text-[10px] text-slate-400 dark:text-slate-500 font-medium pt-4 pb-8 uppercase tracking-[2px]">
+              &copy; 2026 NEUVOX. Todos los derechos reservados.
+            </footer>
+          </div>
+        </main>
       </div>
     `;
   }
 
+  // Pagination methods
+  Views.directorStudents.prevPage = function () {
+    if (currentPage > 1) {
+      currentPage--;
+      updateTableContent();
+    }
+  };
+
+  Views.directorStudents.nextPage = function () {
+    if (currentPage < getTotalPages()) {
+      currentPage++;
+      updateTableContent();
+    }
+  };
+
   // Helper function to apply all current filters
   async function applyCurrentFilters() {
+    // Reset to first page when filters change
+    currentPage = 1;
+
     // Para DELETED o ALL, necesitamos llamar a la API
     if (selectedStatus === 'DELETED' || selectedStatus === 'ALL') {
       try {
@@ -209,7 +440,7 @@ Views.directorStudents = function() {
         }
       } catch (error) {
         console.error('Error fetching students:', error);
-        Components.showToast('Error de conexión', 'error');
+        Components.showToast('Error de conexion', 'error');
         filteredStudents = [];
       }
     } else {
@@ -235,32 +466,33 @@ Views.directorStudents = function() {
   }
 
   // Reactive filter methods
-  Views.directorStudents.search = function(term) {
+  Views.directorStudents.search = function (term) {
     searchTerm = term;
     applyCurrentFilters().then(() => updateTableContent());
   };
 
-  Views.directorStudents.filterByCourse = function(course) {
+  Views.directorStudents.filterByCourse = function (course) {
     selectedCourse = course;
     applyCurrentFilters().then(() => updateTableContent());
   };
 
-  Views.directorStudents.filterByStatus = async function(status) {
+  Views.directorStudents.filterByStatus = async function (status) {
     selectedStatus = status;
     await applyCurrentFilters();
     renderStudents();
   };
 
-  Views.directorStudents.clearFilters = async function() {
+  Views.directorStudents.clearFilters = async function () {
     searchTerm = '';
     selectedCourse = '';
     selectedStatus = '';
+    currentPage = 1;
     filteredStudents = State.getStudents();
     renderStudents();
   };
 
   // Legacy method for compatibility
-  Views.directorStudents.applyFilters = async function() {
+  Views.directorStudents.applyFilters = async function () {
     searchTerm = document.getElementById('search-student')?.value || '';
     selectedCourse = document.getElementById('filter-course')?.value || '';
     selectedStatus = document.getElementById('filter-status')?.value || '';
@@ -268,7 +500,7 @@ Views.directorStudents = function() {
     renderStudents();
   };
 
-  Views.directorStudents.showCreateForm = function() {
+  Views.directorStudents.showCreateForm = function () {
     const coursesOptions = courses.map(c =>
       `<option value="${c.id}">${Components.escapeHtml(c.name)} - ${Components.escapeHtml(c.grade)}</option>`
     ).join('');
@@ -283,7 +515,7 @@ Views.directorStudents = function() {
       <form id="student-form">
         <div class="form-group">
           <label class="form-label">Nombre Completo *</label>
-          <input type="text" id="student-name" class="form-input" required placeholder="Ej: Juan Pérez García">
+          <input type="text" id="student-name" class="form-input" required placeholder="Ej: Juan Perez Garcia">
         </div>
         <div class="form-group">
           <label class="form-label">Curso *</label>
@@ -293,10 +525,10 @@ Views.directorStudents = function() {
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">RUT o N° Matrícula (opcional)</label>
+          <label class="form-label">RUT o N Matricula (opcional)</label>
           <input type="text" id="student-rut" class="form-input" placeholder="Ej: 12.345.678-9 o MAT-2024-001">
           <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
-            Identificador único del alumno en el colegio
+            Identificador unico del alumno en el colegio
           </small>
         </div>
 
@@ -313,8 +545,8 @@ Views.directorStudents = function() {
             </button>
           </div>
           <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
-            El apoderado recibirá notificaciones de asistencia.
-            <a href="#/director/guardians" style="color: var(--color-primary);">Ir a gestión de apoderados</a>
+            El apoderado recibira notificaciones de asistencia.
+            <a href="#/director/guardians" style="color: var(--color-primary);">Ir a gestion de apoderados</a>
           </small>
         </div>
 
@@ -327,9 +559,9 @@ Views.directorStudents = function() {
 
         <!-- Nota sobre enrolamiento -->
         <div style="background: var(--color-info-light); padding: 0.75rem; border-radius: 8px; margin-top: 1rem; font-size: 0.85rem;">
-          <strong>💳 Credenciales QR/NFC:</strong>
+          <strong>Credenciales QR/NFC:</strong>
           <p style="margin: 0.25rem 0 0; color: var(--color-gray-600);">
-            Después de guardar el alumno, podrás generar su credencial QR o NFC desde el botón "👁️ Ver perfil" en la tabla.
+            Despues de guardar el alumno, podras generar su credencial QR o NFC desde el boton "Ver perfil" en la tabla.
           </p>
         </div>
       </form>
@@ -339,13 +571,13 @@ Views.directorStudents = function() {
     ]);
   };
 
-  Views.directorStudents.goToCreateGuardian = function() {
+  Views.directorStudents.goToCreateGuardian = function () {
     document.querySelector('.modal-container').click();
     Components.showToast('Cree el apoderado y luego vuelva a crear el alumno', 'info', 3000);
     Router.navigate('/director/guardians');
   };
 
-  Views.directorStudents.saveStudent = async function(studentId = null) {
+  Views.directorStudents.saveStudent = async function (studentId = null) {
     const name = document.getElementById('student-name').value.trim();
     const courseId = parseInt(document.getElementById('student-course').value);
     const nationalId = document.getElementById('student-rut')?.value.trim() || '';
@@ -440,10 +672,11 @@ Views.directorStudents = function() {
     Components.showToast(studentId ? 'Alumno actualizado correctamente' : 'Alumno creado correctamente', 'success');
     document.querySelector('.modal-container').click(); // Close modal
     filteredStudents = State.getStudents();
+    currentPage = 1;
     renderStudents();
   };
 
-  Views.directorStudents.showEditForm = async function(studentId) {
+  Views.directorStudents.showEditForm = async function (studentId) {
     const student = State.getStudent(studentId);
     if (!student) return;
 
@@ -474,9 +707,9 @@ Views.directorStudents = function() {
     const photoHTML = photoPreviewUrl
       ? `<div style="position: relative; display: inline-block; width: 100%; height: 100%;">
            <img id="photo-preview" src="" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.3;" data-loading="true">
-           <div id="photo-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px;">⏳</div>
+           <div id="photo-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px;">...</div>
          </div>`
-      : `<span id="photo-placeholder" style="font-size: 2rem; color: var(--color-gray-400);">📷</span>`;
+      : `<span id="photo-placeholder" style="font-size: 2rem; color: var(--color-gray-400);"><span class="material-icons-round">photo_camera</span></span>`;
 
     Components.showModal('Editar Alumno', `
       <form id="student-form">
@@ -490,15 +723,15 @@ Views.directorStudents = function() {
             <div style="flex: 1;">
               <input type="file" id="student-photo-file" accept="image/jpeg,image/png,image/webp" style="display: none;" onchange="Views.directorStudents.previewPhoto(this)">
               <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('student-photo-file').click()">
-                ${photoPreviewUrl ? '📷 Cambiar foto' : '📷 Subir foto'}
+                ${photoPreviewUrl ? 'Cambiar foto' : 'Subir foto'}
               </button>
               ${photoPreviewUrl ? `
                 <button type="button" class="btn btn-error btn-sm" onclick="Views.directorStudents.removePhotoPreview(${studentId})" style="margin-left: 0.5rem;">
-                  🗑️ Eliminar
+                  Eliminar
                 </button>
               ` : ''}
               <small style="color: var(--color-gray-500); display: block; margin-top: 0.5rem;">
-                Formatos: JPG, PNG, WebP. Máximo: 5MB
+                Formatos: JPG, PNG, WebP. Maximo: 5MB
               </small>
             </div>
           </div>
@@ -515,10 +748,10 @@ Views.directorStudents = function() {
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">RUT o N° Matrícula</label>
+          <label class="form-label">RUT o N Matricula</label>
           <input type="text" id="student-rut" class="form-input" value="${Components.escapeHtml(student.national_id || '')}" placeholder="Ej: 12.345.678-9 o MAT-2024-001">
           <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
-            Identificador único del alumno en el colegio
+            Identificador unico del alumno en el colegio
           </small>
         </div>
 
@@ -535,7 +768,7 @@ Views.directorStudents = function() {
             </button>
           </div>
           <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
-            El apoderado recibirá notificaciones de asistencia.
+            El apoderado recibira notificaciones de asistencia.
           </small>
         </div>
 
@@ -569,25 +802,25 @@ Views.directorStudents = function() {
       }).catch(err => {
         console.error('Error loading photo:', err);
         const loading = document.getElementById('photo-loading');
-        if (loading) loading.innerHTML = '❌';
+        if (loading) loading.innerHTML = 'Error';
       });
     }
   };
 
   // Preview photo before upload
-  Views.directorStudents.previewPhoto = function(input) {
+  Views.directorStudents.previewPhoto = function (input) {
     if (input.files && input.files[0]) {
       const file = input.files[0];
 
       // Validate file size (5MB)
       if (file.size > 5 * 1024 * 1024) {
-        Components.showToast('La imagen es demasiado grande. Máximo 5MB', 'error');
+        Components.showToast('La imagen es demasiado grande. Maximo 5MB', 'error');
         input.value = '';
         return;
       }
 
       const reader = new FileReader();
-      reader.onload = function(e) {
+      reader.onload = function (e) {
         const container = document.getElementById('photo-preview-container');
         container.innerHTML = `<img id="photo-preview" src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
       };
@@ -596,11 +829,11 @@ Views.directorStudents = function() {
   };
 
   // Remove photo preview and mark for deletion
-  Views.directorStudents.removePhotoPreview = async function(studentId) {
+  Views.directorStudents.removePhotoPreview = async function (studentId) {
     try {
       await API.deleteStudentPhoto(studentId);
       const container = document.getElementById('photo-preview-container');
-      container.innerHTML = `<span id="photo-placeholder" style="font-size: 2rem; color: var(--color-gray-400);">📷</span>`;
+      container.innerHTML = `<span id="photo-placeholder" style="font-size: 2rem; color: var(--color-gray-400);"><span class="material-icons-round">photo_camera</span></span>`;
       document.getElementById('student-photo-file').value = '';
       Components.showToast('Foto eliminada', 'success');
     } catch (e) {
@@ -608,78 +841,87 @@ Views.directorStudents = function() {
     }
   };
 
-  Views.directorStudents.confirmDelete = function(studentId) {
+  Views.directorStudents.confirmDelete = function (studentId) {
     const student = State.getStudent(studentId);
     if (!student) return;
 
-    Components.showModal('Confirmar Eliminación', `
+    Components.showModal('Confirmar Eliminacion', `
       <div style="text-align: center; padding: 1rem;">
-        <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
-        <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">¿Está seguro de eliminar al alumno?</p>
+        <div style="font-size: 3rem; margin-bottom: 1rem;">
+          <span class="material-icons-round text-red-500" style="font-size: 48px;">warning</span>
+        </div>
+        <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">Esta seguro de eliminar al alumno?</p>
         <p style="font-weight: 600; color: var(--color-error);">${Components.escapeHtml(student.full_name)}</p>
         <p style="font-size: 0.9rem; color: var(--color-gray-500); margin-top: 1rem;">
-          Esta acción eliminará también todos los registros de asistencia del alumno.
+          Esta accion eliminara tambien todos los registros de asistencia del alumno.
         </p>
       </div>
     `, [
       { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
-      { label: 'Eliminar', action: 'delete', className: 'btn-error', onClick: async () => {
-        try {
-          // Delete from backend if authenticated
-          if (State.isApiAuthenticated()) {
-            await API.deleteStudent(studentId);
+      {
+        label: 'Eliminar', action: 'delete', className: 'btn-error', onClick: async () => {
+          try {
+            // Delete from backend if authenticated
+            if (State.isApiAuthenticated()) {
+              await API.deleteStudent(studentId);
+            }
+            // Delete from local state
+            State.deleteStudent(studentId);
+            document.querySelector('.modal-container').click();
+            Components.showToast('Alumno eliminado', 'success');
+            filteredStudents = State.getStudents();
+            currentPage = 1;
+            renderStudents();
+          } catch (error) {
+            console.error('Error deleting student:', error);
+            Components.showToast(error.message || 'Error al eliminar estudiante', 'error');
           }
-          // Delete from local state
-          State.deleteStudent(studentId);
-          document.querySelector('.modal-container').click();
-          Components.showToast('Alumno eliminado', 'success');
-          filteredStudents = State.getStudents();
-          renderStudents();
-        } catch (error) {
-          console.error('Error deleting student:', error);
-          Components.showToast(error.message || 'Error al eliminar estudiante', 'error');
         }
-      }}
+      }
     ]);
   };
 
-  Views.directorStudents.restoreStudent = async function(studentId) {
+  Views.directorStudents.restoreStudent = async function (studentId) {
     Components.showModal('Restaurar Estudiante', `
       <div style="text-align: center; padding: 1rem;">
-        <div style="font-size: 3rem; margin-bottom: 1rem;">♻️</div>
-        <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">¿Restaurar este estudiante?</p>
+        <div style="font-size: 3rem; margin-bottom: 1rem;">
+          <span class="material-icons-round text-green-500" style="font-size: 48px;">restore</span>
+        </div>
+        <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">Restaurar este estudiante?</p>
         <p style="font-size: 0.9rem; color: var(--color-gray-500); margin-top: 1rem;">
-          El estudiante volverá a aparecer en las listas normales.
+          El estudiante volvera a aparecer en las listas normales.
         </p>
       </div>
     `, [
       { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
-      { label: 'Restaurar', action: 'restore', className: 'btn-success', onClick: async () => {
-        try {
-          // Call API to restore student
-          const response = await API.request(`/students/${studentId}/restore`, {
-            method: 'POST'
-          });
+      {
+        label: 'Restaurar', action: 'restore', className: 'btn-success', onClick: async () => {
+          try {
+            // Call API to restore student
+            const response = await API.request(`/students/${studentId}/restore`, {
+              method: 'POST'
+            });
 
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Error al restaurar');
+            if (!response.ok) {
+              const error = await response.json();
+              throw new Error(error.detail || 'Error al restaurar');
+            }
+
+            document.querySelector('.modal-container').click();
+            Components.showToast('Estudiante restaurado', 'success');
+
+            // Refresh the list
+            await Views.directorStudents.applyFilters();
+          } catch (error) {
+            console.error('Error restoring student:', error);
+            Components.showToast(error.message || 'Error al restaurar estudiante', 'error');
           }
-
-          document.querySelector('.modal-container').click();
-          Components.showToast('Estudiante restaurado', 'success');
-
-          // Refresh the list
-          await Views.directorStudents.applyFilters();
-        } catch (error) {
-          console.error('Error restoring student:', error);
-          Components.showToast(error.message || 'Error al restaurar estudiante', 'error');
         }
-      }}
+      }
     ]);
   };
 
-  Views.directorStudents.viewProfile = async function(studentId) {
+  Views.directorStudents.viewProfile = async function (studentId) {
     const student = State.getStudent(studentId);
     const course = State.getCourse(student.course_id);
     const guardians = State.getGuardians().filter(g => g.student_ids.includes(studentId));
@@ -698,7 +940,7 @@ Views.directorStudents = function() {
     const currentPhotoLoadId = ++photoLoadCounter;
 
     // Helper to format contact type labels
-    const contactLabels = { email: 'Email', phone: 'Teléfono', whatsapp: 'WhatsApp' };
+    const contactLabels = { email: 'Email', phone: 'Telefono', whatsapp: 'WhatsApp' };
     const formatContacts = (contacts) => {
       if (!contacts || typeof contacts !== 'object') return 'Sin contactos';
       const entries = Object.entries(contacts).filter(([_, v]) => v);
@@ -721,13 +963,13 @@ Views.directorStudents = function() {
     const photoHTML = photoUrl
       ? `<div style="position: relative; display: inline-block;">
            <img id="profile-photo" src="" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 3px solid var(--color-primary); opacity: 0.3;" data-loading="true">
-           <div id="profile-photo-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px;">⏳</div>
+           <div id="profile-photo-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px;">...</div>
          </div>`
-      : `<div style="width: 120px; height: 120px; border-radius: 50%; background: var(--color-gray-200); display: flex; align-items: center; justify-content: center; font-size: 3rem; color: var(--color-gray-400);">👤</div>`;
+      : `<div style="width: 120px; height: 120px; border-radius: 50%; background: var(--color-gray-200); display: flex; align-items: center; justify-content: center; font-size: 3rem; color: var(--color-gray-400);"><span class="material-icons-round" style="font-size: 48px;">person</span></div>`;
 
     Components.showModal(`Perfil - ${student.full_name}`, `
       <div class="card mb-2">
-        <div class="card-header">Información Básica</div>
+        <div class="card-header">Informacion Basica</div>
         <div class="card-body">
           <div style="display: flex; gap: 1.5rem; align-items: flex-start;">
             <div style="flex-shrink: 0;">
@@ -736,7 +978,7 @@ Views.directorStudents = function() {
             <div style="flex: 1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
               <div><strong>Nombre:</strong><br>${Components.escapeHtml(student.full_name)}</div>
               <div><strong>Curso:</strong><br>${course ? Components.escapeHtml(course.name + ' - ' + course.grade) : '-'}</div>
-              <div><strong>RUT/Matrícula:</strong><br>${student.national_id || 'No registrado'}</div>
+              <div><strong>RUT/Matricula:</strong><br>${student.national_id || 'No registrado'}</div>
               <div><strong>ID Sistema:</strong><br><span style="font-family: monospace; color: var(--color-gray-500);">#${student.id}</span> <small style="color: var(--color-gray-400);">(auto)</small></div>
             </div>
           </div>
@@ -744,7 +986,7 @@ Views.directorStudents = function() {
       </div>
 
       <div class="card mb-2">
-        <div class="card-header">Estadísticas de Asistencia</div>
+        <div class="card-header">Estadisticas de Asistencia</div>
         <div class="card-body">
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; text-align: center;">
             <div style="background: var(--color-success-light); padding: 1rem; border-radius: 8px;">
@@ -753,7 +995,7 @@ Views.directorStudents = function() {
             </div>
             <div style="background: var(--color-primary-light); padding: 1rem; border-radius: 8px;">
               <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-primary);">${stats.daysPresent}</div>
-              <div style="font-size: 0.8rem; color: var(--color-gray-600);">Días Presente</div>
+              <div style="font-size: 0.8rem; color: var(--color-gray-600);">Dias Presente</div>
             </div>
             <div style="background: var(--color-warning-light); padding: 1rem; border-radius: 8px;">
               <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-warning);">${stats.lateArrivals}</div>
@@ -773,26 +1015,32 @@ Views.directorStudents = function() {
       </div>
     `, [
       { label: 'Cerrar', action: 'close', className: 'btn-secondary' },
-      { label: 'Enrolar QR', action: 'qr', className: 'btn-secondary', onClick: () => {
-        document.querySelector('.modal-container').click();
-        if (typeof QREnrollment !== 'undefined') {
-          QREnrollment.showStudentEnrollmentModal(studentId);
-        } else {
-          Components.showToast('Servicio QR no disponible', 'error');
+      {
+        label: 'Enrolar QR', action: 'qr', className: 'btn-secondary', onClick: () => {
+          document.querySelector('.modal-container').click();
+          if (typeof QREnrollment !== 'undefined') {
+            QREnrollment.showStudentEnrollmentModal(studentId);
+          } else {
+            Components.showToast('Servicio QR no disponible', 'error');
+          }
         }
-      }},
-      { label: 'Enrolar NFC', action: 'nfc', className: 'btn-secondary', onClick: () => {
-        document.querySelector('.modal-container').click();
-        if (typeof NFCEnrollment !== 'undefined') {
-          NFCEnrollment.showStudentEnrollmentModal(studentId);
-        } else {
-          Components.showToast('Servicio NFC no disponible', 'error');
+      },
+      {
+        label: 'Enrolar NFC', action: 'nfc', className: 'btn-secondary', onClick: () => {
+          document.querySelector('.modal-container').click();
+          if (typeof NFCEnrollment !== 'undefined') {
+            NFCEnrollment.showStudentEnrollmentModal(studentId);
+          } else {
+            Components.showToast('Servicio NFC no disponible', 'error');
+          }
         }
-      }},
-      { label: 'Ver Asistencia', action: 'attendance', className: 'btn-primary', onClick: () => {
-        document.querySelector('.modal-container').click();
-        Views.directorStudents.viewAttendance(studentId);
-      }}
+      },
+      {
+        label: 'Ver Asistencia', action: 'attendance', className: 'btn-primary', onClick: () => {
+          document.querySelector('.modal-container').click();
+          Views.directorStudents.viewAttendance(studentId);
+        }
+      }
     ]);
 
     // Load photo with authentication after modal is rendered
@@ -813,12 +1061,12 @@ Views.directorStudents = function() {
       }).catch(err => {
         console.error('Error loading profile photo:', err);
         const loading = document.getElementById('profile-photo-loading');
-        if (loading) loading.innerHTML = '❌';
+        if (loading) loading.innerHTML = 'Error';
       });
     }
   };
 
-  Views.directorStudents.viewAttendance = function(studentId) {
+  Views.directorStudents.viewAttendance = function (studentId) {
     const student = State.getStudent(studentId);
     if (!student) return;
 
@@ -881,17 +1129,17 @@ Views.directorStudents = function() {
         <div class="card-body">
           <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
             <button class="btn btn-success" onclick="Views.directorStudents.registerAttendance(${studentId}, 'IN')">
-              ✓ Registrar Entrada
+              Registrar Entrada
             </button>
             <button class="btn btn-secondary" onclick="Views.directorStudents.registerAttendance(${studentId}, 'OUT')">
-              ↩ Registrar Salida
+              Registrar Salida
             </button>
           </div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-header">Últimos 20 Registros</div>
+        <div class="card-header">Ultimos 20 Registros</div>
         <div class="card-body" style="max-height: 300px; overflow-y: auto;">
           ${eventsHTML}
         </div>
@@ -901,7 +1149,7 @@ Views.directorStudents = function() {
     ]);
   };
 
-  Views.directorStudents.registerAttendance = async function(studentId, type) {
+  Views.directorStudents.registerAttendance = async function (studentId, type) {
     try {
       // Call the attendance API endpoint
       const response = await API.request('/attendance/events', {
@@ -937,7 +1185,7 @@ Views.directorStudents = function() {
     }
   };
 
-  Views.directorStudents.showEnrollMenu = function(studentId) {
+  Views.directorStudents.showEnrollMenu = function (studentId) {
     const student = State.getStudent(studentId);
     if (!student) return;
 
@@ -948,11 +1196,11 @@ Views.directorStudents = function() {
         </p>
         <div style="display: flex; flex-direction: column; gap: 1rem;">
           <button class="btn btn-primary btn-lg" onclick="Views.directorStudents.enrollQR(${studentId})">
-            📱 Generar QR
+            <span class="material-icons-round mr-2">qr_code_2</span> Generar QR
             <small style="display: block; font-weight: normal; font-size: 0.8rem;">Para imprimir en credencial</small>
           </button>
           <button class="btn btn-secondary btn-lg" onclick="Views.directorStudents.enrollNFC(${studentId})">
-            💳 Escribir NFC
+            <span class="material-icons-round mr-2">contactless</span> Escribir NFC
             <small style="display: block; font-weight: normal; font-size: 0.8rem;">Requiere lector NFC</small>
           </button>
         </div>
@@ -962,7 +1210,7 @@ Views.directorStudents = function() {
     ]);
   };
 
-  Views.directorStudents.enrollQR = function(studentId) {
+  Views.directorStudents.enrollQR = function (studentId) {
     document.querySelector('.modal-container')?.click();
     if (typeof QREnrollment !== 'undefined') {
       QREnrollment.showStudentEnrollmentModal(studentId);
@@ -971,7 +1219,7 @@ Views.directorStudents = function() {
     }
   };
 
-  Views.directorStudents.enrollNFC = function(studentId) {
+  Views.directorStudents.enrollNFC = function (studentId) {
     document.querySelector('.modal-container')?.click();
     if (typeof NFCEnrollment !== 'undefined') {
       NFCEnrollment.showStudentEnrollmentModal(studentId);

@@ -609,3 +609,6 @@ Sync.stopIntervals = function() {
 // R4-F2 fix: Cleanup intervals on page unload to prevent memory leaks
 window.addEventListener('beforeunload', () => Sync.stopIntervals());
 window.addEventListener('pagehide', () => Sync.stopIntervals());
+
+// Expose Sync globally to ensure availability in all contexts
+window.Sync = Sync;

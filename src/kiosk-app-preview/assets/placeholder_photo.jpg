@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">
-  <rect width="400" height="400" fill="#e5e7eb"/>
-  <circle cx="200" cy="150" r="60" fill="#9ca3af"/>
-  <path d="M 120 280 Q 200 240 280 280 L 280 400 L 120 400 Z" fill="#9ca3af"/>
-  <text x="200" y="350" text-anchor="middle" fill="#6b7280" font-size="18" font-family="sans-serif">Foto capturada</text>
-</svg>

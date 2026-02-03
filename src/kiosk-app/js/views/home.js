@@ -1,4 +1,5 @@
-// Home view - Real QR scanner with camera + NFC support
+// Home view - Redesigned QR scanner with camera + NFC support (2026 Redesign)
+// Supports both tablet (large screen) and mobile (small screen) layouts
 const Views = window.Views || {};
 window.Views = Views;
 
@@ -21,56 +22,214 @@ Views.home = function() {
   // NFC configuration
   let nfcActivated = false; // Track if user has activated NFC
 
+  // Detect mobile viewport (based on approved mobile design max-width 420px)
+  function isMobileViewport() {
+    return window.innerWidth <= 500;
+  }
+
   // Auto-resume configuration (default 5 seconds, 0 = disabled)
   // Note: Read at runtime to ensure State.config is loaded
   function getAutoResumeMs() {
     return State.config.autoResumeDelay || 5000;
   }
 
+  // Mobile layout render (based on kiosco-home-scanner-acceso-celular.html)
+  function renderMobileCamera() {
+    app.innerHTML = `
+      <div class="mobile-home-container">
+        <!-- Background gradient glows -->
+        <div class="mobile-home-glow-top"></div>
+        <div class="mobile-home-glow-bottom"></div>
+
+        <!-- Header -->
+        <header class="mobile-home-header">
+          <div class="mobile-home-header-logo">
+            <div class="mobile-home-header-logo-icon">
+              <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 4H17.3334V17.3334H30.6666V30.6666H44V44H4V4Z" fill="currentColor"></path>
+              </svg>
+            </div>
+            <h2 class="mobile-home-header-logo-text">NEUVOX</h2>
+          </div>
+          <button id="mobile-settings-btn" class="mobile-home-notification-btn">
+            <span class="material-symbols-outlined text-white text-xl">settings</span>
+          </button>
+        </header>
+
+        <!-- Main Content -->
+        <main class="mobile-home-main">
+          <!-- Headline -->
+          <div class="mobile-home-headline">
+            <h1>Escanea tu código</h1>
+            <p>Coloca tu credencial frente a la cámara</p>
+          </div>
+
+          <!-- QR Scanner with neon corners -->
+          <div class="mobile-scanner-frame">
+            <div class="mobile-scanner-viewport">
+              <video id="qr-video" autoplay playsinline></video>
+              <canvas id="qr-canvas" hidden></canvas>
+              <div class="mobile-scan-line"></div>
+              <!-- QR icon overlay -->
+              <div class="mobile-scanner-icon-overlay">
+                <span class="material-symbols-outlined">qr_code_scanner</span>
+              </div>
+            </div>
+            <!-- Neon corners -->
+            <div class="mobile-scanner-corner top-left"></div>
+            <div class="mobile-scanner-corner top-right"></div>
+            <div class="mobile-scanner-corner bottom-left"></div>
+            <div class="mobile-scanner-corner bottom-right"></div>
+          </div>
+
+          <!-- Help text -->
+          <div class="mobile-scanner-help">
+            <p>Asegúrate de que el código esté dentro del recuadro</p>
+          </div>
+        </main>
+
+        <!-- Footer with stacked buttons -->
+        <footer class="mobile-home-footer">
+          <div class="mobile-home-buttons">
+            <!-- NFC Button -->
+            <button id="nfc-btn" class="mobile-home-btn-nfc" ${nfcSupported ? '' : 'disabled style="opacity: 0.5"'}>
+              <span class="material-symbols-outlined">nfc</span>
+              <span>${nfcSupported ? (nfcActivated ? 'NFC ACTIVO' : 'ACTIVAR NFC') : 'NFC NO DISPONIBLE'}</span>
+            </button>
+            <!-- Fingerprint Button -->
+            <button id="biometric-btn" class="mobile-home-btn-fingerprint">
+              <span class="material-symbols-outlined">fingerprint</span>
+              <span>HUELLA DIGITAL</span>
+            </button>
+          </div>
+        </footer>
+
+        <!-- iOS-style home indicator -->
+        <div class="mobile-home-indicator"></div>
+      </div>
+    `;
+
+    video = document.getElementById('qr-video');
+    canvas = document.getElementById('qr-canvas');
+    canvasContext = canvas.getContext('2d');
+
+    startCamera();
+    attachMobileEventHandlers();
+  }
+
+  function attachMobileEventHandlers() {
+    const nfcButton = document.getElementById('nfc-btn');
+    if (nfcButton && nfcSupported) {
+      nfcButton.addEventListener('click', activateNFC);
+    }
+
+    const biometricButton = document.getElementById('biometric-btn');
+    if (biometricButton) {
+      biometricButton.addEventListener('click', () => {
+        stopCamera();
+        stopNFC();
+        Router.navigate('/biometric-auth');
+      });
+    }
+
+    const settingsButton = document.getElementById('mobile-settings-btn');
+    if (settingsButton) {
+      settingsButton.addEventListener('click', () => {
+        stopCamera();
+        stopNFC();
+        Router.navigate('/settings');
+      });
+    }
+  }
+
+  // Tablet layout render (original design)
   function renderCamera() {
-    const nfcStatusClass = nfcSupported ? 'nfc-active' : 'nfc-inactive';
-    const nfcStatusText = nfcSupported ? I18n.t('scanner.nfc_active') : I18n.t('scanner.nfc_unavailable');
+    const gateId = State.device?.gate_id || 'No configurado';
+    const isOnline = State.device?.online !== false;
 
     app.innerHTML = `
-      <div class="qr-scanner-container">
-        <video id="qr-video" class="qr-video" autoplay playsinline></video>
-        <canvas id="qr-canvas" class="qr-canvas"></canvas>
-        <div class="qr-overlay">
-          <div class="scan-status-bar">
-            <div class="scan-status-item ${nfcStatusClass}" id="nfc-status">
-              <span class="status-icon">📶</span>
-              <span class="status-text">${nfcStatusText}</span>
+      <div class="kiosk-home min-h-screen flex flex-col">
+        <!-- Blur effects background -->
+        <div class="blur-bg-blue"></div>
+        <div class="blur-bg-purple"></div>
+
+        <!-- Header con logo NEUVOX (SIN toggle dark mode - siempre oscuro) -->
+        <header class="pt-8 sm:pt-12 flex justify-center relative z-10">
+          <div class="flex flex-col items-center">
+            <img src="assets/LOGO Neuvox 1000X1000.png"
+                 alt="NEUVOX"
+                 class="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-lg" />
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-gradient-primary mt-2">
+              NEUVOX
+            </h1>
+          </div>
+        </header>
+
+        <!-- Main: Scanner area + buttons -->
+        <main class="flex-1 flex flex-col items-center justify-center px-6 relative z-10">
+          <!-- Instrucciones (responsive) -->
+          <div class="text-center mb-4 sm:mb-8 px-2">
+            <h2 class="text-xl sm:text-2xl md:text-3xl font-semibold text-white mb-2">
+              ${I18n.t('scanner.instruction_both') || 'Acerca tu código QR o activa el lector NFC'}
+            </h2>
+            <p class="text-slate-400 text-sm sm:text-base md:text-lg">Inicia sesión para registrar tu asistencia</p>
+          </div>
+
+          <!-- QR Scanner con esquinas animadas (responsive) -->
+          <div class="qr-scanner-container relative w-full max-w-xs sm:max-w-sm md:max-w-md aspect-square mb-6 sm:mb-10">
+            <div class="absolute inset-0 rounded-3xl overflow-hidden bg-slate-900 border border-white/10">
+              <video id="qr-video" autoplay playsinline class="w-full h-full object-cover"></video>
+              <canvas id="qr-canvas" hidden></canvas>
+              <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900/80"></div>
             </div>
-            <div class="scan-status-item qr-active" id="qr-status">
-              <span class="status-icon">📷</span>
-              <span class="status-text">${I18n.t('scanner.qr_active')}</span>
+            <!-- Esquinas QR animadas -->
+            <div class="absolute inset-8 pointer-events-none">
+              ${UI.createQRCorners()}
+              <!-- Linea de escaneo -->
+              <div class="scanner-line absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent"></div>
             </div>
           </div>
-          <div class="qr-frame">
-            <div class="qr-corner qr-corner-tl"></div>
-            <div class="qr-corner qr-corner-tr"></div>
-            <div class="qr-corner qr-corner-bl"></div>
-            <div class="qr-corner qr-corner-br"></div>
-          </div>
-          <!-- NFC activation button - Web NFC requires user gesture -->
-          ${nfcSupported ? `
-            <button class="nfc-reading-indicator nfc-tap-to-activate" id="nfc-indicator"
-                    aria-label="Activar NFC">
-              <div class="nfc-pulse-ring"></div>
-              <div class="nfc-icon">📱</div>
-              <div class="nfc-text">Toca para activar NFC</div>
+
+          <!-- Boton NFC (responsive) -->
+          <button id="nfc-btn" class="w-full max-w-xs sm:max-w-sm md:max-w-md h-16 sm:h-20 bg-gradient-primary text-white rounded-2xl
+                                 font-bold text-lg sm:text-xl shadow-xl flex items-center justify-center gap-3 sm:gap-4
+                                 transition-all active:scale-95 ${nfcSupported ? 'animate-pulse-slow' : 'opacity-50 cursor-not-allowed'}"
+                  ${nfcSupported ? '' : 'disabled'}>
+            <span class="material-symbols-rounded text-2xl sm:text-3xl">nfc</span>
+            <span>${nfcSupported ? (nfcActivated ? 'NFC ACTIVO' : 'ACTIVAR NFC') : 'NFC NO DISPONIBLE'}</span>
+          </button>
+
+          <!-- Boton Huella Digital -->
+          <button id="biometric-btn" class="mt-4 flex items-center gap-2 px-8 py-4 text-slate-400 hover:text-white
+                     transition-colors group">
+            <span class="material-symbols-rounded text-2xl group-hover:scale-110 transition-transform">fingerprint</span>
+            <span class="font-semibold uppercase tracking-wider text-sm">HUELLA DIGITAL</span>
+          </button>
+        </main>
+
+        <!-- Footer -->
+        <footer class="relative z-10 w-full px-8 pb-10 flex flex-col md:flex-row items-center justify-between gap-6">
+          <!-- Botones auxiliares -->
+          <div class="flex gap-3">
+            <button id="manual-btn" class="glass-panel px-6 py-3 rounded-xl flex items-center gap-2
+                       text-slate-400 hover:text-white transition-all text-sm font-medium">
+              <span class="material-symbols-rounded text-lg">keyboard</span>
+              Entrada Manual
             </button>
-          ` : ''}
-          <div class="qr-instruction">
-            ${nfcSupported
-              ? I18n.t('scanner.instruction_both')
-              : I18n.t('scanner.instruction_qr')}
+            <button id="settings-btn" class="glass-panel px-4 py-3 rounded-xl flex items-center justify-center
+                       text-slate-400 hover:text-white transition-all">
+              <span class="material-symbols-rounded text-lg">settings</span>
+            </button>
           </div>
-        </div>
-        <!-- Fingerprint option button - outside qr-overlay for proper click handling -->
-        <button class="btn btn-biometric" id="biometric-btn" aria-label="Usar huella digital">
-          🖐️ ¿Olvidaste tu tarjeta? Usa tu huella
-        </button>
+
+          <!-- Estado sistema (DINAMICO) -->
+          <div class="flex flex-col items-center md:items-end gap-1">
+            ${UI.createStatusBadge(isOnline)}
+            <p class="text-xs text-slate-500 font-medium">
+              Gate ID: <span class="text-slate-300">${UI.escapeHtml(gateId)}</span>
+            </p>
+          </div>
+        </footer>
       </div>
     `;
 
@@ -80,22 +239,37 @@ Views.home = function() {
 
     startCamera();
 
-    // NFC is NOT started automatically - requires user gesture
-    // Attach click handler to NFC button
-    const nfcButton = document.getElementById('nfc-indicator');
-    if (nfcButton) {
+    // Attach click handlers
+    const nfcButton = document.getElementById('nfc-btn');
+    if (nfcButton && nfcSupported) {
       nfcButton.addEventListener('click', activateNFC);
     }
 
-    // Attach click handler to biometric button
     const biometricButton = document.getElementById('biometric-btn');
-    console.log('Biometric button found:', biometricButton);
     if (biometricButton) {
       biometricButton.addEventListener('click', (e) => {
         console.log('Biometric button clicked!', e);
         stopCamera();
         stopNFC();
         Router.navigate('/biometric-auth');
+      });
+    }
+
+    const manualButton = document.getElementById('manual-btn');
+    if (manualButton) {
+      manualButton.addEventListener('click', () => {
+        stopCamera();
+        stopNFC();
+        Router.navigate('/manual');
+      });
+    }
+
+    const settingsButton = document.getElementById('settings-btn');
+    if (settingsButton) {
+      settingsButton.addEventListener('click', () => {
+        stopCamera();
+        stopNFC();
+        Router.navigate('/settings');
       });
     }
   }
@@ -120,53 +294,39 @@ Views.home = function() {
     }
   }
 
-  // Update NFC indicator state
-  function updateNFCIndicator(state, message) {
-    const indicator = document.getElementById('nfc-indicator');
-    const nfcStatus = document.getElementById('nfc-status');
+  // Update NFC button state
+  function updateNFCButton(state, message) {
+    const nfcBtn = document.getElementById('nfc-btn');
+    if (!nfcBtn) return;
 
-    if (indicator) {
-      const textEl = indicator.querySelector('.nfc-text');
-      const iconEl = indicator.querySelector('.nfc-icon');
+    const iconEl = nfcBtn.querySelector('.material-symbols-rounded');
+    const textEl = nfcBtn.querySelector('span:last-child');
 
-      indicator.className = 'nfc-reading-indicator';
-
-      switch (state) {
-        case 'waiting':
-          indicator.classList.add('nfc-waiting');
-          iconEl.textContent = '📱';
-          textEl.textContent = message || I18n.t('scanner.waiting_nfc');
-          break;
-        case 'reading':
-          indicator.classList.add('nfc-reading');
-          iconEl.textContent = '🔄';
-          textEl.textContent = message || I18n.t('scanner.reading_card');
-          break;
-        case 'success':
-          indicator.classList.add('nfc-success');
-          iconEl.textContent = '✅';
-          textEl.textContent = message || I18n.t('scanner.card_detected');
-          break;
-        case 'error':
-          indicator.classList.add('nfc-error');
-          iconEl.textContent = '⚠️';
-          textEl.textContent = message || I18n.t('scanner.read_error');
-          break;
-        case 'retrying':
-          indicator.classList.add('nfc-retrying');
-          iconEl.textContent = '🔄';
-          textEl.textContent = message || I18n.t('scanner.retrying');
-          break;
-      }
-    }
-
-    if (nfcStatus) {
-      nfcStatus.className = 'scan-status-item';
-      if (state === 'error' || state === 'retrying') {
-        nfcStatus.classList.add('nfc-inactive');
-      } else {
-        nfcStatus.classList.add('nfc-active');
-      }
+    switch (state) {
+      case 'waiting':
+        nfcBtn.classList.remove('animate-pulse-slow');
+        nfcBtn.classList.add('nfc-active-state');
+        if (iconEl) iconEl.textContent = 'nfc';
+        if (textEl) textEl.textContent = message || 'NFC ACTIVO - Acerca tu tarjeta';
+        break;
+      case 'reading':
+        if (iconEl) iconEl.textContent = 'sync';
+        if (textEl) textEl.textContent = message || 'Leyendo tarjeta...';
+        break;
+      case 'success':
+        if (iconEl) iconEl.textContent = 'check_circle';
+        if (textEl) textEl.textContent = message || '¡Tarjeta detectada!';
+        break;
+      case 'error':
+        if (iconEl) iconEl.textContent = 'error';
+        if (textEl) textEl.textContent = message || 'Error al leer tarjeta';
+        setTimeout(() => {
+          if (nfcActivated) updateNFCButton('waiting');
+        }, 2000);
+        break;
+      default:
+        if (iconEl) iconEl.textContent = 'nfc';
+        if (textEl) textEl.textContent = 'ACTIVAR NFC';
     }
   }
 
@@ -182,12 +342,7 @@ Views.home = function() {
       return;
     }
 
-    const indicator = document.getElementById('nfc-indicator');
-    if (indicator) {
-      indicator.classList.remove('nfc-tap-to-activate');
-      indicator.querySelector('.nfc-text').textContent = 'Activando NFC...';
-      indicator.querySelector('.nfc-icon').textContent = '🔄';
-    }
+    updateNFCButton('reading', 'Activando NFC...');
 
     try {
       nfcReader = new NDEFReader();
@@ -195,12 +350,12 @@ Views.home = function() {
 
       console.log('NFC scan started successfully');
       nfcActivated = true;
-      updateNFCIndicator('waiting');
+      updateNFCButton('waiting');
       UI.showToast('NFC activado correctamente', 'success');
 
       nfcReader.addEventListener('reading', ({ message, serialNumber }) => {
         console.log('NFC tag detected:', serialNumber);
-        updateNFCIndicator('reading', 'Leyendo tarjeta...');
+        updateNFCButton('reading', 'Leyendo tarjeta...');
 
         // Try to read NDEF text record
         let token = null;
@@ -236,50 +391,27 @@ Views.home = function() {
         }
 
         if (token && scanningState === 'ready') {
-          updateNFCIndicator('success', '¡Tarjeta detectada!');
+          updateNFCButton('success', '¡Tarjeta detectada!');
           processToken(token, 'NFC');
         }
       });
 
       nfcReader.addEventListener('readingerror', () => {
         console.log('NFC reading error');
-        updateNFCIndicator('error', 'Error al leer tarjeta');
+        updateNFCButton('error', 'Error al leer tarjeta');
         UI.showToast('Error al leer tarjeta NFC', 'error');
-
-        // Return to waiting state after delay
-        setTimeout(() => {
-          if (scanningState === 'ready' && nfcActivated) {
-            updateNFCIndicator('waiting');
-          }
-        }, 2000);
       });
 
     } catch (err) {
       console.error('Error starting NFC:', err);
-
-      // Show error and reset to tap-to-activate state
       UI.showToast('No se pudo activar NFC. Toca de nuevo para reintentar.', 'error');
-
-      if (indicator) {
-        indicator.classList.add('nfc-tap-to-activate');
-        indicator.querySelector('.nfc-text').textContent = 'Toca para activar NFC';
-        indicator.querySelector('.nfc-icon').textContent = '📱';
-      }
-
-      // Update status bar
-      const nfcStatus = document.getElementById('nfc-status');
-      if (nfcStatus) {
-        nfcStatus.classList.remove('nfc-active');
-        nfcStatus.classList.add('nfc-inactive');
-      }
+      updateNFCButton('default');
     }
   }
 
   function stopNFC() {
-    // F1 fix: NDEFReader doesn't have a stop method, but we can use AbortController
-    // for the reading event, or at minimum nullify the reader to prevent callbacks
+    // NDEFReader doesn't have a stop method, but we can nullify to prevent callbacks
     if (nfcReader) {
-      // Remove references to prevent callbacks from firing
       nfcReader.onreading = null;
       nfcReader.onreadingerror = null;
       nfcReader = null;
@@ -310,7 +442,6 @@ Views.home = function() {
   }
 
   // Audio feedback - beep sound on successful scan
-  // R9-K1 fix: Close AudioContext after use to prevent memory leak
   function playSuccessBeep() {
     try {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -327,7 +458,6 @@ Views.home = function() {
       oscillator.start();
       oscillator.stop(audioContext.currentTime + 0.15); // 150ms beep
 
-      // R9-K1 fix: Close AudioContext after sound finishes
       oscillator.onended = () => {
         audioContext.close();
       };
@@ -383,29 +513,18 @@ Views.home = function() {
       stopNFC();
       Router.navigate('/admin-panel');
     } else if (result.type === 'student') {
-      // Student detected - provide feedback and show welcome
+      // Student detected - provide feedback and navigate to scan-result
       provideScanFeedback();
       stopCamera();
       stopNFC();
 
-      // Check if student has evidence capture enabled (photo or audio)
-      const evidencePref = State.getEvidencePreference(result.data.id);
-      const hasEvidenceCapture = State.config.photoEnabled && evidencePref !== 'none';
-
-      if (hasEvidenceCapture) {
-        // Navigate to scan-result for evidence capture
-        Router.navigate(`/scan-result?student_id=${result.data.id}&source=${source.toUpperCase()}`);
-      } else {
-        // Quick confirmation flow (no evidence capture needed)
-        scanningState = 'showing_result';
-        renderResult(result.data, source);
-      }
+      // Always navigate to the redesigned scan-result view
+      Router.navigate(`/scan-result?student_id=${result.data.id}&source=${source.toUpperCase()}`);
     }
   }
 
   function stopCamera() {
     scanning = false;
-    // F13 fix: cancel any pending animation frame
     if (animationFrame) {
       cancelAnimationFrame(animationFrame);
       animationFrame = null;
@@ -416,128 +535,36 @@ Views.home = function() {
     }
   }
 
-  function renderResult(student, source) {
-    const eventType = State.nextEventTypeFor(student.id);
-    const timestamp = new Date().toISOString();
-    const sourceIcon = source === 'NFC' ? '📶' : '📷';
-    const AUTO_RESUME_VALUE = State.config.autoResumeDelay || 5000;
-    const autoResumeEnabled = AUTO_RESUME_VALUE > 0;
-    const isEntry = eventType === 'IN';
-    const greeting = isEntry ? I18n.t('welcome.greeting_in') : I18n.t('welcome.greeting_out');
-    const entryIcon = isEntry ? '👋' : '🎒';
-    const actionLabel = isEntry ? 'Ingreso' : 'Salida';
-
-    // Store photo URL for async loading (if available from API)
-    const studentPhotoUrl = student.photo_url;
-
-    app.innerHTML = `
-      <div class="welcome-screen ${isEntry ? 'welcome-entry' : 'welcome-exit'}">
-        <div class="welcome-card">
-          <div class="capture-flash"></div>
-          <div class="welcome-type-badge ${isEntry ? 'badge-entry' : 'badge-exit'}">
-            <span class="badge-icon">${entryIcon}</span>
-            <span class="badge-text">${actionLabel}</span>
-          </div>
-          <img id="student-photo" src="assets/placeholder_photo.jpg" alt="Foto" class="welcome-photo">
-          <div class="welcome-name">${UI.escapeHtml(student.full_name)}</div>
-          <div class="welcome-message ${isEntry ? 'message-entry' : 'message-exit'}">${greeting}</div>
-          <div class="welcome-time ${isEntry ? 'time-entry' : 'time-exit'}">${UI.formatTime(timestamp)}</div>
-          <div class="welcome-source">${sourceIcon} ${I18n.t('welcome.detected_by')} ${source}</div>
-          ${autoResumeEnabled ? `
-            <div class="auto-resume-indicator" id="auto-resume-indicator">
-              <div class="auto-resume-progress ${isEntry ? 'progress-entry' : 'progress-exit'}" id="auto-resume-progress"></div>
-              <span class="auto-resume-text">${I18n.t('welcome.returning_in')} <span id="auto-resume-countdown">${Math.ceil(AUTO_RESUME_VALUE / 1000)}</span>s...</span>
-            </div>
-          ` : ''}
-          <button class="btn ${isEntry ? 'btn-success' : 'btn-error'}" style="margin-top: 1rem" onclick="Views.home.resumeScan()">
-            ${autoResumeEnabled ? I18n.t('welcome.scan_now') : I18n.t('welcome.scan_next')}
-          </button>
-        </div>
-      </div>
-    `;
-
-    // Load student photo with device key authentication (if URL available)
-    if (studentPhotoUrl) {
-      Sync.loadImageWithDeviceKey(studentPhotoUrl).then(blobUrl => {
-        const img = document.getElementById('student-photo');
-        if (img && blobUrl) {
-          img.src = blobUrl;
-        }
-      }).catch(err => {
-        console.error('Error loading student photo:', err);
-        // Keep placeholder on error
-      });
-    }
-
-    // Enqueue event automatically
-    const event = {
-      student_id: student.id,
-      type: eventType,
-      ts: timestamp,
-      source: source,
-      photo_ref: State.config.photoEnabled ? 'simulated.jpg' : null
-    };
-    State.enqueueEvent(event);
-
-    // Start auto-resume countdown if enabled
-    if (autoResumeEnabled) {
-      startAutoResumeCountdown(AUTO_RESUME_VALUE);
-    }
-  }
-
-  function startAutoResumeCountdown(resumeDelayMs) {
-    const progressEl = document.getElementById('auto-resume-progress');
-    const countdownEl = document.getElementById('auto-resume-countdown');
-    let remaining = resumeDelayMs;
-
-    // Animate progress bar
-    if (progressEl) {
-      progressEl.style.transition = `width ${resumeDelayMs}ms linear`;
-      setTimeout(() => {
-        progressEl.style.width = '100%';
-      }, 50);
-    }
-
-    // Update countdown text
-    const countdownInterval = setInterval(() => {
-      remaining -= 1000;
-      if (countdownEl && remaining > 0) {
-        countdownEl.textContent = Math.ceil(remaining / 1000);
-      }
-    }, 1000);
-
-    // Auto-resume after delay
-    autoResumeTimeout = setTimeout(() => {
-      clearInterval(countdownInterval);
-      if (scanningState === 'showing_result') {
-        Views.home.resumeScan();
-      }
-    }, resumeDelayMs);
-  }
-
   function showManualInput() {
     app.innerHTML = `
-      <div class="camera-container">
-        <div class="scan-input-modal">
-          <div class="scan-input-header">⚠️ ${I18n.t('manual.camera_unavailable')}</div>
-          <p style="margin-bottom: 1.5rem; color: var(--color-gray-500);">
-            ${I18n.t('manual.enter_code')}
-          </p>
-          <input type="text" id="scan-token-input" class="scan-input-field"
-            placeholder="nfc_001, qr_011, nfc_teacher_001..."
+      <div class="kiosk-home min-h-screen flex flex-col items-center justify-center">
+        <div class="blur-bg-blue"></div>
+        <div class="blur-bg-purple"></div>
+
+        <div class="relative z-10 bg-card-dark rounded-3xl p-8 max-w-md w-full mx-4 shadow-heavy">
+          <div class="text-center mb-6">
+            <span class="material-symbols-rounded text-6xl text-kiosk-warning mb-4">videocam_off</span>
+            <h2 class="text-2xl font-bold text-white mb-2">${I18n.t('manual.camera_unavailable')}</h2>
+            <p class="text-slate-400">${I18n.t('manual.enter_code')}</p>
+          </div>
+
+          <input type="text" id="scan-token-input"
+            class="w-full p-4 rounded-xl bg-slate-800 border border-white/10 text-white text-lg placeholder-slate-500 focus:outline-none focus:border-kiosk-primary"
+            placeholder="nfc_001, qr_011..."
             autofocus>
-          <div class="scan-input-buttons">
-            <button class="btn btn-primary btn-lg" onclick="Views.home.processManualInput()">
+
+          <div class="flex gap-3 mt-4">
+            <button class="flex-1 bg-gradient-primary text-white font-bold py-4 rounded-xl" onclick="Views.home.processManualInput()">
               ${I18n.t('manual.scan')}
             </button>
-            <button class="btn btn-secondary" onclick="Views.home.generateRandom()">
-              ${I18n.t('manual.generate_random')}
+            <button class="bg-slate-700 text-white font-bold py-4 px-6 rounded-xl" onclick="Views.home.generateRandom()">
+              🎲
             </button>
           </div>
-          <div class="scan-help-text">
+
+          <div class="mt-6 text-xs text-slate-500 text-center">
             <strong>${I18n.t('manual.test_tokens')}</strong><br>
-            ${I18n.t('manual.students')}: nfc_001, nfc_002, qr_011, qr_012<br>
-            ${I18n.t('manual.teachers')}: nfc_teacher_001, nfc_teacher_002, qr_teacher_003
+            ${I18n.t('manual.students')}: nfc_001, nfc_002, qr_011, qr_012
           </div>
         </div>
       </div>
@@ -582,8 +609,17 @@ Views.home = function() {
     scanningState = 'ready';
     nfcSupported = 'NDEFReader' in window; // Re-check NFC support
     nfcActivated = false; // Reset NFC activation state
-    renderCamera();
+
+    // Choose layout based on viewport
+    if (isMobileViewport()) {
+      renderMobileCamera();
+    } else {
+      renderCamera();
+    }
   };
+
+  // Expose activateNFC for external use
+  Views.home.activateNFC = activateNFC;
 
   // Cleanup on navigation
   window.addEventListener('hashchange', function cleanup() {
@@ -596,5 +632,10 @@ Views.home = function() {
     window.removeEventListener('hashchange', cleanup);
   });
 
-  renderCamera();
+  // Choose layout based on viewport size
+  if (isMobileViewport()) {
+    renderMobileCamera();
+  } else {
+    renderCamera();
+  }
 };

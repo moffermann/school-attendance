@@ -295,6 +295,7 @@ const State = {
         // Update existing student with server data
         existing.full_name = serverStudent.full_name;
         existing.course_id = serverStudent.course_id;
+        existing.course_name = serverStudent.course_name || null;  // Store course name for display
         existing.photo_url = serverStudent.photo_url;  // Presigned URL from server
         existing.photo_opt_in = serverStudent.photo_pref_opt_in ?? false;
         existing.evidence_preference = serverStudent.evidence_preference ?? 'none';
@@ -305,6 +306,7 @@ const State = {
           id: serverStudent.id,
           full_name: serverStudent.full_name,
           course_id: serverStudent.course_id,
+          course_name: serverStudent.course_name || null,  // Store course name for display
           photo_url: serverStudent.photo_url,  // Presigned URL from server
           photo_opt_in: serverStudent.photo_pref_opt_in ?? false,
           evidence_preference: serverStudent.evidence_preference ?? 'none',
@@ -444,3 +446,6 @@ const State = {
     return 'none';
   }
 };
+
+// Expose State globally to ensure availability in all contexts
+window.State = State;

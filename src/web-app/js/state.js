@@ -447,11 +447,11 @@ const State = {
     let notifications = this.data.notifications || [];
 
     if (filters.status) {
-      notifications = notifications.filter(n => n.status === filters.status);
+      notifications = notifications.filter(n => n.status?.toLowerCase() === filters.status.toLowerCase());
     }
 
     if (filters.channel) {
-      notifications = notifications.filter(n => n.channel === filters.channel);
+      notifications = notifications.filter(n => n.channel?.toLowerCase() === filters.channel.toLowerCase());
     }
 
     if (filters.type) {
@@ -477,19 +477,19 @@ const State = {
     const notifications = this.data.notifications || [];
     return {
       total: notifications.length,
-      delivered: notifications.filter(n => n.status === 'delivered').length,
-      failed: notifications.filter(n => n.status === 'failed').length,
-      pending: notifications.filter(n => n.status === 'pending').length,
+      delivered: notifications.filter(n => n.status?.toLowerCase() === 'delivered').length,
+      failed: notifications.filter(n => n.status?.toLowerCase() === 'failed').length,
+      pending: notifications.filter(n => n.status?.toLowerCase() === 'pending').length,
       byChannel: {
-        whatsapp: notifications.filter(n => n.channel === 'whatsapp').length,
-        email: notifications.filter(n => n.channel === 'email').length
+        whatsapp: notifications.filter(n => n.channel?.toLowerCase() === 'whatsapp').length,
+        email: notifications.filter(n => n.channel?.toLowerCase() === 'email').length
       }
     };
   },
 
   retryNotification(id) {
     const index = this.data.notifications.findIndex(n => n.id === id);
-    if (index !== -1 && this.data.notifications[index].status === 'failed') {
+    if (index !== -1 && this.data.notifications[index].status?.toLowerCase() === 'failed') {
       this.data.notifications[index].status = 'pending';
       this.data.notifications[index].retry_at = new Date().toISOString();
       this.persist();

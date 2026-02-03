@@ -1,117 +1,43 @@
-// Director Broadcast Messages (Comunicados Masivos)
+// Director Broadcast Messages (Comunicados Masivos) - NEUVOX Design
+// Redesigned with Tailwind CSS following approved design
+
 Views.directorBroadcast = function() {
   const app = document.getElementById('app');
-  app.innerHTML = Components.createLayout(State.currentRole);
 
-  const content = document.getElementById('view-content');
-  const pageTitle = document.getElementById('page-title');
-  if (pageTitle) pageTitle.textContent = 'Comunicados Masivos';
-
+  // Get data from State
   const courses = State.getCourses();
+  const user = State.getCurrentUser();
+  const userName = user?.full_name || 'Director General';
+  const currentPath = '/director/broadcast';
 
-  content.innerHTML = `
-    <!-- Explicación de qué es Broadcast -->
-    <div class="card" style="background: var(--color-info-light); border-left: 4px solid var(--color-info); margin-bottom: 1rem;">
-      <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
-        <span style="font-size: 1.5rem;">📢</span>
-        <div>
-          <strong style="color: var(--color-info-dark);">¿Qué es un Comunicado Masivo?</strong>
-          <p style="margin: 0.25rem 0 0; font-size: 0.9rem; color: var(--color-gray-700);">
-            Envía mensajes a todos los apoderados de un curso (o de todo el colegio) vía WhatsApp y/o Email.
-            Útil para avisos de suspensiones, reuniones, cambios de horario, etc.
-          </p>
-        </div>
-      </div>
-    </div>
+  // Helper: check if nav item is active
+  const isActive = (path) => currentPath === path;
+  const navItemClass = (path) => isActive(path)
+    ? 'flex items-center px-6 py-3 bg-indigo-800/50 text-white border-l-4 border-indigo-500 group transition-colors'
+    : 'flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent';
+  const iconClass = (path) => isActive(path)
+    ? 'material-icons-round mr-3'
+    : 'material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors';
 
-    <!-- Templates predefinidos -->
-    <div class="card mb-3">
-      <div class="card-header">📝 Templates Rápidos</div>
-      <div class="card-body" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-        <button type="button" class="btn btn-secondary btn-sm" onclick="Views.directorBroadcast.loadTemplate('suspension')">
-          Suspensión de clases
-        </button>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="Views.directorBroadcast.loadTemplate('reunion')">
-          Reunión de apoderados
-        </button>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="Views.directorBroadcast.loadTemplate('horario')">
-          Cambio de horario
-        </button>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="Views.directorBroadcast.loadTemplate('actividad')">
-          Actividad especial
-        </button>
-      </div>
-    </div>
+  // Navigation items - del diseño aprobado
+  const navItems = [
+    { path: '/director/dashboard', icon: 'dashboard', label: 'Tablero' },
+    { path: '/director/reports', icon: 'analytics', label: 'Reportes' },
+    { path: '/director/metrics', icon: 'bar_chart', label: 'Métricas' },
+    { path: '/director/schedules', icon: 'schedule', label: 'Horarios' },
+    { path: '/director/exceptions', icon: 'event_busy', label: 'Excepciones' },
+    { path: '/director/broadcast', icon: 'campaign', label: 'Comunicados' },
+    { path: '/director/devices', icon: 'devices', label: 'Dispositivos' },
+    { path: '/director/students', icon: 'school', label: 'Alumnos' },
+    { path: '/director/guardians', icon: 'family_restroom', label: 'Apoderados' },
+    { path: '/director/teachers', icon: 'badge', label: 'Profesores' },
+    { path: '/director/courses', icon: 'class', label: 'Cursos' },
+    { path: '/director/absences', icon: 'person_off', label: 'Ausencias' },
+    { path: '/director/notifications', icon: 'notifications', label: 'Notificaciones' },
+    { path: '/director/biometric', icon: 'fingerprint', label: 'Biometría' },
+  ];
 
-    <div class="card">
-      <div class="card-header">Enviar Mensaje Masivo</div>
-      <div class="card-body">
-        <form id="broadcast-form">
-          <div class="form-group">
-            <label class="form-label">Motivo del Mensaje *</label>
-            <input type="text" id="broadcast-subject" class="form-input" required
-              placeholder="Ej: Cambio de horario, suspensión de clases...">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Mensaje *</label>
-            <textarea id="broadcast-message" class="form-textarea" required
-              placeholder="Use {{curso}}, {{fecha}}, {{motivo}} como variables"
-              rows="6">Estimado/a apoderado/a:
-
-Le informamos que el curso {{curso}} tendrá un cambio de horario el día {{fecha}}.
-
-Motivo: {{motivo}}
-
-Saludos cordiales,
-Dirección</textarea>
-          </div>
-
-          <div class="flex gap-2">
-            <div class="form-group" style="flex: 1;">
-              <label class="form-label">Curso Afectado</label>
-              <select id="broadcast-course" class="form-select">
-                <option value="">Todos</option>
-                ${courses.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
-              </select>
-            </div>
-
-            <div class="form-group" style="flex: 1;">
-              <label class="form-label">Fecha</label>
-              <input type="date" id="broadcast-date" class="form-input">
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Canal</label>
-            <div class="flex gap-2">
-              <label style="display: flex; align-items: center;">
-                <input type="checkbox" id="channel-whatsapp" class="form-checkbox" checked>
-                <span>WhatsApp</span>
-              </label>
-              <label style="display: flex; align-items: center;">
-                <input type="checkbox" id="channel-email" class="form-checkbox" checked>
-                <span>Email</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <button type="button" class="btn btn-secondary" onclick="Views.directorBroadcast.showPreview()">
-              Vista Previa
-            </button>
-            <button type="button" id="btn-send-broadcast" class="btn btn-primary" onclick="Views.directorBroadcast.sendBroadcast()">
-              📤 Enviar Comunicado
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <div id="broadcast-results" class="mt-3"></div>
-  `;
-
-  // Templates predefinidos
+  // Templates predefinidos (5 templates como en HTML aprobado)
   const templates = {
     suspension: {
       subject: 'Suspensión de clases',
@@ -164,9 +90,271 @@ Los alumnos deben presentarse con [indique vestimenta o materiales requeridos].
 
 Saludos cordiales,
 Dirección`
+    },
+    urgente: {
+      subject: 'Aviso urgente',
+      message: `Estimado/a apoderado/a:
+
+AVISO URGENTE
+
+{{motivo}}
+
+Fecha: {{fecha}}
+Curso afectado: {{curso}}
+
+Por favor tome las medidas necesarias de forma inmediata.
+
+Saludos cordiales,
+Dirección`
     }
   };
 
+  // TDD-R8-BUG3 fix: Flag to prevent double-click during send
+  let isSending = false;
+
+  // Render main layout
+  app.innerHTML = `
+    <div class="flex h-screen overflow-hidden bg-gray-50 dark:bg-slate-900">
+      <!-- Sidebar -->
+      <aside id="sidebar" class="w-64 bg-sidebar-dark text-gray-300 flex-shrink-0 flex-col transition-all duration-300 mobile-hidden border-r border-indigo-900/50 shadow-2xl z-50">
+        <div class="h-20 flex items-center justify-between px-6 border-b border-indigo-900/50">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg">
+              <div class="w-4 h-4 bg-indigo-900 rounded-full"></div>
+            </div>
+            <h1 class="text-xl font-bold tracking-tight text-white">NEUVOX</h1>
+          </div>
+          <button class="desktop-hidden text-gray-400 hover:text-white p-1" onclick="Views.directorBroadcast.toggleMobileSidebar()">
+            <span class="material-icons-round">close</span>
+          </button>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-6 space-y-1">
+          ${navItems.map(item => `
+            <a class="${navItemClass(item.path)}" href="#${item.path}">
+              <span class="${iconClass(item.path)}">${item.icon}</span>
+              <span class="font-medium text-sm">${item.label}</span>
+            </a>
+          `).join('')}
+        </nav>
+      </aside>
+
+      <!-- Mobile Sidebar Backdrop -->
+      <div id="sidebar-backdrop" class="fixed inset-0 bg-black/50 z-40 hidden desktop-hidden" onclick="Views.directorBroadcast.toggleMobileSidebar()"></div>
+
+      <!-- Main Content -->
+      <main class="flex-1 flex flex-col overflow-hidden relative">
+        <!-- Header -->
+        <header class="h-20 bg-white dark:bg-card-dark border-b border-border-light dark:border-border-dark flex items-center justify-between px-8 z-10 shadow-sm">
+          <div class="flex items-center gap-4">
+            <button class="desktop-hidden text-muted-light dark:text-muted-dark hover:text-primary transition-colors" onclick="Views.directorBroadcast.toggleMobileSidebar()">
+              <span class="material-icons-round text-2xl">menu</span>
+            </button>
+            <h2 class="text-xl font-bold text-gray-800 dark:text-text-dark">Comunicados Masivos</h2>
+          </div>
+          <div class="flex items-center gap-2 md:gap-4 flex-1 justify-end">
+            <div class="flex items-center gap-2 md:gap-3">
+              <button class="p-2 rounded-full hover:bg-background-light dark:hover:bg-white/5 transition-colors text-muted-light dark:text-muted-dark" onclick="Views.directorBroadcast.toggleDarkMode()">
+                <span class="material-icons-round" id="dark-mode-icon">dark_mode</span>
+              </button>
+              <div class="flex items-center gap-2 cursor-pointer">
+                <div class="w-9 h-9 rounded-full border border-gray-200 bg-indigo-600 flex items-center justify-center text-white font-semibold">
+                  ${userName.charAt(0).toUpperCase()}
+                </div>
+                <div class="text-right mobile-hidden">
+                  <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">${Components.escapeHtml(userName)}</p>
+                </div>
+              </div>
+              <a class="ml-1 md:ml-2 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 border px-2 md:px-3 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-white/5 dark:border-gray-600" href="#" onclick="event.preventDefault(); State.logout(); Router.navigate('/login')">
+                <span class="material-icons-round text-lg">logout</span>
+                <span class="mobile-hidden">Salir</span>
+              </a>
+            </div>
+          </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-[#f8fafc] dark:bg-slate-900">
+          <div class="space-y-6 max-w-4xl mx-auto">
+            <!-- Info Card (Blue Theme) -->
+            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-xl p-4 flex items-start gap-4">
+              <div class="bg-blue-100 dark:bg-blue-800 p-2 rounded-full text-blue-600 dark:text-blue-300 flex-shrink-0">
+                <span class="material-icons-round">info</span>
+              </div>
+              <div>
+                <h4 class="text-blue-900 dark:text-blue-200 font-bold">¿Qué es un Comunicado Masivo?</h4>
+                <p class="text-sm text-blue-700 dark:text-blue-400">Envía mensajes a todos los apoderados de un curso (o de todo el colegio) vía WhatsApp y/o Email. Útil para avisos de suspensiones, reuniones, cambios de horario, etc.</p>
+              </div>
+            </div>
+
+            <!-- Templates Rápidos Panel -->
+            <div class="bg-white dark:bg-card-dark rounded-xl p-6 shadow-sm border border-border-light dark:border-border-dark">
+              <div class="flex items-center gap-2 mb-4">
+                <span class="material-icons-round text-indigo-500">auto_awesome</span>
+                <h3 class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Templates Rápidos</h3>
+              </div>
+              <div class="flex flex-wrap gap-3">
+                <button onclick="Views.directorBroadcast.loadTemplate('suspension')"
+                        class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full text-sm font-medium
+                               hover:bg-indigo-50 hover:border-indigo-200 dark:hover:bg-indigo-900/30
+                               transition-all text-gray-700 dark:text-gray-300">
+                  Suspensión de clases
+                </button>
+                <button onclick="Views.directorBroadcast.loadTemplate('reunion')"
+                        class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full text-sm font-medium
+                               hover:bg-indigo-50 hover:border-indigo-200 dark:hover:bg-indigo-900/30
+                               transition-all text-gray-700 dark:text-gray-300">
+                  Reunión de apoderados
+                </button>
+                <button onclick="Views.directorBroadcast.loadTemplate('horario')"
+                        class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full text-sm font-medium
+                               hover:bg-indigo-50 hover:border-indigo-200 dark:hover:bg-indigo-900/30
+                               transition-all text-gray-700 dark:text-gray-300">
+                  Cambio de horario
+                </button>
+                <button onclick="Views.directorBroadcast.loadTemplate('actividad')"
+                        class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full text-sm font-medium
+                               hover:bg-indigo-50 hover:border-indigo-200 dark:hover:bg-indigo-900/30
+                               transition-all text-gray-700 dark:text-gray-300">
+                  Actividad especial
+                </button>
+                <button onclick="Views.directorBroadcast.loadTemplate('urgente')"
+                        class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full text-sm font-medium
+                               hover:bg-indigo-50 hover:border-indigo-200 dark:hover:bg-indigo-900/30
+                               transition-all text-gray-700 dark:text-gray-300">
+                  Aviso urgente
+                </button>
+              </div>
+            </div>
+
+            <!-- Form Card -->
+            <div class="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark overflow-hidden">
+              <!-- Header -->
+              <div class="p-6 border-b border-border-light dark:border-border-dark">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-text-dark">Enviar Mensaje Masivo</h3>
+              </div>
+
+              <!-- Form Body -->
+              <form id="broadcast-form" class="p-6 space-y-6">
+                <!-- Motivo del Mensaje -->
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Motivo del Mensaje *</label>
+                  <input id="broadcast-subject" type="text" required
+                         class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg
+                                focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-card-dark
+                                text-gray-700 dark:text-gray-200 shadow-sm"
+                         placeholder="Ej: Cambio de horario, suspensión de clases..."/>
+                </div>
+
+                <!-- Mensaje -->
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Mensaje *</label>
+                  <textarea id="broadcast-message" required rows="6"
+                            class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg
+                                   focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-card-dark
+                                   text-gray-700 dark:text-gray-200 shadow-sm"
+                            placeholder="Escriba su mensaje aquí. Puede usar variables como {{curso}} y {{fecha}}.">Estimado/a apoderado/a:
+
+Le informamos que el curso {{curso}} tendrá un cambio de horario el día {{fecha}}.
+
+Motivo: {{motivo}}
+
+Saludos cordiales,
+Dirección</textarea>
+                  <p class="mt-2 text-xs text-gray-500">Sugerencia: "Estimado/a apoderado/a, le informamos que el curso {{curso}} tendrá un cambio de horario el día {{fecha}}."</p>
+                </div>
+
+                <!-- Grid: Curso + Fecha -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <!-- Curso Afectado -->
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Curso Afectado</label>
+                    <div class="relative">
+                      <select id="broadcast-course"
+                              class="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg
+                                     focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-card-dark
+                                     text-gray-700 dark:text-gray-200 shadow-sm appearance-none">
+                        <option value="">Todos los cursos</option>
+                        ${courses.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                      </select>
+                      <span class="absolute left-3 top-2.5 text-gray-400 material-icons-round">groups</span>
+                    </div>
+                  </div>
+
+                  <!-- Fecha del Evento -->
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Fecha del Evento</label>
+                    <div class="relative">
+                      <input id="broadcast-date" type="date"
+                             class="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg
+                                    focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-card-dark
+                                    text-gray-700 dark:text-gray-200 shadow-sm"/>
+                      <span class="absolute left-3 top-2.5 text-gray-400 material-icons-round">calendar_today</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Canal de Envío -->
+                <div class="border-t border-gray-100 dark:border-gray-700 pt-6">
+                  <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Canal de Envío</label>
+                  <div class="flex gap-8">
+                    <!-- WhatsApp -->
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                      <input id="channel-whatsapp" type="checkbox" checked
+                             class="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"/>
+                      <div class="flex items-center gap-2">
+                        <span class="material-icons-round text-green-500">chat</span>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 transition-colors">WhatsApp</span>
+                      </div>
+                    </label>
+                    <!-- Email -->
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                      <input id="channel-email" type="checkbox" checked
+                             class="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"/>
+                      <div class="flex items-center gap-2">
+                        <span class="material-icons-round text-blue-500">mail</span>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 transition-colors">Email</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </form>
+
+              <!-- Footer with Buttons -->
+              <div class="p-6 bg-gray-50 dark:bg-white/5 flex flex-col md:flex-row justify-end gap-3 border-t border-border-light dark:border-border-dark">
+                <button onclick="Views.directorBroadcast.showPreview()"
+                        class="px-6 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300
+                               rounded-lg text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-700
+                               transition-colors flex items-center justify-center gap-2">
+                  <span class="material-icons-round text-lg">visibility</span>
+                  Vista Previa
+                </button>
+                <button id="btn-send-broadcast" onclick="Views.directorBroadcast.sendBroadcast()"
+                        class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700
+                               text-white rounded-lg text-sm font-semibold shadow-md shadow-indigo-200 dark:shadow-none
+                               transition-all flex items-center justify-center gap-2">
+                  <span class="material-icons-round text-lg">send</span>
+                  Enviar Comunicado
+                </button>
+              </div>
+            </div>
+
+            <!-- Results Area -->
+            <div id="broadcast-results"></div>
+          </div>
+
+          <!-- Footer -->
+          <footer class="text-center text-xs text-muted-light dark:text-muted-dark pt-8 pb-4">
+            &copy; 2026 NEUVOX. Todos los derechos reservados.
+          </footer>
+        </div>
+      </main>
+    </div>
+  `;
+
+  // Update dark mode icon on load
+  updateDarkModeIcon();
+
+  // Load template function
   Views.directorBroadcast.loadTemplate = function(templateName) {
     const template = templates[templateName];
     if (template) {
@@ -176,6 +364,7 @@ Dirección`
     }
   };
 
+  // Show preview modal
   Views.directorBroadcast.showPreview = function() {
     const subject = document.getElementById('broadcast-subject').value || '[motivo]';
     const message = document.getElementById('broadcast-message').value;
@@ -212,9 +401,7 @@ Dirección`
     ]);
   };
 
-  // TDD-R8-BUG3 fix: Flag to prevent double-click during send
-  let isSending = false;
-
+  // Send broadcast (PRESERVED backend logic)
   Views.directorBroadcast.sendBroadcast = async function() {
     // Prevent double-click during send
     if (isSending) return;
@@ -264,7 +451,7 @@ Dirección`
     const sendBtn = document.getElementById('btn-send-broadcast');
     if (sendBtn) {
       sendBtn.disabled = true;
-      sendBtn.innerHTML = '⏳ Enviando...';
+      sendBtn.innerHTML = '<span class="material-icons-round text-lg animate-spin">sync</span> Enviando...';
     }
 
     Components.showToast('Enviando comunicado...', 'info', 2000);
@@ -275,13 +462,18 @@ Dirección`
       // Show success results
       const resultsDiv = document.getElementById('broadcast-results');
       resultsDiv.innerHTML = `
-        <div class="card" style="border-left: 4px solid var(--color-success);">
-          <div class="card-header" style="color: var(--color-success);">✅ Comunicado Enviado</div>
-          <div class="card-body">
-            <p><strong>Job ID:</strong> ${result.job_id || 'N/A'}</p>
-            <p><strong>Destinatarios:</strong> ${result.recipients || 'Procesando...'}</p>
-            <p><strong>Estado:</strong> ${Components.createChip('Encolado', 'info')}</p>
-            <p class="mt-2" style="font-size: 0.9rem; color: var(--color-gray-600);">
+        <div class="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-green-200 dark:border-green-800 overflow-hidden">
+          <div class="px-6 py-4 border-b border-green-100 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
+            <div class="flex items-center gap-2 text-green-700 dark:text-green-400">
+              <span class="material-icons-round">check_circle</span>
+              <h3 class="font-bold">Comunicado Enviado</h3>
+            </div>
+          </div>
+          <div class="p-6 space-y-2">
+            <p class="text-sm text-gray-600 dark:text-gray-400"><strong class="text-gray-800 dark:text-gray-200">Job ID:</strong> ${result.job_id || 'N/A'}</p>
+            <p class="text-sm text-gray-600 dark:text-gray-400"><strong class="text-gray-800 dark:text-gray-200">Destinatarios:</strong> ${result.recipients || 'Procesando...'}</p>
+            <p class="text-sm text-gray-600 dark:text-gray-400"><strong class="text-gray-800 dark:text-gray-200">Estado:</strong> ${Components.createChip('Encolado', 'info')}</p>
+            <p class="mt-4 text-xs text-gray-500 dark:text-gray-500">
               Los mensajes se enviarán en segundo plano. El estado se actualizará en el historial de notificaciones.
             </p>
           </div>
@@ -300,11 +492,16 @@ Dirección`
 
       const resultsDiv = document.getElementById('broadcast-results');
       resultsDiv.innerHTML = `
-        <div class="card" style="border-left: 4px solid var(--color-error);">
-          <div class="card-header" style="color: var(--color-error);">❌ Error al Enviar</div>
-          <div class="card-body">
-            <p>${error.message || 'Error desconocido al enviar el comunicado'}</p>
-            <p class="mt-2">Por favor intente nuevamente o contacte al administrador.</p>
+        <div class="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-red-200 dark:border-red-800 overflow-hidden">
+          <div class="px-6 py-4 border-b border-red-100 dark:border-red-800 bg-red-50 dark:bg-red-900/20">
+            <div class="flex items-center gap-2 text-red-700 dark:text-red-400">
+              <span class="material-icons-round">error</span>
+              <h3 class="font-bold">Error al Enviar</h3>
+            </div>
+          </div>
+          <div class="p-6 space-y-2">
+            <p class="text-sm text-gray-600 dark:text-gray-400">${error.message || 'Error desconocido al enviar el comunicado'}</p>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-500">Por favor intente nuevamente o contacte al administrador.</p>
           </div>
         </div>
       `;
@@ -315,8 +512,32 @@ Dirección`
       isSending = false;
       if (sendBtn) {
         sendBtn.disabled = false;
-        sendBtn.innerHTML = '📤 Enviar Comunicado';
+        sendBtn.innerHTML = '<span class="material-icons-round text-lg">send</span> Enviar Comunicado';
       }
     }
   };
+
+  // Toggle mobile sidebar
+  Views.directorBroadcast.toggleMobileSidebar = function() {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (sidebar && backdrop) {
+      sidebar.classList.toggle('mobile-hidden');
+      backdrop.classList.toggle('hidden');
+    }
+  };
+
+  // Toggle dark mode
+  Views.directorBroadcast.toggleDarkMode = function() {
+    document.documentElement.classList.toggle('dark');
+    localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+    updateDarkModeIcon();
+  };
+
+  function updateDarkModeIcon() {
+    const icon = document.getElementById('dark-mode-icon');
+    if (icon) {
+      icon.textContent = document.documentElement.classList.contains('dark') ? 'light_mode' : 'dark_mode';
+    }
+  }
 };

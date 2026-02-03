@@ -1,21 +1,138 @@
-// Director Schedules - Enhanced UX Version
+// Director Schedules - Redesigned with Approved HTML Design
 Views.directorSchedules = function() {
   const app = document.getElementById('app');
-  app.innerHTML = Components.createLayout(State.currentRole);
 
-  const content = document.getElementById('view-content');
-  const pageTitle = document.getElementById('page-title');
-  if (pageTitle) pageTitle.textContent = 'Horarios Base';
-
-  const courses = State.getCourses();
-  // ISO 8601: 0=Lunes, 1=Martes, 2=Miércoles, 3=Jueves, 4=Viernes, 5=Sábado, 6=Domingo
-  const weekdays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-  const weekdaysShort = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
+  // Days of the week (Monday = 0 for ISO 8601 compatibility)
+  const weekdays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
   // Estado temporal para el time picker
   let activeTimePicker = null;
 
-  // ==================== TIME PICKER COMPONENT ====================
+  // Filter state
+  let selectedCourseFilter = 'all';
+  const currentPath = '/director/schedules';
+
+  // Helper: check if nav item is active
+  const isActive = (path) => currentPath === path;
+  const navItemClass = (path) => isActive(path)
+    ? 'flex items-center px-6 py-3 bg-indigo-800/50 text-white border-l-4 border-indigo-500 group transition-colors'
+    : 'flex items-center px-6 py-3 hover:bg-white/5 hover:text-white group transition-colors border-l-4 border-transparent';
+  const iconClass = (path) => isActive(path)
+    ? 'material-icons-round mr-3'
+    : 'material-icons-round mr-3 text-gray-400 group-hover:text-white transition-colors';
+
+  // Navigation items - del diseño aprobado
+  const navItems = [
+    { path: '/director/dashboard', icon: 'dashboard', label: 'Tablero' },
+    { path: '/director/reports', icon: 'analytics', label: 'Reportes' },
+    { path: '/director/metrics', icon: 'bar_chart', label: 'Métricas' },
+    { path: '/director/schedules', icon: 'schedule', label: 'Horarios' },
+    { path: '/director/exceptions', icon: 'event_busy', label: 'Excepciones' },
+    { path: '/director/broadcast', icon: 'campaign', label: 'Comunicados' },
+    { path: '/director/devices', icon: 'devices', label: 'Dispositivos' },
+    { path: '/director/students', icon: 'school', label: 'Alumnos' },
+    { path: '/director/guardians', icon: 'family_restroom', label: 'Apoderados' },
+    { path: '/director/teachers', icon: 'badge', label: 'Profesores' },
+    { path: '/director/courses', icon: 'class', label: 'Cursos' },
+    { path: '/director/absences', icon: 'person_off', label: 'Ausencias' },
+    { path: '/director/notifications', icon: 'notifications', label: 'Notificaciones' },
+    { path: '/director/biometric', icon: 'fingerprint', label: 'Biometría' },
+  ];
+
+  // ==================== LAYOUT RENDER ====================
+
+  function renderLayout() {
+    const user = State.getCurrentUser() || {};
+    const courses = State.getCourses() || [];
+
+    app.innerHTML = `
+<div class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 antialiased h-screen flex overflow-hidden">
+  <!-- Mobile Backdrop -->
+  <div id="sidebar-backdrop" class="fixed inset-0 bg-black/50 z-40 hidden" onclick="Views.directorSchedules.toggleMobileSidebar()"></div>
+
+  <!-- Sidebar - EXACTO del diseño aprobado -->
+  <aside class="w-64 bg-sidebar-dark text-gray-300 flex-shrink-0 flex-col transition-all duration-300 mobile-hidden border-r border-indigo-900/50 shadow-2xl z-50">
+    <div class="h-20 flex items-center justify-between px-6 border-b border-indigo-900/50">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg">
+          <div class="w-4 h-4 bg-indigo-900 rounded-full"></div>
+        </div>
+        <h1 class="text-xl font-bold tracking-tight text-white">NEUVOX</h1>
+      </div>
+      <button class="desktop-hidden text-gray-400 hover:text-white p-1" onclick="Views.directorSchedules.toggleMobileSidebar()">
+        <span class="material-icons-round">close</span>
+      </button>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-6 space-y-1">
+      ${navItems.map(item => `
+        <a class="${navItemClass(item.path)}" href="#${item.path}">
+          <span class="${iconClass(item.path)}">${item.icon}</span>
+          <span class="font-medium text-sm">${item.label}</span>
+        </a>
+      `).join('')}
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 flex flex-col overflow-hidden relative bg-gray-50 dark:bg-background-dark">
+          <!-- Header - Estandarizado con Dashboard -->
+          <header class="h-20 bg-white dark:bg-card-dark border-b border-border-light dark:border-border-dark flex items-center justify-between px-8 z-10 shadow-sm">
+            <div class="flex items-center gap-4">
+              <button class="desktop-hidden text-muted-light dark:text-muted-dark hover:text-primary transition-colors" onclick="Views.directorSchedules.toggleMobileSidebar()">
+                <span class="material-icons-round text-2xl">menu</span>
+              </button>
+              <h2 class="text-xl font-bold text-gray-800 dark:text-text-dark">Gestión de Horarios</h2>
+              <!-- Vertical divider -->
+              <div class="h-6 w-px bg-gray-200 dark:bg-gray-700 mobile-hidden"></div>
+              <!-- Course selector -->
+              <div class="flex items-center gap-2 mobile-hidden">
+                <span class="text-xs font-semibold text-gray-500 uppercase">Filtrar:</span>
+                <select id="course-filter" class="text-sm border-gray-300 dark:border-slate-600 dark:bg-slate-700 rounded-lg py-1.5 focus:ring-indigo-500 min-w-[180px]">
+                  <option value="all">Todos los cursos</option>
+                  ${courses.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 md:gap-4 flex-1 justify-end">
+              <div class="flex items-center gap-2 md:gap-3">
+                <button class="p-2 rounded-full hover:bg-background-light dark:hover:bg-white/5 transition-colors text-muted-light dark:text-muted-dark" onclick="Views.directorSchedules.toggleDarkMode()">
+                  <span class="material-icons-round" id="dark-mode-icon">dark_mode</span>
+                </button>
+                <div class="flex items-center gap-2 cursor-pointer">
+                  <div class="w-9 h-9 rounded-full border border-gray-200 bg-indigo-600 flex items-center justify-center text-white font-semibold">
+                    ${(user.full_name || user.name || 'D').charAt(0).toUpperCase()}
+                  </div>
+                  <div class="text-right mobile-hidden">
+                    <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">${Components.escapeHtml(user.full_name || user.name || 'Director')}</p>
+                  </div>
+                </div>
+                <a class="ml-1 md:ml-2 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 border px-2 md:px-3 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-white/5 dark:border-gray-600" href="#" onclick="event.preventDefault(); State.logout(); Router.navigate('/login')">
+                  <span class="material-icons-round text-lg">logout</span>
+                  <span class="mobile-hidden">Salir</span>
+                </a>
+              </div>
+            </div>
+          </header>
+
+          <!-- Content Area -->
+          <div id="schedules-content" class="flex-1 overflow-y-auto p-8 space-y-10 scroll-smooth">
+            <!-- Course sections will be rendered here -->
+          </div>
+        </main>
+      </div>
+    `;
+
+    // Setup course filter listener
+    const filterSelect = document.getElementById('course-filter');
+    if (filterSelect) {
+      filterSelect.addEventListener('change', (e) => {
+        selectedCourseFilter = e.target.value;
+        renderSchedules();
+      });
+    }
+  }
+
+  // ==================== TIME PICKER COMPONENT (PRESERVED) ====================
 
   function createTimePickerModal() {
     const modal = document.createElement('div');
@@ -68,7 +185,7 @@ Views.directorSchedules = function() {
     `;
     document.body.appendChild(modal);
 
-    // Event listeners para los botones del time picker
+    // Event listeners for time picker buttons
     modal.querySelectorAll('.tp-hour').forEach(btn => {
       btn.addEventListener('click', (e) => {
         modal.querySelectorAll('.tp-hour').forEach(b => b.classList.remove('active'));
@@ -90,7 +207,7 @@ Views.directorSchedules = function() {
         const [hour, minute] = e.target.dataset.time.split(':');
         document.getElementById('tp-hour').textContent = hour.padStart(2, '0');
         document.getElementById('tp-minute').textContent = minute;
-        // Actualizar selección visual
+        // Update visual selection
         modal.querySelectorAll('.tp-hour').forEach(b => {
           b.classList.toggle('active', b.dataset.value === hour.padStart(2, '0'));
         });
@@ -100,7 +217,7 @@ Views.directorSchedules = function() {
       });
     });
 
-    // Cerrar al hacer clic fuera
+    // Close on backdrop click
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
         Views.directorSchedules.closeTimePicker();
@@ -112,13 +229,13 @@ Views.directorSchedules = function() {
     activeTimePicker = inputElement;
     const modal = document.getElementById('time-picker-modal');
 
-    // Establecer valor inicial
+    // Set initial value
     const currentValue = inputElement.value || '08:00';
     const [hour, minute] = currentValue.split(':');
     document.getElementById('tp-hour').textContent = hour || '08';
     document.getElementById('tp-minute').textContent = minute || '00';
 
-    // Marcar selección actual
+    // Mark current selection
     modal.querySelectorAll('.tp-hour').forEach(b => {
       b.classList.toggle('active', b.dataset.value === hour);
     });
@@ -142,7 +259,7 @@ Views.directorSchedules = function() {
       activeTimePicker.value = `${hour}:${minute}`;
       activeTimePicker.dispatchEvent(new Event('change'));
 
-      // Feedback visual - guardar referencia antes de que closeTimePicker la anule
+      // Visual feedback
       const inputElement = activeTimePicker;
       inputElement.classList.add('time-updated');
       setTimeout(() => inputElement.classList.remove('time-updated'), 500);
@@ -150,163 +267,246 @@ Views.directorSchedules = function() {
     Views.directorSchedules.closeTimePicker();
   };
 
-  // ==================== RENDER SCHEDULES ====================
+  // ==================== RENDER SCHEDULES (NEW DESIGN) ====================
 
   function renderSchedules() {
-    content.innerHTML = `
-      <div class="card">
-        <div class="card-header flex justify-between items-center">
-          <span>Horarios por Curso y Día</span>
+    const content = document.getElementById('schedules-content');
+    if (!content) return;
+
+    const courses = State.getCourses() || [];
+
+    // Filter courses based on selection
+    const filteredCourses = selectedCourseFilter === 'all'
+      ? courses
+      : courses.filter(c => c.id.toString() === selectedCourseFilter);
+
+    if (filteredCourses.length === 0) {
+      content.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-16">
+          <span class="material-icons-round text-6xl text-gray-300 dark:text-gray-600 mb-4">schedule</span>
+          <p class="text-gray-500 dark:text-gray-400">No hay cursos disponibles</p>
         </div>
+      `;
+      return;
+    }
 
-        <div class="card-body">
-          ${courses.map(course => {
-            const schedules = State.getSchedules(course.id);
+    content.innerHTML = filteredCourses.map((course, index) => {
+      const schedules = State.getSchedules(course.id) || [];
 
-            return `
-              <div class="card mb-3 schedule-course-card" style="background: var(--color-gray-50);">
-                <div class="card-header flex justify-between items-center">
-                  <span>${course.name} - ${course.grade}</span>
-                  <div class="schedule-bulk-actions">
-                    <button class="btn btn-sm btn-success" title="Guardar todos los horarios"
-                      onclick="Views.directorSchedules.saveAllSchedules(${course.id})">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                        <polyline points="7 3 7 8 15 8"></polyline>
-                      </svg>
-                      Guardar todos
-                    </button>
-                    <button class="btn btn-sm btn-outline" title="Aplicar horario a todos los días"
-                      onclick="Views.directorSchedules.copyToAllDays(${course.id})">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                      Copiar a todos
-                    </button>
-                    <button class="btn btn-sm btn-outline btn-danger-outline" title="Borrar todos los horarios"
-                      onclick="Views.directorSchedules.deleteAllSchedules(${course.id})">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                      </svg>
-                      Borrar todos
-                    </button>
-                  </div>
-                </div>
-                <div class="card-body schedule-grid-container">
-                  <div class="schedule-grid">
-                    ${[0,1,2,3,4].map(weekday => {
-                      const existingSchedule = schedules.find(s => s.weekday === weekday);
-                      const schedule = existingSchedule || {
-                        course_id: course.id,
-                        weekday,
-                        in_time: '',
-                        out_time: ''
-                      };
-                      const isUnsaved = !existingSchedule;
-                      const hasSchedule = schedule.in_time && schedule.out_time;
+      // Alternate icon colors between indigo and blue
+      const iconBg = index % 2 === 0 ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'bg-blue-50 dark:bg-blue-900/30';
+      const iconColor = index % 2 === 0 ? 'text-indigo-600' : 'text-blue-600';
 
-                      return `
-                        <div class="schedule-day-card ${isUnsaved ? 'unsaved' : 'saved'}" data-course="${course.id}" data-weekday="${weekday}">
-                          <div class="schedule-day-header">
-                            <span class="day-name">${weekdays[weekday]}</span>
-                            <span class="day-short">${weekdaysShort[weekday]}</span>
-                          </div>
-                          <div class="schedule-times">
-                            <div class="time-input-group">
-                              <label>Entrada</label>
-                              <div class="time-input-wrapper">
-                                <input type="text"
-                                  class="schedule-time-input ${isUnsaved ? 'border-warning' : ''}"
-                                  value="${schedule.in_time ? schedule.in_time.substring(0,5) : ''}"
-                                  placeholder="--:--"
-                                  readonly
-                                  data-schedule-id="${schedule.id || ''}"
-                                  data-course-id="${course.id}"
-                                  data-weekday="${weekday}"
-                                  data-field="in_time"
-                                  onclick="Views.directorSchedules.openTimePicker(this)">
-                                <svg class="clock-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                  <circle cx="12" cy="12" r="10"></circle>
-                                  <polyline points="12 6 12 12 16 14"></polyline>
-                                </svg>
-                              </div>
-                            </div>
-                            <div class="time-input-group">
-                              <label>Salida</label>
-                              <div class="time-input-wrapper">
-                                <input type="text"
-                                  class="schedule-time-input ${isUnsaved ? 'border-warning' : ''}"
-                                  value="${schedule.out_time ? schedule.out_time.substring(0,5) : ''}"
-                                  placeholder="--:--"
-                                  readonly
-                                  data-schedule-id="${schedule.id || ''}"
-                                  data-course-id="${course.id}"
-                                  data-weekday="${weekday}"
-                                  data-field="out_time"
-                                  onclick="Views.directorSchedules.openTimePicker(this)">
-                                <svg class="clock-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                  <circle cx="12" cy="12" r="10"></circle>
-                                  <polyline points="12 6 12 12 16 14"></polyline>
-                                </svg>
-                              </div>
-                            </div>
-                          </div>
-                          <div class="schedule-day-actions">
-                            <button class="btn-icon btn-save" title="Guardar"
-                              onclick="Views.directorSchedules.saveSchedule(${schedule.id || 'null'}, ${course.id}, ${weekday})">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                                <polyline points="7 3 7 8 15 8"></polyline>
-                              </svg>
-                            </button>
-                            ${weekday < 4 ? `
-                              <button class="btn-icon btn-copy" title="Copiar al día siguiente"
-                                onclick="Views.directorSchedules.copyToNextDay(${course.id}, ${weekday})"
-                                ${!hasSchedule ? 'disabled' : ''}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                  <path d="M5 12h14M12 5l7 7-7 7"/>
-                                </svg>
-                              </button>
-                            ` : ''}
-                            <button class="btn-icon btn-delete" title="Borrar este día"
-                              onclick="Views.directorSchedules.deleteDay(${course.id}, ${weekday})"
-                              ${!hasSchedule ? 'disabled' : ''}>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="3 6 5 6 21 6"></polyline>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                              </svg>
-                            </button>
+      return `
+        <section class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden" data-course-section="${course.id}">
+          <!-- Course Header with Action Buttons -->
+          <div class="p-6 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
+            <div class="flex items-center gap-3">
+              <!-- Course Icon -->
+              <div class="w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center">
+                <span class="material-icons-round ${iconColor}">class</span>
+              </div>
+              <div>
+                <h3 class="font-bold text-gray-800 dark:text-white">${course.name}</h3>
+                <p class="text-xs text-gray-500 uppercase tracking-wider">Configuración Semanal</p>
+              </div>
+            </div>
+
+            <!-- Action Buttons (3 buttons) -->
+            <div class="flex items-center gap-3">
+              <button onclick="Views.directorSchedules.saveAllSchedules(${course.id})"
+                class="px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 text-white rounded-lg text-sm font-semibold shadow-md shadow-indigo-100 dark:shadow-none flex items-center gap-2 transition-all">
+                <span class="material-icons-round text-sm">save</span> Guardar Todo
+              </button>
+              <button onclick="Views.directorSchedules.copyToAllDays(${course.id})"
+                class="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors flex items-center gap-2">
+                <span class="material-icons-round text-sm">content_copy</span> Copiar a Todos
+              </button>
+              <button onclick="Views.directorSchedules.deleteAllSchedules(${course.id})"
+                class="px-4 py-2 border border-red-200 dark:border-red-900/50 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors">
+                <span class="material-icons-round text-sm">delete</span> Borrar Todo
+              </button>
+            </div>
+          </div>
+
+          <!-- Days Grid (always expanded, NO accordion) -->
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
+              ${weekdays.map((dayName, dayIndex) => {
+                const existingSchedule = schedules.find(s => s.weekday === dayIndex);
+                const hasSchedule = existingSchedule && existingSchedule.in_time && existingSchedule.out_time;
+
+                if (hasSchedule) {
+                  // Day Card Configured (with schedule)
+                  return `
+                    <div class="p-5 border border-gray-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 hover:shadow-md transition-shadow relative group"
+                         data-course="${course.id}" data-weekday="${dayIndex}">
+                      <!-- Day Name (NO point indicator) -->
+                      <div class="flex items-center justify-between mb-4">
+                        <span class="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-tight">${dayName}</span>
+                      </div>
+
+                      <!-- Time Inputs (type="text", icon on LEFT) -->
+                      <div class="space-y-3">
+                        <div>
+                          <label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Entrada</label>
+                          <div class="relative">
+                            <input type="text"
+                              value="${existingSchedule.in_time ? existingSchedule.in_time.substring(0,5) : ''}"
+                              class="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 dark:border-slate-600 dark:bg-slate-700 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                              readonly
+                              data-schedule-id="${existingSchedule.id || ''}"
+                              data-course-id="${course.id}"
+                              data-weekday="${dayIndex}"
+                              data-field="in_time"
+                              onclick="Views.directorSchedules.openTimePicker(this)">
+                            <span class="material-icons-round absolute left-2 top-2 text-gray-400 text-base">schedule</span>
                           </div>
                         </div>
-                      `;
-                    }).join('')}
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
+                        <div>
+                          <label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Salida</label>
+                          <div class="relative">
+                            <input type="text"
+                              value="${existingSchedule.out_time ? existingSchedule.out_time.substring(0,5) : ''}"
+                              class="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 dark:border-slate-600 dark:bg-slate-700 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                              readonly
+                              data-schedule-id="${existingSchedule.id || ''}"
+                              data-course-id="${course.id}"
+                              data-weekday="${dayIndex}"
+                              data-field="out_time"
+                              onclick="Views.directorSchedules.openTimePicker(this)">
+                            <span class="material-icons-round absolute left-2 top-2 text-gray-400 text-base">schedule</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Action Buttons (save, forward, delete) -->
+                      <div class="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex justify-between gap-2">
+                        <button onclick="Views.directorSchedules.saveSchedule(${existingSchedule.id || 'null'}, ${course.id}, ${dayIndex})"
+                          class="flex-1 p-1.5 rounded-lg border border-indigo-100 dark:border-indigo-900/30 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors flex justify-center"
+                          title="Guardar">
+                          <span class="material-icons-round text-lg">save</span>
+                        </button>
+                        ${dayIndex < 4 ? `
+                        <button onclick="Views.directorSchedules.copyToNextDay(${course.id}, ${dayIndex})"
+                          class="flex-1 p-1.5 rounded-lg border border-indigo-100 dark:border-indigo-900/30 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors flex justify-center"
+                          title="Copiar al día siguiente">
+                          <span class="material-icons-round text-lg">arrow_forward</span>
+                        </button>
+                        ` : `
+                        <button disabled
+                          class="flex-1 p-1.5 rounded-lg border border-gray-100 dark:border-slate-700 text-gray-300 dark:text-gray-600 cursor-not-allowed flex justify-center"
+                          title="No hay día siguiente">
+                          <span class="material-icons-round text-lg">arrow_forward</span>
+                        </button>
+                        `}
+                        <button onclick="Views.directorSchedules.deleteDay(${course.id}, ${dayIndex})"
+                          class="flex-1 p-1.5 rounded-lg border border-red-100 dark:border-red-900/30 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex justify-center"
+                          title="Borrar">
+                          <span class="material-icons-round text-lg">delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  `;
+                } else {
+                  // Day Card Empty (no schedule - uses .dashed-card)
+                  return `
+                    <div class="p-5 dashed-card flex flex-col justify-between"
+                         data-course="${course.id}" data-weekday="${dayIndex}">
+                      <!-- Day Name (gray text) -->
+                      <span class="text-sm font-bold text-gray-400 uppercase tracking-tight block mb-4">${dayName}</span>
+
+                      <!-- Empty time placeholders -->
+                      <div class="space-y-3 mb-4">
+                        <div>
+                          <label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Entrada</label>
+                          <div class="relative">
+                            <input type="text"
+                              value=""
+                              placeholder="--:--"
+                              class="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 dark:border-slate-600 dark:bg-slate-700/50 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-transparent"
+                              readonly
+                              data-schedule-id=""
+                              data-course-id="${course.id}"
+                              data-weekday="${dayIndex}"
+                              data-field="in_time"
+                              onclick="Views.directorSchedules.openTimePicker(this)">
+                            <span class="material-icons-round absolute left-2 top-2 text-gray-300 dark:text-gray-500 text-base">schedule</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Salida</label>
+                          <div class="relative">
+                            <input type="text"
+                              value=""
+                              placeholder="--:--"
+                              class="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 dark:border-slate-600 dark:bg-slate-700/50 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-transparent"
+                              readonly
+                              data-schedule-id=""
+                              data-course-id="${course.id}"
+                              data-weekday="${dayIndex}"
+                              data-field="out_time"
+                              onclick="Views.directorSchedules.openTimePicker(this)">
+                            <span class="material-icons-round absolute left-2 top-2 text-gray-300 dark:text-gray-500 text-base">schedule</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Action Buttons (muted colors) -->
+                      <div class="flex justify-between gap-2 border-t border-gray-100 dark:border-slate-700 pt-3">
+                        <button onclick="Views.directorSchedules.saveSchedule(null, ${course.id}, ${dayIndex})"
+                          class="flex-1 p-1.5 rounded-lg border border-indigo-100/50 dark:border-indigo-900/20 text-indigo-300 hover:text-indigo-600 transition-colors flex justify-center"
+                          title="Guardar">
+                          <span class="material-icons-round text-lg">save</span>
+                        </button>
+                        ${dayIndex < 4 ? `
+                        <button onclick="Views.directorSchedules.copyToNextDay(${course.id}, ${dayIndex})" disabled
+                          class="flex-1 p-1.5 rounded-lg border border-indigo-100/50 dark:border-indigo-900/20 text-indigo-300 cursor-not-allowed flex justify-center"
+                          title="Ingrese horario primero">
+                          <span class="material-icons-round text-lg">arrow_forward</span>
+                        </button>
+                        ` : `
+                        <button disabled
+                          class="flex-1 p-1.5 rounded-lg border border-indigo-100/50 dark:border-indigo-900/20 text-indigo-300 cursor-not-allowed flex justify-center"
+                          title="No hay día siguiente">
+                          <span class="material-icons-round text-lg">arrow_forward</span>
+                        </button>
+                        `}
+                        <button onclick="Views.directorSchedules.deleteDay(${course.id}, ${dayIndex})" disabled
+                          class="flex-1 p-1.5 rounded-lg border border-red-100/50 dark:border-red-900/20 text-red-200 cursor-not-allowed flex justify-center"
+                          title="Sin horario para borrar">
+                          <span class="material-icons-round text-lg">delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  `;
+                }
+              }).join('')}
+            </div>
+          </div>
+        </section>
+      `;
+    }).join('') + `
+      <!-- Footer -->
+      <footer class="text-center text-xs text-gray-400 pt-8 pb-4">
+        © 2026 NEUVOX. Todos los derechos reservados.
+      </footer>
     `;
   }
 
-  // ==================== ACTION FUNCTIONS ====================
+  // ==================== ACTION FUNCTIONS (PRESERVED LOGIC) ====================
 
-  // Guardar horario individual
+  // Save individual schedule
   Views.directorSchedules.saveSchedule = async function(scheduleId, courseId, weekday) {
-    const card = document.querySelector(`.schedule-day-card[data-course="${courseId}"][data-weekday="${weekday}"]`);
+    const card = document.querySelector(`[data-course="${courseId}"][data-weekday="${weekday}"]`);
     const inTimeInput = card.querySelector('[data-field="in_time"]');
     const outTimeInput = card.querySelector('[data-field="out_time"]');
-    const saveBtn = card.querySelector('.btn-save');
+    const saveBtn = card.querySelector('button[title="Guardar"]');
 
     const inTime = inTimeInput.value;
     const outTime = outTimeInput.value;
 
-    // Validación campos requeridos
+    // Validation - required fields
     if (!inTime || !outTime) {
       Components.showToast('Complete ambos horarios', 'error');
       card.classList.add('shake');
@@ -314,22 +514,21 @@ Views.directorSchedules = function() {
       return;
     }
 
-    // Validación de formato HH:MM
+    // Validation - HH:MM format
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     if (!timeRegex.test(inTime) || !timeRegex.test(outTime)) {
       Components.showToast('Formato de hora inválido', 'error');
       return;
     }
 
-    // Validación lógica de horas
+    // Validation - logical order
     if (outTime <= inTime) {
       Components.showToast('La hora de salida debe ser posterior a la de entrada', 'error');
       return;
     }
 
-    // Feedback visual
-    saveBtn.classList.add('saving');
-    card.classList.add('saving');
+    // Visual feedback
+    if (saveBtn) saveBtn.classList.add('animate-pulse');
 
     try {
       const scheduleData = {
@@ -341,38 +540,22 @@ Views.directorSchedules = function() {
       if (scheduleId) {
         await State.updateSchedule(scheduleId, scheduleData);
       } else {
-        const newSchedule = await State.createSchedule(courseId, scheduleData);
-        inTimeInput.dataset.scheduleId = newSchedule.id;
-        outTimeInput.dataset.scheduleId = newSchedule.id;
-
-        // Actualizar el onclick del botón guardar
-        saveBtn.setAttribute('onclick',
-          `Views.directorSchedules.saveSchedule(${newSchedule.id}, ${courseId}, ${weekday})`
-        );
+        await State.createSchedule(courseId, scheduleData);
       }
 
-      // Actualizar estado visual
-      card.classList.remove('unsaved');
-      card.classList.add('saved');
-      inTimeInput.classList.remove('border-warning');
-      outTimeInput.classList.remove('border-warning');
-
-      // Habilitar botones de acción
-      card.querySelectorAll('.btn-copy, .btn-delete').forEach(btn => btn.disabled = false);
-
       Components.showToast('Horario guardado', 'success');
+      renderSchedules(); // Re-render to update UI
     } catch (error) {
       Components.showToast(error.message || 'Error al guardar', 'error');
     } finally {
-      saveBtn.classList.remove('saving');
-      card.classList.remove('saving');
+      if (saveBtn) saveBtn.classList.remove('animate-pulse');
     }
   };
 
-  // Copiar al día siguiente
+  // Copy to next day
   Views.directorSchedules.copyToNextDay = function(courseId, weekday) {
-    const currentCard = document.querySelector(`.schedule-day-card[data-course="${courseId}"][data-weekday="${weekday}"]`);
-    const nextCard = document.querySelector(`.schedule-day-card[data-course="${courseId}"][data-weekday="${weekday + 1}"]`);
+    const currentCard = document.querySelector(`[data-course="${courseId}"][data-weekday="${weekday}"]`);
+    const nextCard = document.querySelector(`[data-course="${courseId}"][data-weekday="${weekday + 1}"]`);
 
     if (!nextCard) return;
 
@@ -387,23 +570,24 @@ Views.directorSchedules = function() {
     nextCard.querySelector('[data-field="in_time"]').value = inTime;
     nextCard.querySelector('[data-field="out_time"]').value = outTime;
 
-    // Feedback visual
-    nextCard.classList.add('copied');
-    setTimeout(() => nextCard.classList.remove('copied'), 600);
+    // Visual feedback
+    nextCard.classList.add('ring-2', 'ring-indigo-500');
+    setTimeout(() => nextCard.classList.remove('ring-2', 'ring-indigo-500'), 600);
 
     Components.showToast(`Horario copiado a ${weekdays[weekday + 1]}. Recuerde guardar.`, 'info');
   };
 
-  // Copiar a todos los días
+  // Copy to all days
   Views.directorSchedules.copyToAllDays = function(courseId) {
-    // Usar el primer día con horario como referencia
+    // Use first day with schedule as reference
     let referenceInTime = '';
     let referenceOutTime = '';
 
     for (let i = 0; i < 5; i++) {
-      const card = document.querySelector(`.schedule-day-card[data-course="${courseId}"][data-weekday="${i}"]`);
-      const inTime = card.querySelector('[data-field="in_time"]').value;
-      const outTime = card.querySelector('[data-field="out_time"]').value;
+      const card = document.querySelector(`[data-course="${courseId}"][data-weekday="${i}"]`);
+      if (!card) continue;
+      const inTime = card.querySelector('[data-field="in_time"]')?.value;
+      const outTime = card.querySelector('[data-field="out_time"]')?.value;
       if (inTime && outTime) {
         referenceInTime = inTime;
         referenceOutTime = outTime;
@@ -416,55 +600,46 @@ Views.directorSchedules = function() {
       return;
     }
 
-    // Aplicar a todos los días
+    // Apply to all days
     for (let i = 0; i < 5; i++) {
-      const card = document.querySelector(`.schedule-day-card[data-course="${courseId}"][data-weekday="${i}"]`);
-      card.querySelector('[data-field="in_time"]').value = referenceInTime;
-      card.querySelector('[data-field="out_time"]').value = referenceOutTime;
-      card.classList.add('copied');
-      setTimeout(() => card.classList.remove('copied'), 600);
+      const card = document.querySelector(`[data-course="${courseId}"][data-weekday="${i}"]`);
+      if (!card) continue;
+      const inInput = card.querySelector('[data-field="in_time"]');
+      const outInput = card.querySelector('[data-field="out_time"]');
+      if (inInput) inInput.value = referenceInTime;
+      if (outInput) outInput.value = referenceOutTime;
+      card.classList.add('ring-2', 'ring-indigo-500');
+      setTimeout(() => card.classList.remove('ring-2', 'ring-indigo-500'), 600);
     }
 
     Components.showToast(`Horario ${referenceInTime} - ${referenceOutTime} aplicado a todos los días. Recuerde guardar cada día.`, 'info');
   };
 
-  // Borrar un día específico
+  // Delete specific day
   Views.directorSchedules.deleteDay = async function(courseId, weekday) {
-    const card = document.querySelector(`.schedule-day-card[data-course="${courseId}"][data-weekday="${weekday}"]`);
+    const card = document.querySelector(`[data-course="${courseId}"][data-weekday="${weekday}"]`);
     const inTimeInput = card.querySelector('[data-field="in_time"]');
     const outTimeInput = card.querySelector('[data-field="out_time"]');
-    const scheduleId = inTimeInput.dataset.scheduleId;
 
     if (!confirm(`¿Borrar el horario del ${weekdays[weekday]}?`)) return;
 
-    // Limpiar valores en UI
+    // Clear values in UI
     inTimeInput.value = '';
     outTimeInput.value = '';
 
-    // Si existe en la DB, eliminar (aquí podrías agregar la llamada API para DELETE)
-    // Por ahora solo limpiamos la UI ya que el backend no tiene endpoint DELETE individual
-
-    card.classList.remove('saved');
-    card.classList.add('unsaved');
-    inTimeInput.classList.add('border-warning');
-    outTimeInput.classList.add('border-warning');
-
-    // Deshabilitar botones de acción
-    card.querySelectorAll('.btn-copy, .btn-delete').forEach(btn => btn.disabled = true);
-
     Components.showToast(`Horario del ${weekdays[weekday]} borrado`, 'success');
+    renderSchedules(); // Re-render to update UI
   };
 
-  // Guardar todos los horarios de un curso
+  // Save all schedules for a course
   Views.directorSchedules.saveAllSchedules = async function(courseId) {
-    const saveAllBtn = document.querySelector(`.schedule-course-card .btn-success[onclick*="saveAllSchedules(${courseId})"]`);
+    const section = document.querySelector(`[data-course-section="${courseId}"]`);
+    const saveAllBtn = section?.querySelector('button[onclick*="saveAllSchedules"]');
+
     if (saveAllBtn) {
       saveAllBtn.disabled = true;
       saveAllBtn.innerHTML = `
-        <svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="20"></circle>
-        </svg>
-        Guardando...
+        <span class="material-icons-round text-sm animate-spin">sync</span> Guardando...
       `;
     }
 
@@ -473,17 +648,20 @@ Views.directorSchedules = function() {
     const errors = [];
 
     for (let weekday = 0; weekday < 5; weekday++) {
-      const card = document.querySelector(`.schedule-day-card[data-course="${courseId}"][data-weekday="${weekday}"]`);
+      const card = document.querySelector(`[data-course="${courseId}"][data-weekday="${weekday}"]`);
+      if (!card) continue;
+
       const inTimeInput = card.querySelector('[data-field="in_time"]');
       const outTimeInput = card.querySelector('[data-field="out_time"]');
+      if (!inTimeInput || !outTimeInput) continue;
 
       const inTime = inTimeInput.value;
       const outTime = outTimeInput.value;
 
-      // Saltar días sin horarios
+      // Skip days without schedules
       if (!inTime || !outTime) continue;
 
-      // Validación de formato HH:MM
+      // Validate HH:MM format
       const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
       if (!timeRegex.test(inTime) || !timeRegex.test(outTime)) {
         errors.push(`${weekdays[weekday]}: Formato de hora inválido`);
@@ -491,19 +669,15 @@ Views.directorSchedules = function() {
         continue;
       }
 
-      // Validación lógica de horas
+      // Validate logical order
       if (outTime <= inTime) {
         errors.push(`${weekdays[weekday]}: Hora de salida debe ser posterior a entrada`);
         errorCount++;
         continue;
       }
 
-      // Guardar el día
+      // Save the day
       const scheduleId = inTimeInput.dataset.scheduleId || null;
-      const saveBtn = card.querySelector('.btn-save');
-
-      card.classList.add('saving');
-      if (saveBtn) saveBtn.classList.add('saving');
 
       try {
         const scheduleData = {
@@ -515,81 +689,85 @@ Views.directorSchedules = function() {
         if (scheduleId) {
           await State.updateSchedule(scheduleId, scheduleData);
         } else {
-          const newSchedule = await State.createSchedule(courseId, scheduleData);
-          inTimeInput.dataset.scheduleId = newSchedule.id;
-          outTimeInput.dataset.scheduleId = newSchedule.id;
-
-          if (saveBtn) {
-            saveBtn.setAttribute('onclick',
-              `Views.directorSchedules.saveSchedule(${newSchedule.id}, ${courseId}, ${weekday})`
-            );
-          }
+          await State.createSchedule(courseId, scheduleData);
         }
-
-        // Actualizar estado visual
-        card.classList.remove('unsaved');
-        card.classList.add('saved');
-        inTimeInput.classList.remove('border-warning');
-        outTimeInput.classList.remove('border-warning');
-        card.querySelectorAll('.btn-copy, .btn-delete').forEach(btn => btn.disabled = false);
 
         savedCount++;
       } catch (error) {
         errors.push(`${weekdays[weekday]}: ${error.message || 'Error al guardar'}`);
         errorCount++;
-      } finally {
-        card.classList.remove('saving');
-        if (saveBtn) saveBtn.classList.remove('saving');
       }
     }
 
-    // Restaurar botón
+    // Restore button
     if (saveAllBtn) {
       saveAllBtn.disabled = false;
       saveAllBtn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-          <polyline points="17 21 17 13 7 13 7 21"></polyline>
-          <polyline points="7 3 7 8 15 8"></polyline>
-        </svg>
-        Guardar todos
+        <span class="material-icons-round text-sm">save</span> Guardar Todo
       `;
     }
 
-    // Mostrar resumen
+    // Show summary
     if (savedCount === 0 && errorCount === 0) {
       Components.showToast('No hay horarios para guardar', 'info');
     } else if (errorCount > 0) {
       Components.showToast(`${savedCount} guardados, ${errorCount} errores: ${errors.join('; ')}`, 'warning');
     } else {
       Components.showToast(`${savedCount} horario${savedCount > 1 ? 's' : ''} guardado${savedCount > 1 ? 's' : ''} exitosamente`, 'success');
+      renderSchedules(); // Re-render to update UI
     }
   };
 
-  // Borrar todos los horarios de un curso
+  // Delete all schedules for a course
   Views.directorSchedules.deleteAllSchedules = async function(courseId) {
     if (!confirm('¿Borrar TODOS los horarios de este curso?')) return;
 
     for (let i = 0; i < 5; i++) {
-      const card = document.querySelector(`.schedule-day-card[data-course="${courseId}"][data-weekday="${i}"]`);
+      const card = document.querySelector(`[data-course="${courseId}"][data-weekday="${i}"]`);
+      if (!card) continue;
       const inTimeInput = card.querySelector('[data-field="in_time"]');
       const outTimeInput = card.querySelector('[data-field="out_time"]');
 
-      inTimeInput.value = '';
-      outTimeInput.value = '';
-
-      card.classList.remove('saved');
-      card.classList.add('unsaved');
-      inTimeInput.classList.add('border-warning');
-      outTimeInput.classList.add('border-warning');
-      card.querySelectorAll('.btn-copy, .btn-delete').forEach(btn => btn.disabled = true);
+      if (inTimeInput) inTimeInput.value = '';
+      if (outTimeInput) outTimeInput.value = '';
     }
 
     Components.showToast('Todos los horarios han sido borrados', 'success');
+    renderSchedules(); // Re-render to update UI
+  };
+
+  // ==================== HEADER FUNCTIONS ====================
+
+  // Toggle mobile sidebar
+  Views.directorSchedules.toggleMobileSidebar = function() {
+    const sidebar = document.querySelector('aside.mobile-hidden');
+    const backdrop = document.getElementById('sidebar-backdrop');
+
+    if (sidebar) {
+      sidebar.classList.toggle('mobile-hidden');
+      sidebar.classList.toggle('fixed');
+      sidebar.classList.toggle('inset-y-0');
+      sidebar.classList.toggle('left-0');
+      sidebar.classList.toggle('z-50');
+    }
+
+    if (backdrop) {
+      backdrop.classList.toggle('hidden');
+    }
+  };
+
+  // Toggle dark mode
+  Views.directorSchedules.toggleDarkMode = function() {
+    document.documentElement.classList.toggle('dark');
+    const icon = document.getElementById('dark-mode-icon');
+    if (icon) {
+      icon.textContent = document.documentElement.classList.contains('dark') ? 'light_mode' : 'dark_mode';
+    }
   };
 
   // ==================== INITIALIZATION ====================
 
+  renderLayout();
   createTimePickerModal();
   renderSchedules();
 };
