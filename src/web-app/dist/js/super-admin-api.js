@@ -266,9 +266,13 @@ const SuperAdminAPI = {
     return response.json();
   },
 
-  async updateWhatsAppConfig(tenantId, config) {
-    const response = await this.request(`/tenants/${tenantId}/config/whatsapp`, {
-      method: 'PUT',
+  /**
+   * Update tenant configuration (unified endpoint)
+   * Supports: timezone, email_provider, smtp_*, ses_*, whatsapp_*
+   */
+  async updateTenantConfig(tenantId, config) {
+    const response = await this.request(`/tenants/${tenantId}/config`, {
+      method: 'PATCH',
       body: JSON.stringify(config),
     });
 
@@ -279,17 +283,41 @@ const SuperAdminAPI = {
     return response.json();
   },
 
-  async updateEmailConfig(tenantId, config) {
-    const response = await this.request(`/tenants/${tenantId}/config/email`, {
-      method: 'PUT',
-      body: JSON.stringify(config),
+  // Legacy methods - now use unified endpoint
+  async updateWhatsAppConfig(tenantId, config) {
+    return this.updateTenantConfig(tenantId, {
+      whatsapp_phone_number_id: config.phone_number_id,
+      whatsapp_access_token: config.access_token,
     });
+  },
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Error al actualizar configuración' }));
-      throw new Error(error.detail || 'Error al actualizar configuración');
-    }
-    return response.json();
+  async updateEmailConfig(tenantId, config) {
+    // Map to unified format
+    const data = {};
+    if (config.region) data.ses_region = config.region;
+    if (config.source_email) data.ses_source_email = config.source_email;
+    if (config.access_key) data.ses_access_key = config.access_key;
+    if (config.secret_key) data.ses_secret_key = config.secret_key;
+    return this.updateTenantConfig(tenantId, data);
+  },
+
+  async updateSmtpConfig(tenantId, config) {
+    const data = {};
+    if (config.host) data.smtp_host = config.host;
+    if (config.port) data.smtp_port = config.port;
+    if (config.user) data.smtp_user = config.user;
+    if (config.password) data.smtp_password = config.password;
+    if (config.use_tls !== undefined) data.smtp_use_tls = config.use_tls;
+    if (config.from_name) data.smtp_from_name = config.from_name;
+    return this.updateTenantConfig(tenantId, data);
+  },
+
+  async updateTimezone(tenantId, timezone) {
+    return this.updateTenantConfig(tenantId, { timezone });
+  },
+
+  async updateEmailProvider(tenantId, provider) {
+    return this.updateTenantConfig(tenantId, { email_provider: provider });
   },
 
   async updateS3Config(tenantId, config) {
@@ -313,6 +341,19 @@ const SuperAdminAPI = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Error al generar clave' }));
       throw new Error(error.detail || 'Error al generar clave');
+    }
+    return response.json();
+  },
+
+  async updateBranding(tenantId, config) {
+    const response = await this.request(`/tenants/${tenantId}/config/branding`, {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al actualizar branding' }));
+      throw new Error(error.detail || 'Error al actualizar branding');
     }
     return response.json();
   },

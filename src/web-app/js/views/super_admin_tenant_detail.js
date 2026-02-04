@@ -145,6 +145,21 @@ Views.superAdminTenantDetail = async function(tenantId) {
           </div>
           <div class="card-body">
             <div class="config-section">
+              <h4>Branding (Nombre en Emails)</h4>
+              <div class="info-row">
+                <span class="info-label">Nombre del Colegio:</span>
+                <span class="info-value">${Components.escapeHtml(config.school_display_name || tenant.name)}</span>
+              </div>
+              ${!config.school_display_name ? `
+              <div class="info-row">
+                <span class="info-label"></span>
+                <span class="info-value" style="font-size: 0.75rem; color: var(--text-secondary);">(usando nombre del tenant como fallback)</span>
+              </div>
+              ` : ''}
+              <button class="btn btn-sm btn-secondary" onclick="showBrandingModal()">Configurar</button>
+            </div>
+
+            <div class="config-section">
               <h4>Zona Horaria</h4>
               <div class="info-row">
                 <span class="info-label">Timezone:</span>
@@ -625,6 +640,43 @@ Views.superAdminTenantDetail = async function(tenantId) {
 
             await SuperAdminAPI.updateEmailConfig(tenantId, data);
             Components.showToast('Configuración guardada', 'success');
+            loadData();
+          } catch (error) {
+            Components.showToast(error.message, 'error');
+          }
+        }
+      }
+    ]);
+  };
+
+  window.showBrandingModal = () => {
+    const currentName = config.school_display_name || '';
+    const modal = Components.showModal('Configurar Branding', `
+      <form id="brandingForm">
+        <div class="form-group">
+          <label for="schoolDisplayName">Nombre del Colegio (para emails)</label>
+          <input type="text" id="schoolDisplayName" value="${Components.escapeHtml(currentName)}"
+                 placeholder="${Components.escapeHtml(tenant.name)}" maxlength="255">
+          <small class="form-hint">Este nombre aparecerá en los emails enviados a los apoderados. Si se deja vacío, se usará el nombre del tenant: "${Components.escapeHtml(tenant.name)}"</small>
+        </div>
+      </form>
+      <style>
+        .form-hint { color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block; }
+      </style>
+    `, [
+      { label: 'Cancelar', action: 'close' },
+      {
+        label: 'Guardar',
+        action: 'save',
+        className: 'btn-primary',
+        onClick: async () => {
+          try {
+            const schoolName = document.getElementById('schoolDisplayName').value.trim();
+            await SuperAdminAPI.updateBranding(tenantId, {
+              school_display_name: schoolName || null,
+            });
+            Components.showToast('Branding actualizado', 'success');
+            modal.close();
             loadData();
           } catch (error) {
             Components.showToast(error.message, 'error');

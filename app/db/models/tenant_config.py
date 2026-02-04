@@ -64,6 +64,9 @@ class TenantConfig(Base):
         String(64), nullable=True, default="America/Santiago"
     )
 
+    # Branding - display name for emails (shown as school name in notifications)
+    school_display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

@@ -345,6 +345,19 @@ const SuperAdminAPI = {
     return response.json();
   },
 
+  async updateBranding(tenantId, config) {
+    const response = await this.request(`/tenants/${tenantId}/config/branding`, {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al actualizar branding' }));
+      throw new Error(error.detail || 'Error al actualizar branding');
+    }
+    return response.json();
+  },
+
   // ==================== Admin Invitations ====================
 
   async resendInvitation(tenantId) {

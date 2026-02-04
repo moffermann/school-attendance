@@ -652,6 +652,9 @@ class TenantConfigResponse(BaseModel):
     # Device
     device_api_key_configured: bool
 
+    # Branding
+    school_display_name: str | None = None
+
     updated_at: datetime | None
 
 
@@ -785,6 +788,7 @@ async def get_tenant_config(
         s3_bucket=config.s3_bucket,
         s3_prefix=config.s3_prefix,
         device_api_key_configured=config.device_api_key_encrypted is not None,
+        school_display_name=config.school_display_name,
         updated_at=config.updated_at,
     )
 
@@ -911,5 +915,6 @@ async def update_tenant_config(
         s3_bucket=config.s3_bucket,
         s3_prefix=config.s3_prefix,
         device_api_key_configured=config.device_api_key_encrypted is not None,
+        school_display_name=config.school_display_name,
         updated_at=config.updated_at,
     )

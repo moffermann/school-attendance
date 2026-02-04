@@ -39,6 +39,10 @@ class DecryptedTenantConfig:
     s3_prefix: str | None
     # Device
     device_api_key: str | None
+    # Branding
+    school_display_name: str | None = None
+    # Timezone
+    timezone: str | None = None
 
 
 class TenantConfigRepository:
@@ -77,6 +81,8 @@ class TenantConfigRepository:
             s3_bucket=config.s3_bucket,
             s3_prefix=config.s3_prefix,
             device_api_key=decrypt_if_present(config.device_api_key_encrypted),
+            school_display_name=config.school_display_name,
+            timezone=config.timezone,
         )
 
     async def create(self, tenant_id: int) -> TenantConfig:
@@ -243,6 +249,28 @@ class TenantConfigRepository:
             return None
 
         config.timezone = tz_name
+        config.updated_at = datetime.now(UTC)
+        await self.session.flush()
+        return config
+
+    async def update_branding(
+        self,
+        tenant_id: int,
+        *,
+        school_display_name: str | None = None,
+        _school_display_name_provided: bool = False,
+    ) -> TenantConfig | None:
+        """Update tenant branding settings (school display name for emails).
+
+        Note: Pass _school_display_name_provided=True to allow setting None (clear value).
+        """
+        config = await self.get(tenant_id)
+        if not config:
+            return None
+
+        # Always update - allows clearing the value by passing None
+        config.school_display_name = school_display_name
+
         config.updated_at = datetime.now(UTC)
         await self.session.flush()
         return config
