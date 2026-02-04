@@ -1,5 +1,7 @@
-// @ts-check
-const { test, expect } = require('@playwright/test');
+/**
+ * Scan View E2E Tests
+ */
+import { test, expect } from '@playwright/test';
 
 /**
  * Scan View E2E Tests

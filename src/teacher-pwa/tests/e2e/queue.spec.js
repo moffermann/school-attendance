@@ -1,10 +1,30 @@
 /**
  * Teacher PWA - Offline Queue E2E Tests
  */
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 test.describe('Offline Queue', () => {
   test.beforeEach(async ({ page }) => {
+    // Mock API endpoints to prevent hanging
+    await page.route('**/api/v1/teachers/me', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          teacher: { id: 1, full_name: 'Profesor Test' },
+          courses: [{ id: 1, name: '1° Básico A' }]
+        })
+      });
+    });
+
+    await page.route('**/api/v1/bootstrap**', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ students: [], courses: [], teachers: [] })
+      });
+    });
+
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
@@ -68,6 +88,26 @@ test.describe('Offline Queue', () => {
 
 test.describe('History View', () => {
   test.beforeEach(async ({ page }) => {
+    // Mock API endpoints to prevent hanging
+    await page.route('**/api/v1/teachers/me', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          teacher: { id: 1, full_name: 'Profesor Test' },
+          courses: [{ id: 1, name: '1° Básico A' }]
+        })
+      });
+    });
+
+    await page.route('**/api/v1/bootstrap**', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ students: [], courses: [], teachers: [] })
+      });
+    });
+
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
@@ -113,6 +153,26 @@ test.describe('History View', () => {
 
 test.describe('Alerts View', () => {
   test.beforeEach(async ({ page }) => {
+    // Mock API endpoints to prevent hanging
+    await page.route('**/api/v1/teachers/me', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          teacher: { id: 1, full_name: 'Profesor Test' },
+          courses: [{ id: 1, name: '1° Básico A' }]
+        })
+      });
+    });
+
+    await page.route('**/api/v1/bootstrap**', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ students: [], courses: [], teachers: [] })
+      });
+    });
+
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
