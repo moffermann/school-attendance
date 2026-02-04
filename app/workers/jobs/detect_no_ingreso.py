@@ -14,7 +14,7 @@ from sqlalchemy import select
 from app.core.tenant_middleware import sanitize_schema_name
 from app.db.models.tenant import Tenant
 from app.db.repositories.no_show_alerts import NoShowAlertRepository
-from app.db.session import async_session, get_tenant_session
+from app.db.session import get_worker_session
 from app.schemas.notifications import (
     NotificationChannel,
     NotificationDispatchRequest,
@@ -38,7 +38,7 @@ async def _process_tenant(
     success_count = 0
     error_count = 0
 
-    async with get_tenant_session(schema_name) as session:
+    async with get_worker_session(schema_name) as session:
         attendance_service = AttendanceService(session)
         dispatcher = NotificationDispatcher(session, tenant_id=tenant_id, tenant_schema=schema_name)
         alert_repo = NoShowAlertRepository(session)
@@ -52,18 +52,40 @@ async def _process_tenant(
 
         logger.info("[NoIngreso] Tenant '{}': Found {} potential alerts", tenant_slug, len(alerts))
 
-        for entry in alerts:
+        # Commit any pending changes from detect_no_show_alerts (e.g., created alerts)
+        # and ensure session is in clean state before notification loop
+        logger.debug("[NoIngreso] Committing detect phase changes and resetting session state")
+        await session.commit()
+        logger.debug("[NoIngreso] Session committed, starting notification loop")
+
+        for idx, entry in enumerate(alerts):
+            logger.debug(
+                "[NoIngreso] Processing alert {}/{} for tenant '{}'",
+                idx + 1,
+                len(alerts),
+                tenant_slug,
+            )
             alert_record = entry["alert"]
             guardian = entry["guardian"]
             student = entry["student"]
 
             # Skip resolved alerts
             if alert_record.status == "RESOLVED":
+                logger.debug("[NoIngreso] Skipping resolved alert id={}", alert_record.id)
                 continue
             # Only notify ONCE per alert - if already notified, skip
             if alert_record.last_notification_at is not None:
+                logger.debug(
+                    "[NoIngreso] Skipping already-notified alert id={}", alert_record.id
+                )
                 continue
 
+            logger.debug(
+                "[NoIngreso] Alert id={} student={} guardian={}",
+                alert_record.id,
+                student.id,
+                guardian.id,
+            )
             student_names = student.full_name
 
             channels = {NotificationChannel.WHATSAPP, NotificationChannel.EMAIL}
@@ -115,22 +137,33 @@ async def _process_tenant(
                     },
                 )
                 try:
+                    logger.debug(
+                        "[NoIngreso] About to enqueue notification guardian={} channel={}",
+                        guardian.id,
+                        channel,
+                    )
                     await dispatcher.enqueue_manual_notification(payload)
+                    logger.debug(
+                        "[NoIngreso] Notification enqueued, marking alert as notified"
+                    )
                     await alert_repo.mark_notified(alert_record.id, current_dt)
+                    logger.debug("[NoIngreso] Committing transaction")
                     # Commit each successful notification individually
                     await session.commit()
+                    logger.debug("[NoIngreso] Transaction committed successfully")
                     success_count += 1
                 except Exception as exc:  # pragma: no cover - handled downstream
                     # Rollback failed notification, continue with others
-                    await session.rollback()
-                    error_count += 1
                     logger.error(
-                        "[NoIngreso] Tenant '{}': Failed to enqueue notification guardian={} channel={} error={}",
+                        "[NoIngreso] Tenant '{}': Failed to enqueue notification guardian={} channel={} error={} type={}",
                         tenant_slug,
                         guardian.id,
                         channel,
                         exc,
+                        type(exc).__name__,
                     )
+                    await session.rollback()
+                    error_count += 1
 
     return success_count, error_count
 
@@ -142,7 +175,8 @@ async def _detect_and_notify(target_dt: datetime | None = None) -> None:
     total_errors = 0
 
     # First, get all active tenants from public schema
-    async with async_session() as session:
+    # Use get_worker_session(None) for public schema - workers need fresh engine
+    async with get_worker_session(None) as session:
         result = await session.execute(
             select(Tenant).where(Tenant.is_active == True)  # noqa: E712
         )

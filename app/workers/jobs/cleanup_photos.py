@@ -9,13 +9,14 @@ from loguru import logger
 
 from app.core.config import settings
 from app.db.repositories.attendance import AttendanceRepository
-from app.db.session import async_session
+from app.db.session import get_worker_session
 from app.services.photo_service import PhotoService
 
 
 async def _cleanup() -> None:
     cutoff = datetime.now(UTC) - timedelta(days=settings.photo_retention_days)
-    async with async_session() as session:
+    # Use get_worker_session(None) for public schema - workers need fresh engine
+    async with get_worker_session(None) as session:
         repo = AttendanceRepository(session)
         photo_service = PhotoService()
         expired = await repo.events_with_photo_before(cutoff)

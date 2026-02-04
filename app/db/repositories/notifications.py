@@ -23,6 +23,8 @@ class NotificationRepository:
         template: str,
         payload: dict[str, Any],
         event_id: int | None = None,
+        context_id: int | None = None,
+        notification_date: date | None = None,
     ) -> Notification:
         notification = Notification(
             guardian_id=guardian_id,
@@ -30,6 +32,8 @@ class NotificationRepository:
             template=template,
             payload=payload,
             event_id=event_id,
+            context_id=context_id,
+            notification_date=notification_date or date.today(),
             status="queued",
             ts_created=datetime.now(UTC),
             ts_sent=None,

@@ -12,7 +12,7 @@ from sqlalchemy import or_, select, update
 from app.core.tenant_middleware import sanitize_schema_name
 from app.db.models.device import Device
 from app.db.models.tenant import Tenant
-from app.db.session import async_session, get_tenant_session
+from app.db.session import get_worker_session
 
 # Devices without heartbeat for this duration are marked offline
 OFFLINE_THRESHOLD_MINUTES = 5
@@ -27,7 +27,8 @@ async def _mark_devices_offline() -> None:
     total_updated = 0
 
     # First, get all active tenants from public schema
-    async with async_session() as session:
+    # Use get_worker_session(None) for public schema - workers need fresh engine
+    async with get_worker_session(None) as session:
         result = await session.execute(
             select(Tenant).where(Tenant.is_active == True)  # noqa: E712
         )
@@ -42,7 +43,7 @@ async def _mark_devices_offline() -> None:
         schema_name = f"tenant_{sanitize_schema_name(tenant.slug)}"
 
         try:
-            async with get_tenant_session(schema_name) as session:
+            async with get_worker_session(schema_name) as session:
                 # Update devices where online=True AND (last_sync < threshold OR last_sync is NULL)
                 stmt = (
                     update(Device)

@@ -36,7 +36,13 @@ class NotificationDispatcher:
     async def enqueue_manual_notification(
         self, payload: NotificationDispatchRequest
     ) -> NotificationRead:
+        logger.debug(
+            "[Dispatcher] enqueue_manual_notification called for guardian={}",
+            payload.guardian_id,
+        )
+        logger.debug("[Dispatcher] Fetching guardian from DB...")
         guardian = await self.guardian_repo.get(payload.guardian_id)
+        logger.debug("[Dispatcher] Guardian fetched successfully")
         if not guardian:
             raise ValueError("Guardian not found")
 
@@ -49,6 +55,7 @@ class NotificationDispatcher:
         if not recipient:
             raise ValueError(f"Guardian has no {payload.channel.value.lower()} configured")
 
+        logger.debug("[Dispatcher] Creating notification record...")
         notification = await self.repository.create(
             guardian_id=payload.guardian_id,
             channel=payload.channel.value,
@@ -56,7 +63,9 @@ class NotificationDispatcher:
             payload=payload.variables,
             event_id=None,
         )
+        logger.debug("[Dispatcher] Notification created, committing...")
         await self.session.commit()
+        logger.debug("[Dispatcher] Committed successfully")
 
         job_func = {
             NotificationChannel.WHATSAPP: "app.workers.jobs.send_whatsapp.send_whatsapp_message",
