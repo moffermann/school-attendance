@@ -2,7 +2,7 @@
  * QR Enrollment Service - Unit Tests
  * Tests run in browser context using Playwright's evaluate()
  */
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 async function setupPage(page) {
   await page.goto('/');

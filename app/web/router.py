@@ -57,7 +57,7 @@ async def _require_staff_user(
     return auth_user, api_token
 
 
-@web_router.get("/login", response_class=HTMLResponse)
+@web_router.get("/login", response_class=HTMLResponse, response_model=None)
 async def login_page(request: Request) -> HTMLResponse | RedirectResponse:
     next_url = request.query_params.get("next", "/app")
     return templates.TemplateResponse(
@@ -73,7 +73,7 @@ async def login_page(request: Request) -> HTMLResponse | RedirectResponse:
     )
 
 
-@web_router.post("/login", response_class=HTMLResponse)
+@web_router.post("/login", response_class=HTMLResponse, response_model=None)
 async def login_submit(request: Request, auth_service=Depends(deps.get_auth_service)):
     form = await request.form()
     email = str(form.get("email", "")).strip().lower()
@@ -132,7 +132,7 @@ async def logout() -> RedirectResponse:
 # The legacy dashboard is now accessible at /app (web-app SPA).
 
 
-@web_router.get("/schedules", response_class=HTMLResponse)
+@web_router.get("/schedules", response_class=HTMLResponse, response_model=None)
 async def schedules_page(
     request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
 ) -> HTMLResponse | RedirectResponse:
@@ -164,7 +164,7 @@ async def schedules_page(
     return templates.TemplateResponse("schedules.html", context)
 
 
-@web_router.get("/broadcast", response_class=HTMLResponse)
+@web_router.get("/broadcast", response_class=HTMLResponse, response_model=None)
 async def broadcast_page(
     request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
 ) -> HTMLResponse | RedirectResponse:
@@ -183,7 +183,7 @@ async def broadcast_page(
     return templates.TemplateResponse("broadcast_preview.html", context)
 
 
-@web_router.get("/parents/preferences", response_class=HTMLResponse)
+@web_router.get("/parents/preferences", response_class=HTMLResponse, response_model=None)
 async def parents_prefs_page(
     request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
 ) -> HTMLResponse | RedirectResponse:
@@ -202,7 +202,7 @@ async def parents_prefs_page(
     return templates.TemplateResponse("parents_prefs.html", context)
 
 
-@web_router.get("/alerts", response_class=HTMLResponse)
+@web_router.get("/alerts", response_class=HTMLResponse, response_model=None)
 async def alerts_page(
     request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
 ) -> HTMLResponse | RedirectResponse:
@@ -294,7 +294,7 @@ async def alerts_page(
     return templates.TemplateResponse("alerts.html", context)
 
 
-@web_router.get("/photos", response_class=HTMLResponse)
+@web_router.get("/photos", response_class=HTMLResponse, response_model=None)
 async def photos_page(
     request: Request, session: AsyncSession = Depends(deps.get_tenant_db)
 ) -> HTMLResponse | RedirectResponse:

@@ -2,7 +2,7 @@
  * QR Enrollment - E2E Tests
  * Tests the complete QR enrollment workflow for students and teachers
  */
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 async function setupDirectorSession(page) {
   await page.goto('/');

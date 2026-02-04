@@ -1,7 +1,7 @@
 /**
  * Web App - Authentication E2E Tests
  */
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 test.describe('Authentication', () => {
   test.beforeEach(async ({ page }) => {

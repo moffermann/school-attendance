@@ -1,7 +1,7 @@
 /**
  * Web App - State Management Unit Tests
  */
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 test.describe('State Management', () => {
   test.beforeEach(async ({ page }) => {

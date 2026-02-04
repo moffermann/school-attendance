@@ -1,7 +1,7 @@
 /**
  * Web App - Parent Views E2E Tests
  */
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 async function setupParentSession(page) {
   await page.goto('/');

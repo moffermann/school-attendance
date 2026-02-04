@@ -56,7 +56,8 @@ dev = [
   "types-redis>=4.6",
   "types-requests>=2.31",
   "requests-mock>=1.11",
-  "faker>=24.4"
+  "faker>=24.4",
+  "bandit>=1.7"
 ]
 
 [tool.black]
