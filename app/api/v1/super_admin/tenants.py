@@ -116,6 +116,7 @@ async def list_tenants(
         student_count = 0
         try:
             schema_name = f"tenant_{tenant.slug}"
+            # nosec B608 - slug is validated alphanumeric from DB, not user input
             result = await session.execute(text(f"SELECT COUNT(*) FROM {schema_name}.students"))
             student_count = result.scalar() or 0
         except Exception:

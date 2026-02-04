@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     )
 
     app_env: str = "development"
-    api_host: str = "0.0.0.0"
+    api_host: str = "0.0.0.0"  # nosec B104 - intentional for dev/container access
     api_port: int = 8000
 
     # Security: SECRET_KEY is required in production (no default)
