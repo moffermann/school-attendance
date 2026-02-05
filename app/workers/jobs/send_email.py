@@ -194,6 +194,32 @@ def _build_photo_section(photo_url: str) -> str:
     '''
 
 
+def _build_signature_section(signature_data: str) -> str:
+    """Build the signature evidence section for withdrawals.
+
+    Args:
+        signature_data: Base64 data URL of the signature image
+
+    Returns:
+        HTML for signature section
+    """
+    return f'''
+        <tr>
+            <td style="padding: 20px 40px;">
+                <p style="margin: 0 0 12px 0; color: #64748b; font-size: 13px;
+                          text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
+                    Firma Digital
+                </p>
+                <div style="text-align: center; background-color: #ffffff; padding: 16px;
+                            border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <img src="{signature_data}" alt="Firma digital"
+                         style="max-width: 280px; height: auto; border-radius: 4px;">
+                </div>
+            </td>
+        </tr>
+    '''
+
+
 # Email templates for attendance notifications
 EMAIL_TEMPLATES = {
     "INGRESO_OK": {
@@ -264,6 +290,30 @@ EMAIL_TEMPLATES = {
         "note": "Este enlace expira en 1 hora. Si no solicitó este cambio, puede ignorar este mensaje.",
         "show_portal_button": False,
     },
+    # Withdrawal notifications
+    "RETIRO_COMPLETADO": {
+        "subject": "Retiro confirmado - {student_name}",
+        "title": "Retiro Confirmado",
+        "title_color": "#22c55e",
+        "icon": "&#10003;",  # Checkmark
+        "icon_color": "#22c55e",
+        "subtitle": "Se ha registrado exitosamente el retiro del alumno del establecimiento.",
+        "fields": ["school_name", "student_name", "pickup_name", "pickup_relationship", "date", "time"],
+        "has_photo": False,
+        "has_signature": True,
+    },
+    "RETIRO_POR_TERCERO": {
+        "subject": "Alerta: {student_name} retirado por tercero autorizado",
+        "title": "Retiro por Tercero",
+        "title_color": "#f59e0b",
+        "icon": "&#9888;",  # Warning
+        "icon_color": "#f59e0b",
+        "subtitle": "Su hijo/a ha sido retirado por otra persona autorizada.",
+        "fields": ["school_name", "student_name", "pickup_name", "pickup_relationship", "date", "time"],
+        "has_photo": False,
+        "has_signature": True,
+        "alert_message": "Si usted NO autorizó este retiro, contacte al colegio INMEDIATAMENTE.",
+    },
 }
 
 # Field labels for the info table
@@ -274,6 +324,10 @@ FIELD_LABELS = {
     "time": "Hora",
     "expected_time": "Hora esperada",
     "course_name": "Curso",
+    # Withdrawal fields
+    "pickup_name": "Retirado por",
+    "pickup_relationship": "Relación",
+    "withdrawal_reason": "Motivo",
 }
 
 
@@ -396,6 +450,13 @@ def _build_email_content(
         has_photo_var = variables.get("has_photo", False)
         if has_photo_config and has_photo_var and photo_url:
             content_parts.append(_build_photo_section(_escape_html_value(photo_url)))
+
+        # Signature section (for withdrawals)
+        signature_data = variables.get("signature_data")
+        has_signature_config = email_template.get("has_signature", False)
+        if has_signature_config and signature_data:
+            # Signature data is already a data URL, no need to escape
+            content_parts.append(_build_signature_section(signature_data))
 
         # Alert message (for NO_INGRESO_UMBRAL)
         alert_msg = email_template.get("alert_message")

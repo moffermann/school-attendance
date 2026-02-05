@@ -19,6 +19,7 @@ const Router = {
     this.addRoute('/director/teachers', Views.directorTeachers, ['director']);
     this.addRoute('/director/courses', Views.directorCourses, ['director', 'inspector']);
     this.addRoute('/director/absences', Views.directorAbsences, ['director', 'inspector']);
+    this.addRoute('/director/withdrawals', Views.directorWithdrawals, ['director', 'inspector']);
     this.addRoute('/director/notifications', Views.directorNotifications, ['director', 'inspector']);
     this.addRoute('/director/biometric', Views.directorBiometric, ['director', 'inspector']);
     this.addRoute('/parent/home', Views.parentHome, ['parent']);
@@ -131,6 +132,8 @@ const Router = {
     this.updateActiveNavLink(hashBase);
   },
 
+  _navCounter: 0,
+
   render(handler) {
     const app = document.getElementById('app');
 
@@ -150,17 +153,25 @@ const Router = {
       this._cleanupCallback = null;
     }
 
+    // Increment navigation counter to prevent stale renders from race conditions
+    this._navCounter++;
+    const thisNav = this._navCounter;
+
     // Show loading
     app.innerHTML = Components.createLoader();
 
-    // Small delay to show loading state
-    setTimeout(() => {
+    // Use requestAnimationFrame for minimal delay (one paint frame)
+    // instead of setTimeout(100) which created a race-condition window
+    requestAnimationFrame(() => {
+      // Only render if this is still the latest navigation
+      if (thisNav !== this._navCounter) return;
+
       if (typeof handler === 'function') {
         handler();
       } else {
         app.innerHTML = '<div class="empty-state"><h2>Página no encontrada</h2></div>';
       }
-    }, 100);
+    });
   },
 
   navigate(path) {

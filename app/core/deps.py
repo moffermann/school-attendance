@@ -666,3 +666,32 @@ async def get_feature_flag_service(
     from app.services.feature_flag_service import FeatureFlagService
 
     return FeatureFlagService(session)
+
+
+async def get_withdrawal_service(
+    request: Request,
+    session: AsyncSession = Depends(get_tenant_db),
+    public_session: AsyncSession = Depends(get_public_db),
+) -> "WithdrawalService":
+    """Get withdrawal service with tenant context."""
+    from app.db.repositories.tenant_configs import TenantConfigRepository
+    from app.services.withdrawal_service import WithdrawalService
+
+    tenant = getattr(request.state, "tenant", None)
+    tenant_id = tenant.id if tenant else None
+    tenant_schema = tenant.schema_name if tenant else None
+
+    # Get tenant-specific timezone from tenant_configs (public schema)
+    tenant_timezone = None
+    if tenant_id:
+        config_repo = TenantConfigRepository(public_session)
+        config = await config_repo.get(tenant_id)
+        if config and config.timezone:
+            tenant_timezone = config.timezone
+
+    return WithdrawalService(
+        session,
+        tenant_id=tenant_id,
+        tenant_schema=tenant_schema,
+        tenant_timezone=tenant_timezone,
+    )

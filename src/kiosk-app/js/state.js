@@ -7,6 +7,21 @@ const State = {
   tags: [],
   queue: [],
   localSeq: 0,
+  // Authorized withdrawals data
+  authorizedPickups: [],    // Adults authorized to pick up students
+  todayWithdrawals: [],     // Today's withdrawal records
+  pendingWithdrawal: null,  // Current withdrawal in progress
+  // Debounce tracking for rapid scans
+  _lastEventByStudent: {},  // { studentId: { type: 'IN'|'OUT', timestamp: Date } }
+  _EVENT_DEBOUNCE_MS: 5000, // 5 second cooldown between events for same student
+
+  // Timezone helper: get LOCAL date string (YYYY-MM-DD) from ISO timestamp or Date.
+  // CRITICAL: toISOString() returns UTC date which can differ from local date
+  // (e.g., 9:50 PM Chile = 00:50 AM UTC next day). Business logic must use LOCAL dates.
+  _getLocalDateStr(isoOrDate) {
+    const d = (typeof isoOrDate === 'string') ? new Date(isoOrDate) : (isoOrDate || new Date());
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  },
 
   async init() {
     // Load persisted user data from localStorage (queue, synced data)
@@ -21,6 +36,9 @@ const State = {
         this.tags = data.tags || [];
         this.queue = data.queue || [];
         this.localSeq = data.localSeq || 0;
+        // Authorized withdrawals data
+        this.authorizedPickups = data.authorizedPickups || [];
+        this.todayWithdrawals = data.todayWithdrawals || [];
       } catch (e) {
         console.error('Error parsing localStorage data, resetting to defaults:', e);
         localStorage.removeItem('kioskData');
@@ -102,7 +120,10 @@ const State = {
         teachers: this.teachers,
         tags: this.tags,
         queue: this.queue,
-        localSeq: this.localSeq
+        localSeq: this.localSeq,
+        // Authorized withdrawals data
+        authorizedPickups: this.authorizedPickups,
+        todayWithdrawals: this.todayWithdrawals
         // config and device intentionally NOT persisted - always loaded fresh from JSON
       }));
     } catch (e) {
@@ -203,18 +224,35 @@ const State = {
   },
 
   nextEventTypeFor(studentId) {
-    const today = new Date().toISOString().split('T')[0];
+    // CRITICAL: Use LOCAL date, not UTC. An event at 9:50 PM Chile = 00:50 AM UTC next day.
+    // Using UTC would incorrectly include yesterday's late-night events as "today".
+    const today = this._getLocalDateStr(new Date());
     // BUG-FIX: Ensure numeric comparison to avoid type mismatch after JSON.parse
     const numStudentId = parseInt(studentId, 10);
     const todayEvents = this.queue.filter(e => {
       const eventStudentId = parseInt(e.student_id, 10);
-      return eventStudentId === numStudentId && e.ts.startsWith(today);
+      const eventLocalDate = this._getLocalDateStr(e.ts);
+      return eventStudentId === numStudentId && eventLocalDate === today;
     });
 
     // Debug logging to help diagnose IN/OUT toggle issues
     console.log(`nextEventTypeFor(${studentId}): today=${today}, queue=${this.queue.length}, todayEvents=${todayEvents.length}`);
     if (todayEvents.length > 0) {
       console.log('Today events:', todayEvents.map(e => ({ id: e.id, type: e.type, ts: e.ts, status: e.status })));
+    }
+
+    // BUG-FIX: Check if student has a COMPLETED withdrawal today
+    // A completed withdrawal is effectively an OUT event
+    const completedWithdrawal = this.todayWithdrawals.find(w =>
+      parseInt(w.student_id, 10) === numStudentId &&
+      w.status === 'COMPLETED'
+    );
+
+    if (completedWithdrawal) {
+      console.log(`Student ${studentId} has completed withdrawal today - treating as OUT`);
+      // If withdrawn today, their next event should be IN (next day logic)
+      // But actually, they already left - so next event is IN
+      return 'IN';
     }
 
     const lastEvent = todayEvents[todayEvents.length - 1];
@@ -224,6 +262,25 @@ const State = {
   },
 
   enqueueEvent(event) {
+    const studentId = parseInt(event.student_id, 10);
+    const now = Date.now();
+
+    // DEBOUNCE: Check if we recently enqueued an event for this student
+    const lastEvent = this._lastEventByStudent[studentId];
+    if (lastEvent) {
+      const timeSinceLast = now - lastEvent.timestamp;
+      if (timeSinceLast < this._EVENT_DEBOUNCE_MS) {
+        console.warn(`[State] DEBOUNCE: Ignoring duplicate ${event.type} for student ${studentId} (${timeSinceLast}ms since last event)`);
+        return null; // Signal that event was not enqueued
+      }
+    }
+
+    // Track this event for debouncing
+    this._lastEventByStudent[studentId] = {
+      type: event.type,
+      timestamp: now
+    };
+
     this.localSeq++;
     event.local_seq = this.localSeq;
     event.id = `${this.device.device_id}_${this.localSeq}`;
@@ -234,6 +291,7 @@ const State = {
 
     this.queue.push(event);
     this.persist();
+    console.log(`[State] Event enqueued: ${event.type} for student ${studentId}`);
     return event;
   },
 
@@ -360,8 +418,6 @@ const State = {
       return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
-
     // Add server events to queue as 'synced' so they count for IN/OUT but don't re-sync
     for (const event of serverEvents) {
       // Check if this event already exists in queue (by server id)
@@ -444,6 +500,235 @@ const State = {
     }
 
     return 'none';
+  },
+
+  // =========================================================================
+  // AUTHORIZED WITHDRAWALS METHODS
+  // =========================================================================
+
+  // Update authorized pickups from server data (from bootstrap)
+  updateAuthorizedPickups(serverPickups) {
+    if (!serverPickups || serverPickups.length === 0) {
+      console.log('No authorized pickups received from server');
+      this.authorizedPickups = [];
+      this.persist();
+      return;
+    }
+
+    this.authorizedPickups = serverPickups.map(p => ({
+      id: p.id,
+      full_name: p.full_name,
+      relationship_type: p.relationship_type,
+      qr_code_hash: p.qr_code_hash,
+      photo_url: p.photo_url,
+      student_ids: p.student_ids || []
+    }));
+    console.log(`Updated ${this.authorizedPickups.length} authorized pickups`);
+    this.persist();
+  },
+
+  // Update today's withdrawals from server data (from bootstrap)
+  updateTodayWithdrawals(serverWithdrawals) {
+    if (!serverWithdrawals) {
+      this.todayWithdrawals = [];
+      this.persist();
+      return;
+    }
+
+    this.todayWithdrawals = serverWithdrawals.map(w => ({
+      id: w.id,
+      student_id: w.student_id,
+      pickup_name: w.pickup_name,
+      status: w.status,
+      withdrawn_at: w.withdrawn_at
+    }));
+    console.log(`Updated ${this.todayWithdrawals.length} today withdrawals`);
+    this.persist();
+  },
+
+  // Hash a string using SHA256 (Web Crypto API)
+  async _hashSHA256(str) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex.slice(0, 64); // Match backend's [:64] truncation
+  },
+
+  // Resolve authorized pickup by QR code token
+  // The QR contains a token, we hash it to match stored qr_code_hash
+  async resolvePickupByQR(qrToken) {
+    if (!qrToken) return null;
+
+    const normalizedToken = qrToken.trim();
+
+    // Hash the token to match stored qr_code_hash
+    const qrHash = await this._hashSHA256(normalizedToken);
+
+    const pickup = this.authorizedPickups.find(p =>
+      p.qr_code_hash && p.qr_code_hash === qrHash
+    );
+
+    if (!pickup) return null;
+
+    // Return pickup with their authorized students
+    const students = this.students.filter(s =>
+      pickup.student_ids.includes(s.id)
+    );
+
+    return {
+      pickup: pickup,
+      students: students
+    };
+  },
+
+  // Search authorized pickups by name (for manual search fallback)
+  searchPickupsByName(searchTerm) {
+    if (!searchTerm || searchTerm.length < 2) return [];
+
+    const term = searchTerm.toLowerCase().trim();
+    return this.authorizedPickups.filter(p =>
+      p.full_name.toLowerCase().includes(term)
+    ).slice(0, 10); // Limit to 10 results
+  },
+
+  // Get authorized pickup by ID
+  getPickupById(pickupId) {
+    return this.authorizedPickups.find(p => p.id === pickupId) || null;
+  },
+
+  // Check if student can be withdrawn today
+  canWithdrawStudent(studentId) {
+    const numStudentId = parseInt(studentId, 10);
+
+    // Check if student already has a COMPLETED withdrawal today
+    const completedWithdrawal = this.todayWithdrawals.find(w =>
+      w.student_id === numStudentId && w.status === 'COMPLETED'
+    );
+    if (completedWithdrawal) {
+      return { allowed: false, reason: 'Ya fue retirado hoy' };
+    }
+
+    // Check if student entered today (has IN event)
+    // CRITICAL: Use LOCAL date, not UTC (same timezone fix as nextEventTypeFor)
+    const today = this._getLocalDateStr(new Date());
+    const todayInEvent = this.queue.find(e =>
+      parseInt(e.student_id, 10) === numStudentId &&
+      e.type === 'IN' &&
+      this._getLocalDateStr(e.ts) === today
+    );
+    if (!todayInEvent) {
+      return { allowed: false, reason: 'No ingresó hoy' };
+    }
+
+    // Check if student already exited (last event is OUT)
+    const todayEvents = this.queue.filter(e =>
+      parseInt(e.student_id, 10) === numStudentId &&
+      this._getLocalDateStr(e.ts) === today
+    ).sort((a, b) => new Date(a.ts) - new Date(b.ts));
+
+    if (todayEvents.length > 0) {
+      const lastEvent = todayEvents[todayEvents.length - 1];
+      if (lastEvent.type === 'OUT') {
+        return { allowed: false, reason: 'Ya registró salida' };
+      }
+    }
+
+    return { allowed: true };
+  },
+
+  // Get students that a pickup can withdraw (filtered by eligibility)
+  getWithdrawableStudents(pickupId) {
+    const pickup = this.getPickupById(pickupId);
+    if (!pickup) return [];
+
+    return this.students
+      .filter(s => pickup.student_ids.includes(s.id))
+      .map(s => {
+        const eligibility = this.canWithdrawStudent(s.id);
+        return {
+          ...s,
+          canWithdraw: eligibility.allowed,
+          withdrawReason: eligibility.reason
+        };
+      });
+  },
+
+  // Start a withdrawal process
+  startWithdrawal(pickupId, studentIds) {
+    const pickup = this.getPickupById(pickupId);
+    if (!pickup) return null;
+
+    this.pendingWithdrawal = {
+      pickup_id: pickupId,
+      pickup_name: pickup.full_name,
+      pickup_relationship: pickup.relationship_type,
+      pickup_photo_url: pickup.photo_url,
+      student_ids: studentIds,
+      students: studentIds.map(id => this.getStudentById(id)).filter(Boolean),
+      status: 'INITIATED',
+      initiated_at: new Date().toISOString()
+    };
+
+    return this.pendingWithdrawal;
+  },
+
+  // Update pending withdrawal status
+  updateWithdrawalStatus(status, additionalData = {}) {
+    if (!this.pendingWithdrawal) return null;
+
+    this.pendingWithdrawal.status = status;
+    Object.assign(this.pendingWithdrawal, additionalData);
+
+    if (status === 'COMPLETED') {
+      // Add to today's withdrawals
+      for (const studentId of this.pendingWithdrawal.student_ids) {
+        this.todayWithdrawals.push({
+          id: `local_${Date.now()}_${studentId}`,
+          student_id: studentId,
+          pickup_name: this.pendingWithdrawal.pickup_name,
+          status: 'COMPLETED',
+          withdrawn_at: new Date().toISOString()
+        });
+      }
+      this.persist();
+    }
+
+    return this.pendingWithdrawal;
+  },
+
+  // Clear pending withdrawal
+  clearPendingWithdrawal() {
+    this.pendingWithdrawal = null;
+  },
+
+  // Get current pending withdrawal
+  getPendingWithdrawal() {
+    return this.pendingWithdrawal;
+  },
+
+  // Add a single withdrawal to today's list (used by Sync after API completion)
+  addTodayWithdrawal(withdrawalData) {
+    const { student_id, withdrawn_at, pickup_name } = withdrawalData;
+
+    // Check if already exists to avoid duplicates
+    const exists = this.todayWithdrawals.some(w => w.student_id === student_id);
+    if (exists) {
+      console.log('[State] Withdrawal already exists for student:', student_id);
+      return;
+    }
+
+    this.todayWithdrawals.push({
+      id: `synced_${Date.now()}_${student_id}`,
+      student_id,
+      pickup_name: pickup_name || 'Desconocido',
+      status: 'COMPLETED',
+      withdrawn_at: withdrawn_at || new Date().toISOString()
+    });
+
+    this.persist();
+    console.log('[State] Added withdrawal for student:', student_id);
   }
 };
 

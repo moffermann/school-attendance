@@ -35,6 +35,7 @@ PUBLIC_ENDPOINTS = [
     "/api/v1/attendance/",  # Kiosk attendance events (device-authenticated)
     "/api/v1/kiosk/",  # Kiosk bootstrap and sync
     "/api/v1/webauthn/kiosk/",  # Kiosk biometric auth
+    "/api/v1/withdrawals/",  # Kiosk authorized withdrawals (device-authenticated)
 ]
 
 # Web routes that don't require tenant context (session cookie auth)
@@ -225,20 +226,31 @@ class TenantMiddleware(BaseHTTPMiddleware):
         # TDD-BUG1.3 fix: Only accept X-Tenant-ID if token is super_admin
         # Production fix: Also accept X-Tenant-ID if request has valid device key
         tenant_id_header = request.headers.get("X-Tenant-ID")
+        device_key_header = request.headers.get("X-Device-Key")
+        logger.info(
+            f"[TenantMiddleware] Resolving tenant: X-Tenant-ID={tenant_id_header}, "
+            f"X-Device-Key={'present' if device_key_header else 'absent'}, path={request.url.path}"
+        )
+
         if tenant_id_header:
             # Validate that the request has super_admin token OR valid device key
-            has_auth = self._has_super_admin_token(request) or await self._has_valid_device_key(
-                request
+            has_super_admin = self._has_super_admin_token(request)
+            has_device_key = await self._has_valid_device_key(request)
+            logger.info(
+                f"[TenantMiddleware] Auth check: super_admin={has_super_admin}, device_key={has_device_key}"
             )
+            has_auth = has_super_admin or has_device_key
             if has_auth:
                 try:
                     tenant_id = int(tenant_id_header)
                     tenant = await self._get_tenant_by_id(tenant_id)
                     if tenant:
-                        logger.debug(f"Tenant resolved from X-Tenant-ID header: {tenant.slug}")
+                        logger.info(f"[TenantMiddleware] Tenant resolved from X-Tenant-ID: {tenant.slug}, schema=tenant_{tenant.slug}")
                         return tenant
+                    else:
+                        logger.warning(f"[TenantMiddleware] Tenant ID {tenant_id} not found in DB")
                 except ValueError:
-                    pass  # Invalid header, continue to other methods
+                    logger.warning(f"[TenantMiddleware] Invalid X-Tenant-ID header: {tenant_id_header}")
             else:
                 # X-Tenant-ID header provided but no valid auth
                 logger.warning(

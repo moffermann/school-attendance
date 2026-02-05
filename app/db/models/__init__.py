@@ -3,6 +3,7 @@
 # Tenant models (public schema)
 from app.db.models.absence_request import AbsenceRequest
 from app.db.models.associations import student_guardian_table, teacher_course_table
+from app.db.models.authorized_pickup import AuthorizedPickup, student_authorized_pickup_table
 from app.db.models.attendance_event import AttendanceEvent
 from app.db.models.audit_log import AuditLog
 from app.db.models.consent import Consent
@@ -19,6 +20,11 @@ from app.db.models.sequence_correction import SequenceCorrection
 
 # Existing models (tenant schema)
 from app.db.models.student import Student
+from app.db.models.student_withdrawal import (
+    StudentWithdrawal,
+    WithdrawalStatus,
+    WithdrawalVerificationMethod,
+)
 from app.db.models.super_admin import SuperAdmin
 from app.db.models.tag import Tag
 from app.db.models.teacher import Teacher
@@ -59,6 +65,11 @@ __all__ = [
     "Teacher",
     "student_guardian_table",
     "teacher_course_table",
+    "student_authorized_pickup_table",
+    "AuthorizedPickup",
+    "StudentWithdrawal",
+    "WithdrawalStatus",
+    "WithdrawalVerificationMethod",
     "NoShowAlert",
     "WebAuthnCredential",
     "PushSubscription",

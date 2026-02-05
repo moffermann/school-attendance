@@ -479,7 +479,7 @@ Views.home = function() {
     vibrateDevice();
   }
 
-  function processToken(token, source) {
+  async function processToken(token, source) {
     // Debounce check - prevent duplicate scans
     const now = Date.now();
     if (now - lastScanTime < DEBOUNCE_MS) {
@@ -492,34 +492,497 @@ Views.home = function() {
 
     const result = State.resolveByToken(token);
 
-    if (!result) {
-      UI.showToast(I18n.t('scanner.invalid_credential'), 'error');
-      setTimeout(() => {
-        scanning = true;
-        scanningState = 'ready';
-        requestAnimationFrame(scanQRCode);
-      }, 2000);
-    } else if (result.error === 'REVOKED') {
-      UI.showToast(I18n.t('scanner.revoked_credential'), 'error');
-      setTimeout(() => {
-        scanning = true;
-        scanningState = 'ready';
-        requestAnimationFrame(scanQRCode);
-      }, 2000);
-    } else if (result.type === 'teacher') {
-      // Teacher detected - provide feedback, stop camera and NFC, navigate
+    if (result) {
+      // Known student or teacher
+      if (result.error === 'REVOKED') {
+        UI.showToast(I18n.t('scanner.revoked_credential'), 'error');
+        resumeScanning();
+      } else if (result.type === 'teacher') {
+        provideScanFeedback();
+        stopCamera();
+        stopNFC();
+        Router.navigate('/admin-panel');
+      } else if (result.type === 'student') {
+        provideScanFeedback();
+        stopCamera();
+        stopNFC();
+        Router.navigate(`/scan-result?student_id=${result.data.id}&source=${source.toUpperCase()}`);
+      }
+      return;
+    }
+
+    // Not a student/teacher - check if it's an authorized pickup
+    console.log('[Home] Token not student/teacher, checking pickup...');
+    const pickup = await State.resolvePickupByQR(token);
+
+    if (pickup && pickup.pickup) {
+      console.log('[Home] Pickup detected:', pickup.pickup.full_name);
       provideScanFeedback();
-      stopCamera();
-      stopNFC();
-      Router.navigate('/admin-panel');
-    } else if (result.type === 'student') {
-      // Student detected - provide feedback and navigate to scan-result
-      provideScanFeedback();
+      scanningState = 'showing_result';
+
+      // Stop QR scanner camera BEFORE opening selfie camera.
+      // Some phones can't handle two simultaneous camera streams.
       stopCamera();
       stopNFC();
 
-      // Always navigate to the redesigned scan-result view
-      Router.navigate(`/scan-result?student_id=${result.data.id}&source=${source.toUpperCase()}`);
+      // Start withdrawal flow with modals
+      startWithdrawalFlow(pickup.pickup);
+    } else {
+      // Unknown QR
+      UI.showToast(I18n.t('scanner.invalid_credential'), 'error');
+      resumeScanning();
+    }
+  }
+
+  function resumeScanning() {
+    setTimeout(() => {
+      scanning = true;
+      scanningState = 'ready';
+      requestAnimationFrame(scanQRCode);
+    }, 2000);
+  }
+
+  // =====================================================
+  // WITHDRAWAL FLOW - Integrated modals
+  // =====================================================
+
+  let withdrawalState = {
+    pickup: null,
+    selectedStudents: [],
+    selfieData: null,
+    signatureData: null
+  };
+
+  async function startWithdrawalFlow(pickup) {
+    withdrawalState = {
+      pickup: pickup,
+      selectedStudents: [],
+      selfieData: null,
+      signatureData: null
+    };
+
+    // Get students this pickup can withdraw
+    const studentIds = pickup.student_ids || [];
+    const students = studentIds
+      .map(id => State.students.find(s => s.id === id))
+      .filter(s => s); // Filter out nulls
+
+    if (students.length === 0) {
+      UI.showToast('Esta persona no tiene estudiantes asignados', 'error');
+      resumeAfterWithdrawal();
+      return;
+    }
+
+    // Show student selection modal
+    showStudentSelectionModal(pickup, students);
+  }
+
+  function showStudentSelectionModal(pickup, students) {
+    const modal = document.createElement('div');
+    modal.id = 'withdrawal-modal';
+    modal.className = 'withdrawal-modal-overlay';
+    modal.innerHTML = `
+      <div class="withdrawal-modal-container glass-panel">
+        <div class="withdrawal-modal-header">
+          <div class="withdrawal-pickup-info">
+            <span class="material-symbols-outlined text-3xl text-amber-400">person</span>
+            <div>
+              <h2 class="text-xl font-bold text-white">${UI.escapeHtml(pickup.full_name)}</h2>
+              <p class="text-slate-400 text-sm">${UI.escapeHtml(pickup.relationship_type)}</p>
+            </div>
+          </div>
+          <button id="modal-close-btn" class="withdrawal-modal-close">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div class="withdrawal-modal-body">
+          <h3 class="text-lg font-semibold text-white mb-4">Seleccione estudiante(s) a retirar:</h3>
+          <div class="withdrawal-student-list">
+            ${students.map(s => `
+              <label class="withdrawal-student-item" data-student-id="${s.id}">
+                <input type="checkbox" value="${s.id}" class="withdrawal-checkbox">
+                <div class="withdrawal-student-info">
+                  <span class="font-medium text-white">${UI.escapeHtml(s.full_name)}</span>
+                  <span class="text-sm text-slate-400">${UI.escapeHtml(s.course_name || 'Sin curso')}</span>
+                </div>
+                <span class="material-symbols-outlined text-green-400 withdrawal-check-icon">check_circle</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="withdrawal-modal-footer">
+          <button id="cancel-withdrawal-btn" class="withdrawal-btn-secondary">
+            Cancelar
+          </button>
+          <button id="continue-withdrawal-btn" class="withdrawal-btn-primary" disabled>
+            Continuar
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Event handlers
+    const checkboxes = modal.querySelectorAll('.withdrawal-checkbox');
+    const continueBtn = modal.querySelector('#continue-withdrawal-btn');
+
+    checkboxes.forEach(cb => {
+      cb.addEventListener('change', () => {
+        const selected = modal.querySelectorAll('.withdrawal-checkbox:checked');
+        continueBtn.disabled = selected.length === 0;
+      });
+    });
+
+    modal.querySelector('#modal-close-btn').addEventListener('click', closeWithdrawalModal);
+    modal.querySelector('#cancel-withdrawal-btn').addEventListener('click', closeWithdrawalModal);
+
+    continueBtn.addEventListener('click', () => {
+      const selected = Array.from(modal.querySelectorAll('.withdrawal-checkbox:checked'))
+        .map(cb => parseInt(cb.value));
+      withdrawalState.selectedStudents = selected;
+      closeWithdrawalModal();
+      showSelfieModal();
+    });
+
+    // Animate in
+    requestAnimationFrame(() => modal.classList.add('active'));
+  }
+
+  function showSelfieModal() {
+    const modal = document.createElement('div');
+    modal.id = 'withdrawal-modal';
+    modal.className = 'withdrawal-modal-overlay';
+    modal.innerHTML = `
+      <div class="withdrawal-modal-container glass-panel">
+        <div class="withdrawal-modal-header">
+          <h2 class="text-xl font-bold text-white">
+            <span class="material-symbols-outlined text-2xl align-middle mr-2">photo_camera</span>
+            Verificación de Identidad
+          </h2>
+          <button id="modal-close-btn" class="withdrawal-modal-close">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div class="withdrawal-modal-body">
+          <p class="text-slate-300 mb-4 text-center">Capture una foto del adulto que retira</p>
+          <div class="withdrawal-camera-container">
+            <video id="selfie-video" autoplay playsinline class="withdrawal-camera-video"></video>
+            <canvas id="selfie-canvas" hidden></canvas>
+            <img id="selfie-preview" class="withdrawal-camera-preview hidden">
+          </div>
+        </div>
+
+        <div class="withdrawal-modal-footer">
+          <button id="cancel-selfie-btn" class="withdrawal-btn-secondary">Cancelar</button>
+          <button id="capture-selfie-btn" class="withdrawal-btn-primary">
+            <span class="material-symbols-outlined">photo_camera</span>
+            Capturar
+          </button>
+          <button id="retake-selfie-btn" class="withdrawal-btn-secondary hidden">Retomar</button>
+          <button id="confirm-selfie-btn" class="withdrawal-btn-primary hidden">Confirmar</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const selfieVideo = modal.querySelector('#selfie-video');
+    const selfieCanvas = modal.querySelector('#selfie-canvas');
+    const selfiePreview = modal.querySelector('#selfie-preview');
+    const captureBtn = modal.querySelector('#capture-selfie-btn');
+    const retakeBtn = modal.querySelector('#retake-selfie-btn');
+    const confirmBtn = modal.querySelector('#confirm-selfie-btn');
+    let selfieStream = null;
+
+    // Start camera for selfie (front camera)
+    // Use 'ideal' constraints with progressive fallback for broad device compatibility.
+    // Exact constraints cause black screens / failures on some phones.
+    // Delay 500ms to allow QR scanner camera hardware to fully release.
+    const preferredConstraints = {
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+    };
+    const fallbackConstraints = { video: { facingMode: 'user' } };
+    const minimalConstraints = { video: true };
+
+    setTimeout(() => {
+      navigator.mediaDevices.getUserMedia(preferredConstraints)
+        .catch(err => {
+          console.warn('Selfie preferred constraints failed, trying fallback:', err.message);
+          return navigator.mediaDevices.getUserMedia(fallbackConstraints);
+        })
+        .catch(err => {
+          console.warn('Selfie fallback constraints failed, trying minimal:', err.message);
+          return navigator.mediaDevices.getUserMedia(minimalConstraints);
+        })
+        .then(stream => {
+          selfieStream = stream;
+          selfieVideo.srcObject = stream;
+          return selfieVideo.play();
+        })
+        .then(() => {
+          console.log('Selfie camera stream active');
+        })
+        .catch(err => {
+          console.error('Selfie camera error:', err);
+          UI.showToast('No se pudo acceder a la cámara: ' + (err.message || 'Permiso denegado'), 'error');
+        });
+    }, 500);
+
+    captureBtn.addEventListener('click', () => {
+      // Capture frame
+      selfieCanvas.width = selfieVideo.videoWidth;
+      selfieCanvas.height = selfieVideo.videoHeight;
+      selfieCanvas.getContext('2d').drawImage(selfieVideo, 0, 0);
+      const dataUrl = selfieCanvas.toDataURL('image/jpeg', 0.8);
+
+      selfiePreview.src = dataUrl;
+      selfiePreview.classList.remove('hidden');
+      selfieVideo.classList.add('hidden');
+
+      captureBtn.classList.add('hidden');
+      retakeBtn.classList.remove('hidden');
+      confirmBtn.classList.remove('hidden');
+
+      withdrawalState.selfieData = dataUrl;
+    });
+
+    retakeBtn.addEventListener('click', () => {
+      selfiePreview.classList.add('hidden');
+      selfieVideo.classList.remove('hidden');
+      captureBtn.classList.remove('hidden');
+      retakeBtn.classList.add('hidden');
+      confirmBtn.classList.add('hidden');
+      withdrawalState.selfieData = null;
+    });
+
+    confirmBtn.addEventListener('click', () => {
+      if (selfieStream) {
+        selfieStream.getTracks().forEach(t => t.stop());
+      }
+      closeWithdrawalModal();
+      showSignatureModal();
+    });
+
+    modal.querySelector('#modal-close-btn').addEventListener('click', () => {
+      if (selfieStream) selfieStream.getTracks().forEach(t => t.stop());
+      closeWithdrawalModal();
+      resumeAfterWithdrawal();
+    });
+
+    modal.querySelector('#cancel-selfie-btn').addEventListener('click', () => {
+      if (selfieStream) selfieStream.getTracks().forEach(t => t.stop());
+      closeWithdrawalModal();
+      resumeAfterWithdrawal();
+    });
+
+    requestAnimationFrame(() => modal.classList.add('active'));
+  }
+
+  function showSignatureModal() {
+    const studentNames = withdrawalState.selectedStudents
+      .map(id => State.students.find(s => s.id === id)?.full_name || 'Estudiante')
+      .join(', ');
+
+    const modal = document.createElement('div');
+    modal.id = 'withdrawal-modal';
+    modal.className = 'withdrawal-modal-overlay';
+    modal.innerHTML = `
+      <div class="withdrawal-modal-container glass-panel withdrawal-modal-large">
+        <div class="withdrawal-modal-header">
+          <h2 class="text-xl font-bold text-white">
+            <span class="material-symbols-outlined text-2xl align-middle mr-2">draw</span>
+            Firma de Retiro
+          </h2>
+          <button id="modal-close-btn" class="withdrawal-modal-close">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div class="withdrawal-modal-body">
+          <div class="withdrawal-signature-info">
+            <p class="text-slate-300">
+              Yo, <strong class="text-white">${UI.escapeHtml(withdrawalState.pickup.full_name)}</strong>,
+              retiro a:
+            </p>
+            <p class="text-amber-400 font-medium mt-1">${UI.escapeHtml(studentNames)}</p>
+            <p class="text-slate-500 text-sm mt-2">
+              ${new Date().toLocaleDateString('es-CL')} - ${new Date().toLocaleTimeString('es-CL', {hour: '2-digit', minute: '2-digit'})}
+            </p>
+          </div>
+
+          <div class="withdrawal-signature-pad-container">
+            <canvas id="signature-canvas" class="withdrawal-signature-canvas"></canvas>
+            <p class="text-slate-500 text-xs mt-2 text-center">Firme en el recuadro</p>
+          </div>
+        </div>
+
+        <div class="withdrawal-modal-footer">
+          <button id="clear-signature-btn" class="withdrawal-btn-secondary">
+            <span class="material-symbols-outlined">refresh</span>
+            Limpiar
+          </button>
+          <button id="confirm-signature-btn" class="withdrawal-btn-primary">
+            <span class="material-symbols-outlined">check</span>
+            Confirmar Retiro
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Setup signature canvas
+    const sigCanvas = modal.querySelector('#signature-canvas');
+    const sigCtx = sigCanvas.getContext('2d');
+    let isDrawing = false;
+
+    // Set canvas size
+    const rect = sigCanvas.getBoundingClientRect();
+    sigCanvas.width = rect.width * 2;
+    sigCanvas.height = rect.height * 2;
+    sigCtx.scale(2, 2);
+    sigCtx.strokeStyle = '#1e293b';  // Dark slate for visibility on white background
+    sigCtx.lineWidth = 2;
+    sigCtx.lineCap = 'round';
+    sigCtx.lineJoin = 'round';
+
+    function getPos(e) {
+      const rect = sigCanvas.getBoundingClientRect();
+      const touch = e.touches ? e.touches[0] : e;
+      return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      };
+    }
+
+    function startDraw(e) {
+      isDrawing = true;
+      const pos = getPos(e);
+      sigCtx.beginPath();
+      sigCtx.moveTo(pos.x, pos.y);
+      e.preventDefault();
+    }
+
+    function draw(e) {
+      if (!isDrawing) return;
+      const pos = getPos(e);
+      sigCtx.lineTo(pos.x, pos.y);
+      sigCtx.stroke();
+      e.preventDefault();
+    }
+
+    function endDraw() {
+      isDrawing = false;
+    }
+
+    sigCanvas.addEventListener('mousedown', startDraw);
+    sigCanvas.addEventListener('mousemove', draw);
+    sigCanvas.addEventListener('mouseup', endDraw);
+    sigCanvas.addEventListener('mouseleave', endDraw);
+    sigCanvas.addEventListener('touchstart', startDraw);
+    sigCanvas.addEventListener('touchmove', draw);
+    sigCanvas.addEventListener('touchend', endDraw);
+
+    modal.querySelector('#clear-signature-btn').addEventListener('click', () => {
+      sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+    });
+
+    modal.querySelector('#confirm-signature-btn').addEventListener('click', async () => {
+      withdrawalState.signatureData = sigCanvas.toDataURL('image/png');
+      closeWithdrawalModal();
+      await completeWithdrawal();
+    });
+
+    modal.querySelector('#modal-close-btn').addEventListener('click', () => {
+      closeWithdrawalModal();
+      resumeAfterWithdrawal();
+    });
+
+    requestAnimationFrame(() => modal.classList.add('active'));
+  }
+
+  async function completeWithdrawal() {
+    UI.showToast('Procesando retiro...', 'info', 2000);
+
+    try {
+      // Call API to register withdrawal
+      const completedWithdrawals = await Sync.registerWithdrawal({
+        pickup_id: withdrawalState.pickup.id,
+        student_ids: withdrawalState.selectedStudents,
+        selfie_data: withdrawalState.selfieData,
+        signature_data: withdrawalState.signatureData
+      });
+
+      // API returns array of completed withdrawals
+      if (completedWithdrawals && completedWithdrawals.length > 0) {
+        showWithdrawalSuccess();
+      } else {
+        UI.showToast('No se pudieron completar los retiros', 'error');
+        resumeAfterWithdrawal();
+      }
+    } catch (err) {
+      console.error('Withdrawal error:', err);
+      UI.showToast(err.message || 'Error al procesar retiro', 'error');
+      resumeAfterWithdrawal();
+    }
+  }
+
+  function showWithdrawalSuccess() {
+    const studentNames = withdrawalState.selectedStudents
+      .map(id => State.students.find(s => s.id === id)?.full_name || 'Estudiante')
+      .join(', ');
+
+    const modal = document.createElement('div');
+    modal.id = 'withdrawal-modal';
+    modal.className = 'withdrawal-modal-overlay';
+    modal.innerHTML = `
+      <div class="withdrawal-modal-container glass-panel withdrawal-success-container">
+        <div class="withdrawal-success-icon">
+          <span class="material-symbols-outlined">check_circle</span>
+        </div>
+        <h2 class="text-2xl font-bold text-white mt-4">Retiro Registrado</h2>
+        <p class="text-slate-300 mt-2">${UI.escapeHtml(studentNames)}</p>
+        <p class="text-slate-400 text-sm mt-1">
+          Retirado por: ${UI.escapeHtml(withdrawalState.pickup.full_name)}
+        </p>
+        <p class="text-slate-500 text-xs mt-4">
+          ${new Date().toLocaleTimeString('es-CL', {hour: '2-digit', minute: '2-digit'})}
+        </p>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('active'));
+
+    // Auto close after 3 seconds
+    setTimeout(() => {
+      closeWithdrawalModal();
+      resumeAfterWithdrawal();
+    }, 3000);
+  }
+
+  function closeWithdrawalModal() {
+    const modal = document.getElementById('withdrawal-modal');
+    if (modal) {
+      modal.classList.remove('active');
+      setTimeout(() => modal.remove(), 300);
+    }
+  }
+
+  function resumeAfterWithdrawal() {
+    withdrawalState = { pickup: null, selectedStudents: [], selfieData: null, signatureData: null };
+    scanningState = 'ready';
+    scanning = true;
+
+    // Re-render to restart camera
+    if (isMobileViewport()) {
+      renderMobileCamera();
+    } else {
+      renderCamera();
     }
   }
 

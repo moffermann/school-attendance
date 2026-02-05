@@ -170,6 +170,10 @@ class TenantProvisioningService:
             "consents",
             "audit_logs",
             "webauthn_credentials",
+            # Authorized pickups (Retiros Autorizados)
+            "authorized_pickups",
+            "student_authorized_pickup",
+            "student_withdrawals",
         ]
 
         # Create tables by executing raw SQL (simplified approach)
@@ -401,6 +405,87 @@ class TenantProvisioningService:
             "tenant_name": tenant.name,
             "email": invitation.email,
         }
+
+    async def sync_tables_to_tenant(self, tenant_id: int) -> list[str]:
+        """
+        Sync new tables to an existing tenant schema.
+
+        This is useful when new tables are added via migration and need
+        to be propagated to existing tenant schemas.
+
+        Returns:
+            List of table names that were synced.
+        """
+        tenant = await self.tenant_repo.get(tenant_id)
+        if not tenant:
+            raise ValueError(f"Tenant {tenant_id} not found")
+
+        schema_name = f"tenant_{tenant.slug}"
+        synced_tables = []
+
+        # Tables that might need syncing (newer tables)
+        tables_to_sync = [
+            "authorized_pickups",
+            "student_authorized_pickup",
+            "student_withdrawals",
+        ]
+
+        for table_name in tables_to_sync:
+            try:
+                # Check if table exists in tenant schema
+                result = await self.session.execute(
+                    text("""
+                        SELECT EXISTS (
+                            SELECT 1 FROM information_schema.tables
+                            WHERE table_schema = :schema
+                            AND table_name = :table
+                        )
+                    """),
+                    {"schema": schema_name, "table": table_name},
+                )
+                exists = result.scalar()
+
+                if not exists:
+                    # Copy table structure from public schema
+                    await self.session.execute(
+                        text(f"""
+                            CREATE TABLE IF NOT EXISTS {schema_name}.{table_name}
+                            (LIKE public.{table_name} INCLUDING ALL)
+                        """)
+                    )
+                    synced_tables.append(table_name)
+                    logger.info(f"Synced table {table_name} to schema {schema_name}")
+
+            except Exception as e:
+                logger.warning(f"Could not sync table {table_name} to {schema_name}: {e}")
+
+        if synced_tables:
+            await self.session.commit()
+
+        return synced_tables
+
+    async def sync_tables_to_all_tenants(self) -> dict[str, list[str]]:
+        """
+        Sync new tables to all existing tenant schemas.
+
+        Returns:
+            Dict mapping tenant slugs to lists of synced table names.
+        """
+        result = await self.session.execute(
+            text("SELECT id, slug FROM public.tenants WHERE is_active = true")
+        )
+        tenants = result.fetchall()
+
+        sync_results = {}
+        for tenant_id, slug in tenants:
+            try:
+                synced = await self.sync_tables_to_tenant(tenant_id)
+                if synced:
+                    sync_results[slug] = synced
+            except Exception as e:
+                logger.error(f"Failed to sync tables for tenant {slug}: {e}")
+
+        return sync_results
 
     async def delete_tenant(self, tenant_id: int, cascade: bool = False) -> None:
         """

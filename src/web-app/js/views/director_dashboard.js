@@ -13,6 +13,8 @@ Views.directorDashboard = function() {
 
   // Variables de estado
   let currentPage = 1;
+  let withdrawalEvents = []; // Withdrawal records as virtual events
+  let allMergedEvents = []; // Attendance + withdrawal events merged
   let filteredEvents = [...todayEvents];
   let filters = { course: '', type: '', search: '' };
   let autoRefreshInterval = null;
@@ -79,8 +81,8 @@ Views.directorDashboard = function() {
         <div class="text-xs text-gray-400">Actualizado: <span id="last-update-time">${currentTime}</span></div>
       </div>
 
-      <!-- Metric Cards - EXACTO del diseño aprobado -->
-      <div id="stats-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <!-- Metric Cards -->
+      <div id="stats-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         ${renderMetricCards()}
       </div>
 
@@ -142,6 +144,7 @@ Views.directorDashboard = function() {
                 <option value="">Todos</option>
                 <option value="IN">Ingreso</option>
                 <option value="OUT">Salida</option>
+                <option value="WITHDRAWAL">Retiro</option>
               </select>
               <span class="absolute right-3 top-2.5 pointer-events-none text-gray-400 material-icons-round text-lg">expand_more</span>
             </div>
@@ -184,44 +187,54 @@ Views.directorDashboard = function() {
   function renderMetricCards() {
     return `
       <!-- Ingresos -->
-      <div class="relative bg-white dark:bg-card-dark p-6 rounded-xl shadow-sm border border-gray-100 dark:border-border-dark group transition-all">
-        <div class="flex justify-between items-start mb-4">
+      <div class="relative bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-border-dark group transition-all">
+        <div class="flex justify-between items-start mb-2">
           <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">INGRESOS HOY</p>
-          <div class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <span class="material-icons-round text-blue-500">login</span>
+          <div class="p-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <span class="material-icons-round text-blue-500 text-lg">login</span>
           </div>
         </div>
-        <h3 class="text-4xl font-bold text-blue-600 dark:text-blue-400" id="stat-in">${stats.totalIn}</h3>
+        <h3 class="text-3xl font-bold text-blue-600 dark:text-blue-400" id="stat-in">${stats.totalIn}</h3>
       </div>
       <!-- Salidas -->
-      <div class="relative bg-white dark:bg-card-dark p-6 rounded-xl shadow-sm border border-gray-100 dark:border-border-dark group transition-all">
-        <div class="flex justify-between items-start mb-4">
+      <div class="relative bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-border-dark group transition-all">
+        <div class="flex justify-between items-start mb-2">
           <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">SALIDAS HOY</p>
-          <div class="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
-            <span class="material-icons-round text-indigo-500">logout</span>
+          <div class="p-1.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+            <span class="material-icons-round text-indigo-500 text-lg">logout</span>
           </div>
         </div>
-        <h3 class="text-4xl font-bold text-indigo-600 dark:text-indigo-400" id="stat-out">${stats.totalOut}</h3>
+        <h3 class="text-3xl font-bold text-indigo-600 dark:text-indigo-400" id="stat-out">${stats.totalOut}</h3>
       </div>
       <!-- Atrasos -->
-      <div class="relative bg-white dark:bg-card-dark p-6 rounded-xl shadow-sm border border-gray-100 dark:border-border-dark group transition-all">
-        <div class="flex justify-between items-start mb-4">
+      <div class="relative bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-border-dark group transition-all">
+        <div class="flex justify-between items-start mb-2">
           <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">ATRASOS</p>
-          <div class="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-            <span class="material-icons-round text-yellow-500">access_time</span>
+          <div class="p-1.5 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+            <span class="material-icons-round text-yellow-500 text-lg">access_time</span>
           </div>
         </div>
-        <h3 class="text-4xl font-bold text-yellow-600 dark:text-yellow-400" id="stat-late">${stats.lateCount}</h3>
+        <h3 class="text-3xl font-bold text-yellow-600 dark:text-yellow-400" id="stat-late">${stats.lateCount}</h3>
       </div>
       <!-- Sin Ingreso -->
-      <div class="relative bg-white dark:bg-card-dark p-6 rounded-xl shadow-sm border border-gray-100 dark:border-border-dark group transition-all">
-        <div class="flex justify-between items-start mb-4">
+      <div class="relative bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-border-dark group transition-all">
+        <div class="flex justify-between items-start mb-2">
           <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">SIN INGRESO</p>
-          <div class="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
-            <span class="material-icons-round text-red-500">close</span>
+          <div class="p-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <span class="material-icons-round text-red-500 text-lg">close</span>
           </div>
         </div>
-        <h3 class="text-4xl font-bold text-red-600 dark:text-red-400" id="stat-noin">${stats.noInCount}</h3>
+        <h3 class="text-3xl font-bold text-red-600 dark:text-red-400" id="stat-noin">${stats.noInCount}</h3>
+      </div>
+      <!-- Retiros -->
+      <div class="relative bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-border-dark group transition-all">
+        <div class="flex justify-between items-start mb-2">
+          <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">RETIROS HOY</p>
+          <div class="p-1.5 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+            <span class="material-icons-round text-orange-500 text-lg">directions_walk</span>
+          </div>
+        </div>
+        <h3 class="text-3xl font-bold text-orange-600 dark:text-orange-400" id="stat-withdrawals">${withdrawalEvents.length}</h3>
       </div>
     `;
   }
@@ -243,52 +256,87 @@ Views.directorDashboard = function() {
     const paginatedEvents = filteredEvents.slice(startIdx, startIdx + EVENTS_PER_PAGE);
 
     const rows = paginatedEvents.map(event => {
-      const student = State.getStudent(event.student_id);
-      const course = State.getCourse(student?.course_id);
-      const hasPhoto = event.photo_url || event.photo_ref;
+      // Withdrawal events have _type === 'WITHDRAWAL'
+      const isWithdrawal = event._type === 'WITHDRAWAL';
 
-      // Type badge - EXACTO del diseño
-      const typeBadge = event.type === 'IN'
-        ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Ingreso</span>`
-        : `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Salida</span>`;
+      const student = isWithdrawal ? null : State.getStudent(event.student_id);
+      const course = isWithdrawal ? null : State.getCourse(student?.course_id);
+      const hasPhoto = isWithdrawal ? event.pickup_photo_ref : (event.photo_url || event.photo_ref);
 
-      // Source badge - EXACTO del diseño
-      const sourceIcon = {
-        'QR': 'qr_code',
-        'BIOMETRIC': 'fingerprint',
-        'NFC': 'nfc',
-        'MANUAL': 'edit'
-      }[event.source] || 'edit';
-      const sourceLabel = {
-        'QR': 'QR',
-        'BIOMETRIC': 'Biométrico',
-        'NFC': 'NFC',
-        'MANUAL': 'Manual'
-      }[event.source] || 'Manual';
+      // Student name - withdrawals carry their own student_name
+      const studentName = isWithdrawal
+        ? Components.escapeHtml(event.student_name || '-')
+        : (student ? Components.escapeHtml(student.full_name) : '-');
 
-      const sourceBadge = `
-        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-300">
-          <span class="material-icons-round text-sm">${sourceIcon}</span> ${sourceLabel}
-        </span>
-      `;
+      // Course name
+      const courseName = isWithdrawal
+        ? Components.escapeHtml(event.course_name || '-')
+        : (course ? Components.escapeHtml(course.name) : '-');
+
+      // Type badge
+      let typeBadge;
+      if (isWithdrawal) {
+        typeBadge = `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">Retiro</span>`;
+      } else if (event.type === 'IN') {
+        typeBadge = `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Ingreso</span>`;
+      } else {
+        typeBadge = `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Salida</span>`;
+      }
+
+      // Source badge
+      let sourceBadge;
+      if (isWithdrawal) {
+        const pickupName = Components.escapeHtml(event.pickup_name || 'Admin');
+        sourceBadge = `
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-orange-200 dark:border-orange-600 bg-orange-50 dark:bg-orange-900/20 text-xs font-medium text-orange-600 dark:text-orange-300">
+            <span class="material-icons-round text-sm">person</span> ${pickupName}
+          </span>
+        `;
+      } else {
+        const sourceIcon = {
+          'QR': 'qr_code',
+          'BIOMETRIC': 'fingerprint',
+          'NFC': 'nfc',
+          'MANUAL': 'edit'
+        }[event.source] || 'edit';
+        const sourceLabel = {
+          'QR': 'QR',
+          'BIOMETRIC': 'Biométrico',
+          'NFC': 'NFC',
+          'MANUAL': 'Manual'
+        }[event.source] || 'Manual';
+
+        sourceBadge = `
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-300">
+            <span class="material-icons-round text-sm">${sourceIcon}</span> ${sourceLabel}
+          </span>
+        `;
+      }
 
       // Photo button
-      const photoButton = hasPhoto
-        ? `<button class="text-gray-400 hover:text-indigo-600 transition-colors" onclick="Views.directorDashboard.showEventPhoto(${event.id})">
+      let photoButton;
+      if (isWithdrawal && hasPhoto) {
+        photoButton = `<button class="text-gray-400 hover:text-orange-600 transition-colors" onclick="Views.directorDashboard.showWithdrawalPhoto(${event.id})">
              <span class="material-icons-round">photo_camera</span>
-           </button>`
-        : `<span class="text-gray-300">-</span>`;
+           </button>`;
+      } else if (!isWithdrawal && hasPhoto) {
+        photoButton = `<button class="text-gray-400 hover:text-indigo-600 transition-colors" onclick="Views.directorDashboard.showEventPhoto(${event.id})">
+             <span class="material-icons-round">photo_camera</span>
+           </button>`;
+      } else {
+        photoButton = `<span class="text-gray-300">-</span>`;
+      }
 
       // Format time
       const eventTime = new Date(event.ts).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
 
       return `
         <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-          <td class="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">${student ? Components.escapeHtml(student.full_name) : '-'}</td>
-          <td class="px-6 py-4 text-gray-500 dark:text-gray-400">${course ? Components.escapeHtml(course.name) : '-'}</td>
+          <td class="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">${studentName}</td>
+          <td class="px-6 py-4 text-gray-500 dark:text-gray-400">${courseName}</td>
           <td class="px-6 py-4 text-center">${typeBadge}</td>
           <td class="px-6 py-4 text-center">${sourceBadge}</td>
-          <td class="px-6 py-4 text-gray-500 dark:text-gray-400">${event.gate_id || '-'}</td>
+          <td class="px-6 py-4 text-gray-500 dark:text-gray-400">${isWithdrawal ? (event.device_id || '-') : (event.gate_id || '-')}</td>
           <td class="px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">${eventTime}</td>
           <td class="px-6 py-4 text-center">${photoButton}</td>
         </tr>
@@ -371,14 +419,121 @@ Views.directorDashboard = function() {
   }
 
   function applyFiltersToEvents() {
-    filteredEvents = todayEvents.filter(event => {
-      const student = State.getStudent(event.student_id);
-      if (filters.course && student?.course_id !== parseInt(filters.course)) return false;
-      if (filters.type && event.type !== filters.type) return false;
-      if (filters.search && student && !student.full_name.toLowerCase().includes(filters.search)) return false;
+    // Merge attendance events and withdrawal events, then sort by time (newest first)
+    allMergedEvents = [...todayEvents, ...withdrawalEvents];
+    allMergedEvents.sort((a, b) => new Date(b.ts) - new Date(a.ts));
+
+    filteredEvents = allMergedEvents.filter(event => {
+      const isWithdrawal = event._type === 'WITHDRAWAL';
+
+      // Course filter
+      if (filters.course) {
+        if (isWithdrawal) {
+          // Withdrawal events don't have course_id, filter by course_name match
+          const targetCourse = State.getCourse(parseInt(filters.course));
+          if (targetCourse && event.course_name !== targetCourse.name) return false;
+          if (!targetCourse) return false;
+        } else {
+          const student = State.getStudent(event.student_id);
+          if (student?.course_id !== parseInt(filters.course)) return false;
+        }
+      }
+
+      // Type filter
+      if (filters.type) {
+        if (filters.type === 'WITHDRAWAL' && !isWithdrawal) return false;
+        if (filters.type !== 'WITHDRAWAL' && isWithdrawal) return false;
+        if (filters.type !== 'WITHDRAWAL' && event.type !== filters.type) return false;
+      }
+
+      // Search filter
+      if (filters.search) {
+        if (isWithdrawal) {
+          if (!event.student_name?.toLowerCase().includes(filters.search)) return false;
+        } else {
+          const student = State.getStudent(event.student_id);
+          if (student && !student.full_name.toLowerCase().includes(filters.search)) return false;
+        }
+      }
+
       return true;
     });
   }
+
+  // ========================================
+  // WITHDRAWAL DATA
+  // ========================================
+
+  async function fetchTodayWithdrawals() {
+    if (!State.isApiAuthenticated() || typeof API === 'undefined') return;
+    try {
+      // Use /withdrawals/today endpoint (timezone-aware, flat array)
+      const list = await API.getTodayWithdrawals();
+
+      // Convert withdrawal records to virtual events for the table
+      withdrawalEvents = (Array.isArray(list) ? list : [])
+        .filter(w => w.status === 'COMPLETED')
+        .map(w => ({
+          _type: 'WITHDRAWAL',
+          id: w.id,
+          student_id: w.student_id,
+          student_name: w.student_name,
+          course_name: w.course_name,
+          pickup_name: w.pickup_name,
+          pickup_relationship: w.pickup_relationship,
+          device_id: w.device_id,
+          status: w.status,
+          ts: w.completed_at || w.initiated_at,
+        }));
+
+      // Update withdrawal count in stats card
+      const statEl = document.getElementById('stat-withdrawals');
+      if (statEl) statEl.textContent = withdrawalEvents.length;
+    } catch (err) {
+      console.warn('Failed to fetch withdrawals for dashboard:', err.message);
+    }
+  }
+
+  Views.directorDashboard.showWithdrawalPhoto = function(withdrawalId) {
+    const event = withdrawalEvents.find(e => e.id === withdrawalId);
+    if (!event || !event.pickup_photo_ref) {
+      Components.showToast('No hay foto disponible', 'warning');
+      return;
+    }
+
+    const photoUrl = `${API.baseUrl}/withdrawals/${withdrawalId}/photo`;
+    Components.showModal(`Foto de Retiro - ${Components.escapeHtml(event.student_name)}`, `
+      <div style="text-align: center;">
+        <p style="margin-bottom: 0.5rem; color: var(--color-gray-600);">
+          Retirado por: <strong>${Components.escapeHtml(event.pickup_name || '-')}</strong>
+          ${event.pickup_relationship ? `(${Components.escapeHtml(event.pickup_relationship)})` : ''}
+        </p>
+        <p style="margin-bottom: 1rem; color: var(--color-gray-500); font-size: 0.85rem;">
+          ${new Date(event.ts).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+        </p>
+        <div style="position: relative; min-height: 200px; display: flex; align-items: center; justify-content: center;">
+          <img id="withdrawal-dash-photo" src="assets/placeholder_photo.svg" alt="Foto de retiro" style="max-width: 100%; max-height: 400px; border-radius: 8px; opacity: 0.3; transition: opacity 0.3s;">
+          <span id="withdrawal-dash-loading" style="position: absolute; font-size: 2rem;">&#x23F3; Cargando...</span>
+        </div>
+      </div>
+    `, [{ label: 'Cerrar', action: 'close', className: 'btn-secondary' }]);
+
+    API.loadAuthenticatedImage(photoUrl).then(blobUrl => {
+      const img = document.getElementById('withdrawal-dash-photo');
+      const loading = document.getElementById('withdrawal-dash-loading');
+      if (img && blobUrl) {
+        img.src = blobUrl;
+        img.style.opacity = '1';
+      } else if (img) {
+        img.style.opacity = '0.5';
+      }
+      if (loading) loading.remove();
+    }).catch(err => {
+      console.error('Error loading withdrawal photo:', err);
+      const loading = document.getElementById('withdrawal-dash-loading');
+      if (loading) loading.textContent = 'Error al cargar la foto';
+    });
+  };
 
   // ========================================
   // AUTO-REFRESH
@@ -431,16 +586,19 @@ Views.directorDashboard = function() {
         }
       }
 
+      // Fetch today's withdrawals
+      await fetchTodayWithdrawals();
+
       const newStats = State.getTodayStats();
       const newEvents = State.getTodayEvents();
-      const hasNewEvents = newEvents.length !== todayEvents.length;
+      const hasChanges = newEvents.length !== todayEvents.length;
 
       stats = newStats;
       todayEvents = newEvents;
       applyFiltersToEvents();
       updateStatsDisplay();
 
-      if (hasNewEvents) {
+      if (hasChanges) {
         renderEventsTable();
       }
 
@@ -517,14 +675,18 @@ Views.directorDashboard = function() {
 
     const headers = ['Fecha', 'Hora', 'Alumno', 'Curso', 'Tipo', 'Puerta', 'Fuente'];
     const rows = filteredEvents.map(event => {
-      const student = State.getStudent(event.student_id);
-      const course = student ? State.getCourse(student.course_id) : null;
+      const isWithdrawal = event._type === 'WITHDRAWAL';
+      const student = isWithdrawal ? null : State.getStudent(event.student_id);
+      const course = (!isWithdrawal && student) ? State.getCourse(student.course_id) : null;
       const date = event.ts.split('T')[0];
       const time = new Date(event.ts).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
-      const eventType = event.type === 'IN' ? 'Ingreso' : 'Salida';
-      const source = event.source || 'MANUAL';
+      const eventType = isWithdrawal ? 'Retiro' : (event.type === 'IN' ? 'Ingreso' : 'Salida');
+      const source = isWithdrawal ? (event.pickup_name || 'Admin') : (event.source || 'MANUAL');
+      const studentName = isWithdrawal ? (event.student_name || '-') : (student?.full_name || '-');
+      const courseName = isWithdrawal ? (event.course_name || '-') : (course?.name || '-');
+      const gate = isWithdrawal ? (event.device_id || '-') : (event.gate_id || '-');
 
-      return [date, time, student?.full_name || '-', course?.name || '-', eventType, event.gate_id || '-', source]
+      return [date, time, studentName, courseName, eventType, gate, source]
         .map(escapeCSV).join(',');
     });
 
@@ -716,4 +878,10 @@ Views.directorDashboard = function() {
   if (typeof Router !== 'undefined' && Router.onViewChange) {
     Router.onViewChange(Views.directorDashboard.cleanup);
   }
+
+  // Fetch today's withdrawals on initial load and merge into events table
+  fetchTodayWithdrawals().then(() => {
+    applyFiltersToEvents();
+    renderEventsTable();
+  });
 };

@@ -60,6 +60,13 @@ class AuditEvent(StrEnum):
     ATTENDANCE_REGISTERED = "attendance.registered"
     ATTENDANCE_PHOTO_UPLOADED = "attendance.photo.uploaded"
 
+    # Withdrawal events
+    WITHDRAWAL_INITIATED = "withdrawal.initiated"
+    WITHDRAWAL_VERIFIED = "withdrawal.verified"
+    WITHDRAWAL_COMPLETED = "withdrawal.completed"
+    WITHDRAWAL_CANCELLED = "withdrawal.cancelled"
+    WITHDRAWAL_ADMIN_OVERRIDE = "withdrawal.admin_override"
+
     # Settings events
     PREFERENCES_UPDATED = "settings.preferences.updated"
     CONSENT_CHANGED = "settings.consent.changed"

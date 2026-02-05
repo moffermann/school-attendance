@@ -35,6 +35,9 @@ ATTENDANCE_MESSAGES = {
     "INGRESO_OK": "Ingreso registrado: {student_name} ingresó al colegio el {date} a las {time}.",
     "SALIDA_OK": "Salida registrada: {student_name} salió del colegio el {date} a las {time}.",
     "BROADCAST": "📢 *{subject}*\n\n{message}",
+    # Withdrawal templates
+    "RETIRO_COMPLETADO": "✅ *Retiro Confirmado*\n\nEstudiante: {student_name}\nHora: {time}\n\n_Gracias por usar el sistema de retiro autorizado._",
+    "RETIRO_POR_TERCERO": "⚠️ *ALERTA: Retiro por Tercero*\n\nEstudiante: {student_name}\nRetirado por: {pickup_name} ({pickup_relationship})\nHora: {time}\n\n_Si NO autorizó este retiro, contacte al colegio INMEDIATAMENTE._",
 }
 
 
@@ -135,8 +138,9 @@ async def _send(
             photo_url = variables.get("photo_url")
             has_photo = variables.get("has_photo", False)
 
-            # BROADCAST uses plain text messages (not WhatsApp templates)
-            if template == "BROADCAST":
+            # BROADCAST and withdrawal templates use plain text messages (not WhatsApp templates)
+            # Withdrawal templates are not registered as official WhatsApp Business templates
+            if template in ("BROADCAST", "RETIRO_COMPLETADO", "RETIRO_POR_TERCERO"):
                 text = _build_caption(template, variables)
                 await client.send_text_message(to=to, text=text)
             elif has_photo and photo_url:

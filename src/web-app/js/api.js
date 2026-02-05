@@ -1502,4 +1502,298 @@ const API = Object.assign(createApiClient(window.PREVIEW_CONFIG_KEY || 'webAppPr
     }
     return true;
   },
+
+  // ==================== Authorized Pickups API ====================
+
+  /**
+   * List authorized pickups for a student
+   * @param {number} studentId - Student ID
+   * @returns {Promise<Array>} List of authorized pickups
+   */
+  async getStudentAuthorizedPickups(studentId) {
+    const response = await this.request(`/students/${studentId}/authorized-pickups`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Estudiante no encontrado');
+      }
+      throw new Error('No se pudo obtener adultos autorizados');
+    }
+    return response.json();
+  },
+
+  /**
+   * Add an authorized pickup for a student
+   * @param {number} studentId - Student ID
+   * @param {Object} data - Pickup data
+   * @param {string} data.full_name - Full name (required)
+   * @param {string} data.relationship - Relationship type (required)
+   * @param {string} [data.rut] - National ID
+   * @param {string} [data.phone] - Phone number
+   * @param {string} [data.email] - Email address
+   * @returns {Promise<Object>} Created authorized pickup
+   */
+  async addAuthorizedPickup(studentId, data) {
+    const response = await this.request(`/students/${studentId}/authorized-pickups`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Estudiante no encontrado');
+      }
+      if (response.status === 422) {
+        throw new Error(error.detail || 'Datos inválidos');
+      }
+      throw new Error(error.detail || 'Error al agregar adulto autorizado');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get an authorized pickup by ID
+   * @param {number} pickupId - Pickup ID
+   * @returns {Promise<Object>} Authorized pickup data
+   */
+  async getAuthorizedPickup(pickupId) {
+    const response = await this.request(`/authorized-pickups/${pickupId}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Adulto autorizado no encontrado');
+      }
+      throw new Error('No se pudo obtener adulto autorizado');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update an authorized pickup
+   * @param {number} pickupId - Pickup ID
+   * @param {Object} data - Fields to update
+   * @returns {Promise<Object>} Updated authorized pickup
+   */
+  async updateAuthorizedPickup(pickupId, data) {
+    const response = await this.request(`/authorized-pickups/${pickupId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Adulto autorizado no encontrado');
+      }
+      throw new Error(error.detail || 'Error al actualizar adulto autorizado');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete (deactivate) an authorized pickup
+   * @param {number} pickupId - Pickup ID
+   * @returns {Promise<boolean>} True if deleted successfully
+   */
+  async deleteAuthorizedPickup(pickupId) {
+    const response = await this.request(`/authorized-pickups/${pickupId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Adulto autorizado no encontrado');
+      }
+      throw new Error(error.detail || 'Error al eliminar adulto autorizado');
+    }
+    return true;
+  },
+
+  /**
+   * Regenerate QR code for an authorized pickup
+   * @param {number} pickupId - Pickup ID
+   * @returns {Promise<Object>} Updated pickup with new QR code
+   */
+  async regeneratePickupQR(pickupId) {
+    const response = await this.request(`/authorized-pickups/${pickupId}/regenerate-qr`, {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Adulto autorizado no encontrado');
+      }
+      throw new Error(error.detail || 'Error al regenerar código QR');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get QR code image for an authorized pickup
+   * @param {number} pickupId - Pickup ID
+   * @returns {Promise<Blob>} PNG image blob
+   */
+  async getPickupQRCode(pickupId) {
+    const response = await this.request(`/authorized-pickups/${pickupId}/qr-code`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Adulto autorizado no encontrado');
+      }
+      throw new Error('No se pudo obtener código QR');
+    }
+    return response.blob();
+  },
+
+  /**
+   * Upload photo for an authorized pickup
+   * @param {number} pickupId - Pickup ID
+   * @param {File} file - Image file
+   * @returns {Promise<Object>} Updated pickup with photo URL
+   */
+  async uploadPickupPhoto(pickupId, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await this.requestMultipart(`/authorized-pickups/${pickupId}/photo`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Adulto autorizado no encontrado');
+      }
+      throw new Error(error.detail || 'Error al subir foto');
+    }
+    return response.json();
+  },
+
+  // ==================== Withdrawals API ====================
+
+  /**
+   * List withdrawals with filters and pagination
+   * @param {Object} filters - Query filters
+   * @param {string} [filters.date_from] - Start date (YYYY-MM-DD)
+   * @param {string} [filters.date_to] - End date (YYYY-MM-DD)
+   * @param {number} [filters.student_id] - Filter by student
+   * @param {number} [filters.pickup_id] - Filter by pickup
+   * @param {string} [filters.status] - Filter by status
+   * @param {number} [filters.limit=50] - Max results
+   * @param {number} [filters.offset=0] - Pagination offset
+   * @returns {Promise<Object>} Paginated withdrawals
+   */
+  async getWithdrawals(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.date_from) params.append('date_from', filters.date_from);
+    if (filters.date_to) params.append('date_to', filters.date_to);
+    if (filters.student_id) params.append('student_id', filters.student_id);
+    if (filters.pickup_id) params.append('pickup_id', filters.pickup_id);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.limit) params.append('limit', filters.limit);
+    if (filters.offset) params.append('offset', filters.offset);
+
+    const queryString = params.toString();
+    const response = await this.request(`/withdrawals${queryString ? '?' + queryString : ''}`);
+    if (!response.ok) {
+      throw new Error('No se pudo obtener retiros');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get today's withdrawals (timezone-aware, flat array)
+   * @returns {Promise<Array>} List of today's withdrawals
+   */
+  async getTodayWithdrawals() {
+    const response = await this.request('/withdrawals/today');
+    if (!response.ok) {
+      throw new Error('No se pudo obtener retiros de hoy');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get withdrawal history for a student
+   * @param {number} studentId - Student ID
+   * @param {Object} filters - Optional filters (date_from, date_to)
+   * @returns {Promise<Array>} List of withdrawals
+   */
+  async getStudentWithdrawals(studentId, filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.date_from) params.append('date_from', filters.date_from);
+    if (filters.date_to) params.append('date_to', filters.date_to);
+
+    const queryString = params.toString();
+    const response = await this.request(`/students/${studentId}/withdrawals${queryString ? '?' + queryString : ''}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Estudiante no encontrado');
+      }
+      throw new Error('No se pudo obtener historial de retiros');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get withdrawal details
+   * @param {number} withdrawalId - Withdrawal ID
+   * @returns {Promise<Object>} Withdrawal details
+   */
+  async getWithdrawal(withdrawalId) {
+    const response = await this.request(`/withdrawals/${withdrawalId}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Retiro no encontrado');
+      }
+      throw new Error('No se pudo obtener detalles del retiro');
+    }
+    return response.json();
+  },
+
+  /**
+   * Cancel a pending withdrawal
+   * @param {number} withdrawalId - Withdrawal ID
+   * @param {string} reason - Cancellation reason (required)
+   * @returns {Promise<Object>} Cancelled withdrawal
+   */
+  async cancelWithdrawal(withdrawalId, reason) {
+    const response = await this.request(`/withdrawals/${withdrawalId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error('Retiro no encontrado');
+      }
+      if (response.status === 400) {
+        throw new Error(error.detail || 'No se puede cancelar este retiro');
+      }
+      throw new Error(error.detail || 'Error al cancelar retiro');
+    }
+    return response.json();
+  },
+
+  /**
+   * Export withdrawals to CSV
+   * @param {Object} filters - Export filters
+   * @returns {Promise<Blob>} CSV file blob
+   */
+  async exportWithdrawalsCSV(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.date_from) params.append('date_from', filters.date_from);
+    if (filters.date_to) params.append('date_to', filters.date_to);
+    if (filters.student_id) params.append('student_id', filters.student_id);
+    if (filters.status) params.append('status', filters.status);
+
+    const queryString = params.toString();
+    const response = await this.request(`/withdrawals/export${queryString ? '?' + queryString : ''}`);
+    if (!response.ok) {
+      throw new Error('No se pudo exportar retiros');
+    }
+    return response.blob();
+  },
 });

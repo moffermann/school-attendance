@@ -127,10 +127,37 @@ class AttendanceRepository:
         """List all attendance events for a specific date.
 
         Used by kiosk bootstrap to restore IN/OUT state after cache clear.
+
+        WARNING: Uses func.date() which extracts the UTC date. For timezone-aware
+        filtering, use list_by_date_utc_range() instead.
         """
         stmt = (
             select(AttendanceEvent)
             .where(func.date(AttendanceEvent.occurred_at) == target_date)
+            .order_by(AttendanceEvent.occurred_at.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_by_date_utc_range(
+        self, start_utc: datetime, end_utc: datetime
+    ) -> list[AttendanceEvent]:
+        """List attendance events within a UTC datetime range.
+
+        Timezone-aware alternative to list_by_date. Use this when the "day"
+        must be defined in a local timezone (e.g., Chile). The caller should
+        compute the UTC boundaries for the local day.
+
+        Example: For Feb 5 in Chile (UTC-3):
+          start_utc = 2026-02-05T03:00:00Z (midnight Chile time)
+          end_utc   = 2026-02-06T03:00:00Z
+        """
+        stmt = (
+            select(AttendanceEvent)
+            .where(
+                AttendanceEvent.occurred_at >= start_utc,
+                AttendanceEvent.occurred_at < end_utc,
+            )
             .order_by(AttendanceEvent.occurred_at.asc())
         )
         result = await self.session.execute(stmt)

@@ -876,6 +876,14 @@ Views.directorStudents = function () {
       console.log('Could not fetch student photo:', e);
     }
 
+    // Fetch authorized pickups for this student
+    let authorizedPickups = [];
+    try {
+      authorizedPickups = await API.getStudentAuthorizedPickups(studentId);
+    } catch (e) {
+      console.log('Could not fetch authorized pickups:', e);
+    }
+
     // Generate unique ID for this photo load (race condition protection)
     const currentPhotoLoadId = ++photoLoadCounter;
 
@@ -951,6 +959,46 @@ Views.directorStudents = function () {
           <ul style="list-style: none; padding: 0; margin: 0;">
             ${guardiansHTML || '<li style="color: var(--color-gray-500);">Sin apoderados registrados</li>'}
           </ul>
+        </div>
+      </div>
+
+      <div class="card mt-2">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>Adultos Autorizados para Retiro</span>
+          <button class="btn btn-sm btn-primary" onclick="Views.directorStudents.showAddPickupModal(${studentId})" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+            <span class="material-icons-round" style="font-size: 14px; vertical-align: middle;">add</span> Agregar
+          </button>
+        </div>
+        <div class="card-body">
+          ${authorizedPickups.length > 0 ? `
+            <ul style="list-style: none; padding: 0; margin: 0;">
+              ${authorizedPickups.map(pickup => `
+                <li style="padding: 0.75rem; border-bottom: 1px solid var(--color-gray-100); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <strong>${Components.escapeHtml(pickup.full_name)}</strong>
+                    <span style="color: var(--color-gray-500); font-size: 0.85rem;">(${Components.escapeHtml(pickup.relationship_type)})</span>
+                    <br>
+                    <span style="font-size: 0.8rem; color: var(--color-gray-500);">
+                      ${pickup.phone ? 'Tel: ' + Components.escapeHtml(pickup.phone) : ''}
+                      ${pickup.national_id ? ' | RUT: ' + Components.escapeHtml(pickup.national_id) : ''}
+                    </span>
+                    ${!pickup.is_active ? '<br><span style="color: var(--color-error); font-size: 0.75rem;">Inactivo</span>' : ''}
+                  </div>
+                  <div style="display: flex; gap: 0.25rem;">
+                    <button class="btn btn-sm btn-secondary" onclick="Views.directorStudents.showPickupQR(${pickup.id})" title="Ver QR" style="padding: 0.25rem;">
+                      <span class="material-icons-round" style="font-size: 16px;">qr_code_2</span>
+                    </button>
+                    <button class="btn btn-sm btn-secondary" onclick="Views.directorStudents.showEditPickupModal(${pickup.id}, ${studentId})" title="Editar" style="padding: 0.25rem;">
+                      <span class="material-icons-round" style="font-size: 16px;">edit</span>
+                    </button>
+                    <button class="btn btn-sm btn-error" onclick="Views.directorStudents.deletePickup(${pickup.id}, ${studentId})" title="Eliminar" style="padding: 0.25rem;">
+                      <span class="material-icons-round" style="font-size: 16px;">delete</span>
+                    </button>
+                  </div>
+                </li>
+              `).join('')}
+            </ul>
+          ` : '<p style="color: var(--color-gray-500); text-align: center; margin: 0;">Sin adultos autorizados. Agregue personas que pueden retirar a este estudiante.</p>'}
         </div>
       </div>
     `, [
@@ -1165,6 +1213,294 @@ Views.directorStudents = function () {
       NFCEnrollment.showStudentEnrollmentModal(studentId);
     } else {
       Components.showToast('Servicio NFC no disponible', 'error');
+    }
+  };
+
+  // ==================== Authorized Pickups Management ====================
+
+  Views.directorStudents.showAddPickupModal = function (studentId) {
+    document.querySelector('.modal-container')?.click();
+
+    const relationshipOptions = [
+      'Padre', 'Madre', 'Abuelo/a', 'Tio/a', 'Hermano/a mayor',
+      'Tutor legal', 'Nana/Cuidador', 'Vecino autorizado', 'Otro'
+    ];
+
+    Components.showModal('Agregar Adulto Autorizado', `
+      <form id="add-pickup-form">
+        <div class="form-group">
+          <label class="form-label">Nombre Completo *</label>
+          <input type="text" name="full_name" required class="form-input" placeholder="Ej: Maria Lopez Gonzalez">
+        </div>
+        <div class="form-group">
+          <label class="form-label">RUT (opcional)</label>
+          <input type="text" name="rut" class="form-input" placeholder="Ej: 12.345.678-9">
+          <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
+            Documento de identidad del adulto autorizado
+          </small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Relacion con el estudiante *</label>
+          <select name="relationship" required class="form-select">
+            <option value="">Seleccione una relacion</option>
+            ${relationshipOptions.map(r => `<option value="${r}">${r}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefono de contacto</label>
+          <input type="tel" name="phone" class="form-input" placeholder="Ej: +56912345678">
+          <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
+            Para contacto en caso de emergencia
+          </small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email (opcional)</label>
+          <input type="email" name="email" class="form-input" placeholder="Ej: maria@email.com">
+        </div>
+
+        <!-- Nota sobre QR -->
+        <div style="background: var(--color-info-light); padding: 0.75rem; border-radius: 8px; margin-top: 1rem; font-size: 0.85rem;">
+          <strong>Credencial QR:</strong>
+          <p style="margin: 0.25rem 0 0; color: var(--color-gray-600);">
+            Se generara automaticamente un codigo QR unico para esta persona. Podra imprimirlo desde el perfil del alumno.
+          </p>
+        </div>
+      </form>
+    `, [
+      { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
+      {
+        label: 'Guardar', action: 'save', className: 'btn-primary', onClick: async () => {
+          const form = document.getElementById('add-pickup-form');
+          if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+          }
+
+          const formData = new FormData(form);
+          const data = {
+            full_name: formData.get('full_name'),
+            national_id: formData.get('rut') || null,
+            relationship_type: formData.get('relationship'),
+            phone: formData.get('phone') || null,
+            email: formData.get('email') || null
+          };
+
+          try {
+            await API.addAuthorizedPickup(studentId, data);
+            Components.showToast('Adulto autorizado agregado correctamente', 'success');
+            document.querySelector('.modal-container')?.click();
+            // Refresh profile view
+            setTimeout(() => Views.directorStudents.viewProfile(studentId), 100);
+          } catch (error) {
+            console.error('Error adding pickup:', error);
+            Components.showToast(error.message || 'Error al agregar adulto autorizado', 'error');
+          }
+        }
+      }
+    ]);
+  };
+
+  Views.directorStudents.showEditPickupModal = async function (pickupId, studentId) {
+    document.querySelector('.modal-container')?.click();
+
+    let pickup;
+    try {
+      pickup = await API.getAuthorizedPickup(pickupId);
+    } catch (e) {
+      Components.showToast('Error al cargar datos del adulto', 'error');
+      return;
+    }
+
+    const relationshipOptions = [
+      'Padre', 'Madre', 'Abuelo/a', 'Tio/a', 'Hermano/a mayor',
+      'Tutor legal', 'Nana/Cuidador', 'Vecino autorizado', 'Otro'
+    ];
+
+    Components.showModal('Editar Adulto Autorizado', `
+      <form id="edit-pickup-form">
+        <div class="form-group">
+          <label class="form-label">Nombre Completo *</label>
+          <input type="text" name="full_name" required class="form-input" value="${Components.escapeHtml(pickup.full_name || '')}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">RUT (opcional)</label>
+          <input type="text" name="rut" class="form-input" value="${Components.escapeHtml(pickup.national_id || '')}">
+          <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
+            Documento de identidad del adulto autorizado
+          </small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Relacion con el estudiante *</label>
+          <select name="relationship" required class="form-select">
+            <option value="">Seleccione una relacion</option>
+            ${relationshipOptions.map(r => `<option value="${r}" ${pickup.relationship_type === r ? 'selected' : ''}>${r}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefono de contacto</label>
+          <input type="tel" name="phone" class="form-input" value="${Components.escapeHtml(pickup.phone || '')}">
+          <small style="color: var(--color-gray-500); display: block; margin-top: 0.25rem;">
+            Para contacto en caso de emergencia
+          </small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email (opcional)</label>
+          <input type="email" name="email" class="form-input" value="${Components.escapeHtml(pickup.email || '')}">
+        </div>
+        <div class="form-group">
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input type="checkbox" name="is_active" ${pickup.is_active ? 'checked' : ''}>
+            <span>Activo (puede realizar retiros)</span>
+          </label>
+        </div>
+      </form>
+    `, [
+      { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
+      {
+        label: 'Regenerar QR', action: 'regenerate', className: 'btn-warning', onClick: async () => {
+          if (!confirm('¿Esta seguro? El QR anterior dejara de funcionar.')) return;
+          try {
+            await API.regeneratePickupQR(pickupId);
+            Components.showToast('Codigo QR regenerado correctamente', 'success');
+          } catch (error) {
+            Components.showToast(error.message || 'Error al regenerar QR', 'error');
+          }
+        }
+      },
+      {
+        label: 'Guardar', action: 'save', className: 'btn-primary', onClick: async () => {
+          const form = document.getElementById('edit-pickup-form');
+          if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+          }
+
+          const formData = new FormData(form);
+          const data = {
+            full_name: formData.get('full_name'),
+            national_id: formData.get('rut') || null,
+            relationship_type: formData.get('relationship'),
+            phone: formData.get('phone') || null,
+            email: formData.get('email') || null,
+            is_active: form.querySelector('[name="is_active"]').checked
+          };
+
+          try {
+            await API.updateAuthorizedPickup(pickupId, data);
+            Components.showToast('Adulto autorizado actualizado', 'success');
+            document.querySelector('.modal-container')?.click();
+            setTimeout(() => Views.directorStudents.viewProfile(studentId), 100);
+          } catch (error) {
+            console.error('Error updating pickup:', error);
+            Components.showToast(error.message || 'Error al actualizar', 'error');
+          }
+        }
+      }
+    ]);
+  };
+
+  Views.directorStudents.showPickupQR = async function (pickupId) {
+    try {
+      // Get pickup info first
+      const pickup = await API.getAuthorizedPickup(pickupId);
+
+      // Show confirmation modal first (regenerating invalidates old QR)
+      Components.showModal(`Generar QR - ${pickup.full_name}`, `
+        <div style="padding: 0.5rem;">
+          <div style="background: var(--color-warning-light); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+            <strong style="color: var(--color-warning-dark);">Atencion:</strong>
+            <p style="margin: 0.5rem 0 0; color: var(--color-gray-700); font-size: 0.9rem;">
+              Al generar un nuevo QR, el codigo anterior quedara <strong>invalidado</strong>.
+              Asegurese de entregar el nuevo codigo a la persona autorizada.
+            </p>
+          </div>
+          <p style="font-size: 0.9rem; color: var(--color-gray-600);">
+            <strong>${Components.escapeHtml(pickup.full_name)}</strong><br>
+            ${Components.escapeHtml(pickup.relationship_type)}
+            ${pickup.national_id ? '<br>RUT: ' + Components.escapeHtml(pickup.national_id) : ''}
+          </p>
+        </div>
+      `, [
+        { label: 'Cancelar', action: 'close', className: 'btn-secondary' },
+        {
+          label: 'Generar Nuevo QR', action: 'generate', className: 'btn-primary', onClick: async () => {
+            document.querySelector('.modal-container')?.click();
+            await Views.directorStudents._generateAndShowPickupQR(pickupId, pickup);
+          }
+        }
+      ]);
+    } catch (error) {
+      console.error('Error loading pickup:', error);
+      Components.showToast('Error al cargar datos del adulto', 'error');
+    }
+  };
+
+  Views.directorStudents._generateAndShowPickupQR = async function (pickupId, pickup) {
+    try {
+      Components.showToast('Generando codigo QR...', 'info');
+
+      // Regenerate QR token from backend
+      const result = await API.regeneratePickupQR(pickupId);
+      const qrToken = result.qr_token;
+
+      // Generate QR image client-side using qrcode library
+      if (typeof qrcode === 'undefined') {
+        throw new Error('Libreria QR no disponible');
+      }
+
+      const qr = qrcode(0, 'M');
+      qr.addData(qrToken);
+      qr.make();
+      const qrDataURL = qr.createDataURL(6, 4);
+
+      // Show QR modal
+      Components.showModal(`QR de Retiro - ${pickup.full_name}`, `
+        <div style="text-align: center; padding: 1rem;">
+          <img id="pickup-qr-image" src="${qrDataURL}" alt="Codigo QR" style="max-width: 280px; width: 100%; border: 1px solid var(--color-gray-200); border-radius: 8px;">
+          <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--color-gray-600);">
+            <strong>${Components.escapeHtml(pickup.full_name)}</strong><br>
+            ${Components.escapeHtml(pickup.relationship_type)}
+            ${pickup.national_id ? '<br>RUT: ' + Components.escapeHtml(pickup.national_id) : ''}
+          </p>
+          <div style="background: var(--color-info-light); padding: 0.75rem; border-radius: 8px; margin-top: 1rem; font-size: 0.85rem; text-align: left;">
+            <strong>Importante:</strong>
+            <p style="margin: 0.25rem 0 0; color: var(--color-gray-600);">
+              Este codigo es unico y solo se muestra una vez. Descargue o imprima antes de cerrar.
+            </p>
+          </div>
+        </div>
+      `, [
+        { label: 'Cerrar', action: 'close', className: 'btn-secondary' },
+        {
+          label: 'Descargar', action: 'download', className: 'btn-primary', onClick: () => {
+            const link = document.createElement('a');
+            link.href = qrDataURL;
+            link.download = `qr-retiro-${pickup.full_name.replace(/\s+/g, '-')}.png`;
+            link.click();
+            Components.showToast('QR descargado', 'success');
+          }
+        }
+      ]);
+
+    } catch (error) {
+      console.error('Error generating QR:', error);
+      Components.showToast(error.message || 'Error al generar codigo QR', 'error');
+    }
+  };
+
+  Views.directorStudents.deletePickup = async function (pickupId, studentId) {
+    if (!confirm('¿Esta seguro de eliminar este adulto autorizado? Ya no podra realizar retiros.')) {
+      return;
+    }
+
+    try {
+      await API.deleteAuthorizedPickup(pickupId);
+      Components.showToast('Adulto autorizado eliminado', 'success');
+      document.querySelector('.modal-container')?.click();
+      setTimeout(() => Views.directorStudents.viewProfile(studentId), 100);
+    } catch (error) {
+      console.error('Error deleting pickup:', error);
+      Components.showToast(error.message || 'Error al eliminar', 'error');
     }
   };
 

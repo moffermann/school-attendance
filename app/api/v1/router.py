@@ -7,6 +7,7 @@ from app.api.v1 import (
     alerts,
     attendance,
     auth,
+    authorized_pickups,
     broadcast,
     courses,
     devices,
@@ -24,6 +25,7 @@ from app.api.v1 import (
     tenant_setup,
     webapp,
     webauthn,
+    withdrawals,
 )
 from app.api.v1.super_admin import super_admin_router
 
@@ -58,3 +60,12 @@ api_router.include_router(kiosk.router, prefix="/kiosk", tags=["kiosk"])
 api_router.include_router(photos.router, prefix="/photos", tags=["photos"])
 api_router.include_router(webauthn.router, prefix="/webauthn", tags=["webauthn"])
 api_router.include_router(push_subscriptions.router)
+
+# Authorized pickups and withdrawals
+api_router.include_router(authorized_pickups.router, prefix="/authorized-pickups", tags=["authorized-pickups"])
+api_router.include_router(
+    authorized_pickups.student_pickups_router,
+    prefix="/students/{student_id}/authorized-pickups",
+    tags=["authorized-pickups"],
+)
+api_router.include_router(withdrawals.router, prefix="/withdrawals", tags=["withdrawals"])

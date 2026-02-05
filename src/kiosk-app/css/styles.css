@@ -3774,6 +3774,31 @@ td {
   transform: scale(0.95);
 }
 
+.mobile-home-btn-withdrawal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  height: 56px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 1.125rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mobile-home-btn-withdrawal:hover {
+  background: rgba(245, 158, 11, 0.25);
+}
+
+.mobile-home-btn-withdrawal:active {
+  transform: scale(0.95);
+}
+
 /* iOS-style home indicator */
 .mobile-home-indicator {
   position: absolute;
@@ -3784,4 +3809,419 @@ td {
   height: 6px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 9999px;
+}
+
+/* ========================================
+   WITHDRAWAL MODAL STYLES
+   ======================================== */
+
+.withdrawal-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.withdrawal-modal-container {
+  background: rgba(30, 41, 59, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.5rem;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.withdrawal-modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.withdrawal-modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: white;
+}
+
+.withdrawal-modal-header .pickup-photo {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(245, 158, 11, 0.5);
+}
+
+.withdrawal-modal-header .pickup-info {
+  flex: 1;
+}
+
+.withdrawal-modal-header .pickup-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: white;
+}
+
+.withdrawal-modal-header .pickup-relation {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.withdrawal-modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.withdrawal-modal-body p {
+  margin: 0 0 1rem 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9375rem;
+}
+
+.withdrawal-modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+/* Student selection list */
+.withdrawal-student-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.withdrawal-student-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.withdrawal-student-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.withdrawal-student-item.selected {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.withdrawal-student-item input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: #22c55e;
+  cursor: pointer;
+}
+
+.withdrawal-student-item .student-info {
+  flex: 1;
+}
+
+.withdrawal-student-item .student-name {
+  font-weight: 600;
+  color: white;
+  font-size: 1rem;
+}
+
+.withdrawal-student-item .student-course {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Buttons */
+.withdrawal-btn-primary {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  border: none;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.withdrawal-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+}
+
+.withdrawal-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.withdrawal-btn-secondary {
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.withdrawal-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Camera/selfie styles */
+.withdrawal-camera-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4/3;
+  background: #000;
+  border-radius: 1rem;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.withdrawal-camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.withdrawal-camera-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.withdrawal-camera-guide {
+  width: 200px;
+  height: 200px;
+  border: 3px dashed rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+}
+
+.withdrawal-captured-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Signature canvas */
+.withdrawal-signature-container {
+  margin-bottom: 1rem;
+}
+
+.withdrawal-signature-canvas {
+  width: 100%;
+  height: 200px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 0.75rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.withdrawal-signature-hint {
+  text-align: center;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 0.5rem;
+}
+
+.withdrawal-clear-btn {
+  padding: 0.5rem 1rem;
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.withdrawal-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+/* Success screen */
+.withdrawal-success-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.withdrawal-success-icon {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  animation: withdrawal-success-pop 0.4s ease-out;
+}
+
+.withdrawal-success-icon svg {
+  width: 40px;
+  height: 40px;
+  color: white;
+}
+
+@keyframes withdrawal-success-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.withdrawal-success-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 0.5rem;
+}
+
+.withdrawal-success-subtitle {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 2rem;
+}
+
+.withdrawal-success-details {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  width: 100%;
+  max-width: 300px;
+  margin-bottom: 1.5rem;
+}
+
+.withdrawal-success-details p {
+  margin: 0.25rem 0;
+  font-size: 0.9375rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Additional withdrawal modal styles */
+.withdrawal-modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.withdrawal-modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.withdrawal-pickup-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.withdrawal-modal-large {
+  max-width: 600px;
+}
+
+.withdrawal-camera-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 1rem;
+}
+
+.withdrawal-camera-preview.hidden {
+  display: none;
+}
+
+.withdrawal-signature-info {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.withdrawal-signature-pad-container {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 0.75rem;
+  padding: 0.5rem;
+}
+
+.withdrawal-check-icon {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.withdrawal-student-item input:checked ~ .withdrawal-check-icon {
+  opacity: 1;
+}
+
+/* Modal animation */
+.withdrawal-modal-overlay {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.withdrawal-modal-overlay.active {
+  opacity: 1;
+}
+
+.withdrawal-modal-overlay .withdrawal-modal-container {
+  transform: scale(0.95) translateY(20px);
+  transition: transform 0.3s ease;
+}
+
+.withdrawal-modal-overlay.active .withdrawal-modal-container {
+  transform: scale(1) translateY(0);
+}
+
+/* Success icon styling for material icons */
+.withdrawal-success-icon span {
+  font-size: 40px;
+  color: white;
 }

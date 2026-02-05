@@ -14,7 +14,12 @@ const UI = {
     return str.replace(/[&<>"']/g, char => map[char]);
   },
 
-  showToast(message, type = 'info', duration = 3000) {
+  showToast(message, type = 'info', duration = null) {
+    // Auto-duration based on type: errors/warnings need more reading time
+    if (duration === null) {
+      duration = type === 'error' ? 5000 : type === 'warning' ? 4500 : 3000;
+    }
+
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;

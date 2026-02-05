@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.db.models.associations import student_guardian_table
+from app.db.models.authorized_pickup import student_authorized_pickup_table
 
 
 class EvidencePreference(StrEnum):
@@ -54,6 +55,16 @@ class Student(Base):
     )
     webauthn_credentials = relationship(
         "WebAuthnCredential", back_populates="student", cascade="all, delete-orphan"
+    )
+    # Authorized pickups (adults who can withdraw this student)
+    authorized_pickups = relationship(
+        "AuthorizedPickup",
+        secondary=student_authorized_pickup_table,
+        back_populates="students",
+    )
+    # Withdrawal records
+    withdrawals = relationship(
+        "StudentWithdrawal", back_populates="student", cascade="all, delete-orphan"
     )
 
     @property

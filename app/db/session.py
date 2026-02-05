@@ -85,19 +85,27 @@ async def get_tenant_session(schema_name: str) -> AsyncGenerator[AsyncSession, N
     async with async_session() as session:
         # Set schema search path for this connection
         await session.execute(text(f"SET search_path TO {schema_name}, public"))
+        error_occurred = False
         try:
             yield session
-        finally:
-            # Reset to default on connection return to pool
-            # First rollback any failed transaction to allow the SET command
+            # BUG-FIX: Commit if no error occurred (was missing - caused rollback of valid data)
+            await session.commit()
+        except Exception:
+            error_occurred = True
+            # Rollback on error
             try:
                 await session.rollback()
             except Exception:
-                pass  # Ignore if no transaction or already rolled back
-            try:
-                await session.execute(text("SET search_path TO public"))
-            except Exception:
-                pass  # Connection may be in bad state, will be recycled
+                pass  # Ignore if already rolled back
+            raise  # Re-raise the original exception
+        finally:
+            # Reset search_path to default on connection return to pool
+            # Only rollback in finally if we didn't already handle it
+            if not error_occurred:
+                try:
+                    await session.execute(text("SET search_path TO public"))
+                except Exception:
+                    pass  # Connection may be in bad state, will be recycled
 
 
 async def get_session_for_tenant(tenant: Tenant) -> AsyncGenerator[AsyncSession, None]:

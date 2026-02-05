@@ -875,7 +875,11 @@ Views.scanResult = function() {
       audio_data: audioData || null
     };
 
-    State.enqueueEvent(event);
+    const result = State.enqueueEvent(event);
+    if (!result) {
+      // Event was debounced (duplicate rapid scan)
+      console.log('[ScanResult] Event was debounced - duplicate rapid scan detected');
+    }
   }
 
   function showPhotoOverlay(photoUrl, timestamp, isEntry) {

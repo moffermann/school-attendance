@@ -1,5 +1,5 @@
 // Service Worker for offline caching
-const CACHE_NAME = 'kiosk-cache-v20';
+const CACHE_NAME = 'kiosk-cache-v23';
 
 // Static assets - cache first, update in background
 const STATIC_ASSETS = [
@@ -19,6 +19,13 @@ const STATIC_ASSETS = [
   '/js/views/settings.js',
   '/js/views/help.js',
   '/js/views/admin_panel.js',
+  '/js/views/biometric_auth.js',
+  '/js/views/biometric_enroll.js',
+  '/js/views/withdrawal_scan.js',
+  '/js/views/withdrawal_select.js',
+  '/js/views/withdrawal_verify.js',
+  '/js/views/withdrawal_signature.js',
+  '/js/views/withdrawal_confirm.js',
   '/assets/logo.svg',
   '/assets/placeholder_photo.jpg',
   '/assets/qr_placeholder.svg',
