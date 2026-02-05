@@ -59,6 +59,7 @@ Views.directorCourses = function() {
               <h2 class="text-xl font-bold text-gray-800 dark:text-white">Gestion de Cursos</h2>
             </div>
             <div class="flex items-center gap-4">
+              <div id="notification-bell-placeholder"></div>
               <button onclick="Views.directorCourses.toggleDarkMode()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-gray-500 dark:text-gray-400">
                 <span class="material-icons-round">${isDarkMode ? 'light_mode' : 'dark_mode'}</span>
               </button>

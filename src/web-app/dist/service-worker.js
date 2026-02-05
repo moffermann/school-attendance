@@ -6,7 +6,7 @@
  * - Offline fallback to index.html
  */
 
-const CACHE_NAME = 'parent-pwa-v5';
+const CACHE_NAME = 'parent-pwa-v14';
 
 // Static assets to cache on install
 const STATIC_ASSETS = [

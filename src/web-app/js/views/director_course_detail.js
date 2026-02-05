@@ -112,6 +112,7 @@ Views.directorCourseDetail = function(courseId) {
               <h2 class="text-xl font-bold text-gray-800 dark:text-white">Detalle del Curso</h2>
             </div>
             <div class="flex items-center gap-2 md:gap-4">
+              <div id="notification-bell-placeholder"></div>
               <div class="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1 mobile-hidden"></div>
               <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-gray-500 dark:text-gray-400"
                       onclick="Views.directorCourseDetail.toggleDarkMode()">

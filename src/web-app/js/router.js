@@ -172,6 +172,11 @@ const Router = {
       } else {
         app.innerHTML = '<div class="empty-state"><h2>Página no encontrada</h2></div>';
       }
+
+      // Update notification bell after view renders (for staff views)
+      if (typeof Components !== 'undefined' && Components.updateNotificationBell) {
+        setTimeout(() => Components.updateNotificationBell(), 100);
+      }
     });
   },
 

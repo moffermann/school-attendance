@@ -42,6 +42,7 @@ Views.directorTeachers = async function() {
           <div class="flex items-center gap-2 md:gap-4 flex-1 justify-end">
             <div class="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1 md:mx-2 mobile-hidden"></div>
             <div class="flex items-center gap-2 md:gap-3">
+              <div id="notification-bell-placeholder"></div>
               <button class="p-2 rounded-full hover:bg-background-light dark:hover:bg-white/5 transition-colors text-muted-light dark:text-muted-dark" onclick="Views.directorTeachers.toggleDarkMode()">
                 <span class="material-icons-round">${isDark ? 'light_mode' : 'dark_mode'}</span>
               </button>

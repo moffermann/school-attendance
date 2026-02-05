@@ -98,6 +98,7 @@ Views.directorGuardians = async function() {
               <h2 class="text-xl font-bold text-slate-800 dark:text-white">Gestion de Apoderados</h2>
             </div>
             <div class="flex items-center gap-4">
+              <div id="notification-bell-placeholder"></div>
               <!-- Dark Mode Toggle -->
               <button onclick="toggleDarkMode()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" title="Cambiar tema">
                 <span class="material-icons-round text-xl text-slate-500 dark:text-slate-400">${isDarkMode() ? 'light_mode' : 'dark_mode'}</span>
@@ -278,6 +279,11 @@ Views.directorGuardians = async function() {
         </main>
       </div>
     `;
+
+    // Update notification bell after re-render
+    if (typeof Components !== 'undefined' && Components.updateNotificationBell) {
+      Components.updateNotificationBell();
+    }
   }
 
   function renderTableRows(paginatedGuardians) {

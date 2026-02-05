@@ -1,4 +1,5 @@
 // Reusable UI components
+console.log('[Components] File loaded - v9 with deferred bell');
 const Components = {
   // Security: HTML escape function to prevent XSS
   escapeHtml(text) {
@@ -204,6 +205,102 @@ const Components = {
     }
   },
 
+  // Notification bell for staff (director/inspector)
+  // Returns a placeholder that gets updated after bootstrap loads
+  renderNotificationBell() {
+    // Always render the container - it will be updated by updateNotificationBell()
+    return `<div id="notification-bell-placeholder"></div>`;
+  },
+
+  // Update the notification bell with actual data (called after bootstrap loads)
+  updateNotificationBell() {
+    const placeholder = document.getElementById('notification-bell-placeholder');
+    if (!placeholder) return;
+
+    const pendingCounts = State.getPendingCounts();
+    console.log('[Bell] updateNotificationBell called, pendingCounts:', pendingCounts);
+
+    if (!pendingCounts) {
+      placeholder.innerHTML = '';
+      return;
+    }
+
+    const totalPending = pendingCounts.absences + pendingCounts.withdrawal_requests;
+    const hasPending = totalPending > 0;
+
+    placeholder.innerHTML = `
+      <div class="notification-bell-container">
+        <button class="notification-bell ${hasPending ? 'has-pending' : ''}"
+                onclick="Components.toggleNotificationDropdown(event)"
+                aria-label="Notificaciones pendientes"
+                aria-expanded="false"
+                aria-haspopup="true">
+          ${this.icons.notifications}
+          ${hasPending ? `<span class="notification-badge">${totalPending > 99 ? '99+' : totalPending}</span>` : ''}
+        </button>
+        <div class="notification-dropdown" id="notification-dropdown">
+          <div class="notification-dropdown-header">Pendientes por aprobar</div>
+          <div class="notification-dropdown-items">
+            ${pendingCounts.absences > 0 ? `
+              <a href="#/director/absences" class="notification-item" onclick="Components.closeNotificationDropdown()">
+                ${this.icons.absences}
+                <span class="notification-item-text">Ausencias</span>
+                <span class="notification-item-count">${pendingCounts.absences}</span>
+              </a>
+            ` : ''}
+            ${pendingCounts.withdrawal_requests > 0 ? `
+              <a href="#/director/withdrawals" class="notification-item" onclick="Components.closeNotificationDropdown()">
+                ${this.icons.withdrawal}
+                <span class="notification-item-text">Retiros</span>
+                <span class="notification-item-count">${pendingCounts.withdrawal_requests}</span>
+              </a>
+            ` : ''}
+            ${!hasPending ? `
+              <div class="notification-empty">
+                <span>Sin solicitudes pendientes</span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  toggleNotificationDropdown(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('notification-dropdown');
+    const bell = event.currentTarget;
+    if (dropdown) {
+      const isOpen = dropdown.classList.toggle('open');
+      bell.setAttribute('aria-expanded', isOpen);
+
+      // Close dropdown when clicking outside
+      if (isOpen) {
+        setTimeout(() => {
+          const closeHandler = (e) => {
+            if (!e.target.closest('.notification-bell-container')) {
+              dropdown.classList.remove('open');
+              bell.setAttribute('aria-expanded', 'false');
+              document.removeEventListener('click', closeHandler);
+            }
+          };
+          document.addEventListener('click', closeHandler);
+        }, 0);
+      }
+    }
+  },
+
+  closeNotificationDropdown() {
+    const dropdown = document.getElementById('notification-dropdown');
+    const bell = document.querySelector('.notification-bell');
+    if (dropdown) {
+      dropdown.classList.remove('open');
+    }
+    if (bell) {
+      bell.setAttribute('aria-expanded', 'false');
+    }
+  },
+
   // Layout
   createLayout(role, options) {
     // Skip link for keyboard/screen reader users
@@ -329,6 +426,7 @@ const Components = {
               </button>
               <h1 class="header-title" id="page-title">Tablero</h1>
               <div class="header-actions">
+                ${this.renderNotificationBell()}
                 <span class="role-selector">${role === 'director' ? 'Director' : 'Inspector'}</span>
                 <button class="btn btn-secondary btn-sm" onclick="Components.switchApp()" aria-label="Cambiar aplicación" title="Cambiar aplicación">
                   🔄
@@ -963,6 +1061,7 @@ const Components = {
         <div class="flex items-center gap-2 md:gap-4 flex-1 justify-end">
           ${liveIndicatorHTML}
           <div class="flex items-center gap-2 md:gap-3">
+            <div id="notification-bell-placeholder"></div>
             ${darkModeHTML}
             <div class="flex items-center gap-2 cursor-pointer">
               <div class="w-9 h-9 rounded-full border border-gray-200 bg-indigo-600 flex items-center justify-center text-white font-semibold">

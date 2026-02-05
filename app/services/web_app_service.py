@@ -33,6 +33,7 @@ from app.schemas.webapp import (
     GuardianContact,
     GuardianSummary,
     NotificationSummary,
+    PendingCounts,
     ScheduleExceptionSummary,
     ScheduleSummary,
     StudentSummary,
@@ -103,6 +104,11 @@ class WebAppDataService:
             guardian_id=user.guardian_id,
         )
 
+        # Calculate pending counts for staff notification bell
+        pending_counts = None
+        if is_staff:
+            pending_counts = await self._calculate_pending_counts()
+
         return WebAppBootstrap(
             current_user=session_user,
             students=[self._map_student(student, course_lookup) for student in students],
@@ -118,6 +124,7 @@ class WebAppDataService:
             withdrawals=[self._map_withdrawal(w) for w in withdrawals],
             authorized_pickups=[self._map_authorized_pickup(p) for p in authorized_pickups],
             withdrawal_requests=[self._map_withdrawal_request(r) for r in withdrawal_requests],
+            pending_counts=pending_counts,
         )
 
     async def _resolve_student_ids(self, is_staff: bool, guardian: Guardian | None) -> list[int]:
@@ -525,4 +532,26 @@ class WebAppDataService:
             email=teacher.email or "",
             phone=None,
             course_ids=[course.id for course in teacher.courses],
+        )
+
+    async def _calculate_pending_counts(self) -> PendingCounts:
+        """Calculate counts of pending items for staff notification bell."""
+        from sqlalchemy import func
+
+        # Count pending absences (exclude soft-deleted)
+        absence_stmt = select(func.count()).where(
+            AbsenceRequest.status == "PENDING",
+            AbsenceRequest.deleted_at.is_(None),
+        )
+        absence_result = await self.session.execute(absence_stmt)
+        pending_absences = absence_result.scalar() or 0
+
+        # Count pending withdrawal requests
+        wr_stmt = select(func.count()).where(WithdrawalRequest.status == "PENDING")
+        wr_result = await self.session.execute(wr_stmt)
+        pending_withdrawal_requests = wr_result.scalar() or 0
+
+        return PendingCounts(
+            absences=pending_absences,
+            withdrawal_requests=pending_withdrawal_requests,
         )

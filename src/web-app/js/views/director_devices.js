@@ -82,6 +82,7 @@ Views.directorDevices = async function() {
               <h2 class="text-xl font-bold text-slate-800 dark:text-white">Puertas y Dispositivos</h2>
             </div>
             <div class="flex items-center gap-2 md:gap-4">
+              <div id="notification-bell-placeholder"></div>
               <button class="p-2 rounded-full hover:bg-background-light dark:hover:bg-white/5 transition-colors text-muted-light dark:text-muted-dark" onclick="Views.directorDevices.toggleDarkMode()">
                 <span class="material-icons-round" id="dark-mode-icon">${isDark ? 'light_mode' : 'dark_mode'}</span>
               </button>
@@ -133,6 +134,11 @@ Views.directorDevices = async function() {
           }
         };
       }
+    }
+
+    // Update notification bell after re-render
+    if (typeof Components !== 'undefined' && Components.updateNotificationBell) {
+      Components.updateNotificationBell();
     }
   }
 

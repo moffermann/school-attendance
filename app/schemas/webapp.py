@@ -211,6 +211,13 @@ class WithdrawalRequestSummary(BaseModel):
     created_at: str
 
 
+class PendingCounts(BaseModel):
+    """Counts of pending items for staff notification bell."""
+
+    absences: int = 0
+    withdrawal_requests: int = 0
+
+
 class WebAppBootstrap(BaseModel):
     current_user: SessionUser
     students: list[StudentSummary] = Field(default_factory=list)
@@ -226,3 +233,4 @@ class WebAppBootstrap(BaseModel):
     withdrawals: list[WithdrawalSummary] = Field(default_factory=list)
     authorized_pickups: list[AuthorizedPickupSummary] = Field(default_factory=list)
     withdrawal_requests: list[WithdrawalRequestSummary] = Field(default_factory=list)
+    pending_counts: PendingCounts | None = None  # Only populated for staff roles

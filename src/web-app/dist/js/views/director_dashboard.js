@@ -54,6 +54,7 @@ Views.directorDashboard = function() {
         </div>
         <div class="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1 md:mx-2 mobile-hidden"></div>
         <div class="flex items-center gap-2 md:gap-3">
+          <div id="notification-bell-placeholder"></div>
           <button class="p-2 rounded-full hover:bg-background-light dark:hover:bg-white/5 transition-colors text-muted-light dark:text-muted-dark" onclick="Views.directorDashboard.toggleDarkMode()">
             <span class="material-icons-round" id="dark-mode-icon">dark_mode</span>
           </button>
@@ -635,6 +636,11 @@ Views.directorDashboard = function() {
     const icon = document.getElementById('dark-mode-icon');
     if (icon) icon.textContent = savedDarkMode ? 'light_mode' : 'dark_mode';
   }, 0);
+
+  // Update notification bell after render
+  if (typeof Components !== 'undefined' && Components.updateNotificationBell) {
+    setTimeout(() => Components.updateNotificationBell(), 50);
+  }
 
   // ========================================
   // PUBLIC METHODS

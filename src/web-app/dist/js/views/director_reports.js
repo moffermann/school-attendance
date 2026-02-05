@@ -38,6 +38,7 @@ Views.directorReports = function() {
       </div>
       <div class="flex items-center gap-2 md:gap-4 flex-1 justify-end">
         <div class="flex items-center gap-2 md:gap-3">
+          <div id="notification-bell-placeholder"></div>
           <button class="p-2 rounded-full hover:bg-background-light dark:hover:bg-white/5 transition-colors text-muted-light dark:text-muted-dark" onclick="Views.directorReports.toggleDarkMode()">
             <span class="material-icons-round" id="dark-mode-icon">dark_mode</span>
           </button>

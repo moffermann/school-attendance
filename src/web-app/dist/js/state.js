@@ -31,7 +31,8 @@ const State = {
     teachers: [],
     withdrawals: [],
     authorized_pickups: [],
-    withdrawal_requests: []
+    withdrawal_requests: [],
+    pending_counts: null  // Staff notification bell counts
   },
   currentRole: null, // 'director', 'inspector', 'parent'
   currentGuardianId: null,
@@ -304,8 +305,16 @@ const State = {
     if (bootstrap.withdrawal_requests) {
       this.data.withdrawal_requests = bootstrap.withdrawal_requests;
     }
+    if (bootstrap.pending_counts) {
+      this.data.pending_counts = bootstrap.pending_counts;
+    }
 
     this.persist();
+
+    // Update notification bell after bootstrap loads (for staff)
+    if (bootstrap.pending_counts && typeof Components !== 'undefined' && Components.updateNotificationBell) {
+      setTimeout(() => Components.updateNotificationBell(), 100);
+    }
   },
 
   /**
@@ -352,6 +361,42 @@ const State = {
    */
   getTenant() {
     return this._tenant;
+  },
+
+  /**
+   * Get pending counts for staff notification bell.
+   * @returns {object|null} - Object with absences and withdrawal_requests counts, or null for non-staff
+   */
+  getPendingCounts() {
+    return this.data.pending_counts || null;
+  },
+
+  /**
+   * Decrement the pending absences count (after approve/reject).
+   * Also triggers notification bell update.
+   */
+  decrementPendingAbsences() {
+    if (this.data.pending_counts && this.data.pending_counts.absences > 0) {
+      this.data.pending_counts.absences--;
+      this.persist();
+      if (typeof Components !== 'undefined' && Components.updateNotificationBell) {
+        Components.updateNotificationBell();
+      }
+    }
+  },
+
+  /**
+   * Decrement the pending withdrawal requests count (after approve/reject).
+   * Also triggers notification bell update.
+   */
+  decrementPendingWithdrawalRequests() {
+    if (this.data.pending_counts && this.data.pending_counts.withdrawal_requests > 0) {
+      this.data.pending_counts.withdrawal_requests--;
+      this.persist();
+      if (typeof Components !== 'undefined' && Components.updateNotificationBell) {
+        Components.updateNotificationBell();
+      }
+    }
   },
 
   /**

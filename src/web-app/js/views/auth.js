@@ -266,6 +266,25 @@ Views.auth = function() {
       const user = bootstrap.current_user || bootstrap.user;
       Components.showToast(`Bienvenido, ${user.full_name}`, 'success');
 
+      // Show pending items toast for staff
+      const pendingCounts = State.getPendingCounts();
+      if (pendingCounts) {
+        const messages = [];
+        if (pendingCounts.absences > 0) {
+          messages.push(`${pendingCounts.absences} ausencia${pendingCounts.absences === 1 ? '' : 's'} por aprobar`);
+        }
+        if (pendingCounts.withdrawal_requests > 0) {
+          messages.push(`${pendingCounts.withdrawal_requests} retiro${pendingCounts.withdrawal_requests === 1 ? '' : 's'} por aprobar`);
+        }
+        if (messages.length > 0) {
+          setTimeout(() => {
+            messages.forEach((msg, i) => {
+              setTimeout(() => Components.showToast(msg, 'warning', 5000), i * 500);
+            });
+          }, 1500);
+        }
+      }
+
       // Navigate based on role
       const redirectPath = user.role === 'PARENT' ? '/parent/home' : '/director/dashboard';
       Router.navigate(redirectPath);
@@ -331,6 +350,26 @@ Views.auth = function() {
       // API returns current_user, fallback to user for backwards compatibility
       const user = bootstrap.current_user || bootstrap.user;
       Components.showToast(`Bienvenido, ${user.full_name}`, 'success');
+
+      // Show pending items toast for staff
+      const pendingCounts = State.getPendingCounts();
+      if (pendingCounts) {
+        const messages = [];
+        if (pendingCounts.absences > 0) {
+          messages.push(`${pendingCounts.absences} ausencia${pendingCounts.absences === 1 ? '' : 's'} por aprobar`);
+        }
+        if (pendingCounts.withdrawal_requests > 0) {
+          messages.push(`${pendingCounts.withdrawal_requests} retiro${pendingCounts.withdrawal_requests === 1 ? '' : 's'} por aprobar`);
+        }
+        if (messages.length > 0) {
+          // Delay to show after welcome toast
+          setTimeout(() => {
+            messages.forEach((msg, i) => {
+              setTimeout(() => Components.showToast(msg, 'warning', 5000), i * 500);
+            });
+          }, 1500);
+        }
+      }
 
       // Navigate based on role
       const redirectPath = user.role === 'PARENT' ? '/parent/home' : '/director/dashboard';
