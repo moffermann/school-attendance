@@ -33,11 +33,12 @@ Views.parentHistory = function() {
   let selectedDate = new Date().toISOString().split('T')[0];
 
   // Helper: Determine dot color for a day based on events
-  function getDotColor(events) {
-    if (!events.length) return null;
+  function getDotColor(events, hasWithdrawal) {
+    if (!events.length && !hasWithdrawal) return null;
+    if (hasWithdrawal) return '#7c3aed';  // violet-600 (withdrawal)
     const hasIn = events.some(e => e.type === 'IN');
     if (!hasIn) return '#ef4444';  // red-500 (absent)
-    const lateIn = events.find(e => e.type === 'IN' && e.ts.split('T')[1] > '08:30:00');
+    const lateIn = events.find(e => e.type === 'IN' && State.isEventLate(e));
     if (lateIn) return '#eab308';  // yellow-500 (late)
     return '#22c55e';  // green-500 (present on time)
   }
@@ -56,6 +57,19 @@ Views.parentHistory = function() {
       if (!eventsByDate[date]) eventsByDate[date] = [];
       eventsByDate[date].push(event);
     });
+
+    // Group completed withdrawals by date
+    const withdrawalsByDate = {};
+    if (filteredStudentId) {
+      const studentWithdrawals = State.getWithdrawals({ studentId: filteredStudentId, status: 'COMPLETED' });
+      studentWithdrawals.forEach(w => {
+        const d = (w.completed_at || w.initiated_at || '').split('T')[0];
+        if (d) {
+          if (!withdrawalsByDate[d]) withdrawalsByDate[d] = [];
+          withdrawalsByDate[d].push(w);
+        }
+      });
+    }
 
     const todayStr = new Date().toISOString().split('T')[0];
 
@@ -76,7 +90,8 @@ Views.parentHistory = function() {
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const dayEvents = eventsByDate[dateStr] || [];
-      const dotColor = getDotColor(dayEvents);
+      const hasWithdrawal = !!(withdrawalsByDate[dateStr] && withdrawalsByDate[dateStr].length);
+      const dotColor = getDotColor(dayEvents, hasWithdrawal);
       const dayOfWeek = new Date(year, month, day).getDay();
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
       const isToday = dateStr === todayStr;
@@ -96,8 +111,17 @@ Views.parentHistory = function() {
   }
 
   // Helper: Convert events to timeline HTML
-  function eventsToTimeline(events) {
-    if (!events.length) {
+  function eventsToTimeline(events, dateStr) {
+    // Get completed withdrawals for this date
+    const dateWithdrawals = filteredStudentId
+      ? State.getWithdrawals({ studentId: filteredStudentId, status: 'COMPLETED' })
+          .filter(w => {
+            const d = (w.completed_at || w.initiated_at || '').split('T')[0];
+            return d === dateStr;
+          })
+      : [];
+
+    if (!events.length && !dateWithdrawals.length) {
       return `
         <div class="text-center py-8 text-gray-400 dark:text-gray-500">
           <span class="material-symbols-outlined text-4xl mb-2 block">event_busy</span>
@@ -106,39 +130,76 @@ Views.parentHistory = function() {
       `;
     }
 
+    // Build unified timeline items
+    const timelineItems = [];
+
+    events.forEach(event => {
+      timelineItems.push({ ts: event.ts, kind: 'attendance', event });
+    });
+
+    dateWithdrawals.forEach(w => {
+      timelineItems.push({ ts: w.completed_at || w.initiated_at || '', kind: 'withdrawal', withdrawal: w });
+    });
+
     // Sort chronologically
-    const sorted = [...events].sort((a, b) => a.ts.localeCompare(b.ts));
+    timelineItems.sort((a, b) => a.ts.localeCompare(b.ts));
 
     let html = '<div class="relative">';
     html += '<div class="absolute left-4 top-2 bottom-6 w-0.5 bg-gray-100 dark:bg-gray-800 z-0"></div>';
 
-    sorted.forEach(event => {
-      const isIn = event.type === 'IN';
-      const time = Components.formatTime(event.ts);
-      const isLate = isIn && event.ts.split('T')[1] > '08:30:00';
+    timelineItems.forEach(item => {
+      if (item.kind === 'attendance') {
+        const event = item.event;
+        const isIn = event.type === 'IN';
+        const time = Components.formatTime(event.ts);
+        const isLate = isIn && State.isEventLate(event);
 
-      const iconBg = isIn
-        ? (isLate ? 'bg-orange-100 dark:bg-orange-900/30' : 'bg-green-100 dark:bg-green-900/30')
-        : 'bg-blue-100 dark:bg-blue-900/30';
-      const iconColor = isIn
-        ? (isLate ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400')
-        : 'text-blue-600 dark:text-blue-400';
-      const icon = isIn ? (isLate ? 'warning' : 'login') : 'logout';
-      const label = isIn ? (isLate ? 'Ingreso con Atraso' : 'Ingreso Correcto') : 'Salida Registrada';
-      const hasPhoto = event.photo_url || event.photo_ref;
+        const iconBg = isIn
+          ? (isLate ? 'bg-orange-100 dark:bg-orange-900/30' : 'bg-green-100 dark:bg-green-900/30')
+          : 'bg-blue-100 dark:bg-blue-900/30';
+        const iconColor = isIn
+          ? (isLate ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400')
+          : 'text-blue-600 dark:text-blue-400';
+        const icon = isIn ? (isLate ? 'warning' : 'login') : 'logout';
+        const label = isIn ? (isLate ? 'Ingreso con Atraso' : 'Ingreso Correcto') : 'Salida Registrada';
+        const hasPhoto = event.photo_url || event.photo_ref;
 
-      html += `
-        <div class="relative z-10 flex gap-4 pb-5">
-          <div class="w-8 h-8 rounded-full ${iconBg} ${iconColor} flex items-center justify-center border-2 border-white dark:border-slate-800 flex-shrink-0">
-            <span class="material-symbols-outlined text-sm font-bold">${icon}</span>
+        html += `
+          <div class="relative z-10 flex gap-4 pb-5">
+            <div class="w-8 h-8 rounded-full ${iconBg} ${iconColor} flex items-center justify-center border-2 border-white dark:border-slate-800 flex-shrink-0">
+              <span class="material-symbols-outlined text-sm font-bold">${icon}</span>
+            </div>
+            <div class="flex-1">
+              <p class="text-sm font-medium text-gray-900 dark:text-white">${label}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">${time}</p>
+              ${hasPhoto ? '<p class="text-xs text-indigo-500 mt-0.5"><span class="material-symbols-outlined text-xs align-middle">photo_camera</span> Con evidencia</p>' : ''}
+            </div>
           </div>
-          <div class="flex-1">
-            <p class="text-sm font-medium text-gray-900 dark:text-white">${label}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">${time}</p>
-            ${hasPhoto ? '<p class="text-xs text-indigo-500 mt-0.5"><span class="material-symbols-outlined text-xs align-middle">photo_camera</span> Con evidencia</p>' : ''}
+        `;
+      } else {
+        // Withdrawal event
+        const w = item.withdrawal;
+        const time = Components.formatTime(w.completed_at || w.initiated_at);
+        const pickupInfo = w.pickup_name
+          ? `${w.pickup_name}${w.pickup_relationship ? ` (${w.pickup_relationship})` : ''}`
+          : 'Adulto autorizado';
+
+        html += `
+          <div class="relative z-10 flex gap-4 pb-5">
+            <div class="w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 flex items-center justify-center border-2 border-white dark:border-slate-800 flex-shrink-0">
+              <span class="material-symbols-outlined text-sm font-bold">directions_walk</span>
+            </div>
+            <div class="flex-1">
+              <p class="text-sm font-medium text-gray-900 dark:text-white">Retiro</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">${time}</p>
+              <p class="text-xs text-violet-600 dark:text-violet-400 mt-0.5">
+                <span class="material-symbols-outlined text-xs align-middle">person</span> ${Components.escapeHtml(pickupInfo)}
+              </p>
+              ${w.reason ? `<p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">${Components.escapeHtml(w.reason)}</p>` : ''}
+            </div>
           </div>
-        </div>
-      `;
+        `;
+      }
     });
 
     html += '</div>';
@@ -170,8 +231,8 @@ Views.parentHistory = function() {
       const dayEvents = eventsByDate[dateStr] || [];
       const hasIn = dayEvents.some(e => e.type === 'IN');
       if (!hasIn) { absent++; continue; }
-      const isLate = dayEvents.some(e => e.type === 'IN' && e.ts.split('T')[1] > '08:30:00');
-      if (isLate) late++; else present++;
+      present++;  // Any day with an IN event counts as present
+      if (dayEvents.some(e => e.type === 'IN' && State.isEventLate(e))) late++;
     }
 
     return { present, late, absent };
@@ -203,8 +264,13 @@ Views.parentHistory = function() {
     const selectedStudent = students.find(s => s.id === filteredStudentId);
     const monthEvents = getMonthEvents();
     const stats = calculateMonthStats(monthEvents, currentYear, currentMonth);
-    const totalDays = stats.present + stats.late + stats.absent;
+    const totalDays = stats.present + stats.absent;
     const dateEvents = getDateEvents(selectedDate);
+    const dateWithdrawals = filteredStudentId
+      ? State.getWithdrawals({ studentId: filteredStudentId, status: 'COMPLETED' })
+          .filter(w => (w.completed_at || w.initiated_at || '').split('T')[0] === selectedDate)
+      : [];
+    const totalDateEvents = dateEvents.length + dateWithdrawals.length;
 
     const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                         'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -304,6 +370,10 @@ Views.parentHistory = function() {
               <div class="w-2.5 h-2.5 rounded-full" style="background: #ef4444;"></div>
               <span>Ausencia</span>
             </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-2.5 h-2.5 rounded-full" style="background: #7c3aed;"></div>
+              <span>Retiro</span>
+            </div>
           </div>
         </div>
 
@@ -313,12 +383,12 @@ Views.parentHistory = function() {
             <h3 class="text-base font-bold text-gray-900 dark:text-white">Detalle del día</h3>
             <div class="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
               <span class="material-symbols-outlined text-sm">event</span>
-              <span>${dateEvents.length}</span>
+              <span>${totalDateEvents}</span>
             </div>
           </div>
           <p class="text-xs text-gray-500 dark:text-gray-400 capitalize mb-4">${selectedDateFormatted}</p>
           <div class="flex-1">
-            ${eventsToTimeline(dateEvents)}
+            ${eventsToTimeline(dateEvents, selectedDate)}
           </div>
         </div>
       </div>

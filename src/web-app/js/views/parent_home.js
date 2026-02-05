@@ -32,7 +32,7 @@ Views.parentHome = function() {
         </div>
       `;
     } else if (inEvent) {
-      const isLate = inEvent.ts.split('T')[1] > '08:30:00';
+      const isLate = State.isEventLate(inEvent);
       if (isLate) {
         return `
           <div class="bg-yellow-50 dark:bg-yellow-900/10 p-4 flex items-center gap-3">

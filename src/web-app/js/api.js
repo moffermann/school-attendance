@@ -1777,6 +1777,217 @@ const API = Object.assign(createApiClient(window.PREVIEW_CONFIG_KEY || 'webAppPr
     return response.json();
   },
 
+  // ── Parent Pickups (Authorized Persons) ──────────────────────
+
+  /**
+   * List authorized pickups for a guardian
+   * @param {number} guardianId - Guardian ID
+   * @returns {Promise<Array>} List of authorized pickups
+   */
+  async getParentPickups(guardianId) {
+    const response = await this.request(`/parents/${guardianId}/pickups`);
+    if (!response.ok) throw new Error('No se pudo obtener personas autorizadas');
+    return response.json();
+  },
+
+  /**
+   * Create a new authorized pickup for a guardian
+   * @param {number} guardianId - Guardian ID
+   * @param {Object} data - Pickup data (full_name, relationship_type, student_ids, etc.)
+   * @returns {Promise<Object>} Created pickup
+   */
+  async createParentPickup(guardianId, data) {
+    const response = await this.request(`/parents/${guardianId}/pickups`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al crear persona autorizada');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update an authorized pickup
+   * @param {number} guardianId - Guardian ID
+   * @param {number} pickupId - Pickup ID
+   * @param {Object} data - Fields to update
+   * @returns {Promise<Object>} Updated pickup
+   */
+  async updateParentPickup(guardianId, pickupId, data) {
+    const response = await this.request(`/parents/${guardianId}/pickups/${pickupId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al actualizar persona autorizada');
+    }
+    return response.json();
+  },
+
+  /**
+   * Deactivate an authorized pickup (soft delete)
+   * @param {number} guardianId - Guardian ID
+   * @param {number} pickupId - Pickup ID
+   * @returns {Promise<Object>} Deactivated pickup
+   */
+  async deleteParentPickup(guardianId, pickupId) {
+    const response = await this.request(`/parents/${guardianId}/pickups/${pickupId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al desactivar persona autorizada');
+    }
+    return response.json();
+  },
+
+  /**
+   * Regenerate QR code for an authorized pickup
+   * @param {number} guardianId - Guardian ID
+   * @param {number} pickupId - Pickup ID
+   * @returns {Promise<Object>} Updated pickup with new QR
+   */
+  async regenerateParentPickupQR(guardianId, pickupId) {
+    const response = await this.request(`/parents/${guardianId}/pickups/${pickupId}/regenerate-qr`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al regenerar QR');
+    }
+    return response.json();
+  },
+
+  /**
+   * Upload photo for an authorized pickup
+   * @param {number} guardianId - Guardian ID
+   * @param {number} pickupId - Pickup ID
+   * @param {File} file - Image file
+   * @returns {Promise<Object>} Updated pickup
+   */
+  async uploadParentPickupPhoto(guardianId, pickupId, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await this.requestMultipart(
+      `/parents/${guardianId}/pickups/${pickupId}/photo`,
+      { method: 'POST', body: formData },
+    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al subir foto');
+    }
+    return response.json();
+  },
+
+  // ── Withdrawal Requests (Parent-initiated pickup scheduling) ──────
+
+  /**
+   * List withdrawal requests for a guardian
+   * @param {number} guardianId - Guardian ID
+   * @param {Object} filters - { student_id, status }
+   * @returns {Promise<Array>} List of withdrawal requests
+   */
+  async getParentWithdrawalRequests(guardianId, filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.student_id) params.append('student_id', filters.student_id);
+    if (filters.status) params.append('status', filters.status);
+    const qs = params.toString();
+    const response = await this.request(`/parents/${guardianId}/withdrawal-requests${qs ? '?' + qs : ''}`);
+    if (!response.ok) throw new Error('No se pudo obtener solicitudes de retiro');
+    return response.json();
+  },
+
+  /**
+   * Create a new withdrawal request
+   * @param {number} guardianId - Guardian ID
+   * @param {Object} data - { student_id, authorized_pickup_id, scheduled_date, scheduled_time?, reason? }
+   * @returns {Promise<Object>} Created request
+   */
+  async createWithdrawalRequest(guardianId, data) {
+    const response = await this.request(`/parents/${guardianId}/withdrawal-requests`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al crear solicitud de retiro');
+    }
+    return response.json();
+  },
+
+  /**
+   * Cancel a withdrawal request
+   * @param {number} guardianId - Guardian ID
+   * @param {number} requestId - Request ID
+   * @returns {Promise<Object>} Cancelled request
+   */
+  async cancelWithdrawalRequest(guardianId, requestId) {
+    const response = await this.request(`/parents/${guardianId}/withdrawal-requests/${requestId}/cancel`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al cancelar solicitud');
+    }
+    return response.json();
+  },
+
+  /**
+   * List all withdrawal requests (staff)
+   * @param {Object} filters - { status, date_from, date_to }
+   * @returns {Promise<Array>}
+   */
+  async getWithdrawalRequests(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.status) params.append('status', filters.status);
+    if (filters.date_from) params.append('date_from', filters.date_from);
+    if (filters.date_to) params.append('date_to', filters.date_to);
+    const qs = params.toString();
+    const response = await this.request(`/withdrawal-requests${qs ? '?' + qs : ''}`);
+    if (!response.ok) throw new Error('No se pudo obtener solicitudes');
+    return response.json();
+  },
+
+  /**
+   * Approve a withdrawal request (staff)
+   * @param {number} requestId - Request ID
+   * @param {string|null} notes - Review notes
+   * @returns {Promise<Object>}
+   */
+  async approveWithdrawalRequest(requestId, notes = null) {
+    const response = await this.request(`/withdrawal-requests/${requestId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al aprobar solicitud');
+    }
+    return response.json();
+  },
+
+  /**
+   * Reject a withdrawal request (staff)
+   * @param {number} requestId - Request ID
+   * @param {string|null} notes - Review notes
+   * @returns {Promise<Object>}
+   */
+  async rejectWithdrawalRequest(requestId, notes = null) {
+    const response = await this.request(`/withdrawal-requests/${requestId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al rechazar solicitud');
+    }
+    return response.json();
+  },
+
   /**
    * Export withdrawals to CSV
    * @param {Object} filters - Export filters

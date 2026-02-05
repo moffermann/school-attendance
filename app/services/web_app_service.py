@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -19,7 +19,11 @@ from app.db.models.notification import Notification
 from app.db.models.schedule import Schedule
 from app.db.models.schedule_exception import ScheduleException
 from app.db.models.student import Student
+from app.db.models.authorized_pickup import AuthorizedPickup
+from app.db.models.authorized_pickup import student_authorized_pickup_table
+from app.db.models.student_withdrawal import StudentWithdrawal
 from app.db.models.teacher import Teacher
+from app.db.models.withdrawal_request import WithdrawalRequest
 from app.schemas.auth import SessionUser
 from app.schemas.webapp import (
     AbsenceSummary,
@@ -33,7 +37,10 @@ from app.schemas.webapp import (
     ScheduleSummary,
     StudentSummary,
     TeacherSummary,
+    AuthorizedPickupSummary,
     WebAppBootstrap,
+    WithdrawalRequestSummary,
+    WithdrawalSummary,
 )
 
 STAFF_ROLES = {"ADMIN", "DIRECTOR", "INSPECTOR"}
@@ -80,6 +87,11 @@ class WebAppDataService:
         absences = await self._load_absences(student_ids, is_staff)
         notifications = await self._load_notifications(student_ids, guardians, is_staff)
         teachers = await self._load_teachers(is_staff)
+        withdrawals = await self._load_withdrawals(student_ids)
+        authorized_pickups = await self._load_authorized_pickups(student_ids)
+        withdrawal_requests = await self._load_withdrawal_requests(
+            guardian.id if guardian else None, student_ids, is_staff
+        )
 
         # Build course lookup for denormalized course_name in StudentSummary
         course_lookup = {course.id: course.name for course in courses}
@@ -103,6 +115,9 @@ class WebAppDataService:
             absences=[self._map_absence(absence) for absence in absences],
             notifications=[self._map_notification(notification) for notification in notifications],
             teachers=[self._map_teacher(teacher) for teacher in teachers],
+            withdrawals=[self._map_withdrawal(w) for w in withdrawals],
+            authorized_pickups=[self._map_authorized_pickup(p) for p in authorized_pickups],
+            withdrawal_requests=[self._map_withdrawal_request(r) for r in withdrawal_requests],
         )
 
     async def _resolve_student_ids(self, is_staff: bool, guardian: Guardian | None) -> list[int]:
@@ -353,6 +368,153 @@ class WebAppDataService:
             status=notification.status,
             template=notification.template,  # e.g., INGRESO_OK, SALIDA_OK
             payload=notification.payload,  # Full payload with student_name, time, etc.
+        )
+
+    async def _load_authorized_pickups(
+        self, student_ids: list[int]
+    ) -> list[AuthorizedPickup]:
+        """Load authorized pickups linked to the given students."""
+        if not student_ids:
+            return []
+        # Get pickup IDs linked to these students
+        assoc_stmt = (
+            select(student_authorized_pickup_table.c.authorized_pickup_id)
+            .where(student_authorized_pickup_table.c.student_id.in_(student_ids))
+            .distinct()
+        )
+        assoc_result = await self.session.execute(assoc_stmt)
+        pickup_ids = [row[0] for row in assoc_result.all()]
+        if not pickup_ids:
+            return []
+
+        stmt = (
+            select(AuthorizedPickup)
+            .where(AuthorizedPickup.id.in_(pickup_ids))
+            .options(selectinload(AuthorizedPickup.students))
+            .order_by(AuthorizedPickup.full_name)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    @staticmethod
+    def _build_photo_proxy_url(photo_key: str | None) -> str | None:
+        """Build a proxy URL for accessing photos through the API."""
+        if not photo_key:
+            return None
+        return f"/api/v1/photos/{photo_key}"
+
+    @staticmethod
+    def _map_authorized_pickup(p: AuthorizedPickup) -> AuthorizedPickupSummary:
+        photo_url = f"/api/v1/photos/{p.photo_url}" if p.photo_url else None
+        return AuthorizedPickupSummary(
+            id=p.id,
+            full_name=p.full_name,
+            relationship_type=p.relationship_type,
+            national_id=p.national_id,
+            phone=p.phone,
+            email=p.email,
+            photo_url=photo_url,
+            is_active=p.is_active,
+            student_ids=[s.id for s in p.students] if p.students else [],
+            has_photo=bool(p.photo_url),
+            has_qr=bool(p.qr_code_hash),
+        )
+
+    async def _load_withdrawals(self, student_ids: list[int]) -> list[StudentWithdrawal]:
+        """Load completed withdrawals for the last 90 days."""
+        if not student_ids:
+            return []
+        cutoff = datetime.now(UTC) - timedelta(days=90)
+        stmt = (
+            select(StudentWithdrawal)
+            .where(
+                StudentWithdrawal.student_id.in_(student_ids),
+                StudentWithdrawal.initiated_at >= cutoff,
+            )
+            .options(selectinload(StudentWithdrawal.authorized_pickup))
+            .order_by(StudentWithdrawal.initiated_at.desc())
+            .limit(200)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    def _map_withdrawal(self, w: StudentWithdrawal) -> WithdrawalSummary:
+        pickup = w.authorized_pickup
+        return WithdrawalSummary(
+            id=w.id,
+            student_id=w.student_id,
+            status=w.status,
+            authorized_pickup_id=w.authorized_pickup_id,
+            pickup_name=pickup.full_name if pickup else None,
+            pickup_relationship=pickup.relationship_type if pickup else None,
+            initiated_at=self._format_time(w.initiated_at),
+            completed_at=self._format_time(w.completed_at),
+            reason=w.reason,
+        )
+
+    async def _load_withdrawal_requests(
+        self,
+        guardian_id: int | None,
+        student_ids: list[int],
+        is_staff: bool,
+    ) -> list[WithdrawalRequest]:
+        """Load withdrawal requests for bootstrap.
+
+        Staff: all recent requests (last 30 days + any PENDING/APPROVED).
+        Parent: only their own requests.
+        """
+        from sqlalchemy import or_
+
+        if is_staff:
+            cutoff = datetime.now(UTC) - timedelta(days=30)
+            stmt = (
+                select(WithdrawalRequest)
+                .where(
+                    or_(
+                        WithdrawalRequest.scheduled_date >= cutoff.date(),
+                        WithdrawalRequest.status.in_(["PENDING", "APPROVED"]),
+                    )
+                )
+                .options(
+                    selectinload(WithdrawalRequest.student),
+                    selectinload(WithdrawalRequest.authorized_pickup),
+                )
+                .order_by(WithdrawalRequest.created_at.desc())
+                .limit(200)
+            )
+        elif guardian_id:
+            stmt = (
+                select(WithdrawalRequest)
+                .where(WithdrawalRequest.requested_by_guardian_id == guardian_id)
+                .options(
+                    selectinload(WithdrawalRequest.student),
+                    selectinload(WithdrawalRequest.authorized_pickup),
+                )
+                .order_by(WithdrawalRequest.created_at.desc())
+                .limit(100)
+            )
+        else:
+            return []
+
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    def _map_withdrawal_request(self, r: WithdrawalRequest) -> WithdrawalRequestSummary:
+        pickup = r.authorized_pickup
+        student = r.student
+        return WithdrawalRequestSummary(
+            id=r.id,
+            student_id=r.student_id,
+            authorized_pickup_id=r.authorized_pickup_id,
+            status=r.status,
+            scheduled_date=r.scheduled_date,
+            scheduled_time=str(r.scheduled_time) if r.scheduled_time else None,
+            reason=r.reason,
+            pickup_name=pickup.full_name if pickup else None,
+            pickup_relationship=pickup.relationship_type if pickup else None,
+            student_name=student.full_name if student else None,
+            review_notes=r.review_notes,
+            created_at=self._format_time(r.created_at) or "",
         )
 
     @staticmethod

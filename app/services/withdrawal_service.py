@@ -469,6 +469,24 @@ class WithdrawalService:
                 )
 
             await self.session.flush()
+
+            # Cross-reference: link to pre-approved withdrawal request if exists
+            try:
+                from app.services.withdrawal_request_service import (
+                    WithdrawalRequestService,
+                )
+
+                req_service = WithdrawalRequestService(self.session)
+                await req_service.complete_from_withdrawal(
+                    student_withdrawal_id=updated.id,
+                    student_id=updated.student_id,
+                    pickup_id=updated.authorized_pickup_id,
+                )
+            except Exception:
+                loguru_logger.warning(
+                    "Failed to link withdrawal to request", exc_info=True
+                )
+
         except IntegrityError as e:
             await self.session.rollback()
             loguru_logger.warning(

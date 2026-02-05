@@ -221,6 +221,7 @@ const Components = {
       const navItems = [
         { id: 'home', href: '#/parent/home', icon: 'home', label: 'Inicio' },
         { id: 'history', href: '#/parent/history', icon: 'history', label: 'Historial' },
+        { id: 'pickups', href: '#/parent/pickups', icon: 'badge', label: 'Autorizados' },
         { id: 'absences', href: '#/parent/absences', icon: 'event_busy', label: 'Ausencias' },
         { id: 'prefs', href: '#/parent/prefs', icon: 'settings', label: 'Ajustes' }
       ];

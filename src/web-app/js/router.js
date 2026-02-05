@@ -26,6 +26,7 @@ const Router = {
     this.addRoute('/parent/history', Views.parentHistory, ['parent']);
     this.addRoute('/parent/prefs', Views.parentPrefs, ['parent']);
     this.addRoute('/parent/absences', Views.parentAbsences, ['parent']);
+    this.addRoute('/parent/pickups', Views.parentPickups, ['parent']);
 
     // Super Admin routes (handled separately with SuperAdminAPI auth)
     this.addRoute('/super-admin/auth', Views.superAdminAuth, null, true);

@@ -98,7 +98,68 @@ Views.directorWithdrawals = async function () {
       { value: 'VERIFIED', label: 'Verificado' },
     ];
 
+    // Pending withdrawal requests section
+    const pendingRequests = State.getWithdrawalRequests({ status: 'PENDING' });
+    const approvedRequests = State.getWithdrawalRequests({ status: 'APPROVED' });
+    const actionableRequests = [...pendingRequests, ...approvedRequests];
+
     content.innerHTML = `
+      <!-- Pending Withdrawal Requests -->
+      ${actionableRequests.length > 0 ? `
+        <div class="bg-white dark:bg-card-dark rounded-custom shadow-sm border border-amber-200 dark:border-amber-800/40 overflow-hidden">
+          <div class="p-5 bg-amber-50 dark:bg-amber-900/10 border-b border-amber-200 dark:border-amber-800/40 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="material-icons-round text-amber-500">schedule_send</span>
+              <div>
+                <h4 class="text-base font-bold text-gray-900 dark:text-white">Solicitudes de Retiro</h4>
+                <p class="text-xs text-gray-500 dark:text-gray-400">${pendingRequests.length} pendiente${pendingRequests.length !== 1 ? 's' : ''}, ${approvedRequests.length} aprobada${approvedRequests.length !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+          </div>
+          <div class="divide-y divide-gray-100 dark:divide-gray-700">
+            ${actionableRequests.map(req => {
+              const student = State.getStudent(req.student_id);
+              const isPending = req.status === 'PENDING';
+              const formattedDate = new Date(req.scheduled_date + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short' });
+              return `
+                <div class="p-4 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                  <div class="w-10 h-10 rounded-lg ${isPending ? 'bg-yellow-50 dark:bg-yellow-900/20' : 'bg-green-50 dark:bg-green-900/20'} flex items-center justify-center flex-shrink-0">
+                    <span class="material-icons-round text-lg ${isPending ? 'text-yellow-500' : 'text-green-500'}">${isPending ? 'hourglass_top' : 'check_circle'}</span>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="text-sm font-semibold text-gray-900 dark:text-white">${student ? Components.escapeHtml(student.full_name) : 'Estudiante'}</span>
+                      <span class="inline-flex items-center text-xs px-2 py-0.5 rounded-full ${isPending ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'} font-medium">
+                        ${isPending ? 'Pendiente' : 'Aprobada'}
+                      </span>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      ${formattedDate}${req.scheduled_time ? ' a las ' + req.scheduled_time.substring(0, 5) : ''}
+                      &middot; Retira: ${req.pickup_name ? Components.escapeHtml(req.pickup_name) : '—'}
+                      ${req.reason ? ' &middot; ' + Components.escapeHtml(req.reason) : ''}
+                    </p>
+                  </div>
+                  ${isPending ? `
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                      <button onclick="Views.directorWithdrawals.approveRequest(${req.id})"
+                              class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                              title="Aprobar">
+                        <span class="material-icons-round text-sm">check</span> Aprobar
+                      </button>
+                      <button onclick="Views.directorWithdrawals.rejectRequest(${req.id})"
+                              class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                              title="Rechazar">
+                        <span class="material-icons-round text-sm">close</span> Rechazar
+                      </button>
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      ` : ''}
+
       <!-- Title + Export Button -->
       <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
@@ -634,6 +695,36 @@ Views.directorWithdrawals = async function () {
     } catch (error) {
       console.error('Error canceling withdrawal:', error);
       Components.showToast(error.message || 'Error al cancelar retiro', 'error');
+    }
+  };
+
+  Views.directorWithdrawals.approveRequest = async function (requestId) {
+    const notes = prompt('Notas de aprobación (opcional):');
+    if (notes === null) return; // user cancelled
+
+    try {
+      await API.approveWithdrawalRequest(requestId, notes || null);
+      State.updateWithdrawalRequest(requestId, { status: 'APPROVED' });
+      Components.showToast('Solicitud aprobada', 'success');
+      renderWithdrawals();
+    } catch (error) {
+      console.error('Error approving request:', error);
+      Components.showToast(error.message || 'Error al aprobar solicitud', 'error');
+    }
+  };
+
+  Views.directorWithdrawals.rejectRequest = async function (requestId) {
+    const notes = prompt('Motivo del rechazo:');
+    if (notes === null) return; // user cancelled
+
+    try {
+      await API.rejectWithdrawalRequest(requestId, notes || null);
+      State.updateWithdrawalRequest(requestId, { status: 'REJECTED' });
+      Components.showToast('Solicitud rechazada', 'success');
+      renderWithdrawals();
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      Components.showToast(error.message || 'Error al rechazar solicitud', 'error');
     }
   };
 

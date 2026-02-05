@@ -170,6 +170,47 @@ class ReportsSnapshot(BaseModel):
     trend: list[ReportTrendPoint] = Field(default_factory=list)
 
 
+class AuthorizedPickupSummary(BaseModel):
+    id: int
+    full_name: str
+    relationship_type: str
+    national_id: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    photo_url: str | None = None
+    is_active: bool
+    student_ids: list[int] = Field(default_factory=list)
+    has_photo: bool = False
+    has_qr: bool = False
+
+
+class WithdrawalSummary(BaseModel):
+    id: int
+    student_id: int
+    status: str
+    authorized_pickup_id: int | None = None
+    pickup_name: str | None = None
+    pickup_relationship: str | None = None
+    initiated_at: str | None = None
+    completed_at: str | None = None
+    reason: str | None = None
+
+
+class WithdrawalRequestSummary(BaseModel):
+    id: int
+    student_id: int
+    authorized_pickup_id: int
+    status: str
+    scheduled_date: date
+    scheduled_time: str | None = None
+    reason: str | None = None
+    pickup_name: str | None = None
+    pickup_relationship: str | None = None
+    student_name: str | None = None
+    review_notes: str | None = None
+    created_at: str
+
+
 class WebAppBootstrap(BaseModel):
     current_user: SessionUser
     students: list[StudentSummary] = Field(default_factory=list)
@@ -182,3 +223,6 @@ class WebAppBootstrap(BaseModel):
     absences: list[AbsenceSummary] = Field(default_factory=list)
     notifications: list[NotificationSummary] = Field(default_factory=list)
     teachers: list[TeacherSummary] = Field(default_factory=list)
+    withdrawals: list[WithdrawalSummary] = Field(default_factory=list)
+    authorized_pickups: list[AuthorizedPickupSummary] = Field(default_factory=list)
+    withdrawal_requests: list[WithdrawalRequestSummary] = Field(default_factory=list)

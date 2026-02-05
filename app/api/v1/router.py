@@ -15,6 +15,7 @@ from app.api.v1 import (
     health,
     kiosk,
     notifications,
+    parent_pickups,
     parents,
     photos,
     push_subscriptions,
@@ -25,6 +26,7 @@ from app.api.v1 import (
     tenant_setup,
     webapp,
     webauthn,
+    withdrawal_requests,
     withdrawals,
 )
 from app.api.v1.super_admin import super_admin_router
@@ -46,6 +48,11 @@ api_router.include_router(notifications.router, prefix="/notifications", tags=["
 api_router.include_router(schedules.router, prefix="/schedules", tags=["schedules"])
 api_router.include_router(broadcast.router, prefix="/broadcasts", tags=["broadcasts"])
 api_router.include_router(parents.router, prefix="/parents", tags=["parents"])
+api_router.include_router(
+    parent_pickups.router,
+    prefix="/parents/{guardian_id}/pickups",
+    tags=["parent-pickups"],
+)
 api_router.include_router(tags.router, prefix="/tags", tags=["tags"])
 api_router.include_router(devices.router, prefix="/devices", tags=["devices"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -69,3 +76,15 @@ api_router.include_router(
     tags=["authorized-pickups"],
 )
 api_router.include_router(withdrawals.router, prefix="/withdrawals", tags=["withdrawals"])
+
+# Withdrawal requests (parent-initiated pickup scheduling)
+api_router.include_router(
+    withdrawal_requests.parent_router,
+    prefix="/parents/{guardian_id}/withdrawal-requests",
+    tags=["withdrawal-requests"],
+)
+api_router.include_router(
+    withdrawal_requests.staff_router,
+    prefix="/withdrawal-requests",
+    tags=["withdrawal-requests"],
+)

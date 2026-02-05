@@ -25,6 +25,10 @@ from app.db.models.student_withdrawal import (
     WithdrawalStatus,
     WithdrawalVerificationMethod,
 )
+from app.db.models.withdrawal_request import (
+    WithdrawalRequest,
+    WithdrawalRequestStatus,
+)
 from app.db.models.super_admin import SuperAdmin
 from app.db.models.tag import Tag
 from app.db.models.teacher import Teacher
@@ -75,4 +79,6 @@ __all__ = [
     "PushSubscription",
     "UserInvitation",
     "SequenceCorrection",
+    "WithdrawalRequest",
+    "WithdrawalRequestStatus",
 ]

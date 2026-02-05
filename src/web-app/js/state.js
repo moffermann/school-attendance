@@ -28,7 +28,10 @@ const State = {
     devices: [],
     absences: [],
     notifications: [],
-    teachers: []
+    teachers: [],
+    withdrawals: [],
+    authorized_pickups: [],
+    withdrawal_requests: []
   },
   currentRole: null, // 'director', 'inspector', 'parent'
   currentGuardianId: null,
@@ -292,6 +295,15 @@ const State = {
     if (bootstrap.schedule_exceptions) {
       this.data.schedule_exceptions = bootstrap.schedule_exceptions;
     }
+    if (bootstrap.withdrawals) {
+      this.data.withdrawals = bootstrap.withdrawals;
+    }
+    if (bootstrap.authorized_pickups) {
+      this.data.authorized_pickups = bootstrap.authorized_pickups;
+    }
+    if (bootstrap.withdrawal_requests) {
+      this.data.withdrawal_requests = bootstrap.withdrawal_requests;
+    }
 
     this.persist();
   },
@@ -433,6 +445,104 @@ const State = {
   getTodayEvents() {
     const today = new Date().toISOString().split('T')[0];
     return this.getAttendanceEvents({ date: today });
+  },
+
+  /**
+   * Get withdrawals with optional filters.
+   * @param {Object} filters - { studentId, date, status }
+   * @returns {Array}
+   */
+  getWithdrawals(filters = {}) {
+    let items = this.data.withdrawals || [];
+    if (filters.studentId) {
+      items = items.filter(w => w.student_id === filters.studentId);
+    }
+    if (filters.date) {
+      items = items.filter(w => {
+        const d = (w.completed_at || w.initiated_at || '').split('T')[0];
+        return d === filters.date;
+      });
+    }
+    if (filters.status) {
+      items = items.filter(w => w.status === filters.status);
+    }
+    return items;
+  },
+
+  /**
+   * Get authorized pickups with optional filters.
+   * @param {Object} filters - { guardianId, studentId, activeOnly }
+   * @returns {Array}
+   */
+  getAuthorizedPickups(filters = {}) {
+    let items = this.data.authorized_pickups || [];
+    if (filters.guardianId) {
+      // Filter by pickups whose student_ids intersect with this guardian's students
+      const guardianStudentIds = this.getGuardianStudents(filters.guardianId).map(s => s.id);
+      items = items.filter(p => p.student_ids && p.student_ids.some(sid => guardianStudentIds.includes(sid)));
+    }
+    if (filters.studentId) {
+      items = items.filter(p => p.student_ids && p.student_ids.includes(filters.studentId));
+    }
+    if (filters.activeOnly) {
+      items = items.filter(p => p.is_active);
+    }
+    return items;
+  },
+
+  addAuthorizedPickup(pickup) {
+    this.data.authorized_pickups.push(pickup);
+    this.persist();
+  },
+
+  updateAuthorizedPickup(id, data) {
+    const idx = this.data.authorized_pickups.findIndex(p => p.id === id);
+    if (idx !== -1) {
+      this.data.authorized_pickups[idx] = { ...this.data.authorized_pickups[idx], ...data };
+      this.persist();
+    }
+  },
+
+  removeAuthorizedPickup(id) {
+    const idx = this.data.authorized_pickups.findIndex(p => p.id === id);
+    if (idx !== -1) {
+      this.data.authorized_pickups[idx].is_active = false;
+      this.persist();
+    }
+  },
+
+  /**
+   * Get withdrawal requests with optional filters.
+   * @param {Object} filters - { studentId, status }
+   * @returns {Array}
+   */
+  getWithdrawalRequests(filters = {}) {
+    let items = this.data.withdrawal_requests || [];
+    if (filters.studentId) {
+      items = items.filter(r => r.student_id === filters.studentId);
+    }
+    if (filters.status) {
+      items = items.filter(r => r.status === filters.status);
+    }
+    return items;
+  },
+
+  addWithdrawalRequest(req) {
+    this.data.withdrawal_requests.unshift(req);
+    this.persist();
+  },
+
+  updateWithdrawalRequest(id, data) {
+    const idx = this.data.withdrawal_requests.findIndex(r => r.id === id);
+    if (idx !== -1) {
+      this.data.withdrawal_requests[idx] = { ...this.data.withdrawal_requests[idx], ...data };
+      this.persist();
+    }
+  },
+
+  removeWithdrawalRequest(id) {
+    this.data.withdrawal_requests = this.data.withdrawal_requests.filter(r => r.id !== id);
+    this.persist();
   },
 
   getDevices() {
@@ -631,6 +741,15 @@ const State = {
     const scheduleTime = schedule.in_time.substring(0, 5); // "HH:MM"
 
     return eventTime > scheduleTime;
+  },
+
+  /**
+   * Public wrapper for _isEventLate.
+   * @param {Object} event - Attendance event with student_id and ts
+   * @returns {boolean}
+   */
+  isEventLate(event) {
+    return this._isEventLate(event);
   },
 
   getTodayStats() {
