@@ -297,8 +297,10 @@ Views.parentPickups = function() {
               const canCancel = req.status === 'PENDING' || req.status === 'APPROVED';
               const formattedDate = new Date(req.scheduled_date + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short' });
 
+              const isCompleted = req.status === 'COMPLETED';
               return `
-                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden ${isCompleted ? 'cursor-pointer hover:border-blue-300 dark:hover:border-blue-600 transition-colors' : ''}"
+                     ${isCompleted ? `onclick="Views.parentPickups.showWithdrawalDetailsForRequest(${req.id})"` : ''}>
                   <div class="p-4 flex items-start gap-4">
                     <div class="w-10 h-10 rounded-lg ${sc.containerBg} flex items-center justify-center flex-shrink-0">
                       <span class="material-symbols-outlined ${sc.iconColor}">${sc.icon}</span>
@@ -309,6 +311,9 @@ Views.parentPickups = function() {
                         <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${sc.badgeBg} ${sc.badgeText} font-medium">
                           <span class="material-symbols-outlined text-xs">${sc.icon}</span> ${sc.label}
                         </span>
+                        ${isCompleted ? `<span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-medium">
+                          <span class="material-symbols-outlined text-xs">visibility</span> Ver detalle
+                        </span>` : ''}
                       </div>
                       <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mb-0.5">
                         <span class="material-symbols-outlined text-xs">calendar_today</span> ${formattedDate}
@@ -1217,5 +1222,214 @@ Views.parentPickups.doCancelRequest = async function(requestId) {
   } catch (error) {
     console.error('Error cancelling request:', error);
     Components.showToast('Error: ' + (error.message || 'Intente nuevamente'), 'error');
+  }
+};
+
+// ── Withdrawal Details Modal ──────────────────────────────────
+
+Views.parentPickups.showWithdrawalDetailsForRequest = function(requestId) {
+  console.log('[ParentPickups] showWithdrawalDetailsForRequest called with requestId:', requestId);
+  const requests = State.getWithdrawalRequests();
+  const request = requests.find(r => r.id === requestId);
+
+  if (!request) {
+    console.warn('[ParentPickups] Request not found:', requestId);
+    Components.showToast('Solicitud no encontrada', 'error');
+    return;
+  }
+
+  console.log('[ParentPickups] Found request:', request);
+
+  // Try to find the linked withdrawal
+  let withdrawal = null;
+
+  if (request.student_withdrawal_id) {
+    // Direct link via student_withdrawal_id
+    const withdrawals = State.getWithdrawals ? State.getWithdrawals() : (State.data.withdrawals || []);
+    withdrawal = withdrawals.find(w => w.id === request.student_withdrawal_id);
+    console.log('[ParentPickups] Found withdrawal by direct ID:', withdrawal);
+  }
+
+  if (!withdrawal) {
+    // Fallback: find by student_id on the same date
+    const withdrawals = State.getWithdrawals ? State.getWithdrawals() : (State.data.withdrawals || []);
+    const reqDate = request.scheduled_date;
+    withdrawal = withdrawals.find(w =>
+      w.student_id === request.student_id &&
+      w.status === 'COMPLETED' &&
+      w.completed_at && w.completed_at.startsWith(reqDate)
+    );
+    console.log('[ParentPickups] Found withdrawal by fallback:', withdrawal);
+  }
+
+  if (!withdrawal) {
+    console.warn('[ParentPickups] No withdrawal found for request');
+    Components.showToast('Detalles del retiro no disponibles', 'warning');
+    return;
+  }
+
+  Views.parentPickups.showWithdrawalDetails(withdrawal);
+};
+
+Views.parentPickups.showWithdrawalDetails = function(withdrawal) {
+  console.log('[ParentPickups] showWithdrawalDetails called with:', withdrawal);
+  const student = State.getStudent(withdrawal.student_id);
+
+  const completedDate = withdrawal.completed_at
+    ? new Date(withdrawal.completed_at).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    : 'N/A';
+  const completedTime = withdrawal.completed_at
+    ? new Date(withdrawal.completed_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
+    : 'N/A';
+
+  const verificationLabels = {
+    'QR_SCAN': { icon: 'qr_code_scanner', label: 'Código QR' },
+    'BIOMETRIC': { icon: 'fingerprint', label: 'Biométrico' },
+    'ADMIN_OVERRIDE': { icon: 'admin_panel_settings', label: 'Verificación manual' },
+    'PHOTO_MATCH': { icon: 'face', label: 'Reconocimiento facial' },
+  };
+  const verif = verificationLabels[withdrawal.verification_method] || { icon: 'verified', label: withdrawal.verification_method || 'N/A' };
+
+  const html = `
+    <div class="p-5">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <span class="material-symbols-outlined text-blue-500">info</span>
+          Detalle del Retiro
+        </h3>
+        <button onclick="Views.parentPickups.closeModal()" class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <!-- Student & Date -->
+      <div class="bg-gray-50 dark:bg-slate-700 rounded-xl p-4 mb-4">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+            <span class="material-symbols-outlined text-indigo-600 dark:text-indigo-400">school</span>
+          </div>
+          <div>
+            <p class="font-semibold text-gray-900 dark:text-white">${student ? Components.escapeHtml(student.full_name) : 'Estudiante'}</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">${withdrawal.course_name || ''}</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Fecha</p>
+            <p class="font-medium text-gray-900 dark:text-white">${completedDate}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Hora</p>
+            <p class="font-medium text-gray-900 dark:text-white">${completedTime}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pickup Person -->
+      <div class="mb-4">
+        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Retirado por</p>
+        <div class="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
+          <div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center">
+            <span class="material-symbols-outlined text-green-600 dark:text-green-400">person</span>
+          </div>
+          <div>
+            <p class="font-semibold text-gray-900 dark:text-white">${withdrawal.pickup_name || 'N/A'}</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">${withdrawal.pickup_relationship || ''}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Verification Method -->
+      <div class="mb-4">
+        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Método de verificación</p>
+        <div class="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+          <span class="material-symbols-outlined text-blue-600 dark:text-blue-400">${verif.icon}</span>
+          <span class="font-medium text-gray-900 dark:text-white">${verif.label}</span>
+        </div>
+      </div>
+
+      ${withdrawal.reason ? `
+        <!-- Reason -->
+        <div class="mb-4">
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Motivo</p>
+          <p class="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-slate-700 rounded-xl p-3">${Components.escapeHtml(withdrawal.reason)}</p>
+        </div>
+      ` : ''}
+
+      ${withdrawal.pickup_photo_ref ? `
+        <!-- Photo Evidence -->
+        <div class="mb-4">
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Foto del retiro</p>
+          <div id="withdrawal-photo-container" class="bg-gray-100 dark:bg-slate-700 rounded-xl overflow-hidden flex items-center justify-center" style="min-height: 200px;">
+            <span class="material-symbols-outlined text-3xl text-gray-400 animate-pulse">hourglass_top</span>
+          </div>
+        </div>
+      ` : ''}
+
+      ${withdrawal.signature_data ? `
+        <!-- Signature -->
+        <div class="mb-4">
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Firma digital</p>
+          <div class="bg-white dark:bg-slate-700 rounded-xl border border-gray-200 dark:border-slate-600 p-2">
+            <img src="${withdrawal.signature_data}" alt="Firma" class="max-w-full h-auto mx-auto" style="max-height: 120px;">
+          </div>
+        </div>
+      ` : ''}
+
+      ${withdrawal.device_id ? `
+        <!-- Device -->
+        <div class="mb-4">
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Dispositivo</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm">devices</span> ${Components.escapeHtml(withdrawal.device_id)}
+          </p>
+        </div>
+      ` : ''}
+
+      <button onclick="Views.parentPickups.closeModal()"
+              class="w-full mt-4 px-4 py-2.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium transition-colors">
+        Cerrar
+      </button>
+    </div>
+  `;
+
+  Views.parentPickups.openModal(html);
+
+  // Load photo with authentication if present
+  if (withdrawal.pickup_photo_ref) {
+    Views.parentPickups.loadWithdrawalPhoto(withdrawal.id);
+  }
+};
+
+Views.parentPickups.loadWithdrawalPhoto = async function(withdrawalId) {
+  const container = document.getElementById('withdrawal-photo-container');
+  if (!container) return;
+
+  try {
+    // Use the withdrawal photo endpoint
+    const photoUrl = `/api/v1/withdrawals/${withdrawalId}/photo`;
+
+    const response = await fetch(photoUrl, {
+      headers: {
+        'Authorization': `Bearer ${API.accessToken}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to load photo');
+    }
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    container.innerHTML = `<img src="${blobUrl}" alt="Foto del retiro" class="w-full h-auto max-h-64 object-contain">`;
+  } catch (err) {
+    console.warn('Failed to load withdrawal photo:', err);
+    container.innerHTML = `
+      <div class="text-center py-8">
+        <span class="material-symbols-outlined text-3xl text-gray-400 mb-2 block">broken_image</span>
+        <p class="text-sm text-gray-500 dark:text-gray-400">No se pudo cargar la foto</p>
+      </div>
+    `;
   }
 };

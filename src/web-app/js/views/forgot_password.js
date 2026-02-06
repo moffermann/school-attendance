@@ -14,12 +14,8 @@ Views.forgotPassword = function() {
           <!-- Logo -->
           <div class="text-center mb-8">
             <div class="flex flex-col items-center mb-6">
-              <div class="w-20 h-20 mb-3">
-                <img src="assets/LOGO Neuvox 1000X1000.png" alt="NEUVOX.AI" class="w-full h-full object-contain">
-              </div>
-              <div class="flex items-center text-2xl font-black tracking-tighter uppercase">
-                <span class="text-[#000080] dark:text-sky-500">NEUVOX</span>
-                <span class="text-sky-500 dark:text-purple-500">.AI</span>
+              <div class="w-40 h-40 mb-3">
+                <img src="assets/logo.png" alt="NEUVOX" class="w-full h-full object-contain">
               </div>
             </div>
             <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">

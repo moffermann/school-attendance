@@ -31,7 +31,7 @@ const STATIC_ASSETS = [
   './js/views/parent_absences.js',
   './js/views/parent_pickups.js',
   // Assets
-  './assets/logo.svg',
+  './assets/logo.png',
   './assets/badge.svg',
   // Shared library
   '/lib/api-base.js'

@@ -438,7 +438,10 @@ class WebAppDataService:
                 StudentWithdrawal.student_id.in_(student_ids),
                 StudentWithdrawal.initiated_at >= cutoff,
             )
-            .options(selectinload(StudentWithdrawal.authorized_pickup))
+            .options(
+                selectinload(StudentWithdrawal.authorized_pickup),
+                selectinload(StudentWithdrawal.student).selectinload(Student.course),
+            )
             .order_by(StudentWithdrawal.initiated_at.desc())
             .limit(200)
         )
@@ -447,6 +450,8 @@ class WebAppDataService:
 
     def _map_withdrawal(self, w: StudentWithdrawal) -> WithdrawalSummary:
         pickup = w.authorized_pickup
+        student = w.student
+        course = student.course if student else None
         return WithdrawalSummary(
             id=w.id,
             student_id=w.student_id,
@@ -457,6 +462,13 @@ class WebAppDataService:
             initiated_at=self._format_time(w.initiated_at),
             completed_at=self._format_time(w.completed_at),
             reason=w.reason,
+            # Additional fields for detail view
+            student_name=student.full_name if student else None,
+            course_name=course.name if course else None,
+            verification_method=w.verification_method,
+            device_id=w.device_id,
+            pickup_photo_ref=w.pickup_photo_ref,
+            signature_data=w.signature_data,
         )
 
     async def _load_withdrawal_requests(
@@ -522,6 +534,8 @@ class WebAppDataService:
             student_name=student.full_name if student else None,
             review_notes=r.review_notes,
             created_at=self._format_time(r.created_at) or "",
+            # Link to actual withdrawal when COMPLETED
+            student_withdrawal_id=r.student_withdrawal_id,
         )
 
     @staticmethod

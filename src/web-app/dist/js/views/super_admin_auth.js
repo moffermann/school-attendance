@@ -10,7 +10,7 @@ Views.superAdminAuth = async function() {
     <div class="auth-container">
       <div class="auth-card">
         <div class="auth-logo">
-          <img src="assets/logo.svg" alt="Logo">
+          <img src="assets/logo.png" alt="Logo">
         </div>
         <h1 class="auth-title">Super Admin</h1>
         <p style="color: var(--color-gray-500); margin-bottom: 2rem; font-size: 0.95rem;">Panel de Administración de Plataforma</p>

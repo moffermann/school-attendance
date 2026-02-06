@@ -688,13 +688,11 @@ class WithdrawalService:
         user: TenantAuthUser,
         withdrawal_id: int,
     ) -> StudentWithdrawal:
-        """Get a withdrawal by ID."""
-        if user.role not in self.READ_ROLES:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tienes permisos para ver retiros",
-            )
+        """Get a withdrawal by ID.
 
+        Staff (READ_ROLES) can access any withdrawal.
+        Parents can only access withdrawals for their own children.
+        """
         withdrawal = await self.withdrawal_repo.get(withdrawal_id)
         if not withdrawal:
             raise HTTPException(
@@ -702,7 +700,22 @@ class WithdrawalService:
                 detail="Retiro no encontrado",
             )
 
-        return withdrawal
+        # Staff can access any withdrawal
+        if user.role in self.READ_ROLES:
+            return withdrawal
+
+        # Parents can access withdrawals for their children
+        if user.role == "PARENT" and user.guardian_id:
+            guardian = await self.guardian_repo.get(user.guardian_id)
+            if guardian:
+                student_ids = [s.id for s in guardian.students]
+                if withdrawal.student_id in student_ids:
+                    return withdrawal
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para ver este retiro",
+        )
 
     async def list_withdrawals(
         self,

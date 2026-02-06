@@ -6,7 +6,7 @@
  * - Offline fallback to index.html
  */
 
-const CACHE_NAME = 'parent-pwa-v14';
+const CACHE_NAME = 'parent-pwa-v23';
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
@@ -31,7 +31,7 @@ const STATIC_ASSETS = [
   './js/views/parent_absences.js',
   './js/views/parent_pickups.js',
   // Assets
-  './assets/logo.svg',
+  './assets/logo.png',
   './assets/badge.svg',
   // Shared library
   '/lib/api-base.js'
@@ -133,7 +133,7 @@ self.addEventListener('push', event => {
 
   const options = {
     body: data.body || '',
-    icon: '/app/assets/logo.svg',
+    icon: '/app/assets/logo.png',
     badge: '/app/assets/badge.svg',
     tag: data.tag || 'default',
     data: {

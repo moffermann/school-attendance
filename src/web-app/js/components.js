@@ -333,7 +333,7 @@ const Components = {
           <!-- Desktop Sidebar -->
           <aside class="parent-sidebar">
             <div class="h-20 flex items-center justify-center px-4 border-b border-gray-100 dark:border-slate-800">
-              <img src="assets/LOGO Neuvox 1000X1000.png" class="h-14" alt="NEUVOX">
+              <img src="assets/logo.png" class="h-10" alt="NEUVOX">
             </div>
             <nav class="flex-1 overflow-y-auto py-6 space-y-1 px-3">
               ${navItems.map(item => `
@@ -395,7 +395,7 @@ const Components = {
               ${this.icons.close}
             </button>
             <div class="sidebar-logo">
-              <img src="assets/logo.svg" alt="Logo">
+              <img src="assets/logo.png" alt="Logo">
               <h1>Control Escolar</h1>
             </div>
             <nav>
@@ -784,7 +784,7 @@ const Components = {
             ${this.icons.close}
           </button>
           <div class="sidebar-logo">
-            <img src="assets/logo.svg" alt="Logo">
+            <img src="assets/logo.png" alt="Logo">
             <h1>Super Admin</h1>
           </div>
           <nav>

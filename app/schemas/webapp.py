@@ -194,6 +194,13 @@ class WithdrawalSummary(BaseModel):
     initiated_at: str | None = None
     completed_at: str | None = None
     reason: str | None = None
+    # Additional fields for detail view
+    student_name: str | None = None
+    course_name: str | None = None
+    verification_method: str | None = None
+    device_id: str | None = None
+    pickup_photo_ref: str | None = None
+    signature_data: str | None = None
 
 
 class WithdrawalRequestSummary(BaseModel):
@@ -209,6 +216,8 @@ class WithdrawalRequestSummary(BaseModel):
     student_name: str | None = None
     review_notes: str | None = None
     created_at: str
+    # Link to actual withdrawal when COMPLETED
+    student_withdrawal_id: int | None = None
 
 
 class PendingCounts(BaseModel):

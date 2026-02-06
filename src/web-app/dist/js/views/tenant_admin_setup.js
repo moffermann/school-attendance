@@ -62,7 +62,7 @@ Views.tenantAdminSetup = async function() {
     <div class="setup-page">
       <div class="setup-container">
         <div class="setup-header">
-          <img src="assets/logo.svg" alt="Logo" class="setup-logo">
+          <img src="assets/logo.png" alt="Logo" class="setup-logo">
           <h1>Configurar Cuenta</h1>
           <p>Bienvenido a <strong>${Components.escapeHtml(tokenData.tenant_name)}</strong></p>
           <p class="setup-email">${Components.escapeHtml(tokenData.email)}</p>
