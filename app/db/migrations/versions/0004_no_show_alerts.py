@@ -7,9 +7,8 @@ Create Date: 2024-05-13 02:00:00.000000
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision = "0004_no_show_alerts"
 down_revision = "0003_student_guardians"
@@ -21,8 +20,18 @@ def upgrade() -> None:
     op.create_table(
         "no_show_alerts",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("student_id", sa.Integer(), sa.ForeignKey("students.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("guardian_id", sa.Integer(), sa.ForeignKey("guardians.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "student_id",
+            sa.Integer(),
+            sa.ForeignKey("students.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "guardian_id",
+            sa.Integer(),
+            sa.ForeignKey("guardians.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("course_id", sa.Integer(), sa.ForeignKey("courses.id"), nullable=False),
         sa.Column("schedule_id", sa.Integer(), sa.ForeignKey("schedules.id"), nullable=True),
         sa.Column("alert_date", sa.Date(), nullable=False),
@@ -32,7 +41,9 @@ def upgrade() -> None:
         sa.Column("notes", sa.String(length=512), nullable=True),
         sa.Column("notification_attempts", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("last_notification_at", sa.DateTime(timezone=True), nullable=True),
-        sa.UniqueConstraint("student_id", "guardian_id", "alert_date", name="uq_no_show_student_guardian_date"),
+        sa.UniqueConstraint(
+            "student_id", "guardian_id", "alert_date", name="uq_no_show_student_guardian_date"
+        ),
     )
     op.create_index("ix_no_show_alerts_student", "no_show_alerts", ["student_id"])
     op.create_index("ix_no_show_alerts_guardian", "no_show_alerts", ["guardian_id"])

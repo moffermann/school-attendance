@@ -8,9 +8,9 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, Request
+from sqlalchemy import select
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
-from sqlalchemy import select
 
 from app.core.config import settings
 
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Context variable to hold the current tenant for the request
-current_tenant: ContextVar["Tenant | None"] = ContextVar("current_tenant", default=None)
+current_tenant: ContextVar[Tenant | None] = ContextVar("current_tenant", default=None)
 current_tenant_schema: ContextVar[str | None] = ContextVar("current_tenant_schema", default=None)
 
 
@@ -35,6 +35,7 @@ PUBLIC_ENDPOINTS = [
     "/api/v1/attendance/",  # Kiosk attendance events (device-authenticated)
     "/api/v1/kiosk/",  # Kiosk bootstrap and sync
     "/api/v1/webauthn/kiosk/",  # Kiosk biometric auth
+    "/api/v1/withdrawals/",  # Kiosk authorized withdrawals (device-authenticated)
 ]
 
 # Web routes that don't require tenant context (session cookie auth)
@@ -60,6 +61,8 @@ STATIC_PREFIXES = [
     "/login-assets",
     "/kiosk/",
     "/kiosk",
+    "/kiosk-preview/",
+    "/kiosk-preview",
     "/teacher/",
     "/teacher",
     "/app/",
@@ -183,7 +186,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             if not is_public:
                 logger.error(f"Error resolving tenant: {e}")
-                raise HTTPException(status_code=500, detail="Error resolving tenant")
+                raise HTTPException(status_code=500, detail="Error resolving tenant") from e
             # For public endpoints, log but continue without tenant
 
         if tenant is None:
@@ -217,25 +220,42 @@ class TenantMiddleware(BaseHTTPMiddleware):
 
         return response
 
-    async def _resolve_tenant(self, request: Request) -> "Tenant | None":
+    async def _resolve_tenant(self, request: Request) -> Tenant | None:
         """Resolve tenant from request."""
-        # 1. Check X-Tenant-ID header (super admin impersonation)
+        # 1. Check X-Tenant-ID header (super admin or device key)
         # TDD-BUG1.3 fix: Only accept X-Tenant-ID if token is super_admin
+        # Production fix: Also accept X-Tenant-ID if request has valid device key
         tenant_id_header = request.headers.get("X-Tenant-ID")
+        device_key_header = request.headers.get("X-Device-Key")
+        logger.info(
+            f"[TenantMiddleware] Resolving tenant: X-Tenant-ID={tenant_id_header}, "
+            f"X-Device-Key={'present' if device_key_header else 'absent'}, path={request.url.path}"
+        )
+
         if tenant_id_header:
-            # Validate that the request has a super_admin token before accepting X-Tenant-ID
-            if self._has_super_admin_token(request):
+            # Validate that the request has super_admin token OR valid device key
+            has_super_admin = self._has_super_admin_token(request)
+            has_device_key = await self._has_valid_device_key(request)
+            logger.info(
+                f"[TenantMiddleware] Auth check: super_admin={has_super_admin}, device_key={has_device_key}"
+            )
+            has_auth = has_super_admin or has_device_key
+            if has_auth:
                 try:
                     tenant_id = int(tenant_id_header)
                     tenant = await self._get_tenant_by_id(tenant_id)
                     if tenant:
-                        logger.debug(f"Tenant resolved from X-Tenant-ID header: {tenant.slug}")
+                        logger.info(f"[TenantMiddleware] Tenant resolved from X-Tenant-ID: {tenant.slug}, schema=tenant_{tenant.slug}")
                         return tenant
+                    else:
+                        logger.warning(f"[TenantMiddleware] Tenant ID {tenant_id} not found in DB")
                 except ValueError:
-                    pass  # Invalid header, continue to other methods
+                    logger.warning(f"[TenantMiddleware] Invalid X-Tenant-ID header: {tenant_id_header}")
             else:
-                # X-Tenant-ID header provided but token is not super_admin
-                logger.warning("X-Tenant-ID header rejected: requires super_admin token")
+                # X-Tenant-ID header provided but no valid auth
+                logger.warning(
+                    "X-Tenant-ID header rejected: requires super_admin token or device key"
+                )
                 # Continue to other resolution methods instead of accepting header
 
         # Get host header
@@ -259,47 +279,47 @@ class TenantMiddleware(BaseHTTPMiddleware):
 
         return None
 
-    async def _get_tenant_by_id(self, tenant_id: int) -> "Tenant | None":
+    async def _get_tenant_by_id(self, tenant_id: int) -> Tenant | None:
         """Fetch tenant by ID from database."""
         from app.db.models.tenant import Tenant
         from app.db.session import async_session
 
         async with async_session() as session:
             result = await session.execute(
-                select(Tenant).where(Tenant.id == tenant_id, Tenant.is_active == True)
+                select(Tenant).where(Tenant.id == tenant_id, Tenant.is_active)
             )
             return result.scalar_one_or_none()
 
-    async def _get_tenant_by_domain(self, domain: str) -> "Tenant | None":
+    async def _get_tenant_by_domain(self, domain: str) -> Tenant | None:
         """Fetch tenant by custom domain."""
         from app.db.models.tenant import Tenant
         from app.db.session import async_session
 
         async with async_session() as session:
             result = await session.execute(
-                select(Tenant).where(Tenant.domain == domain, Tenant.is_active == True)
+                select(Tenant).where(Tenant.domain == domain, Tenant.is_active)
             )
             return result.scalar_one_or_none()
 
-    async def _get_tenant_by_subdomain(self, subdomain: str) -> "Tenant | None":
+    async def _get_tenant_by_subdomain(self, subdomain: str) -> Tenant | None:
         """Fetch tenant by subdomain."""
         from app.db.models.tenant import Tenant
         from app.db.session import async_session
 
         async with async_session() as session:
             result = await session.execute(
-                select(Tenant).where(Tenant.subdomain == subdomain, Tenant.is_active == True)
+                select(Tenant).where(Tenant.subdomain == subdomain, Tenant.is_active)
             )
             return result.scalar_one_or_none()
 
-    async def _get_tenant_by_slug(self, slug: str) -> "Tenant | None":
+    async def _get_tenant_by_slug(self, slug: str) -> Tenant | None:
         """Fetch tenant by slug (for default tenant in development)."""
         from app.db.models.tenant import Tenant
         from app.db.session import async_session
 
         async with async_session() as session:
             result = await session.execute(
-                select(Tenant).where(Tenant.slug == slug, Tenant.is_active == True)
+                select(Tenant).where(Tenant.slug == slug, Tenant.is_active)
             )
             return result.scalar_one_or_none()
 
@@ -323,8 +343,46 @@ class TenantMiddleware(BaseHTTPMiddleware):
         except Exception:
             return False
 
+    async def _has_valid_device_key(self, request: Request) -> bool:
+        """
+        Check if the request has a valid device API key.
 
-def get_current_tenant(request: Request) -> "Tenant | None":
+        This allows kiosk devices to specify X-Tenant-ID header when authenticated
+        with X-Device-Key. Essential for multi-tenant kiosk deployments.
+
+        Validates against tenant-specific key if X-Tenant-ID is provided,
+        with fallback to global key for backwards compatibility.
+        """
+        import secrets as secrets_module
+
+        from app.db.repositories.tenant_configs import TenantConfigRepository
+        from app.db.session import async_session
+
+        device_key = request.headers.get("X-Device-Key", "")
+        if not device_key:
+            return False
+
+        # Try tenant-specific key if X-Tenant-ID header is present
+        tenant_id_header = request.headers.get("X-Tenant-ID")
+        if tenant_id_header:
+            try:
+                tenant_id = int(tenant_id_header)
+                async with async_session() as session:
+                    config_repo = TenantConfigRepository(session)
+                    decrypted_config = await config_repo.get_decrypted(tenant_id)
+                    if decrypted_config and decrypted_config.device_api_key:
+                        if secrets_module.compare_digest(
+                            device_key, decrypted_config.device_api_key
+                        ):
+                            return True
+            except (ValueError, Exception):
+                pass  # Continue to fallback
+
+        # Fallback to global key (for backwards compatibility during migration)
+        return secrets_module.compare_digest(device_key, settings.device_api_key)
+
+
+def get_current_tenant(request: Request) -> Tenant | None:
     """Get the current tenant from request state."""
     return getattr(request.state, "tenant", None)
 
@@ -334,7 +392,7 @@ def get_current_tenant_schema(request: Request) -> str | None:
     return getattr(request.state, "tenant_schema", None)
 
 
-def require_tenant(request: Request) -> "Tenant":
+def require_tenant(request: Request) -> Tenant:
     """
     Dependency that requires a tenant to be present.
 

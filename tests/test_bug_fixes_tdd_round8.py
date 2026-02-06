@@ -1,7 +1,5 @@
 """TDD Bug Fix Tests Round 8 - DOM safety and race conditions."""
 
-import pytest
-
 
 class TestBugR8_1_ModalContainerSafety:
     """BUG-R8-1: director_devices.js should use optional chaining for modal-container."""
@@ -10,7 +8,7 @@ class TestBugR8_1_ModalContainerSafety:
         """Verify director_devices.js uses ?. when clicking modal-container."""
         devices_path = "src/web-app/js/views/director_devices.js"
 
-        with open(devices_path, "r", encoding="utf-8") as f:
+        with open(devices_path, encoding="utf-8") as f:
             source = f.read()
 
         # Should use optional chaining: querySelector('.modal-container')?.click()
@@ -19,8 +17,9 @@ class TestBugR8_1_ModalContainerSafety:
         safe_pattern = "querySelector('.modal-container')?.click()"
 
         if unsafe_pattern in source:
-            assert safe_pattern in source or unsafe_pattern not in source, \
+            assert safe_pattern in source or unsafe_pattern not in source, (
                 "director_devices.js should use optional chaining (?.) for modal-container.click()"
+            )
 
 
 class TestBugR8_2_BiometricStaleReference:
@@ -30,7 +29,7 @@ class TestBugR8_2_BiometricStaleReference:
         """Verify director_biometric.js re-queries DOM elements in setTimeout callback."""
         biometric_path = "src/web-app/js/views/director_biometric.js"
 
-        with open(biometric_path, "r", encoding="utf-8") as f:
+        with open(biometric_path, encoding="utf-8") as f:
             source = f.read()
 
         # The error handling setTimeout should re-query elements instead of using stale references
@@ -39,15 +38,17 @@ class TestBugR8_2_BiometricStaleReference:
 
         # Find setTimeout blocks and check if they have fresh getElementById calls
         import re
+
         # Look for setTimeout that re-queries the button element
         requery_in_timeout = re.search(
             r'setTimeout\s*\(\s*\(\)\s*=>\s*\{[^}]*getElementById\s*\(\s*[\'"]start-enroll-btn[\'"]\s*\)',
             source,
-            re.DOTALL
+            re.DOTALL,
         )
 
-        assert requery_in_timeout is not None, \
+        assert requery_in_timeout is not None, (
             "director_biometric.js should re-query DOM elements inside setTimeout to avoid stale references"
+        )
 
 
 class TestBugR8_3_BroadcastDoubleClick:
@@ -57,7 +58,7 @@ class TestBugR8_3_BroadcastDoubleClick:
         """Verify director_broadcast.js has protection against double-clicking send."""
         broadcast_path = "src/web-app/js/views/director_broadcast.js"
 
-        with open(broadcast_path, "r", encoding="utf-8") as f:
+        with open(broadcast_path, encoding="utf-8") as f:
             source = f.read()
 
         # Should have some form of protection:
@@ -68,8 +69,9 @@ class TestBugR8_3_BroadcastDoubleClick:
         has_sending_flag = "isSending" in source or "isProcessing" in source
         has_button_disable = ".disabled = true" in source
 
-        assert has_sending_flag or has_button_disable, \
+        assert has_sending_flag or has_button_disable, (
             "director_broadcast.js should have protection against double-clicking send button (isSending flag or button.disabled)"
+        )
 
 
 class TestBugR8_4_BiometricModalSafety:
@@ -79,13 +81,14 @@ class TestBugR8_4_BiometricModalSafety:
         """Verify director_biometric.js uses ?. when clicking modal-container."""
         biometric_path = "src/web-app/js/views/director_biometric.js"
 
-        with open(biometric_path, "r", encoding="utf-8") as f:
+        with open(biometric_path, encoding="utf-8") as f:
             source = f.read()
 
         # Count safe vs unsafe patterns
         unsafe_count = source.count("querySelector('.modal-container').click()")
-        safe_count = source.count("querySelector('.modal-container')?.click()")
+        source.count("querySelector('.modal-container')?.click()")
 
         # All occurrences should use optional chaining
-        assert unsafe_count == 0, \
+        assert unsafe_count == 0, (
             f"director_biometric.js has {unsafe_count} unsafe modal-container.click() calls without ?."
+        )

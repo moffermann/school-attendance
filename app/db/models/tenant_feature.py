@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.types import JSONBCompatible
-
 from app.db.base import Base
+from app.db.types import JSONBCompatible
 
 if TYPE_CHECKING:
     from app.db.models.tenant import Tenant
@@ -61,10 +60,13 @@ class TenantFeature(Base):
     )
     feature_name: Mapped[str] = mapped_column(String(64), nullable=False)
     is_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    config: Mapped[dict] = mapped_column(JSONBCompatible, nullable=False, default=dict)
+    config: Mapped[dict[str, Any]] = mapped_column(JSONBCompatible, nullable=False, default=dict)
 
     # Relationships
-    tenant: Mapped["Tenant"] = relationship("Tenant", back_populates="features")
+    tenant: Mapped[Tenant] = relationship("Tenant", back_populates="features")
 
     def __repr__(self) -> str:
-        return f"<TenantFeature(tenant_id={self.tenant_id}, feature={self.feature_name}, enabled={self.is_enabled})>"
+        return (
+            f"<TenantFeature(tenant_id={self.tenant_id}, "
+            f"feature={self.feature_name}, enabled={self.is_enabled})>"
+        )

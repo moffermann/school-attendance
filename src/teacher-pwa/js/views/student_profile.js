@@ -58,7 +58,7 @@ Views.studentProfile = async function() {
           <div class="student-details">
             <div class="student-name-large">${safeName}</div>
             <div class="student-course">${courseName}</div>
-            ${student.rut ? `<div class="student-rut">RUT: ${UI.escapeHtml(student.rut)}</div>` : ''}
+            ${student.national_id ? `<div class="student-rut">ID: ${UI.escapeHtml(student.national_id)}</div>` : ''}
           </div>
         </div>
       </div>

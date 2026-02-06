@@ -1,8 +1,8 @@
 """Attendance repository stub."""
 
-from datetime import datetime, date
+from datetime import date, datetime
 
-from sqlalchemy import and_, select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -24,6 +24,8 @@ class AttendanceRepository:
         occurred_at: datetime,
         photo_ref: str | None = None,
         local_seq: int | None = None,
+        source: str | None = None,
+        conflict_corrected: bool = False,
     ) -> AttendanceEvent:
         event = AttendanceEvent(
             student_id=student_id,
@@ -33,6 +35,8 @@ class AttendanceRepository:
             occurred_at=occurred_at,
             photo_ref=photo_ref,
             local_seq=local_seq,
+            source=source,
+            conflict_corrected=conflict_corrected,
         )
         self.session.add(event)
         await self.session.flush()
@@ -88,9 +92,7 @@ class AttendanceRepository:
     async def list_recent_with_photos(self, limit: int = 50) -> list[AttendanceEvent]:
         stmt = (
             select(AttendanceEvent)
-            .options(
-                selectinload(AttendanceEvent.student).selectinload(Student.course)
-            )
+            .options(selectinload(AttendanceEvent.student).selectinload(Student.course))
             .where(AttendanceEvent.photo_ref.is_not(None))
             .order_by(AttendanceEvent.occurred_at.desc())
             .limit(limit)
@@ -120,3 +122,83 @@ class AttendanceRepository:
         )
         result = await self.session.execute(stmt)
         return set(result.scalars().all())
+
+    async def list_by_date(self, target_date: date) -> list[AttendanceEvent]:
+        """List all attendance events for a specific date.
+
+        Used by kiosk bootstrap to restore IN/OUT state after cache clear.
+
+        WARNING: Uses func.date() which extracts the UTC date. For timezone-aware
+        filtering, use list_by_date_utc_range() instead.
+        """
+        stmt = (
+            select(AttendanceEvent)
+            .where(func.date(AttendanceEvent.occurred_at) == target_date)
+            .order_by(AttendanceEvent.occurred_at.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_by_date_utc_range(
+        self, start_utc: datetime, end_utc: datetime
+    ) -> list[AttendanceEvent]:
+        """List attendance events within a UTC datetime range.
+
+        Timezone-aware alternative to list_by_date. Use this when the "day"
+        must be defined in a local timezone (e.g., Chile). The caller should
+        compute the UTC boundaries for the local day.
+
+        Example: For Feb 5 in Chile (UTC-3):
+          start_utc = 2026-02-05T03:00:00Z (midnight Chile time)
+          end_utc   = 2026-02-06T03:00:00Z
+        """
+        stmt = (
+            select(AttendanceEvent)
+            .where(
+                AttendanceEvent.occurred_at >= start_utc,
+                AttendanceEvent.occurred_at < end_utc,
+            )
+            .order_by(AttendanceEvent.occurred_at.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_event_before_timestamp(
+        self,
+        student_id: int,
+        before_timestamp: datetime,
+        target_date: date,
+        for_update: bool = False,
+    ) -> AttendanceEvent | None:
+        """Get the closest event BEFORE a specific timestamp on the same date.
+
+        CRÍTICO para sincronización fuera de orden:
+        - Si evento llega con timestamp 10:00 pero se procesa a las 11:00
+        - Buscamos eventos ANTES de 10:00, no antes de 11:00
+
+        Args:
+            student_id: Student to check
+            before_timestamp: Find events that occurred BEFORE this time
+            target_date: Only consider events on this date
+            for_update: If True, use SELECT FOR UPDATE to prevent race conditions
+
+        Returns:
+            The most recent event before the given timestamp, or None
+        """
+        stmt = (
+            select(AttendanceEvent)
+            .where(
+                AttendanceEvent.student_id == student_id,
+                func.date(AttendanceEvent.occurred_at) == target_date,
+                AttendanceEvent.occurred_at < before_timestamp,
+            )
+            .order_by(AttendanceEvent.occurred_at.desc())
+            .limit(1)
+        )
+
+        # CRÍTICO: Lock de fila para prevenir race conditions
+        if for_update:
+            stmt = stmt.with_for_update()
+
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()

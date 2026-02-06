@@ -1,0 +1,92 @@
+[
+  {
+    "id": 1,
+    "full_name": "Patricia Pérez Gómez",
+    "contacts": [
+      {"type": "whatsapp", "value": "+56912345001", "verified": true},
+      {"type": "email", "value": "patricia.perez@email.com", "verified": true}
+    ],
+    "student_ids": [1, 11]
+  },
+  {
+    "id": 2,
+    "full_name": "Carlos Rodríguez Vera",
+    "contacts": [
+      {"type": "whatsapp", "value": "+56912345002", "verified": true},
+      {"type": "email", "value": "carlos.rodriguez@email.com", "verified": false}
+    ],
+    "student_ids": [2]
+  },
+  {
+    "id": 3,
+    "full_name": "María Silva Morales",
+    "contacts": [
+      {"type": "whatsapp", "value": "+56912345003", "verified": true},
+      {"type": "email", "value": "maria.silva@email.com", "verified": true}
+    ],
+    "student_ids": [3, 13]
+  },
+  {
+    "id": 4,
+    "full_name": "Jorge López Fernández",
+    "contacts": [
+      {"type": "whatsapp", "value": "+56912345004", "verified": false},
+      {"type": "email", "value": "jorge.lopez@email.com", "verified": true}
+    ],
+    "student_ids": [4]
+  },
+  {
+    "id": 5,
+    "full_name": "Andrea Hernández Castro",
+    "contacts": [
+      {"type": "whatsapp", "value": "+56912345005", "verified": true},
+      {"type": "email", "value": "andrea.hernandez@email.com", "verified": true}
+    ],
+    "student_ids": [5, 15]
+  },
+  {
+    "id": 6,
+    "full_name": "Roberto Morales Campos",
+    "contacts": [
+      {"type": "whatsapp", "value": "+56912345006", "verified": true},
+      {"type": "email", "value": "roberto.morales@email.com", "verified": true}
+    ],
+    "student_ids": [6]
+  },
+  {
+    "id": 7,
+    "full_name": "Carolina Rojas Muñoz",
+    "contacts": [
+      {"type": "whatsapp", "value": "+56912345007", "verified": true},
+      {"type": "email", "value": "carolina.rojas@email.com", "verified": false}
+    ],
+    "student_ids": [7, 17]
+  },
+  {
+    "id": 8,
+    "full_name": "Fernando Núñez Soto",
+    "contacts": [
+      {"type": "whatsapp", "value": "+56912345008", "verified": true},
+      {"type": "email", "value": "fernando.nunez@email.com", "verified": true}
+    ],
+    "student_ids": [8, 18]
+  },
+  {
+    "id": 9,
+    "full_name": "Daniela Parra Reyes",
+    "contacts": [
+      {"type": "whatsapp", "value": "+56912345009", "verified": false},
+      {"type": "email", "value": "daniela.parra@email.com", "verified": true}
+    ],
+    "student_ids": [9]
+  },
+  {
+    "id": 10,
+    "full_name": "Luis Contreras Vega",
+    "contacts": [
+      {"type": "whatsapp", "value": "+56912345010", "verified": true},
+      {"type": "email", "value": "luis.contreras@email.com", "verified": true}
+    ],
+    "student_ids": [10, 20]
+  }
+]

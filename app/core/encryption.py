@@ -67,7 +67,7 @@ def decrypt(ciphertext: bytes) -> str:
         fernet = _get_fernet()
         return fernet.decrypt(ciphertext).decode()
     except InvalidToken as e:
-        logger.error(f"Decryption failed: invalid token")
+        logger.error("Decryption failed: invalid token")
         raise ValueError("Failed to decrypt data: invalid key or corrupted data") from e
     except Exception as e:
         logger.error(f"Decryption failed: {e}")

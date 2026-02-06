@@ -27,22 +27,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         # Permissions policy (restrict browser features)
         response.headers["Permissions-Policy"] = (
-            "camera=(self), "
-            "microphone=(self), "
-            "geolocation=(), "
-            "payment=()"
+            "camera=(self), microphone=(self), geolocation=(), payment=()"
         )
 
         # Content Security Policy for API responses
         # More restrictive for API, relaxed for HTML pages
         if request.url.path.startswith("/api/"):
             response.headers["Content-Security-Policy"] = (
-                "default-src 'none'; "
-                "frame-ancestors 'none'"
+                "default-src 'none'; frame-ancestors 'none'"
             )
 
         # R5-D2 fix: Strict Transport Security (HTTPS only) - enabled in production
         if settings.app_env == "production":
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains; preload"
+            )
 
         return response

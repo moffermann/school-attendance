@@ -1,32 +1,36 @@
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, time, timezone, date
+from datetime import UTC, date, datetime, time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from starlette.requests import Request
 
-from app.schemas.attendance import AttendanceEventCreate, AttendanceType
-from app.schemas.absences import AbsenceRequestCreate, AbsenceType
-from app.schemas.guardians import GuardianPreferencesUpdate
-from app.schemas.notifications import BroadcastAudience, BroadcastCreate, NotificationChannel, NotificationDispatchRequest, NotificationType
-from app.schemas.schedules import ScheduleCreate
-from app.services.attendance_service import AttendanceService
-from app.services.consent_service import ConsentService
-from app.services.absence_service import AbsenceService
-from app.schemas.absences import AbsenceStatus
-from app.services.notifications.dispatcher import NotificationDispatcher
-from app.services.schedule_service import ScheduleService
-from app.services.broadcast_service import BroadcastService
-from app.services.alert_service import AlertService
-from app.services.dashboard_service import DashboardService
-from app.services.device_service import DeviceService
-from app.services.web_app_service import WebAppDataService
-from app.services.notification_service import NotificationService
 from app.api.v1 import auth as auth_module
 from app.core.auth import AuthUser
-from starlette.requests import Request
+from app.schemas.absences import AbsenceRequestCreate, AbsenceStatus, AbsenceType
+from app.schemas.attendance import AttendanceEventCreate, AttendanceType
+from app.schemas.guardians import GuardianPreferencesUpdate
+from app.schemas.notifications import (
+    BroadcastAudience,
+    BroadcastCreate,
+    NotificationChannel,
+    NotificationDispatchRequest,
+    NotificationType,
+)
+from app.schemas.schedules import ScheduleCreate
+from app.services.absence_service import AbsenceService
+from app.services.alert_service import AlertService
+from app.services.attendance_service import AttendanceService
+from app.services.broadcast_service import BroadcastService
+from app.services.consent_service import ConsentService
+from app.services.dashboard_service import DashboardService
+from app.services.device_service import DeviceService
+from app.services.notification_service import NotificationService
+from app.services.notifications.dispatcher import NotificationDispatcher
+from app.services.schedule_service import ScheduleService
+from app.services.web_app_service import WebAppDataService
 
 
 @pytest.mark.anyio("asyncio")
@@ -84,7 +88,9 @@ async def test_schedule_service_creates_rule(monkeypatch) -> None:
     )
     service.repository.create = AsyncMock(return_value=fake_schedule)
 
-    payload = ScheduleCreate(weekday=0, in_time=fake_schedule.in_time, out_time=fake_schedule.out_time)
+    payload = ScheduleCreate(
+        weekday=0, in_time=fake_schedule.in_time, out_time=fake_schedule.out_time
+    )
     result = await service.create_schedule(1, payload)
 
     assert result.id == 7
@@ -167,7 +173,7 @@ async def test_absence_service_submits_request_for_parent() -> None:
         comment="Reposo médico",
         attachment_ref="certificado.pdf",
         status="PENDING",
-        ts_submitted=datetime.now(timezone.utc),
+        ts_submitted=datetime.now(UTC),
     )
 
     service.student_repo.get = AsyncMock(return_value=SimpleNamespace(id=1))
@@ -245,7 +251,7 @@ async def test_notification_dispatcher_enqueues_job(monkeypatch) -> None:
                 template=kwargs["template"],
                 payload=kwargs["payload"],
                 status="queued",
-                ts_created=datetime.now(timezone.utc),
+                ts_created=datetime.now(UTC),
                 ts_sent=None,
                 retries=0,
             )
@@ -399,7 +405,7 @@ async def test_detect_no_show_alerts(monkeypatch) -> None:
 
     service.no_show_repo = FakeAlertRepo()
 
-    alerts = await service.detect_no_show_alerts(datetime(2024, 1, 10, 9, 0, tzinfo=timezone.utc))
+    alerts = await service.detect_no_show_alerts(datetime(2024, 1, 10, 9, 0, tzinfo=UTC))
     assert len(alerts) == 1
     assert alerts[0]["alert"] is fake_alert
     assert alerts[0]["guardian"].id == guardian.id
@@ -419,12 +425,12 @@ async def test_alert_service_resolve(monkeypatch) -> None:
         course_id=3,
         schedule_id=None,
         alert_date=date.today(),
-        alerted_at=datetime.now(timezone.utc),
+        alerted_at=datetime.now(UTC),
         status="RESOLVED",
-        resolved_at=datetime.now(timezone.utc),
+        resolved_at=datetime.now(UTC),
         notes="",
         notification_attempts=1,
-        last_notification_at=datetime.now(timezone.utc),
+        last_notification_at=datetime.now(UTC),
         student=SimpleNamespace(full_name="Sofía"),
         guardian=SimpleNamespace(full_name="María"),
         course=SimpleNamespace(name="1° Básico A"),
@@ -445,9 +451,11 @@ async def test_dashboard_service_computes_stats(monkeypatch) -> None:
 
     service.schedule_repo = MagicMock()
     service.student_repo = MagicMock()
+
     # R12-P5 fix: generate_presigned_url is now async
     async def async_presigned_url(key, expires=3600):
         return f"https://cdn/{key}"
+
     service.photo_service = SimpleNamespace(generate_presigned_url=async_presigned_url)
 
     target_date = date(2024, 1, 10)
@@ -589,10 +597,16 @@ async def test_web_app_data_service_bootstrap(monkeypatch) -> None:
     service = WebAppDataService(session)
 
     service._resolve_student_ids = AsyncMock(return_value=[1, 2])
-    service._load_students = AsyncMock(return_value=[
-        SimpleNamespace(id=1, full_name="Ana", course_id=10, photo_pref_opt_in=True, guardians=[]),
-        SimpleNamespace(id=2, full_name="Ben", course_id=11, photo_pref_opt_in=False, guardians=[]),
-    ])
+    service._load_students = AsyncMock(
+        return_value=[
+            SimpleNamespace(
+                id=1, full_name="Ana", course_id=10, photo_pref_opt_in=True, guardians=[]
+            ),
+            SimpleNamespace(
+                id=2, full_name="Ben", course_id=11, photo_pref_opt_in=False, guardians=[]
+            ),
+        ]
+    )
     service._load_courses = AsyncMock(return_value=[SimpleNamespace(id=10, name="1A", grade="1")])
     service._load_teachers = AsyncMock(return_value=[])
     service._load_schedules = AsyncMock(return_value=[])
@@ -660,17 +674,23 @@ async def test_schedule_service_updates_entry() -> None:
     )
     service.repository.update = AsyncMock(return_value=fake_schedule)
 
-    payload = ScheduleCreate(weekday=2, in_time=fake_schedule.in_time, out_time=fake_schedule.out_time)
+    payload = ScheduleCreate(
+        weekday=2, in_time=fake_schedule.in_time, out_time=fake_schedule.out_time
+    )
     result = await service.update_schedule_entry(fake_schedule.id, payload)
 
     assert result.id == fake_schedule.id
-    service.repository.update.assert_awaited_with(fake_schedule.id, weekday=2, in_time=fake_schedule.in_time, out_time=fake_schedule.out_time)
+    service.repository.update.assert_awaited_with(
+        fake_schedule.id, weekday=2, in_time=fake_schedule.in_time, out_time=fake_schedule.out_time
+    )
     session.commit.assert_awaited()
 
 
 @pytest.mark.anyio("asyncio")
 async def test_auth_session_returns_user(monkeypatch) -> None:
-    fake_user = SimpleNamespace(id=7, role="DIRECTOR", full_name="Dir User", guardian_id=None, is_active=True)
+    fake_user = SimpleNamespace(
+        id=7, role="DIRECTOR", full_name="Dir User", guardian_id=None, is_active=True
+    )
     fake_repo = SimpleNamespace(get=AsyncMock(return_value=fake_user))
 
     monkeypatch.setattr(auth_module, "decode_session", lambda token: {"user_id": fake_user.id})
@@ -709,7 +729,7 @@ async def test_absence_service_updates_status() -> None:
         comment=None,
         attachment_ref=None,
         status="PENDING",
-        ts_submitted=datetime.now(timezone.utc),
+        ts_submitted=datetime.now(UTC),
     )
     repo.update_status = AsyncMock(return_value=absence)
     service = AbsenceService(session)
@@ -732,8 +752,8 @@ async def test_notification_service_list_and_summary(monkeypatch) -> None:
         channel="WHATSAPP",
         template="INGRESO_OK",
         status="sent",
-        ts_created=datetime.now(timezone.utc),
-        ts_sent=datetime.now(timezone.utc),
+        ts_created=datetime.now(UTC),
+        ts_sent=datetime.now(UTC),
         retries=0,
         payload={"recipient": "+56912345678"},
     )

@@ -1,23 +1,24 @@
 """Notification schemas."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class NotificationChannel(str, Enum):
+class NotificationChannel(StrEnum):
     WHATSAPP = "WHATSAPP"
     EMAIL = "EMAIL"
     PUSH = "PUSH"
 
 
-class NotificationType(str, Enum):
+class NotificationType(StrEnum):
     INGRESO_OK = "INGRESO_OK"
     SALIDA_OK = "SALIDA_OK"
     NO_INGRESO_UMBRAL = "NO_INGRESO_UMBRAL"
     CAMBIO_HORARIO = "CAMBIO_HORARIO"
+    BROADCAST = "BROADCAST"  # Comunicados masivos genericos
 
 
 class NotificationDispatchRequest(BaseModel):
@@ -39,8 +40,9 @@ class NotificationRead(BaseModel):
     retries: int | None = None
 
 
-class BroadcastScope(str, Enum):
+class BroadcastScope(StrEnum):
     """R3-V3 fix: Valid broadcast scope values."""
+
     GLOBAL = "global"
     COURSE = "course"
     CUSTOM = "custom"
@@ -71,6 +73,7 @@ class BroadcastPreview(BaseModel):
 
 class NotificationLog(NotificationRead):
     payload: dict[str, Any] | None = None
+    student_id: int | None = None  # Populated from context_id for student notifications
 
 
 class NotificationSummaryResponse(BaseModel):

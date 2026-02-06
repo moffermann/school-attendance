@@ -9,9 +9,6 @@ These tests verify fixes for:
 import inspect
 import re
 
-import pytest
-from fastapi import Path, Query
-
 
 # =============================================================================
 # R10-A3: Query parameter 'search' should have max_length validation
@@ -27,9 +24,7 @@ class TestR10A3SearchMaxLength:
 
         # Check that search parameter has max_length in Query
         # Pattern: search: ... = Query(..., max_length=...)
-        has_max_length = re.search(
-            r'search.*Query\([^)]*max_length\s*=', source
-        )
+        has_max_length = re.search(r"search.*Query\([^)]*max_length\s*=", source)
 
         assert has_max_length, (
             "search parameter should have max_length validation to prevent DoS attacks"
@@ -95,7 +90,7 @@ class TestR10W2XSSInOnclick:
         """R10-W2: credential_id should be escaped to prevent XSS."""
         biometric_js_path = "src/web-app/js/views/director_biometric.js"
 
-        with open(biometric_js_path, "r", encoding="utf-8") as f:
+        with open(biometric_js_path, encoding="utf-8") as f:
             content = f.read()
 
         # Should NOT have direct interpolation in onclick
@@ -127,7 +122,7 @@ class TestR10W1ResizeListenerLeak:
         """R10-W1: resize listener should be removed on view cleanup."""
         history_js_path = "src/web-app/js/views/parent_history.js"
 
-        with open(history_js_path, "r", encoding="utf-8") as f:
+        with open(history_js_path, encoding="utf-8") as f:
             content = f.read()
 
         # Should have cleanup mechanism for resize listener
@@ -159,7 +154,7 @@ class TestR10W10RouterValidation:
         """R10-W10: Router should check if #app exists before rendering."""
         router_js_path = "src/web-app/js/router.js"
 
-        with open(router_js_path, "r", encoding="utf-8") as f:
+        with open(router_js_path, encoding="utf-8") as f:
             content = f.read()
 
         # Find the render function
@@ -200,9 +195,7 @@ class TestR10S3ConsentRaceCondition:
             or "select_for_update" in source
         )
 
-        assert has_transaction_handling, (
-            "consent_service should have proper transaction handling"
-        )
+        assert has_transaction_handling, "consent_service should have proper transaction handling"
 
 
 # =============================================================================
@@ -223,10 +216,8 @@ class TestR10A5CredentialIdValidation:
         # Should have Path validation for credential_id
         # Look for pattern: credential_id: str = Path(...)
         has_path_validation = re.search(
-            r'credential_id.*Path\([^)]*min_length', source
-        ) or re.search(
-            r'credential_id.*Path\([^)]*max_length', source
-        )
+            r"credential_id.*Path\([^)]*min_length", source
+        ) or re.search(r"credential_id.*Path\([^)]*max_length", source)
 
         assert has_path_validation, (
             "credential_id should use Path(..., min_length=1, max_length=...) for validation"
@@ -247,19 +238,13 @@ class TestR10S8BroadcastLogging:
 
         # Should have logging for enqueue operations
         has_logging = (
-            "logger.info" in source or
-            "logger.debug" in source or
-            "logger.warning" in source
+            "logger.info" in source or "logger.debug" in source or "logger.warning" in source
         )
 
         # Check specifically for enqueue-related logging
-        has_enqueue_logging = (
-            "enqueue" in source.lower() and has_logging
-        )
+        has_enqueue_logging = "enqueue" in source.lower() and has_logging
 
-        assert has_enqueue_logging, (
-            "broadcast_service should log enqueue operations for debugging"
-        )
+        assert has_enqueue_logging, "broadcast_service should log enqueue operations for debugging"
 
 
 # =============================================================================
@@ -272,7 +257,7 @@ class TestR10W8ParseIntValidation:
         """R10-W8: Should validate before parseInt to avoid NaN issues."""
         dashboard_js_path = "src/web-app/js/views/director_dashboard.js"
 
-        with open(dashboard_js_path, "r", encoding="utf-8") as f:
+        with open(dashboard_js_path, encoding="utf-8") as f:
             content = f.read()
 
         # Check if parseInt is used
@@ -309,12 +294,9 @@ class TestR10A8TeacherEnrollRateLimit:
             has_rate_limit = "@limiter" in source
 
             # Check if it's applied to teacher-related endpoints
-            teacher_section = source[source.find("teacher"):] if "teacher" in source else ""
-            has_teacher_rate_limit = "@limiter" in teacher_section or not teacher_section
+            source[source.find("teacher") :] if "teacher" in source else ""
 
-            assert has_rate_limit, (
-                "Teacher enrollment check endpoints should have rate limiting"
-            )
+            assert has_rate_limit, "Teacher enrollment check endpoints should have rate limiting"
 
 
 # =============================================================================
@@ -336,6 +318,4 @@ class TestR10S5WebAuthnErrorMessages:
         # Should have logging for detailed errors
         has_internal_logging = "logger.error" in source or "logger.exception" in source
 
-        assert has_internal_logging, (
-            "WebAuthn service should log internal errors for debugging"
-        )
+        assert has_internal_logging, "WebAuthn service should log internal errors for debugging"

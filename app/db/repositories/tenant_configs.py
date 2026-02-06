@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,16 +20,29 @@ class DecryptedTenantConfig:
     # WhatsApp
     whatsapp_access_token: str | None
     whatsapp_phone_number_id: str | None
+    # Email provider
+    email_provider: str | None
     # SES
     ses_region: str | None
     ses_source_email: str | None
     ses_access_key: str | None
     ses_secret_key: str | None
+    # SMTP (Gmail, Google Workspace, Outlook, etc.)
+    smtp_host: str | None
+    smtp_port: int | None
+    smtp_user: str | None
+    smtp_password: str | None
+    smtp_use_tls: bool | None
+    smtp_from_name: str | None
     # S3
     s3_bucket: str | None
     s3_prefix: str | None
     # Device
     device_api_key: str | None
+    # Branding
+    school_display_name: str | None = None
+    # Timezone
+    timezone: str | None = None
 
 
 class TenantConfigRepository:
@@ -54,13 +67,22 @@ class TenantConfigRepository:
             tenant_id=config.tenant_id,
             whatsapp_access_token=decrypt_if_present(config.whatsapp_access_token_encrypted),
             whatsapp_phone_number_id=config.whatsapp_phone_number_id,
+            email_provider=config.email_provider,
             ses_region=config.ses_region,
             ses_source_email=config.ses_source_email,
             ses_access_key=decrypt_if_present(config.ses_access_key_encrypted),
             ses_secret_key=decrypt_if_present(config.ses_secret_key_encrypted),
+            smtp_host=config.smtp_host,
+            smtp_port=config.smtp_port,
+            smtp_user=config.smtp_user,
+            smtp_password=decrypt_if_present(config.smtp_password_encrypted),
+            smtp_use_tls=config.smtp_use_tls,
+            smtp_from_name=config.smtp_from_name,
             s3_bucket=config.s3_bucket,
             s3_prefix=config.s3_prefix,
             device_api_key=decrypt_if_present(config.device_api_key_encrypted),
+            school_display_name=config.school_display_name,
+            timezone=config.timezone,
         )
 
     async def create(self, tenant_id: int) -> TenantConfig:
@@ -90,7 +112,7 @@ class TenantConfigRepository:
         if phone_number_id is not None:
             config.whatsapp_phone_number_id = phone_number_id
 
-        config.updated_at = datetime.now(timezone.utc)
+        config.updated_at = datetime.now(UTC)
         await self.session.flush()
         return config
 
@@ -117,7 +139,58 @@ class TenantConfigRepository:
         if secret_key is not None:
             config.ses_secret_key_encrypted = encrypt_if_present(secret_key)
 
-        config.updated_at = datetime.now(timezone.utc)
+        config.updated_at = datetime.now(UTC)
+        await self.session.flush()
+        return config
+
+    async def update_smtp_config(
+        self,
+        tenant_id: int,
+        *,
+        host: str | None = None,
+        port: int | None = None,
+        user: str | None = None,
+        password: str | None = None,
+        use_tls: bool | None = None,
+        from_name: str | None = None,
+    ) -> TenantConfig | None:
+        """Update SMTP credentials (password will be encrypted)."""
+        config = await self.get(tenant_id)
+        if not config:
+            return None
+
+        if host is not None:
+            config.smtp_host = host
+        if port is not None:
+            config.smtp_port = port
+        if user is not None:
+            config.smtp_user = user
+        if password is not None:
+            config.smtp_password_encrypted = encrypt_if_present(password)
+        if use_tls is not None:
+            config.smtp_use_tls = use_tls
+        if from_name is not None:
+            config.smtp_from_name = from_name
+
+        config.updated_at = datetime.now(UTC)
+        await self.session.flush()
+        return config
+
+    async def update_email_provider(
+        self,
+        tenant_id: int,
+        provider: str,
+    ) -> TenantConfig | None:
+        """Update email provider (ses or smtp)."""
+        if provider not in ("ses", "smtp"):
+            raise ValueError("provider must be 'ses' or 'smtp'")
+
+        config = await self.get(tenant_id)
+        if not config:
+            return None
+
+        config.email_provider = provider
+        config.updated_at = datetime.now(UTC)
         await self.session.flush()
         return config
 
@@ -138,7 +211,7 @@ class TenantConfigRepository:
         if prefix is not None:
             config.s3_prefix = prefix
 
-        config.updated_at = datetime.now(timezone.utc)
+        config.updated_at = datetime.now(UTC)
         await self.session.flush()
         return config
 
@@ -153,7 +226,7 @@ class TenantConfigRepository:
             return None
 
         config.device_api_key_encrypted = encrypt_if_present(device_api_key)
-        config.updated_at = datetime.now(timezone.utc)
+        config.updated_at = datetime.now(UTC)
         await self.session.flush()
         return config
 
@@ -164,3 +237,40 @@ class TenantConfigRepository:
         new_key = secrets.token_urlsafe(32)
         await self.update_device_api_key(tenant_id, new_key)
         return new_key
+
+    async def update_timezone(
+        self,
+        tenant_id: int,
+        tz_name: str,
+    ) -> TenantConfig | None:
+        """Update tenant timezone (IANA timezone name, e.g., America/Santiago)."""
+        config = await self.get(tenant_id)
+        if not config:
+            return None
+
+        config.timezone = tz_name
+        config.updated_at = datetime.now(UTC)
+        await self.session.flush()
+        return config
+
+    async def update_branding(
+        self,
+        tenant_id: int,
+        *,
+        school_display_name: str | None = None,
+        _school_display_name_provided: bool = False,
+    ) -> TenantConfig | None:
+        """Update tenant branding settings (school display name for emails).
+
+        Note: Pass _school_display_name_provided=True to allow setting None (clear value).
+        """
+        config = await self.get(tenant_id)
+        if not config:
+            return None
+
+        # Always update - allows clearing the value by passing None
+        config.school_display_name = school_display_name
+
+        config.updated_at = datetime.now(UTC)
+        await self.session.flush()
+        return config

@@ -9,17 +9,18 @@ Bug categories tested:
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException
 from starlette.requests import Request
 
+from app.db.models.tenant_feature import TenantFeature
 from app.services.feature_flag_service import (
-    FeatureFlagService,
     ALL_FEATURES,
     DEFAULT_ENABLED_FEATURES,
+    FeatureFlagService,
 )
-from app.db.models.tenant_feature import TenantFeature
 
 
 class TestBug2_1_CacheStaleAfterToggle:
@@ -32,16 +33,15 @@ class TestBug2_1_CacheStaleAfterToggle:
         Currently FAILS because tenants.py:toggle_feature() at line 372
         does commit but doesn't call service.clear_cache().
         """
-        from app.api.v1.super_admin import tenants
         import inspect
+
+        from app.api.v1.super_admin import tenants
 
         source = inspect.getsource(tenants.toggle_feature)
 
         # The fix should call clear_cache or clear_global_feature_cache after toggling
         has_cache_clear = "clear_cache" in source or "clear_global_feature_cache" in source
-        assert has_cache_clear, (
-            "toggle_feature should call clear_cache after modifying feature"
-        )
+        assert has_cache_clear, "toggle_feature should call clear_cache after modifying feature"
 
     @pytest.mark.asyncio
     async def test_feature_flag_service_has_clear_cache_method(self):
@@ -81,8 +81,9 @@ class TestBug2_2_NewInstancePerRequest:
 
         The fix should use a global/singleton cache.
         """
-        from app.core import deps
         import inspect
+
+        from app.core import deps
 
         source = inspect.getsource(deps.require_feature)
 
@@ -126,8 +127,8 @@ class TestBug2_3_FallbackAllowWithoutTenant:
         This test verifies the production behavior where skip_tenant_middleware=false.
         In test environments, this check is bypassed for convenience.
         """
-        from app.core.deps import require_feature
         from app.core.config import settings
+        from app.core.deps import require_feature
 
         # Temporarily disable the test bypass to verify production behavior
         original_skip = settings.skip_tenant_middleware
@@ -160,8 +161,9 @@ class TestBug2_3_FallbackAllowWithoutTenant:
         This test validates that require_feature properly imports FeatureFlagService
         and calls it with the tenant context.
         """
-        from app.core import deps
         import inspect
+
+        from app.core import deps
 
         source = inspect.getsource(deps.require_feature)
 
@@ -196,17 +198,17 @@ class TestBug2_4_InvalidFeatureNamesInCreation:
         # No validation against ALL_FEATURES
         ```
         """
-        from app.services import tenant_provisioning_service
         import inspect
+
+        from app.services import tenant_provisioning_service
 
         source = inspect.getsource(
             tenant_provisioning_service.TenantProvisioningService._initialize_features
         )
 
         # The fix should validate feature names
-        has_validation = (
-            "ALL_FEATURES" in source
-            and ("not in" in source or "difference" in source or "validate" in source.lower())
+        has_validation = "ALL_FEATURES" in source and (
+            "not in" in source or "difference" in source or "validate" in source.lower()
         )
         assert has_validation, (
             "_initialize_features should validate feature names against ALL_FEATURES"
@@ -224,14 +226,11 @@ class TestBug2_4_InvalidFeatureNamesInCreation:
     async def test_default_features_subset_of_all_features(self):
         """DEFAULT_ENABLED_FEATURES should be subset of ALL_FEATURES."""
         for feature in DEFAULT_ENABLED_FEATURES:
-            assert feature in ALL_FEATURES, (
-                f"Default feature '{feature}' not in ALL_FEATURES"
-            )
+            assert feature in ALL_FEATURES, f"Default feature '{feature}' not in ALL_FEATURES"
 
     @pytest.mark.asyncio
     async def test_feature_model_constants_match_service_constants(self):
         """Model constants should match service constants."""
-        from app.db.models.tenant_feature import TenantFeature
 
         assert TenantFeature.ALL_FEATURES == ALL_FEATURES
         assert TenantFeature.DEFAULT_ENABLED_FEATURES == DEFAULT_ENABLED_FEATURES

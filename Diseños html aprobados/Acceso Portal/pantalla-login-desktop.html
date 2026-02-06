@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login NEUVOX - Control de Asistencia</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                blue: "#0ea5e9",
+                darkblue: "#000080",
+                purple: "#8b5cf6",
+                gradientStart: "#7c3aed",
+                gradientEnd: "#4f46e5"
+              }
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+            },
+            borderRadius: {
+              'xl': '1rem',
+              '2xl': '2rem',
+            },
+          },
+        },
+      };
+    </script>
+<style type="text/tailwindcss">
+        :root {
+            --primary-gradient: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+        }
+        .bg-gradient-mesh {
+            background-color: #4f46e5;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(260, 80%, 40%, 1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(280, 70%, 45%, 1) 0, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(230, 80%, 40%, 1) 0, transparent 50%);
+        }
+        .bg-brand-gradient {
+            background: var(--primary-gradient);
+        }
+        .dark .bg-gradient-mesh {
+            background-color: #0f172a;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(263, 83%, 15%, 1) 0, transparent 50%), 
+                radial-gradient(at 100% 100%, hsla(224, 71%, 15%, 1) 0, transparent 50%);
+        }
+    </style>
+</head>
+<body class="font-sans antialiased text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center bg-gradient-mesh px-4 py-8">
+<main class="relative z-10 w-full max-w-[440px]">
+<div class="bg-white dark:bg-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.2)] rounded-2xl p-8 md:p-10 transition-all duration-300">
+<div class="text-center mb-8">
+<div class="flex flex-col items-center mb-4">
+<div class="w-20 h-20 mb-3">
+<svg class="w-full h-full" fill="none" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+<circle cx="50" cy="50" r="45" stroke="url(#logo_grad)" stroke-width="8"></circle>
+<path d="M50 82V65M38 58V42M44 62V38M56 62V38M62 58V42" stroke="url(#logo_grad)" stroke-linecap="round" stroke-width="5"></path>
+<circle cx="50" cy="50" fill="url(#logo_grad)" r="10"></circle>
+<defs>
+<linearGradient gradientUnits="userSpaceOnUse" id="logo_grad" x1="0" x2="100" y1="0" y2="100">
+<stop stop-color="#0ea5e9"></stop>
+<stop offset="1" stop-color="#8b5cf6"></stop>
+</linearGradient>
+</defs>
+</svg>
+</div>
+<div class="flex items-center text-2xl font-black tracking-tighter uppercase">
+<span class="text-[#000080] dark:text-brand-blue">NEUVOX</span>
+<span class="text-brand-blue dark:text-brand-purple">.AI</span>
+</div>
+</div>
+<h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white mb-1">
+                Control de Asistencia Escolar
+            </h1>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                Sistema de registro de ingreso y salida
+            </p>
+<div class="mt-6">
+<span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Iniciar sesión - Apoderado</span>
+</div>
+</div>
+<button class="w-full py-3.5 px-6 rounded-xl bg-brand-gradient text-white font-semibold flex items-center justify-center gap-3 hover:opacity-90 transition-all shadow-lg shadow-indigo-500/30 mb-6">
+<span class="material-symbols-outlined">fingerprint</span>
+<span>Iniciar con huella / Face ID</span>
+</button>
+<div class="relative flex items-center mb-6">
+<div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+<span class="flex-shrink mx-4 text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">o con contraseña</span>
+<div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+</div>
+<form class="space-y-5" onsubmit="event.preventDefault()">
+<div>
+<label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2" for="email">Email</label>
+<input class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue outline-none transition-all" id="email" placeholder="usuario@colegio.cl" type="email"/>
+</div>
+<div>
+<label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2" for="password">Contraseña</label>
+<input class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue outline-none transition-all" id="password" placeholder="••••••••" type="password"/>
+</div>
+<div class="flex flex-col sm:flex-row gap-3 pt-2">
+<button class="w-full sm:w-1/3 py-3 px-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                    Volver
+                </button>
+<button class="w-full sm:flex-1 py-3 px-4 rounded-xl bg-brand-gradient text-white font-bold shadow-lg shadow-indigo-500/30 hover:opacity-90 transition-all" type="submit">
+                    Iniciar Sesión
+                </button>
+</div>
+</form>
+<div class="mt-8 text-center">
+<p class="text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-widest font-bold">
+                Plataforma Educativa NEUVOX © 2024
+            </p>
+<div class="mt-4 flex justify-center gap-4">
+<button class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-brand-blue transition-colors" id="themeToggle">
+<span class="material-symbols-outlined text-lg" id="themeIcon">dark_mode</span>
+</button>
+<button class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-brand-blue transition-colors">
+<span class="material-symbols-outlined text-lg">help_outline</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<script>
+    const themeToggle = document.getElementById('themeToggle');
+    const themeIcon = document.getElementById('themeIcon');
+    const html = document.documentElement;
+    themeToggle.addEventListener('click', () => {
+        if (html.classList.contains('dark')) {
+            html.classList.remove('dark');
+            themeIcon.innerText = 'dark_mode';
+        } else {
+            html.classList.add('dark');
+            themeIcon.innerText = 'light_mode';
+        }
+    });
+    // Initialize theme based on preference
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        html.classList.add('dark');
+        themeIcon.innerText = 'light_mode';
+    }
+</script>
+
+</body></html>

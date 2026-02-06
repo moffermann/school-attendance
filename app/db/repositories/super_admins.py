@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +30,7 @@ class SuperAdminRepository:
         """List all super admins."""
         stmt = select(SuperAdmin).order_by(SuperAdmin.email)
         if not include_inactive:
-            stmt = stmt.where(SuperAdmin.is_active == True)
+            stmt = stmt.where(SuperAdmin.is_active)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -64,7 +64,7 @@ class SuperAdminRepository:
         """Update last login timestamp."""
         admin = await self.get(admin_id)
         if admin:
-            admin.last_login_at = datetime.now(timezone.utc)
+            admin.last_login_at = datetime.now(UTC)
             await self.session.flush()
         return admin
 

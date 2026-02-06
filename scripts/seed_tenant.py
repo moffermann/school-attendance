@@ -549,7 +549,10 @@ class TenantSeeder:
             f"""CREATE TABLE IF NOT EXISTS {schema}.courses (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(128) NOT NULL,
-                grade VARCHAR(32) NOT NULL
+                grade VARCHAR(32) NOT NULL,
+                status VARCHAR(32) DEFAULT 'ACTIVE',
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )""",
             f"""CREATE TABLE IF NOT EXISTS {schema}.guardians (
                 id SERIAL PRIMARY KEY,
@@ -758,8 +761,8 @@ class TenantSeeder:
         for course in DEMO_COURSES:
             await self.conn.execute(
                 text(f"""
-                    INSERT INTO {self.schema}.courses (id, name, grade)
-                    VALUES (:id, :name, :grade)
+                    INSERT INTO {self.schema}.courses (id, name, grade, status, created_at, updated_at)
+                    VALUES (:id, :name, :grade, 'ACTIVE', NOW(), NOW())
                     ON CONFLICT (id) DO NOTHING
                 """),
                 course

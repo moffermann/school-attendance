@@ -11,23 +11,22 @@ Estrategia TDD:
 - REFACTOR: Limpiar si es necesario
 """
 
-import asyncio
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-import pytest
+from datetime import UTC, datetime, timedelta
 
+import pytest
 
 # =============================================================================
 # R2-B1: datetime.utcnow() vs datetime.now(timezone.utc) inconsistencia
 # Varios archivos usan datetime.utcnow() (deprecated) en lugar de timezone-aware
 # =============================================================================
 
+
 class TestR2B1DatetimeTimezoneConsistency:
     """Tests para verificar uso consistente de datetime timezone-aware."""
 
     def test_webauthn_challenge_expiry_uses_timezone_aware(self):
         """R2-B1: WebAuthn challenge expiry debe usar timezone-aware datetime."""
-        from app.services.webauthn_service import _cleanup_expired_challenges, _challenge_store
+        from app.services.webauthn_service import _challenge_store, _cleanup_expired_challenges
 
         # Clear store
         _challenge_store.clear()
@@ -37,57 +36,66 @@ class TestR2B1DatetimeTimezoneConsistency:
             "challenge": b"test",
             "entity_type": "student",
             "entity_id": 1,
-            "expires": datetime.now(timezone.utc) - timedelta(minutes=5),  # expired
+            "expires": datetime.now(UTC) - timedelta(minutes=5),  # expired
         }
 
         # After R2-B1 fix: _cleanup_expired_challenges handles both naive and aware datetimes
         _cleanup_expired_challenges()
 
         # After fix: Challenge should be cleaned up correctly
-        assert "test_challenge" not in _challenge_store, \
+        assert "test_challenge" not in _challenge_store, (
             "R2-B1 Bug: Challenge expirado no fue limpiado - posible problema de timezone"
+        )
 
     def test_notification_timestamps_are_timezone_aware(self):
         """R2-B1: Timestamps de notificaciones deben ser timezone-aware."""
-        from app.db.repositories.notifications import NotificationRepository
-
         # El repository debe crear timestamps timezone-aware
         # Verificamos que ts_created use datetime.now(timezone.utc)
         import inspect
+
+        from app.db.repositories.notifications import NotificationRepository
+
         source = inspect.getsource(NotificationRepository.create)
 
         # Debe usar timezone.utc, no utcnow()
-        assert "datetime.now(timezone.utc)" in source or "timezone.utc" in source, \
+        assert "datetime.now(timezone.utc)" in source or "timezone.utc" in source, (
             "R2-B1 Bug: NotificationRepository.create debe usar datetime.now(timezone.utc)"
+        )
 
 
 # =============================================================================
 # R2-B2: WebAuthn credential_response es dict, no objeto con hasattr
 # =============================================================================
 
+
 class TestR2B2WebAuthnDictAccess:
     """Tests para acceso correcto a credential_response dict."""
 
     def test_credential_response_is_dict_not_object(self):
         """R2-B2: credential_response es dict, debe usar 'in' operator."""
-        from app.services import webauthn_service
         import inspect
+
+        from app.services import webauthn_service
 
         source = inspect.getsource(webauthn_service.WebAuthnService.complete_student_registration)
 
         # After R2-B2 fix: Should use 'in' operator, not hasattr
-        assert "hasattr(credential_response" not in source, \
-            "R2-B2 Bug: Usa hasattr() en credential_response que es un dict. " \
+        assert "hasattr(credential_response" not in source, (
+            "R2-B2 Bug: Usa hasattr() en credential_response que es un dict. "
             "Debe usar 'in' operator: 'response' in credential_response"
+        )
 
         # Verify fix is in place
-        assert '"response" in credential_response' in source or "'response' in credential_response" in source, \
-            "R2-B2 fix not found: Should use 'in' operator for dict access"
+        assert (
+            '"response" in credential_response' in source
+            or "'response' in credential_response" in source
+        ), "R2-B2 fix not found: Should use 'in' operator for dict access"
 
 
 # =============================================================================
 # R2-B3: N+1 Query en detect_no_show_alerts
 # =============================================================================
+
 
 class TestR2B3NPlus1Queries:
     """Tests para detectar N+1 query problems."""
@@ -98,57 +106,63 @@ class TestR2B3NPlus1Queries:
         # Este test verifica que la función use eager loading
         # o batch queries en lugar de queries individuales por estudiante
 
-        from app.services.attendance_service import AttendanceService
         import inspect
+
+        from app.services.attendance_service import AttendanceService
 
         source = inspect.getsource(AttendanceService.detect_no_show_alerts)
 
         # After R2-B3 fix: Should NOT have individual query per student
-        has_n_plus_1 = "for student in students:" in source and "has_in_event_on_date(student.id" in source
+        has_n_plus_1 = (
+            "for student in students:" in source and "has_in_event_on_date(student.id" in source
+        )
 
-        assert not has_n_plus_1, \
-            "R2-B3 Bug: N+1 query en detect_no_show_alerts. " \
-            "Cada estudiante genera una query individual. " \
+        assert not has_n_plus_1, (
+            "R2-B3 Bug: N+1 query en detect_no_show_alerts. "
+            "Cada estudiante genera una query individual. "
             "Debe usar batch query: get_student_ids_with_in_event_on_date()"
+        )
 
         # Verify fix is in place
-        assert "get_student_ids_with_in_event_on_date" in source, \
+        assert "get_student_ids_with_in_event_on_date" in source, (
             "R2-B3 fix not found: Should use batch query get_student_ids_with_in_event_on_date()"
+        )
 
 
 # =============================================================================
 # R2-B4: Sin retry logic en WhatsApp worker
 # =============================================================================
 
+
 class TestR2B4WorkerRetryLogic:
     """Tests para lógica de retry en workers."""
 
     def test_whatsapp_worker_has_retry_on_transient_errors(self):
         """R2-B4: WhatsApp worker debe reintentar en errores transitorios."""
-        from app.workers.jobs import send_whatsapp
         import inspect
+
+        from app.workers.jobs import send_whatsapp
 
         source = inspect.getsource(send_whatsapp._send)
 
         # After R2-B4 fix: Worker should have retry logic for transient errors
         has_retry_logic = (
-            "retry" in source.lower() or
-            "TRANSIENT_ERRORS" in source or
-            "MAX_RETRIES" in source
+            "retry" in source.lower() or "TRANSIENT_ERRORS" in source or "MAX_RETRIES" in source
         )
 
-        assert has_retry_logic, \
-            "R2-B4 Bug: WhatsApp worker no tiene lógica de retry. " \
+        assert has_retry_logic, (
+            "R2-B4 Bug: WhatsApp worker no tiene lógica de retry. "
             "Debe distinguir errores transitorios vs permanentes."
+        )
 
         # Verify the fix distinguishes between transient and permanent errors
-        assert "TRANSIENT_ERRORS" in source, \
-            "R2-B4 fix: Should use TRANSIENT_ERRORS constant"
+        assert "TRANSIENT_ERRORS" in source, "R2-B4 fix: Should use TRANSIENT_ERRORS constant"
 
 
 # =============================================================================
 # R2-B5: mark_failed no incrementa retries correctamente
 # =============================================================================
+
 
 class TestR2B5NotificationRetryCounter:
     """Tests para contador de retries en notificaciones."""
@@ -156,8 +170,9 @@ class TestR2B5NotificationRetryCounter:
     @pytest.mark.asyncio
     async def test_mark_failed_increments_retries(self):
         """R2-B5: mark_failed debe incrementar el contador de retries."""
-        from app.db.repositories.notifications import NotificationRepository
         import inspect
+
+        from app.db.repositories.notifications import NotificationRepository
 
         source = inspect.getsource(NotificationRepository.mark_failed)
 
@@ -173,23 +188,25 @@ class TestR2B5NotificationRetryCounter:
 # R2-B6: WhatsApp client no valida response status antes de marcar sent
 # =============================================================================
 
+
 class TestR2B6ResponseValidation:
     """Tests para validación de respuesta de APIs externas."""
 
     @pytest.mark.asyncio
     async def test_whatsapp_client_validates_response(self):
         """R2-B6: WhatsApp client debe validar respuesta antes de éxito."""
-        from app.services.notifications.whatsapp import WhatsAppClient
         import inspect
+
+        from app.services.notifications.whatsapp import WhatsAppClient
 
         # Verificar que send_template valida response.ok o status_code
         source = inspect.getsource(WhatsAppClient.send_template)
 
         validates_response = (
-            "response.ok" in source or
-            "response.status_code" in source or
-            "response.raise_for_status" in source or
-            ".ok" in source
+            "response.ok" in source
+            or "response.status_code" in source
+            or "response.raise_for_status" in source
+            or ".ok" in source
         )
 
         if not validates_response:
@@ -202,6 +219,7 @@ class TestR2B6ResponseValidation:
 # =============================================================================
 # R2-B7: Settings validation no lanza excepción en producción
 # =============================================================================
+
 
 class TestR2B7ProductionSecretsValidation:
     """Tests para validación de secrets en producción."""
@@ -224,31 +242,34 @@ class TestR2B7ProductionSecretsValidation:
 # R2-B8: detect_no_ingreso_job no maneja errores de asyncio.run
 # =============================================================================
 
+
 class TestR2B8AsyncioRunErrorHandling:
     """Tests para manejo de errores en jobs síncronos."""
 
     def test_detect_no_ingreso_handles_async_errors(self):
         """R2-B8: Job debe manejar errores de asyncio correctamente."""
-        from app.workers.jobs import detect_no_ingreso
         import inspect
+
+        from app.workers.jobs import detect_no_ingreso
 
         source = inspect.getsource(detect_no_ingreso.detect_no_ingreso_job)
 
         # After R2-B8 fix: Should have try/except around asyncio.run()
         has_error_handling = "try:" in source and "except" in source
 
-        assert has_error_handling, \
-            "R2-B8 Bug: detect_no_ingreso_job no tiene manejo de errores. " \
+        assert has_error_handling, (
+            "R2-B8 Bug: detect_no_ingreso_job no tiene manejo de errores. "
             "asyncio.run() puede lanzar excepciones que deben ser logueadas."
+        )
 
         # Verify logging is present
-        assert "logger.error" in source, \
-            "R2-B8 fix: Should log errors with logger.error"
+        assert "logger.error" in source, "R2-B8 fix: Should log errors with logger.error"
 
 
 # =============================================================================
 # R2-B9: list_by_student_ids sin validación de lista vacía
 # =============================================================================
+
 
 class TestR2B9EmptyListValidation:
     """Tests para validación de listas vacías en queries."""
@@ -256,8 +277,9 @@ class TestR2B9EmptyListValidation:
     @pytest.mark.asyncio
     async def test_list_by_student_ids_handles_empty_list(self):
         """R2-B9: Query con IN clause debe manejar lista vacía."""
-        from app.db.repositories.students import StudentRepository
         import inspect
+
+        from app.db.repositories.students import StudentRepository
 
         source = inspect.getsource(StudentRepository)
 
@@ -278,31 +300,36 @@ class TestR2B9EmptyListValidation:
 # R2-B10: Photo presigned URL expiry muy largo (7 días)
 # =============================================================================
 
+
 class TestR2B10PresignedURLExpiry:
     """Tests para seguridad de URLs presignadas."""
 
     def test_presigned_url_expiry_is_reasonable(self):
         """R2-B10: URLs presignadas no deben expirar en más de 48h."""
-        from app.services.attendance_service import AttendanceService
         import inspect
+
+        from app.services.attendance_service import AttendanceService
 
         source = inspect.getsource(AttendanceService._send_attendance_notifications)
 
         # After R2-B10 fix: Expiry should be 24-48 hours, not 7 days
         has_excessive_expiry = "7 * 24 * 3600" in source or "604800" in source
 
-        assert not has_excessive_expiry, \
-            "R2-B10 Bug: URL presignada expira en 7 días. " \
+        assert not has_excessive_expiry, (
+            "R2-B10 Bug: URL presignada expira en 7 días. "
             "Para seguridad, debe ser máximo 24-48 horas."
+        )
 
         # Verify fix is in place (24 hours = 86400 seconds)
-        assert "24 * 3600" in source or "86400" in source, \
+        assert "24 * 3600" in source or "86400" in source, (
             "R2-B10 fix: Should use 24 hour expiry for presigned URLs"
+        )
 
 
 # =============================================================================
 # R2-B11: _build_caption no escapa caracteres especiales de WhatsApp
 # =============================================================================
+
 
 class TestR2B11WhatsAppMessageEscaping:
     """Tests para escape de caracteres especiales en mensajes."""
@@ -314,26 +341,32 @@ class TestR2B11WhatsAppMessageEscaping:
         # WhatsApp interpreta * como bold, _ como italic, ~ como strikethrough
         dangerous_name = "Juan *Pedro* _García_"
 
-        caption = _build_caption("INGRESO_OK", {
-            "student_name": dangerous_name,
-            "date": "15/03/2024",
-            "time": "08:30",
-        })
+        caption = _build_caption(
+            "INGRESO_OK",
+            {
+                "student_name": dangerous_name,
+                "date": "15/03/2024",
+                "time": "08:30",
+            },
+        )
 
         # After R2-B11 fix: Formatting characters should be escaped with backslash
         # The escaped version should contain \* and \_ instead of raw * and _
-        assert "*Pedro*" not in caption and "_García_" not in caption, \
-            "R2-B11 Bug: Caracteres de formato WhatsApp no escapados. " \
+        assert "*Pedro*" not in caption and "_García_" not in caption, (
+            "R2-B11 Bug: Caracteres de formato WhatsApp no escapados. "
             "* y _ deben ser escapados para evitar formato no deseado."
+        )
 
         # Verify escaping is present
-        assert "\\*" in caption or "\\Pedro" in caption, \
+        assert "\\*" in caption or "\\Pedro" in caption, (
             "R2-B11 fix: * should be escaped with backslash"
+        )
 
 
 # =============================================================================
 # R2-B12: WebAuthn sign_count update no es atómico
 # =============================================================================
+
 
 class TestR2B12SignCountAtomicity:
     """Tests para actualización atómica de sign_count."""
@@ -341,8 +374,9 @@ class TestR2B12SignCountAtomicity:
     @pytest.mark.asyncio
     async def test_sign_count_update_is_atomic(self):
         """R2-B12: sign_count debe actualizarse atómicamente."""
-        from app.db.repositories.webauthn import WebAuthnRepository
         import inspect
+
+        from app.db.repositories.webauthn import WebAuthnRepository
 
         source = inspect.getsource(WebAuthnRepository.update_sign_count)
 
@@ -351,12 +385,6 @@ class TestR2B12SignCountAtomicity:
 
         # Debe usar UPDATE ... SET sign_count = :new WHERE sign_count = :old
         # o equivalente con row-level locking
-
-        uses_atomic_update = (
-            "sign_count =" in source and "WHERE" in source or
-            "with_for_update" in source or
-            "FOR UPDATE" in source
-        )
 
         # Por ahora solo verificamos que existe la función
         # El fix real requiere cambiar el SQL
@@ -367,13 +395,15 @@ class TestR2B12SignCountAtomicity:
 # R2-B13: Silent failure en destructor Redis
 # =============================================================================
 
+
 class TestR2B13DestructorErrorHandling:
     """Tests para manejo de errores en destructores."""
 
     def test_redis_destructor_logs_errors(self):
         """R2-B13: Destructor de Redis debe loguear errores, no silenciarlos."""
-        from app.services.notifications.dispatcher import NotificationDispatcher
         import inspect
+
+        from app.services.notifications.dispatcher import NotificationDispatcher
 
         source = inspect.getsource(NotificationDispatcher)
 
@@ -389,26 +419,28 @@ class TestR2B13DestructorErrorHandling:
 
         # Should have logger, not just 'pass'
         has_silent_pass = "pass" in del_source and "logger" not in del_source
-        assert not has_silent_pass, \
-            "R2-B13 Bug: Destructor silencia errores con 'pass'. " \
+        assert not has_silent_pass, (
+            "R2-B13 Bug: Destructor silencia errores con 'pass'. "
             "Debe loguear errores para debugging."
+        )
 
         # Verify logging is present
-        assert "logger" in del_source, \
-            "R2-B13 fix: Destructor should log errors"
+        assert "logger" in del_source, "R2-B13 fix: Destructor should log errors"
 
 
 # =============================================================================
 # R2-B14: Notification payload sin validación de tamaño
 # =============================================================================
 
+
 class TestR2B14PayloadSizeValidation:
     """Tests para validación de tamaño de payload."""
 
     def test_notification_payload_has_size_limit(self):
         """R2-B14: Payload de notificación debe tener límite de tamaño."""
-        from app.schemas.notifications import NotificationDispatchRequest
         from pydantic import ValidationError
+
+        from app.schemas.notifications import NotificationDispatchRequest
 
         # Crear payload muy grande (10KB de variables)
         huge_variables = {"key_" + str(i): "x" * 1000 for i in range(10)}
@@ -417,7 +449,7 @@ class TestR2B14PayloadSizeValidation:
         # Esto puede causar problemas con WhatsApp API y DB storage
 
         try:
-            request = NotificationDispatchRequest(
+            NotificationDispatchRequest(
                 guardian_id=1,
                 student_id=1,
                 channel="WHATSAPP",
@@ -433,6 +465,7 @@ class TestR2B14PayloadSizeValidation:
 # =============================================================================
 # R2-B15: Inconsistencia en manejo de None vs dict vacío
 # =============================================================================
+
 
 class TestR2B15NoneVsEmptyDict:
     """Tests para manejo consistente de None vs {}."""
@@ -450,13 +483,15 @@ class TestR2B15NoneVsEmptyDict:
         safe_empty = contacts_empty.get("whatsapp")
 
         # Ambos deben dar None
-        assert safe_none == safe_empty == None, \
+        assert safe_none == safe_empty is None, (
             "R2-B15 Bug: None y {} deben comportarse igual para .get()"
+        )
 
     def test_guardian_notification_prefs_none_handling(self):
         """R2-B15: notification_prefs=None debe manejarse correctamente."""
-        from app.workers.jobs.detect_no_ingreso import _detect_and_notify
         import inspect
+
+        from app.workers.jobs.detect_no_ingreso import _detect_and_notify
 
         source = inspect.getsource(_detect_and_notify)
 
@@ -475,25 +510,27 @@ class TestR2B15NoneVsEmptyDict:
 # R2-B16: Falta validación de formato de teléfono WhatsApp
 # =============================================================================
 
+
 class TestR2B16PhoneNumberValidation:
     """Tests para validación de números de teléfono."""
 
     def test_whatsapp_phone_format_validation(self):
         """R2-B16: Números de teléfono deben validarse antes de enviar."""
-        from app.services.notifications.whatsapp import WhatsAppClient
         import inspect
+
+        from app.services.notifications.whatsapp import WhatsAppClient
 
         source = inspect.getsource(WhatsAppClient.send_template)
 
         # R2-B16 Bug: El número se pasa directo sin validar formato
         # WhatsApp requiere formato E.164 (ej: +56912345678)
 
-        has_phone_validation = (
-            "validate" in source.lower() or
-            "format" in source.lower() or
-            "E164" in source or
-            "+56" in source or  # Check de formato chileno
-            "startswith" in source
+        (
+            "validate" in source.lower()
+            or "format" in source.lower()
+            or "E164" in source
+            or "+56" in source  # Check de formato chileno
+            or "startswith" in source
         )
 
         # Por ahora verificamos que la función existe
@@ -503,6 +540,7 @@ class TestR2B16PhoneNumberValidation:
 # =============================================================================
 # R2-B17: Logging de información sensible (teléfonos completos)
 # =============================================================================
+
 
 class TestR2B17SensitiveDataLogging:
     """Tests para evitar logging de datos sensibles."""
@@ -516,21 +554,24 @@ class TestR2B17SensitiveDataLogging:
 
         # R2-B17: Verificar que mask_phone existe y funciona
         assert phone not in masked, "R2-B17 Bug: Teléfono no está enmascarado"
-        assert "****" in masked or "***" in masked or len(masked) < len(phone), \
+        assert "****" in masked or "***" in masked or len(masked) < len(phone), (
             "R2-B17 Bug: Máscara no oculta suficientes dígitos"
+        )
 
 
 # =============================================================================
 # R2-B18: Sin límite en queries de notificaciones
 # =============================================================================
 
+
 class TestR2B18QueryLimits:
     """Tests para límites en queries de base de datos."""
 
     def test_list_notifications_has_default_limit(self):
         """R2-B18: Queries de lista deben tener límite por defecto."""
-        from app.db.repositories.notifications import NotificationRepository
         import inspect
+
+        from app.db.repositories.notifications import NotificationRepository
 
         source = inspect.getsource(NotificationRepository.list_notifications)
 
@@ -543,14 +584,13 @@ class TestR2B18QueryLimits:
 
         # Verificar que el límite se usa en el query
         if ".limit(" not in source:
-            pytest.fail(
-                "R2-B18 Bug: Parámetro limit existe pero no se aplica al query."
-            )
+            pytest.fail("R2-B18 Bug: Parámetro limit existe pero no se aplica al query.")
 
 
 # =============================================================================
 # R2-B19: Comparación de fechas naive vs aware en detect_no_show_alerts
 # =============================================================================
+
 
 class TestR2B19DatetimeComparison:
     """Tests para comparación correcta de fechas."""
@@ -558,8 +598,9 @@ class TestR2B19DatetimeComparison:
     @pytest.mark.asyncio
     async def test_detect_no_show_handles_timezone_aware_input(self):
         """R2-B19: detect_no_show_alerts debe manejar input timezone-aware."""
-        from app.services.attendance_service import AttendanceService
         import inspect
+
+        from app.services.attendance_service import AttendanceService
 
         source = inspect.getsource(AttendanceService.detect_no_show_alerts)
 
@@ -570,44 +611,43 @@ class TestR2B19DatetimeComparison:
         # if current_dt.tzinfo: current_dt_naive = ...
         # Esto está bien, pero debería ser más robusto
 
-        handles_timezone = (
-            "tzinfo" in source or
-            "timezone" in source or
-            "astimezone" in source
-        )
+        handles_timezone = "tzinfo" in source or "timezone" in source or "astimezone" in source
 
-        assert handles_timezone, \
+        assert handles_timezone, (
             "R2-B19 Bug: detect_no_show_alerts no maneja timezones correctamente"
+        )
 
 
 # =============================================================================
 # R2-B20: PhotoService.store_photo bloquea event loop
 # =============================================================================
 
+
 class TestR2B20AsyncBlockingCalls:
     """Tests para llamadas bloqueantes en funciones async."""
 
     def test_photo_service_uses_async_s3(self):
         """R2-B20: PhotoService debe usar llamadas async para S3."""
-        from app.services.photo_service import PhotoService
         import inspect
+
+        from app.services.photo_service import PhotoService
 
         source = inspect.getsource(PhotoService.store_photo)
 
         # After R2-B20 fix: Should use asyncio.to_thread to avoid blocking
         uses_async = (
-            "asyncio.to_thread" in source or
-            "run_in_executor" in source or
-            "aioboto3" in source
+            "asyncio.to_thread" in source or "run_in_executor" in source or "aioboto3" in source
         )
 
-        assert uses_async, \
-            "R2-B20 Bug: PhotoService.store_photo usa boto3 síncrono. " \
+        assert uses_async, (
+            "R2-B20 Bug: PhotoService.store_photo usa boto3 síncrono. "
             "Debe usar asyncio.to_thread() o aioboto3 para no bloquear."
+        )
 
         # Verify the specific fix
-        assert "asyncio.to_thread" in source, \
+        assert "asyncio.to_thread" in source, (
             "R2-B20 fix: Should use asyncio.to_thread() for non-blocking S3 calls"
+        )
 
 
 # =============================================================================

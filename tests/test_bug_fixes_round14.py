@@ -24,6 +24,7 @@ class TestR14WRK1SchedulerOverlapping:
     def test_scheduler_has_coalesce_or_max_instances(self):
         """R14-WRK1: APScheduler should prevent overlapping jobs."""
         from app.workers import scheduler
+
         source = inspect.getsource(scheduler)
 
         # Check for overlapping protection
@@ -47,6 +48,7 @@ class TestR14WRK2JobExceptionHandling:
     def test_cleanup_photos_has_try_except_wrapper(self):
         """R14-WRK2: cleanup_photos should have global try-except."""
         from app.workers.jobs import cleanup_photos
+
         source = inspect.getsource(cleanup_photos)
 
         # Find the main job function
@@ -68,13 +70,12 @@ class TestR14SQL1QueryLimits:
     def test_events_with_photo_before_has_limit(self):
         """R14-SQL1: events_with_photo_before should have LIMIT."""
         from app.db.repositories import attendance
+
         source = inspect.getsource(attendance)
 
         # Find the method
         method_match = re.search(
-            r"def events_with_photo_before.*?(?=\n    def |\nclass |\Z)",
-            source,
-            re.DOTALL
+            r"def events_with_photo_before.*?(?=\n    def |\nclass |\Z)", source, re.DOTALL
         )
 
         if method_match:
@@ -119,23 +120,19 @@ class TestR14NOT1RetryBackoff:
     def test_send_whatsapp_has_retry_delay(self):
         """R14-NOT1: WhatsApp sender should have delay between retries."""
         from app.workers.jobs import send_whatsapp
+
         source = inspect.getsource(send_whatsapp)
 
         # Check for delay/backoff pattern
-        has_sleep = "sleep" in source or "time.sleep" in source
-        has_backoff = "backoff" in source.lower()
-        has_delay = "delay" in source.lower()
-        has_exponential = "**" in source or "pow(" in source
+        "backoff" in source.lower()
+        "delay" in source.lower()
 
         # At least some form of delay
-        uses_delay = has_sleep or has_backoff or has_delay or has_exponential
 
         # For now just check awareness
         has_retry_comment = "retry" in source.lower()
 
-        assert has_retry_comment, (
-            "send_whatsapp should have retry logic with delay/backoff."
-        )
+        assert has_retry_comment, "send_whatsapp should have retry logic with delay/backoff."
 
 
 # =============================================================================
@@ -147,6 +144,7 @@ class TestR14NOT2TemplateValidation:
     def test_whatsapp_templates_are_defined(self):
         """R14-NOT2: WhatsApp templates should be defined and validated."""
         from app.workers.jobs import send_whatsapp
+
         source = inspect.getsource(send_whatsapp)
 
         # Check for template definitions
@@ -167,19 +165,16 @@ class TestR14S31ClientTimeout:
     def test_photo_service_has_timeout_config(self):
         """R14-S3-1: PhotoService S3 client should have timeout."""
         from app.services import photo_service
+
         source = inspect.getsource(photo_service)
 
         # Check for timeout configuration in Config
-        has_connect_timeout = "connect_timeout" in source
-        has_read_timeout = "read_timeout" in source
-        has_timeout = "timeout" in source.lower()
+        "timeout" in source.lower()
 
         # Or check for Config import with timeout
         uses_config = "Config(" in source
 
-        assert uses_config, (
-            "PhotoService should use botocore.Config for S3 client configuration."
-        )
+        assert uses_config, "PhotoService should use botocore.Config for S3 client configuration."
 
 
 # =============================================================================
@@ -191,11 +186,10 @@ class TestR14S32ClientRetry:
     def test_photo_service_has_retry_config(self):
         """R14-S3-2: PhotoService S3 client should have retry config."""
         from app.services import photo_service
+
         source = inspect.getsource(photo_service)
 
         # Check for retry configuration
-        has_retries = "retries" in source
-        has_max_attempts = "max_attempts" in source
 
         # At minimum should use asyncio.to_thread for non-blocking
         uses_to_thread = "asyncio.to_thread" in source
@@ -214,12 +208,13 @@ class TestR14WA1ChallengeCleanup:
     def test_challenge_store_has_cleanup(self):
         """R14-WA1: Challenge store should have expiration cleanup."""
         from app.services import webauthn_service
+
         source = inspect.getsource(webauthn_service)
 
         # Check for cleanup mechanism
         has_cleanup = "_cleanup" in source
         has_expires = "expires" in source
-        has_ttl = "ttl" in source.lower() or "TTL" in source
+        "ttl" in source.lower() or "TTL" in source
 
         assert has_cleanup or has_expires, (
             "WebAuthn challenge store should have expiration/cleanup mechanism."
@@ -235,15 +230,13 @@ class TestR14WA2SignCountValidation:
     def test_sign_count_is_validated(self):
         """R14-WA2: Sign count should be validated to detect cloned authenticators."""
         from app.services import webauthn_service
+
         source = inspect.getsource(webauthn_service)
 
         # Check for sign count handling
         has_sign_count = "sign_count" in source
-        updates_sign_count = "credential.sign_count" in source
 
-        assert has_sign_count, (
-            "WebAuthn should handle sign_count for authenticator validation."
-        )
+        assert has_sign_count, "WebAuthn should handle sign_count for authenticator validation."
 
 
 # =============================================================================
@@ -255,11 +248,11 @@ class TestR14WA3CredentialValidation:
     def test_credential_id_has_validation(self):
         """R14-WA3: Credential ID should be validated."""
         from app.api.v1 import webauthn
+
         source = inspect.getsource(webauthn)
 
         # Check for credential_id validation
         has_path_validation = "Path(" in source and "credential_id" in source
-        has_max_length = "max_length" in source
 
         assert has_path_validation, (
             "WebAuthn API should validate credential_id with Path constraints."
@@ -276,7 +269,7 @@ class TestR14PWA1CacheStrategy:
         """R14-PWA1: Kiosk SW should have cache versioning."""
         sw_path = "src/kiosk-app/service-worker.js"
 
-        with open(sw_path, "r", encoding="utf-8") as f:
+        with open(sw_path, encoding="utf-8") as f:
             content = f.read()
 
         # Check for cache versioning
@@ -298,16 +291,14 @@ class TestR14PWA2IDBErrorHandling:
         """R14-PWA2: Teacher PWA IDB should have onerror handlers."""
         idb_path = "src/teacher-pwa/js/idb.js"
 
-        with open(idb_path, "r", encoding="utf-8") as f:
+        with open(idb_path, encoding="utf-8") as f:
             content = f.read()
 
         # Check for error handling
         has_onerror = "onerror" in content
         has_reject = "reject" in content
 
-        assert has_onerror or has_reject, (
-            "Teacher PWA IDB should have error handlers."
-        )
+        assert has_onerror or has_reject, "Teacher PWA IDB should have error handlers."
 
 
 # =============================================================================
@@ -320,16 +311,14 @@ class TestR14PWA3SyncBackoff:
         """R14-PWA3: Teacher PWA sync should have retry with backoff."""
         sync_path = "src/teacher-pwa/js/sync.js"
 
-        with open(sync_path, "r", encoding="utf-8") as f:
+        with open(sync_path, encoding="utf-8") as f:
             content = f.read()
 
         # Check for retry logic
         has_retry = "retry" in content.lower() or "retries" in content
         has_max_retries = "maxRetries" in content or "MAX_RETRIES" in content
 
-        assert has_retry or has_max_retries, (
-            "Teacher PWA sync should have retry logic."
-        )
+        assert has_retry or has_max_retries, "Teacher PWA sync should have retry logic."
 
 
 # =============================================================================
@@ -342,7 +331,7 @@ class TestR14PWA4IntervalCleanup:
         """R14-PWA4: Teacher PWA should cleanup intervals."""
         sync_path = "src/teacher-pwa/js/sync.js"
 
-        with open(sync_path, "r", encoding="utf-8") as f:
+        with open(sync_path, encoding="utf-8") as f:
             content = f.read()
 
         # Check for interval cleanup
@@ -363,21 +352,20 @@ class TestR14REP1EmptyListHandling:
     def test_guardian_list_by_student_ids_handles_empty(self):
         """R14-REP1: list_by_student_ids should handle empty list."""
         from app.db.repositories import guardians
+
         source = inspect.getsource(guardians)
 
         # Find the method
         method_match = re.search(
-            r"def list_by_student_ids.*?(?=\n    def |\nclass |\Z)",
-            source,
-            re.DOTALL
+            r"def list_by_student_ids.*?(?=\n    def |\nclass |\Z)", source, re.DOTALL
         )
 
         if method_match:
             method_source = method_match.group(0)
             has_empty_check = (
-                "if not " in method_source or
-                "if len(" in method_source or
-                "if student_ids" in method_source
+                "if not " in method_source
+                or "if len(" in method_source
+                or "if student_ids" in method_source
             )
 
             # Or returns empty list for empty input
@@ -397,21 +385,17 @@ class TestR14REP2ListAllLimit:
     def test_students_list_all_has_limit(self):
         """R14-REP2: students.list_all should have limit parameter."""
         from app.db.repositories import students
+
         source = inspect.getsource(students)
 
         # Check for limit in list_all
-        list_all_match = re.search(
-            r"def list_all\s*\([^)]*\)",
-            source
-        )
+        list_all_match = re.search(r"def list_all\s*\([^)]*\)", source)
 
         if list_all_match:
             signature = list_all_match.group(0)
             has_limit_param = "limit" in signature
 
-            assert has_limit_param, (
-                "students.list_all should have configurable limit parameter."
-            )
+            assert has_limit_param, "students.list_all should have configurable limit parameter."
 
 
 # =============================================================================
@@ -423,6 +407,7 @@ class TestR14NOT3DispatcherRedisHandling:
     def test_dispatcher_has_redis_error_handling(self):
         """R14-NOT3: Dispatcher should handle Redis connection errors."""
         from app.services.notifications import dispatcher
+
         source = inspect.getsource(dispatcher)
 
         # Check for error handling
@@ -443,17 +428,15 @@ class TestR14NOT4JobTimeout:
     def test_attendance_notification_enqueue_has_timeout(self):
         """R14-NOT4: Job enqueue should specify timeout."""
         from app.services import attendance_notification_service
+
         source = inspect.getsource(attendance_notification_service)
 
         # Check for timeout in enqueue
-        has_timeout = "timeout" in source or "job_timeout" in source
 
         # Or check that enqueue is called properly
         has_enqueue = "enqueue" in source
 
-        assert has_enqueue, (
-            "AttendanceNotificationService should enqueue jobs."
-        )
+        assert has_enqueue, "AttendanceNotificationService should enqueue jobs."
 
 
 # =============================================================================
@@ -465,14 +448,11 @@ class TestR14SEC1SensitiveLogging:
     def test_whatsapp_does_not_log_token(self):
         """R14-SEC1: WhatsApp client should not log access token."""
         from app.services.notifications import whatsapp
+
         source = inspect.getsource(whatsapp)
 
         # Check that token is not directly logged
-        logs_token = re.search(
-            r"logger\.(info|error|debug|warning).*token",
-            source,
-            re.IGNORECASE
-        )
+        logs_token = re.search(r"logger\.(info|error|debug|warning).*token", source, re.IGNORECASE)
 
         # Should mask or not log token
         has_mask = "mask" in source.lower()
@@ -491,12 +471,11 @@ class TestR14SEC2PhotoServiceCleanup:
     def test_photo_service_has_close_method(self):
         """R14-SEC2: PhotoService should have close method."""
         from app.services import photo_service
+
         source = inspect.getsource(photo_service)
 
         # Check for close method
         has_close = "def close" in source
         has_del = "def __del__" in source
 
-        assert has_close or has_del, (
-            "PhotoService should have close() or __del__ for cleanup."
-        )
+        assert has_close or has_del, "PhotoService should have close() or __del__ for cleanup."

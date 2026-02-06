@@ -1,10 +1,13 @@
 /**
  * Teacher PWA - Authentication E2E Tests
  */
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 test.describe('Authentication', () => {
   test.beforeEach(async ({ page }) => {
+    // Mock API endpoints to prevent hanging
+    await page.route('**/api/v1/**', route => route.abort());
+
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
     await page.evaluate(() => {

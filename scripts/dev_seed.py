@@ -71,9 +71,9 @@ async def seed() -> None:
         # enrollments
         session.add_all(
             [
-                Enrollment(student_id=students[0].id, course_id=courses[0].id, school_year="2024"),
-                Enrollment(student_id=students[1].id, course_id=courses[0].id, school_year="2024"),
-                Enrollment(student_id=students[2].id, course_id=courses[1].id, school_year="2024"),
+                Enrollment(student_id=students[0].id, course_id=courses[0].id, year=2024),
+                Enrollment(student_id=students[1].id, course_id=courses[0].id, year=2024),
+                Enrollment(student_id=students[2].id, course_id=courses[1].id, year=2024),
             ]
         )
 

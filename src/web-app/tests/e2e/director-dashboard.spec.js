@@ -1,7 +1,7 @@
 /**
  * Web App - Director Dashboard E2E Tests
  */
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 async function setupDirectorSession(page) {
   await page.goto('/');

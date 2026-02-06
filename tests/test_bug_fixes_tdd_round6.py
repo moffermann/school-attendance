@@ -1,6 +1,5 @@
 """TDD Bug Fix Tests Round 6 - Path validation and JavaScript parsing."""
 
-import pytest
 import inspect
 
 
@@ -16,8 +15,9 @@ class TestBugR6_1_WebAuthnAdminPathValidation:
         # Should use Path(..., ge=1) for student_id like kiosk endpoint does
         has_path_validation = "Path(" in source and "ge=1" in source
 
-        assert has_path_validation, \
+        assert has_path_validation, (
             "admin_start_student_registration should validate student_id with Path(..., ge=1)"
+        )
 
     def test_admin_complete_registration_validates_student_id(self):
         """Verify admin_complete_student_registration uses Path with ge=1."""
@@ -28,8 +28,9 @@ class TestBugR6_1_WebAuthnAdminPathValidation:
         # Should use Path(..., ge=1) for student_id
         has_path_validation = "Path(" in source and "ge=1" in source
 
-        assert has_path_validation, \
+        assert has_path_validation, (
             "admin_complete_student_registration should validate student_id with Path(..., ge=1)"
+        )
 
     def test_admin_list_credentials_validates_student_id(self):
         """Verify admin_list_student_credentials uses Path with ge=1."""
@@ -40,8 +41,9 @@ class TestBugR6_1_WebAuthnAdminPathValidation:
         # Should use Path(..., ge=1) for student_id
         has_path_validation = "Path(" in source and "ge=1" in source
 
-        assert has_path_validation, \
+        assert has_path_validation, (
             "admin_list_student_credentials should validate student_id with Path(..., ge=1)"
+        )
 
 
 class TestBugR6_2_BiometricEnrollParseInt:
@@ -51,15 +53,17 @@ class TestBugR6_2_BiometricEnrollParseInt:
         """Verify biometric_enroll.js uses parseInt with explicit radix."""
         enroll_path = "src/kiosk-app/js/views/biometric_enroll.js"
 
-        with open(enroll_path, "r", encoding="utf-8") as f:
+        with open(enroll_path, encoding="utf-8") as f:
             source = f.read()
 
         import re
-        parseint_calls = re.findall(r'parseInt\([^)]+\)', source)
+
+        parseint_calls = re.findall(r"parseInt\([^)]+\)", source)
 
         for call in parseint_calls:
-            assert call.count(',') >= 1, \
+            assert call.count(",") >= 1, (
                 f"parseInt without radix found in biometric_enroll.js: {call}. Should use parseInt(value, 10)"
+            )
 
 
 class TestBugR6_3_BiometricEnrollNaNCheck:
@@ -69,14 +73,13 @@ class TestBugR6_3_BiometricEnrollNaNCheck:
         """Verify biometric_enroll.js validates teacherId is not NaN."""
         enroll_path = "src/kiosk-app/js/views/biometric_enroll.js"
 
-        with open(enroll_path, "r", encoding="utf-8") as f:
+        with open(enroll_path, encoding="utf-8") as f:
             source = f.read()
 
         # Should check isNaN(teacherId) before using it
         has_nan_check = "isNaN(teacherId)" in source or "Number.isNaN(teacherId)" in source
 
-        assert has_nan_check, \
-            "biometric_enroll.js should validate isNaN(teacherId) before using it"
+        assert has_nan_check, "biometric_enroll.js should validate isNaN(teacherId) before using it"
 
 
 class TestBugR6_4_TeachersPathValidation:
@@ -91,5 +94,6 @@ class TestBugR6_4_TeachersPathValidation:
         # Should use Path(..., ge=1) for course_id
         has_path_validation = "Path(" in source and "ge=1" in source
 
-        assert has_path_validation, \
+        assert has_path_validation, (
             "list_course_students should validate course_id with Path(..., ge=1)"
+        )

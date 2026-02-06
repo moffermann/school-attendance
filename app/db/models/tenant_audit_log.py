@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.types import JSONBCompatible
-
 from app.db.base import Base
+from app.db.types import JSONBCompatible
 
 
 class TenantAuditLog(Base):
@@ -39,12 +39,15 @@ class TenantAuditLog(Base):
         Integer, ForeignKey("public.tenants.id", ondelete="SET NULL"), nullable=True, index=True
     )
     super_admin_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("public.super_admins.id", ondelete="SET NULL"), nullable=True, index=True
+        Integer,
+        ForeignKey("public.super_admins.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     action: Mapped[str] = mapped_column(String(64), nullable=False)
     entity: Mapped[str | None] = mapped_column(String(64), nullable=True)
     entity_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    details: Mapped[dict] = mapped_column(JSONBCompatible, nullable=False, default=dict)
+    details: Mapped[dict[str, Any]] = mapped_column(JSONBCompatible, nullable=False, default=dict)
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
@@ -55,4 +58,7 @@ class TenantAuditLog(Base):
     super_admin = relationship("SuperAdmin")
 
     def __repr__(self) -> str:
-        return f"<TenantAuditLog(action={self.action}, tenant_id={self.tenant_id}, admin_id={self.super_admin_id})>"
+        return (
+            f"<TenantAuditLog(action={self.action}, tenant_id={self.tenant_id}, "
+            f"admin_id={self.super_admin_id})>"
+        )

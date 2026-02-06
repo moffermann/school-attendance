@@ -10,14 +10,10 @@ Bug categories tested:
 from __future__ import annotations
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException
-from starlette.requests import Request
-from datetime import datetime, timezone
 
 from app.core.security import (
     create_tenant_access_token,
-    create_super_admin_token,
     decode_token,
 )
 
@@ -47,8 +43,9 @@ class TestBug3_1_ImpersonationFlagNotValidated:
     @pytest.mark.asyncio
     async def test_impersonate_endpoint_sets_flag(self):
         """impersonate_tenant endpoint should set is_impersonation=True in token."""
-        from app.api.v1.super_admin import tenants
         import inspect
+
+        from app.api.v1.super_admin import tenants
 
         source = inspect.getsource(tenants.impersonate_tenant)
 
@@ -62,8 +59,9 @@ class TestBug3_1_ImpersonationFlagNotValidated:
 
         After fix, get_current_tenant_user should recognize impersonation tokens.
         """
-        from app.core import deps
         import inspect
+
+        from app.core import deps
 
         source = inspect.getsource(deps.get_current_tenant_user)
 
@@ -86,22 +84,22 @@ class TestBug3_2_ImpersonationTokenExpiration:
 
         Currently uses default (15 min), should be 5 min or less.
         """
-        from app.api.v1.super_admin import tenants
         import inspect
+
+        from app.api.v1.super_admin import tenants
 
         source = inspect.getsource(tenants.impersonate_tenant)
 
         # Should specify expires_minutes for shorter TTL
         has_short_expiry = "expires_minutes" in source
-        assert has_short_expiry, (
-            "impersonate_tenant should specify expires_minutes for shorter TTL"
-        )
+        assert has_short_expiry, "impersonate_tenant should specify expires_minutes for shorter TTL"
 
     @pytest.mark.asyncio
     async def test_create_tenant_access_token_accepts_expiration(self):
         """create_tenant_access_token should accept expires_minutes parameter."""
-        from app.core.security import create_tenant_access_token
         import inspect
+
+        from app.core.security import create_tenant_access_token
 
         sig = inspect.signature(create_tenant_access_token)
         params = list(sig.parameters.keys())
@@ -124,8 +122,9 @@ class TestBug3_3_HardcodedDirectorRole:
 
         After fix, should allow role parameter or use safer default.
         """
-        from app.api.v1.super_admin import tenants
         import inspect
+
+        from app.api.v1.super_admin import tenants
 
         source = inspect.getsource(tenants.impersonate_tenant)
 
@@ -154,6 +153,7 @@ class TestBug3_4_NoTokenRevocation:
         """Token blacklist module should exist for revocation."""
         try:
             from app.core import token_blacklist
+
             assert True
         except ImportError:
             pytest.fail("token_blacklist module should exist for token revocation")
@@ -173,16 +173,15 @@ class TestBug3_4_NoTokenRevocation:
 
         After fix, decode_token should reject blacklisted tokens.
         """
-        from app.core import security
         import inspect
+
+        from app.core import security
 
         source = inspect.getsource(security.decode_token)
 
         # Should check blacklist
         has_blacklist_check = "blacklist" in source.lower()
-        assert has_blacklist_check, (
-            "decode_token should check token blacklist"
-        )
+        assert has_blacklist_check, "decode_token should check token blacklist"
 
     @pytest.mark.asyncio
     async def test_blacklisted_token_rejected(self):
@@ -226,13 +225,12 @@ class TestBug3_5_ImpersonationAuditLogging:
 
         Currently logs admin_email but not IP address.
         """
-        from app.api.v1.super_admin import tenants
         import inspect
+
+        from app.api.v1.super_admin import tenants
 
         source = inspect.getsource(tenants.impersonate_tenant)
 
         # Should extract and log IP address
         has_ip_logging = "ip_address" in source.lower() or "client_host" in source.lower()
-        assert has_ip_logging, (
-            "impersonate_tenant should log IP address in audit"
-        )
+        assert has_ip_logging, "impersonate_tenant should log IP address in audit"

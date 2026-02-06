@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Comunicados Masivos | NEUVOX</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6366f1",
+                        secondary: "#0ea5e9",
+                        "background-light": "#f8fafc",
+                        "background-dark": "#0f172a",
+                        "sidebar-dark": "#1e1b4b",
+                        "sidebar-hover": "#312e81",
+                        "card-light": "#ffffff",
+                        "card-dark": "#1e293b",
+                        "text-light": "#1f2937",
+                        "text-dark": "#e2e8f0",
+                        "muted-light": "#6b7280",
+                        "muted-dark": "#94a3b8",
+                        "border-light": "#e2e8f0",
+                        "border-dark": "#334155",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                    },
+                },
+            },
+        };
+    </script>
+<style type="text/tailwindcss">
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .nav-item-active {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-left: 4px solid #818cf8;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 antialiased h-screen flex overflow-hidden">
+<aside class="w-64 bg-[#1e1b4b] text-gray-400 flex-shrink-0 flex flex-col transition-all duration-300 hidden md:flex border-r border-indigo-900/50 shadow-2xl z-20">
+<div class="h-20 flex items-center px-6 border-b border-indigo-900/50">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg">
+<div class="w-4 h-4 bg-indigo-900 rounded-full"></div>
+</div>
+<h1 class="text-xl font-bold tracking-tight text-white">NEUVOX</h1>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto py-6 space-y-1">
+<a class="flex items-center px-6 py-2.5 hover:bg-white/5 hover:text-white transition-colors border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">dashboard</span>
+<span class="font-medium text-sm">Tablero</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:bg-white/5 hover:text-white transition-colors border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">analytics</span>
+<span class="font-medium text-sm">Reportes</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:bg-white/5 hover:text-white transition-colors border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">bar_chart</span>
+<span class="font-medium text-sm">Métricas</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:bg-white/5 hover:text-white transition-colors border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">schedule</span>
+<span class="font-medium text-sm">Horarios</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:bg-white/5 hover:text-white transition-colors border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">event_busy</span>
+<span class="font-medium text-sm">Excepciones</span>
+</a>
+<a class="flex items-center px-6 py-2.5 nav-item-active" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">campaign</span>
+<span class="font-medium text-sm">Comunicados</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:bg-white/5 hover:text-white transition-colors border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">devices</span>
+<span class="font-medium text-sm">Dispositivos</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:bg-white/5 hover:text-white transition-colors border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">school</span>
+<span class="font-medium text-sm">Alumnos</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:bg-white/5 hover:text-white transition-colors border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">family_restroom</span>
+<span class="font-medium text-sm">Apoderados</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:bg-white/5 hover:text-white transition-colors border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">badge</span>
+<span class="font-medium text-sm">Profesores</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:bg-white/5 hover:text-white transition-colors border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">class</span>
+<span class="font-medium text-sm">Cursos</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:bg-white/5 hover:text-white transition-colors border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">person_off</span>
+<span class="font-medium text-sm">Ausencias</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:bg-white/5 hover:text-white transition-colors border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">notifications</span>
+<span class="font-medium text-sm">Notificaciones</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:bg-white/5 hover:text-white transition-colors border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">fingerprint</span>
+<span class="font-medium text-sm">Biometría</span>
+</a>
+</nav>
+</aside>
+<main class="flex-1 flex flex-col overflow-hidden relative bg-gray-50 dark:bg-background-dark">
+<header class="h-20 bg-white dark:bg-card-dark border-b border-border-light dark:border-border-dark flex items-center justify-between px-8 z-10 shadow-sm">
+<div class="flex items-center gap-4">
+<button class="md:hidden text-muted-light dark:text-muted-dark hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-2xl">menu</span>
+</button>
+<h2 class="text-xl font-bold text-gray-800 dark:text-text-dark hidden sm:block">Comunicados Masivos</h2>
+</div>
+<div class="flex items-center gap-4 flex-1 justify-end">
+<button class="p-2 rounded-full hover:bg-background-light dark:hover:bg-white/5 transition-colors text-muted-light dark:text-muted-dark" onclick="document.documentElement.classList.toggle('dark')">
+<span class="material-symbols-outlined dark:hidden">dark_mode</span>
+<span class="material-symbols-outlined hidden dark:block">light_mode</span>
+</button>
+<div class="flex items-center gap-2 cursor-pointer">
+<img alt="Director Profile" class="w-9 h-9 rounded-full border border-gray-200" src="https://lh3.googleusercontent.com/aida-public/AB6AXuATXMQmi4tc7pyne9xfBmiC-sFhXXQQEdTxo6ZDE0Q-eRWdGZBH2BTfopIwMNch7WMQs3jqypUW8CwaAibyRPmpxYHhg6FanoPAy_lwRfvUTluZBH2vXxXbvuLktNGGnny4MP-PI-hEiex0Uy6LJ2PKivLuLYTXEgc405KL9Fg9II3UevScTAVd93VMXTXnd3BHsG9sTm8mg0IlVXQ538Inht1J82954c4vIe5loFMc5hsCAYmN4JZv8yafQ7w00rthZa7fCeHlKV0"/>
+<div class="hidden md:block text-right">
+<p class="text-sm font-semibold text-gray-700 dark:text-gray-200">Director</p>
+</div>
+</div>
+<a class="ml-2 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 border border-gray-200 px-3 py-1.5 rounded-md hover:bg-gray-50" href="#">
+<span class="material-symbols-outlined text-lg">logout</span> Salir
+            </a>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6 scroll-smooth">
+<div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-xl p-4 flex items-start gap-4">
+<div class="bg-blue-100 dark:bg-blue-800 p-2 rounded-full text-blue-600 dark:text-blue-300 flex-shrink-0">
+<span class="material-symbols-outlined">info</span>
+</div>
+<div>
+<h4 class="text-blue-900 dark:text-blue-200 font-bold">¿Qué es un Comunicado Masivo?</h4>
+<p class="text-sm text-blue-700 dark:text-blue-400">Envía mensajes a todos los apoderados de un curso (o de todo el colegio) vía WhatsApp y/o Email. Útil para avisos de suspensiones, reuniones, cambios de horario, etc.</p>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl p-6 shadow-sm border border-border-light dark:border-border-dark">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-indigo-500">auto_awesome</span>
+<h3 class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Templates Rápidos</h3>
+</div>
+<div class="flex flex-wrap gap-3">
+<button class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full text-sm font-medium hover:bg-indigo-50 hover:border-indigo-200 dark:hover:bg-indigo-900/30 transition-all text-gray-700 dark:text-gray-300">Suspensión de clases</button>
+<button class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full text-sm font-medium hover:bg-indigo-50 hover:border-indigo-200 dark:hover:bg-indigo-900/30 transition-all text-gray-700 dark:text-gray-300">Reunión de apoderados</button>
+<button class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full text-sm font-medium hover:bg-indigo-50 hover:border-indigo-200 dark:hover:bg-indigo-900/30 transition-all text-gray-700 dark:text-gray-300">Cambio de horario</button>
+<button class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full text-sm font-medium hover:bg-indigo-50 hover:border-indigo-200 dark:hover:bg-indigo-900/30 transition-all text-gray-700 dark:text-gray-300">Actividad especial</button>
+<button class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full text-sm font-medium hover:bg-indigo-50 hover:border-indigo-200 dark:hover:bg-indigo-900/30 transition-all text-gray-700 dark:text-gray-300">Aviso urgente</button>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark overflow-hidden">
+<div class="p-6 border-b border-border-light dark:border-border-dark">
+<h3 class="text-lg font-bold text-gray-800 dark:text-text-dark">Enviar Mensaje Masivo</h3>
+</div>
+<div class="p-6 space-y-6">
+<div>
+<label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Motivo del Mensaje *</label>
+<input class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 shadow-sm" placeholder="Ej: Cambio de horario, suspensión de clases..." type="text"/>
+</div>
+<div>
+<label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Mensaje *</label>
+<textarea class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 shadow-sm" placeholder="Escriba su mensaje aquí. Puede usar variables como {{curso}} y {{fecha}}." rows="6"></textarea>
+<p class="mt-2 text-xs text-gray-500">Sugerencia: "Estimado/a apoderado/a, le informamos que el curso {{curso}} tendrá un cambio de horario el día {{fecha}}."</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div>
+<label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Curso Afectado</label>
+<div class="relative">
+<select class="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 shadow-sm appearance-none">
+<option>Todos los cursos</option>
+<option>1° Básico A</option>
+<option>2° Básico B</option>
+</select>
+<span class="absolute left-3 top-2.5 text-gray-400 material-symbols-outlined">groups</span>
+</div>
+</div>
+<div>
+<label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Fecha del Evento</label>
+<div class="relative">
+<input class="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 shadow-sm" type="date"/>
+<span class="absolute left-3 top-2.5 text-gray-400 material-symbols-outlined">calendar_today</span>
+</div>
+</div>
+</div>
+<div class="border-t border-gray-100 dark:border-gray-700 pt-6">
+<label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Canal de Envío</label>
+<div class="flex gap-8">
+<label class="flex items-center gap-3 cursor-pointer group">
+<div class="relative flex items-center">
+<input checked="" class="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" type="checkbox"/>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-green-500">chat</span>
+<span class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 transition-colors">WhatsApp</span>
+</div>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<div class="relative flex items-center">
+<input checked="" class="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" type="checkbox"/>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-blue-500">mail</span>
+<span class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 transition-colors">Email</span>
+</div>
+</label>
+</div>
+</div>
+</div>
+<div class="p-6 bg-gray-50 dark:bg-white/5 flex flex-col md:flex-row justify-end gap-3 border-t border-border-light dark:border-border-dark">
+<button class="px-6 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-lg">visibility</span>
+                    Vista Previa
+                </button>
+<button class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-lg text-sm font-semibold shadow-md shadow-indigo-200 dark:shadow-none transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-lg">send</span>
+                    Enviar Comunicado
+                </button>
+</div>
+</div>
+<footer class="text-center text-xs text-muted-light dark:text-muted-dark pt-8 pb-4">
+            © 2026 NEUVOX. Todos los derechos reservados.
+        </footer>
+</div>
+</main>
+
+</body></html>

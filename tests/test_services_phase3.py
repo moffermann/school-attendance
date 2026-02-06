@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -10,20 +10,20 @@ import pytest
 
 from app.core.auth import AuthUser
 from app.schemas.absences import AbsenceRequestCreate, AbsenceStatus, AbsenceType
+from app.schemas.devices import DeviceHeartbeatRequest
 from app.schemas.schedules import (
     ScheduleCreate,
     ScheduleExceptionCreate,
     ScheduleExceptionScope,
 )
 from app.services.absence_service import AbsenceService
-from app.services.schedule_service import ScheduleService
 from app.services.device_service import DeviceService
-from app.schemas.devices import DeviceHeartbeatRequest
-
+from app.services.schedule_service import ScheduleService
 
 # =============================================================================
 # Schedule Service Tests
 # =============================================================================
+
 
 class TestScheduleService:
     """Tests for ScheduleService."""
@@ -148,6 +148,7 @@ class TestScheduleService:
 # Absence Service Tests
 # =============================================================================
 
+
 class TestAbsenceService:
     """Tests for AbsenceService."""
 
@@ -229,7 +230,9 @@ class TestAbsenceService:
     @pytest.mark.asyncio
     async def test_submit_absence_parent_no_guardian(self, absence_service):
         """Should raise error when parent has no guardian_id."""
-        parent_no_guardian = AuthUser(id=2, role="PARENT", full_name="Parent", guardian_id=None, teacher_id=None)
+        parent_no_guardian = AuthUser(
+            id=2, role="PARENT", full_name="Parent", guardian_id=None, teacher_id=None
+        )
         fake_student = SimpleNamespace(id=1, full_name="Student")
         absence_service.student_repo.get = AsyncMock(return_value=fake_student)
 
@@ -317,8 +320,20 @@ class TestAbsenceService:
     async def test_list_absences_admin(self, absence_service, admin_user):
         """Should list all absences for admin."""
         fake_records = [
-            SimpleNamespace(id=1, student_id=1, start_date=date(2025, 1, 15), end_date=date(2025, 1, 16), status="PENDING"),
-            SimpleNamespace(id=2, student_id=2, start_date=date(2025, 1, 17), end_date=date(2025, 1, 18), status="APPROVED"),
+            SimpleNamespace(
+                id=1,
+                student_id=1,
+                start_date=date(2025, 1, 15),
+                end_date=date(2025, 1, 16),
+                status="PENDING",
+            ),
+            SimpleNamespace(
+                id=2,
+                student_id=2,
+                start_date=date(2025, 1, 17),
+                end_date=date(2025, 1, 18),
+                status="APPROVED",
+            ),
         ]
         absence_service.absence_repo.list_all = AsyncMock(return_value=fake_records)
 
@@ -330,8 +345,12 @@ class TestAbsenceService:
     async def test_list_absences_filter_by_date(self, absence_service, admin_user):
         """Should filter absences by date."""
         fake_records = [
-            SimpleNamespace(id=1, start_date=date(2025, 1, 15), end_date=date(2025, 1, 16), status="PENDING"),
-            SimpleNamespace(id=2, start_date=date(2025, 1, 10), end_date=date(2025, 1, 11), status="PENDING"),
+            SimpleNamespace(
+                id=1, start_date=date(2025, 1, 15), end_date=date(2025, 1, 16), status="PENDING"
+            ),
+            SimpleNamespace(
+                id=2, start_date=date(2025, 1, 10), end_date=date(2025, 1, 11), status="PENDING"
+            ),
         ]
         absence_service.absence_repo.list_all = AsyncMock(return_value=fake_records)
 
@@ -347,8 +366,12 @@ class TestAbsenceService:
     async def test_list_absences_filter_by_status(self, absence_service, admin_user):
         """Should filter absences by status."""
         fake_records = [
-            SimpleNamespace(id=1, start_date=date(2025, 1, 15), end_date=date(2025, 1, 16), status="PENDING"),
-            SimpleNamespace(id=2, start_date=date(2025, 1, 17), end_date=date(2025, 1, 18), status="APPROVED"),
+            SimpleNamespace(
+                id=1, start_date=date(2025, 1, 15), end_date=date(2025, 1, 16), status="PENDING"
+            ),
+            SimpleNamespace(
+                id=2, start_date=date(2025, 1, 17), end_date=date(2025, 1, 18), status="APPROVED"
+            ),
         ]
         absence_service.absence_repo.list_all = AsyncMock(return_value=fake_records)
 
@@ -360,7 +383,9 @@ class TestAbsenceService:
     @pytest.mark.asyncio
     async def test_list_absences_parent_no_guardian(self, absence_service):
         """Should return empty for parent without guardian_id."""
-        parent_no_guardian = AuthUser(id=2, role="PARENT", full_name="Parent", guardian_id=None, teacher_id=None)
+        parent_no_guardian = AuthUser(
+            id=2, role="PARENT", full_name="Parent", guardian_id=None, teacher_id=None
+        )
 
         result = await absence_service.list_absences(parent_no_guardian)
 
@@ -383,7 +408,13 @@ class TestAbsenceService:
             students=[SimpleNamespace(id=1), SimpleNamespace(id=2)],
         )
         fake_records = [
-            SimpleNamespace(id=1, student_id=1, start_date=date(2025, 1, 15), end_date=date(2025, 1, 16), status="PENDING"),
+            SimpleNamespace(
+                id=1,
+                student_id=1,
+                start_date=date(2025, 1, 15),
+                end_date=date(2025, 1, 16),
+                status="PENDING",
+            ),
         ]
         absence_service.guardian_repo.get = AsyncMock(return_value=fake_guardian)
         absence_service.absence_repo.list_by_student_ids = AsyncMock(return_value=fake_records)
@@ -408,6 +439,7 @@ class TestAbsenceService:
 # =============================================================================
 # Device Service Tests
 # =============================================================================
+
 
 class TestDeviceService:
     """Tests for DeviceService."""
@@ -434,7 +466,7 @@ class TestDeviceService:
                 battery_pct=85,
                 pending_events=0,
                 online=True,
-                last_sync=datetime.now(timezone.utc),
+                last_sync=datetime.now(UTC),
             )
         ]
         device_service.repository.list_all = AsyncMock(return_value=fake_devices)
@@ -457,7 +489,7 @@ class TestDeviceService:
             battery_pct=90,
             pending_events=5,
             online=True,
-            last_sync=datetime.now(timezone.utc),
+            last_sync=datetime.now(UTC),
         )
         device_service.repository.upsert_heartbeat = AsyncMock(return_value=fake_device)
 
@@ -485,7 +517,7 @@ class TestDeviceService:
             battery_pct=85,
             pending_events=0,
             online=True,
-            last_sync=datetime.now(timezone.utc),
+            last_sync=datetime.now(UTC),
         )
         device_service.repository.get_by_id = AsyncMock(return_value=fake_device)
         device_service.repository.touch_ping = AsyncMock()
@@ -511,7 +543,7 @@ class TestDeviceService:
             device_id="DEV-001",
             pending_events=3,
             battery_pct=85,
-            last_sync=datetime.now(timezone.utc),
+            last_sync=datetime.now(UTC),
         )
         device_service.repository.get_by_id = AsyncMock(return_value=fake_device)
 

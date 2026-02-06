@@ -10,7 +10,6 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-
 revision = "0011_push_subscriptions"
 down_revision = "0010_merge_0009_heads"
 branch_labels = None

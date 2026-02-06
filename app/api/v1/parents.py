@@ -10,7 +10,6 @@ from app.core.deps import TenantAuthUser, get_current_tenant_user
 from app.schemas.guardians import GuardianPreferencesRead, GuardianPreferencesUpdate
 from app.services.consent_service import ConsentService
 
-
 router = APIRouter()
 
 

@@ -2,15 +2,87 @@
  * NFC Enrollment - E2E Tests
  * Tests the complete enrollment workflow for students and teachers
  */
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 async function setupDirectorSession(page) {
   await page.goto('/');
   await page.waitForLoadState('domcontentloaded');
   await page.evaluate(() => {
+    // Clear previous data
+    localStorage.clear();
+
+    // Set up mock app data with students and teachers
+    const mockData = {
+      students: [
+        {
+          id: 1,
+          full_name: 'Juan Pérez García',
+          course_id: 1,
+          national_id: '12.345.678-9',
+          status: 'ACTIVE',
+          photo_pref_opt_in: false
+        },
+        {
+          id: 2,
+          full_name: 'María González López',
+          course_id: 1,
+          national_id: '12.345.679-0',
+          status: 'ACTIVE',
+          photo_pref_opt_in: false
+        }
+      ],
+      courses: [
+        {
+          id: 1,
+          name: '6° Básico A',
+          grade: '6',
+          section: 'A',
+          status: 'ACTIVE',
+          teacher_ids: [1]
+        }
+      ],
+      guardians: [
+        {
+          id: 1,
+          full_name: 'Ana García Martínez',
+          email: 'ana@example.com',
+          student_ids: [1, 2],
+          contacts: { phone: '+56912345678', email: 'ana@example.com' }
+        }
+      ],
+      teachers: [
+        {
+          id: 1,
+          full_name: 'Prof. Carlos López Silva',
+          email: 'carlos@colegio.cl',
+          status: 'ACTIVE',
+          specialty: 'Matemáticas'
+        },
+        {
+          id: 2,
+          full_name: 'Prof. Andrea Muñoz Vera',
+          email: 'andrea@colegio.cl',
+          status: 'ACTIVE',
+          specialty: 'Lenguaje'
+        }
+      ],
+      schedules: [],
+      schedule_exceptions: [],
+      attendance_events: [],
+      devices: [],
+      absences: [],
+      notifications: []
+    };
+
+    // Store mock data
+    localStorage.setItem('appData', JSON.stringify(mockData));
     localStorage.setItem('currentRole', 'director');
     localStorage.setItem('sessionToken', 'test_token_' + Date.now());
   });
+
+  // Reload to initialize State with mock data
+  await page.reload();
+  await page.waitForLoadState('domcontentloaded');
 }
 
 test.describe('Student NFC Enrollment Flow', () => {

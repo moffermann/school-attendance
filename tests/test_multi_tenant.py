@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import os
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from fastapi import HTTPException
 from starlette.requests import Request
 
@@ -12,14 +13,14 @@ from app.core.tenant_middleware import TenantMiddleware
 
 # Check if middleware is skipped in tests
 SKIP_MIDDLEWARE = os.environ.get("SKIP_TENANT_MIDDLEWARE", "").lower() == "true"
-from app.services.feature_flag_service import FeatureFlagService
-from app.db.models.tenant_feature import TenantFeature
+from app.core.encryption import decrypt, decrypt_if_present, encrypt, encrypt_if_present
 from app.core.security import (
     create_super_admin_token,
     create_tenant_access_token,
     decode_token,
 )
-from app.core.encryption import encrypt, decrypt, encrypt_if_present, decrypt_if_present
+from app.db.models.tenant_feature import TenantFeature
+from app.services.feature_flag_service import FeatureFlagService
 
 
 class TestTenantMiddleware:
@@ -295,8 +296,8 @@ class TestTenantWhatsAppClient:
 
     def test_client_requires_credentials(self):
         """Client should raise if credentials missing."""
-        from app.services.notifications.whatsapp import TenantWhatsAppClient
         from app.db.repositories.tenant_configs import DecryptedTenantConfig
+        from app.services.notifications.whatsapp import TenantWhatsAppClient
 
         config = DecryptedTenantConfig(
             tenant_id=1,
@@ -318,8 +319,8 @@ class TestTenantWhatsAppClient:
 
     def test_client_initializes_with_credentials(self):
         """Client should initialize with valid credentials."""
-        from app.services.notifications.whatsapp import TenantWhatsAppClient
         from app.db.repositories.tenant_configs import DecryptedTenantConfig
+        from app.services.notifications.whatsapp import TenantWhatsAppClient
 
         config = DecryptedTenantConfig(
             tenant_id=1,

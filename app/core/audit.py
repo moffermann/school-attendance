@@ -1,14 +1,14 @@
 """Audit logging for security-sensitive events."""
 
 import json
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Optional
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Any
 
 from loguru import logger
 
 
-class AuditEvent(str, Enum):
+class AuditEvent(StrEnum):
     """Security-sensitive events that should be audited."""
 
     # Authentication events
@@ -26,11 +26,46 @@ class AuditEvent(str, Enum):
     STUDENT_CREATED = "data.student.created"
     STUDENT_UPDATED = "data.student.updated"
     STUDENT_DELETED = "data.student.deleted"
+    STUDENT_EXPORTED = "data.student.exported"
     GUARDIAN_LINKED = "data.guardian.linked"
+
+    # Course events
+    COURSE_CREATED = "data.course.created"
+    COURSE_UPDATED = "data.course.updated"
+    COURSE_DELETED = "data.course.deleted"
+    COURSE_VIEWED = "data.course.viewed"
+    COURSE_EXPORTED = "data.course.exported"
+
+    # Teacher events
+    TEACHER_CREATED = "data.teacher.created"
+    TEACHER_UPDATED = "data.teacher.updated"
+    TEACHER_DELETED = "data.teacher.deleted"
+    TEACHER_EXPORTED = "data.teacher.exported"
+
+    # Guardian events
+    GUARDIAN_CREATED = "data.guardian.created"
+    GUARDIAN_UPDATED = "data.guardian.updated"
+    GUARDIAN_DELETED = "data.guardian.deleted"
+    GUARDIAN_EXPORTED = "data.guardian.exported"
+
+    # Absence events
+    ABSENCE_CREATED = "data.absence.created"
+    ABSENCE_UPDATED = "data.absence.updated"
+    ABSENCE_APPROVED = "data.absence.approved"
+    ABSENCE_REJECTED = "data.absence.rejected"
+    ABSENCE_DELETED = "data.absence.deleted"
+    ABSENCE_EXPORTED = "data.absence.exported"
 
     # Attendance events
     ATTENDANCE_REGISTERED = "attendance.registered"
     ATTENDANCE_PHOTO_UPLOADED = "attendance.photo.uploaded"
+
+    # Withdrawal events
+    WITHDRAWAL_INITIATED = "withdrawal.initiated"
+    WITHDRAWAL_VERIFIED = "withdrawal.verified"
+    WITHDRAWAL_COMPLETED = "withdrawal.completed"
+    WITHDRAWAL_CANCELLED = "withdrawal.cancelled"
+    WITHDRAWAL_ADMIN_OVERRIDE = "withdrawal.admin_override"
 
     # Settings events
     PREFERENCES_UPDATED = "settings.preferences.updated"
@@ -45,11 +80,11 @@ class AuditEvent(str, Enum):
 def audit_log(
     event: AuditEvent,
     *,
-    user_id: Optional[int] = None,
-    ip_address: Optional[str] = None,
-    resource_type: Optional[str] = None,
-    resource_id: Optional[int] = None,
-    details: Optional[dict[str, Any]] = None,
+    user_id: int | None = None,
+    ip_address: str | None = None,
+    resource_type: str | None = None,
+    resource_id: int | None = None,
+    details: dict[str, Any] | None = None,
     success: bool = True,
 ) -> None:
     """Log a security audit event.
@@ -64,7 +99,7 @@ def audit_log(
         success: Whether the action succeeded
     """
     audit_entry = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "event": event.value,
         "success": success,
         "user_id": user_id,
@@ -72,7 +107,9 @@ def audit_log(
         "resource": {
             "type": resource_type,
             "id": resource_id,
-        } if resource_type else None,
+        }
+        if resource_type
+        else None,
         "details": details,
     }
 

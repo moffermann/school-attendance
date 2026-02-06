@@ -1,8 +1,9 @@
-{
-  "photoEnabled": true,
-  "highContrast": false,
-  "schoolName": "Colegio San Patricio",
-  "autoResumeDelay": 5000,
-  "apiBaseUrl": "/api/v1",
-  "deviceApiKey": ""
+﻿{
+    "deviceApiKey":  "local-dev-device-key",
+    "schoolName":  "Colegio Demo",
+    "photoEnabled":  true,
+    "autoResumeDelay":  5000,
+    "apiBaseUrl":  "https://b264c25aa91f.ngrok-free.app/api/v1",
+    "highContrast":  false,
+    "tenantId": "1"
 }

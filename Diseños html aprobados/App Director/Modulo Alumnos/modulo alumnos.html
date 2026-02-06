@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gestión de Alumnos | NEUVOX</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+        :root {
+            --primary-gradient: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
+            --sidebar-bg: #1e1b4b;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .nav-item-active {
+            background: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #818cf8;
+            color: white;
+        }
+        .btn-gradient {
+            background: var(--primary-gradient);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased h-screen flex overflow-hidden">
+<aside class="w-64 bg-[var(--sidebar-bg)] text-slate-400 flex-shrink-0 flex flex-col z-20">
+<div class="h-20 flex items-center px-6 border-b border-indigo-900/50">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg">
+<div class="w-4 h-4 bg-indigo-900 rounded-full"></div>
+</div>
+<h1 class="text-xl font-bold tracking-tight text-white uppercase">NEUVOX</h1>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto py-4 space-y-1 custom-scrollbar">
+<a class="flex items-center px-6 py-2.5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">dashboard</span>
+<span class="text-sm font-medium">Tablero</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">analytics</span>
+<span class="text-sm font-medium">Reportes</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">bar_chart</span>
+<span class="text-sm font-medium">Métricas</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">schedule</span>
+<span class="text-sm font-medium">Horarios</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">event_busy</span>
+<span class="text-sm font-medium">Excepciones</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">campaign</span>
+<span class="text-sm font-medium">Comunicados</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">devices</span>
+<span class="text-sm font-medium">Dispositivos</span>
+</a>
+<a class="flex items-center px-6 py-2.5 nav-item-active" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">school</span>
+<span class="text-sm font-medium">Alumnos</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">family_restroom</span>
+<span class="text-sm font-medium">Apoderados</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">badge</span>
+<span class="text-sm font-medium">Profesores</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">class</span>
+<span class="text-sm font-medium">Cursos</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">person_off</span>
+<span class="text-sm font-medium">Ausencias</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">notifications</span>
+<span class="text-sm font-medium">Notificaciones</span>
+</a>
+<a class="flex items-center px-6 py-2.5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">fingerprint</span>
+<span class="text-sm font-medium">Biometría</span>
+</a>
+</nav>
+</aside>
+<main class="flex-1 flex flex-col overflow-hidden">
+<header class="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 z-10">
+<div class="flex items-center gap-4">
+<h2 class="text-xl font-bold text-slate-800">Gestión de Alumnos <span class="text-slate-400 font-medium ml-1">(64)</span></h2>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-3">
+<div class="text-right hidden sm:block">
+<p class="text-sm font-semibold text-slate-700">Director</p>
+</div>
+<img alt="Profile" class="w-10 h-10 rounded-full border border-slate-200 shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuATXMQmi4tc7pyne9xfBmiC-sFhXXQQEdTxo6ZDE0Q-eRWdGZBH2BTfopIwMNch7WMQs3jqypUW8CwaAibyRPmpxYHhg6FanoPAy_lwRfvUTluZBH2vXxXbvuLktNGGnny4MP-PI-hEiex0Uy6LJ2PKivLuLYTXEgc405KL9Fg9II3UevScTAVd93VMXTXnd3BHsG9sTm8mg0IlVXQ538Inht1J82954c4vIe5loFMc5hsCAYmN4JZv8yafQ7w00rthZa7fCeHlKV0"/>
+</div>
+<button class="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 border border-slate-200 px-4 py-2 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-lg">logout</span> Salir
+            </button>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto p-8 space-y-6">
+<div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-end gap-4">
+<div class="flex-1 min-w-[240px]">
+<label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Buscar alumno</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400">search</span>
+<input class="w-full pl-10 pr-4 py-2.5 border-slate-200 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Buscar por nombre..." type="text"/>
+</div>
+</div>
+<div class="w-48">
+<label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Curso</label>
+<select class="w-full py-2.5 border-slate-200 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500">
+<option>Todos los cursos</option>
+<option>1° Básico A</option>
+<option>2° Básico A</option>
+<option>2° Básico B</option>
+</select>
+</div>
+<div class="w-48">
+<label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Estado</label>
+<select class="w-full py-2.5 border-slate-200 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500">
+<option>Activos</option>
+<option>Inactivos</option>
+<option>Todos</option>
+</select>
+</div>
+<button class="px-5 py-2.5 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
+                Limpiar Filtros
+            </button>
+<button class="btn-gradient px-6 py-2.5 text-white rounded-lg text-sm font-bold shadow-lg shadow-indigo-200 flex items-center gap-2">
+<span class="material-symbols-outlined text-xl">person_add</span> + Nuevo Alumno
+            </button>
+</div>
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+<div class="p-5 border-b border-slate-100 bg-slate-50/50">
+<h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Lista de Alumnos</h3>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+<th class="px-6 py-4">Nombre</th>
+<th class="px-6 py-4">Curso</th>
+<th class="px-6 py-4 text-center">Estado</th>
+<th class="px-6 py-4">Asistencia</th>
+<th class="px-6 py-4 text-center">Aut. Foto</th>
+<th class="px-6 py-4 text-right">Acciones</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-50">
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 overflow-hidden">
+<img alt="Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAePKRZGFt3CLtt-ZaIeCKI5eP-ildANdzyz9J8xo1LGySaH5DWdItV9AAavBZEt0QCVCWjNZKKPAgFdKauqi5EUyDzHQOuuyq_bCaHfo2mEKx6Q8kiGC0jGMVQRafLjwRfcxhPFRFiDFM_JxrvTnjUEO4xVcZ9dG3lvt32S1-_NQp1z6DywBpBDbHHENF5XcXNRTmLxFAXPHM0ZiDxAra4_kksLb98cQTgv6OHi5dQkBm1t3fKJSB-Uh5M2B3__EOE3sohz21KhSE"/>
+</div>
+<span class="font-bold text-slate-700">Agustín Bustos Cárdenas</span>
+</div>
+</td>
+<td class="px-6 py-4 text-slate-500 text-sm">2° Básico A</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">Activo</span>
+</td>
+<td class="px-6 py-4 min-w-[160px]">
+<div class="flex items-center gap-3">
+<span class="text-sm font-bold text-slate-700">79%</span>
+<div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-emerald-500 rounded-full" style="width: 79%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-500">NO</span>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-1 opacity-80 group-hover:opacity-100">
+<button class="p-1.5 hover:bg-indigo-50 text-indigo-600 rounded-lg transition-all duration-200" title="Ver Perfil">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+<button class="p-1.5 hover:bg-blue-50 text-blue-600 rounded-lg transition-all duration-200" title="Generar Credencial QR/NFC">
+<span class="material-symbols-outlined text-[20px]">qr_code_2</span>
+</button>
+<button class="p-1.5 hover:bg-indigo-50 text-indigo-700 rounded-lg transition-all duration-200" title="Ver Asistencia">
+<span class="material-symbols-outlined text-[20px]">calendar_today</span>
+</button>
+<button class="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition-all duration-200" title="Editar">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg transition-all duration-200" title="Eliminar">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 overflow-hidden">
+<img alt="Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMfr7yfviVRj2jdFTd2Yj3chWpHMvKBomyY4sVhoi-LlPBcDJPPXB_3Zs5JoMOguHj9MvvSDWxNK-GofhOHNS-ad-rZ1lZXB99TywPK-F-X__YUi699X5uJN_btvD8kLLwrmBtCLHBk-gtlDiYI0QBK6Av0A9gkPAS5qWnhfPiiU0YYWCHJxNJvfY04LmJRAsceKK4J2SCbhIW_ypC8DQMJRu7Z3eX1ghToA9tsjt-uEta9N9Kw2daBmSWk5GEf-VEiTzKcXbDOeI"/>
+</div>
+<span class="font-bold text-slate-700">Alonso Araya Carvajal</span>
+</div>
+</td>
+<td class="px-6 py-4 text-slate-500 text-sm">1° Básico B</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">Activo</span>
+</td>
+<td class="px-6 py-4 min-w-[160px]">
+<div class="flex items-center gap-3">
+<span class="text-sm font-bold text-slate-700">50%</span>
+<div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-amber-500 rounded-full" style="width: 50%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-green-100 text-green-600">SÍ</span>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-1 opacity-80 group-hover:opacity-100">
+<button class="p-1.5 hover:bg-indigo-50 text-indigo-600 rounded-lg transition-all duration-200" title="Ver Perfil">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+<button class="p-1.5 hover:bg-blue-50 text-blue-600 rounded-lg transition-all duration-200" title="Generar Credencial QR/NFC">
+<span class="material-symbols-outlined text-[20px]">qr_code_2</span>
+</button>
+<button class="p-1.5 hover:bg-indigo-50 text-indigo-700 rounded-lg transition-all duration-200" title="Ver Asistencia">
+<span class="material-symbols-outlined text-[20px]">calendar_today</span>
+</button>
+<button class="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition-all duration-200" title="Editar">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg transition-all duration-200" title="Eliminar">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 overflow-hidden">
+<img alt="Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_hQ_0paT6Hok3QKnqWFjUXDmAmCEhQy97q0TkMBZPBK9Hj33--kAx8w1VX_HvLT4Pvb4NkAN_lVFXGusMTVlReSulfMP12pOqE7qaK04Oq2zc9GuyxLdk0RSrFELfo2AWahoi_RTKqOPZFM-uFo-6svZmjjVyfqjrQqYItSvpyPO0WnI_GCyX9_gKlG60LpiMUWJgQJL8ksZ9WFOZKsL1T7tAK2TMn8Q0Q8KSxQdlPEoxd70hubs0pLmrCHf7pBwIgaxhePiPaOM"/>
+</div>
+<span class="font-bold text-slate-700">Amanda Sánchez Peña</span>
+</div>
+</td>
+<td class="px-6 py-4 text-slate-500 text-sm">1° Básico B</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">Activo</span>
+</td>
+<td class="px-6 py-4 min-w-[160px]">
+<div class="flex items-center gap-3">
+<span class="text-sm font-bold text-slate-700">36%</span>
+<div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-red-500 rounded-full" style="width: 36%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-green-100 text-green-600">SÍ</span>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-1 opacity-80 group-hover:opacity-100">
+<button class="p-1.5 hover:bg-indigo-50 text-indigo-600 rounded-lg transition-all duration-200" title="Ver Perfil">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+<button class="p-1.5 hover:bg-blue-50 text-blue-600 rounded-lg transition-all duration-200" title="Generar Credencial QR/NFC">
+<span class="material-symbols-outlined text-[20px]">qr_code_2</span>
+</button>
+<button class="p-1.5 hover:bg-indigo-50 text-indigo-700 rounded-lg transition-all duration-200" title="Ver Asistencia">
+<span class="material-symbols-outlined text-[20px]">calendar_today</span>
+</button>
+<button class="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition-all duration-200" title="Editar">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg transition-all duration-200" title="Eliminar">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-500">
+<span>Mostrando 3 de 64 alumnos</span>
+<div class="flex gap-2">
+<button class="px-3 py-1 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors">Anterior</button>
+<button class="px-3 py-1 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors">Siguiente</button>
+</div>
+</div>
+</div>
+<footer class="text-center text-[10px] text-slate-400 font-medium pt-4 pb-8 uppercase tracking-[2px]">
+            © 2026 NEUVOX • Gestión Educativa Inteligente
+        </footer>
+</div>
+</main>
+
+</body></html>

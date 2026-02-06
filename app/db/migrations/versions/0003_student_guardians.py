@@ -7,9 +7,8 @@ Create Date: 2024-05-13 01:20:00.000000
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision = "0003_student_guardians"
 down_revision = "0002_add_users"
@@ -20,8 +19,18 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "student_guardians",
-        sa.Column("student_id", sa.Integer(), sa.ForeignKey("students.id", ondelete="CASCADE"), primary_key=True),
-        sa.Column("guardian_id", sa.Integer(), sa.ForeignKey("guardians.id", ondelete="CASCADE"), primary_key=True),
+        sa.Column(
+            "student_id",
+            sa.Integer(),
+            sa.ForeignKey("students.id", ondelete="CASCADE"),
+            primary_key=True,
+        ),
+        sa.Column(
+            "guardian_id",
+            sa.Integer(),
+            sa.ForeignKey("guardians.id", ondelete="CASCADE"),
+            primary_key=True,
+        ),
     )
 
 

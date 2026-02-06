@@ -11,7 +11,6 @@ a placeholder in the migration chain.
 
 from __future__ import annotations
 
-
 revision = "0005_merge_heads"
 down_revision = "0004_no_show_alerts"
 branch_labels = None

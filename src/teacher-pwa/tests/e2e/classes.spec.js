@@ -1,10 +1,33 @@
 /**
  * Teacher PWA - Classes View E2E Tests
  */
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 test.describe('Classes View', () => {
   test.beforeEach(async ({ page }) => {
+    // Mock API endpoints to prevent hanging
+    await page.route('**/api/v1/teachers/me', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          teacher: { id: 1, full_name: 'Profesor Test' },
+          courses: [
+            { id: 1, name: '1° Básico A', grade: '1', section: 'A' },
+            { id: 2, name: '2° Básico B', grade: '2', section: 'B' }
+          ]
+        })
+      });
+    });
+
+    await page.route('**/api/v1/bootstrap**', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ students: [], courses: [], teachers: [] })
+      });
+    });
+
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 

@@ -1,0 +1,17 @@
+[
+  {"id": 1, "course_id": 1, "weekday": 1, "in_time": "08:00", "out_time": "16:00"},
+  {"id": 2, "course_id": 1, "weekday": 2, "in_time": "08:00", "out_time": "16:00"},
+  {"id": 3, "course_id": 1, "weekday": 3, "in_time": "08:00", "out_time": "16:00"},
+  {"id": 4, "course_id": 1, "weekday": 4, "in_time": "08:00", "out_time": "16:00"},
+  {"id": 5, "course_id": 1, "weekday": 5, "in_time": "08:00", "out_time": "16:00"},
+  {"id": 6, "course_id": 2, "weekday": 1, "in_time": "08:15", "out_time": "16:15"},
+  {"id": 7, "course_id": 2, "weekday": 2, "in_time": "08:15", "out_time": "16:15"},
+  {"id": 8, "course_id": 2, "weekday": 3, "in_time": "08:15", "out_time": "16:15"},
+  {"id": 9, "course_id": 2, "weekday": 4, "in_time": "08:15", "out_time": "16:15"},
+  {"id": 10, "course_id": 2, "weekday": 5, "in_time": "08:15", "out_time": "16:15"},
+  {"id": 11, "course_id": 3, "weekday": 1, "in_time": "08:30", "out_time": "16:30"},
+  {"id": 12, "course_id": 3, "weekday": 2, "in_time": "08:30", "out_time": "16:30"},
+  {"id": 13, "course_id": 3, "weekday": 3, "in_time": "08:30", "out_time": "16:30"},
+  {"id": 14, "course_id": 3, "weekday": 4, "in_time": "08:30", "out_time": "16:30"},
+  {"id": 15, "course_id": 3, "weekday": 5, "in_time": "08:30", "out_time": "16:30"}
+]

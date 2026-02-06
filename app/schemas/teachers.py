@@ -1,8 +1,18 @@
 """Teacher schemas."""
 
-from enum import Enum
+from datetime import datetime
+from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+
+class TeacherStatus(StrEnum):
+    """Status enum for teachers."""
+
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
+    ON_LEAVE = "ON_LEAVE"
+    DELETED = "DELETED"
 
 
 class TeacherRead(BaseModel):
@@ -14,6 +24,107 @@ class TeacherRead(BaseModel):
     full_name: str
     email: str | None = None
     status: str = "ACTIVE"
+    can_enroll_biometric: bool = False
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class TeacherCreate(BaseModel):
+    """Schema for creating a new teacher."""
+
+    full_name: str = Field(..., min_length=2, max_length=255)
+    email: EmailStr | None = None
+    status: str = Field(default="ACTIVE", pattern="^(ACTIVE|INACTIVE|ON_LEAVE)$")
+    can_enroll_biometric: bool = False
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("El nombre no puede estar vacío")
+        return v.strip()
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def validate_email(cls, v: str | None) -> str | None:
+        if v is not None:
+            v = v.strip().lower()
+            if v and "@" not in v:
+                raise ValueError("Email inválido")
+        return v if v else None
+
+
+class TeacherUpdate(BaseModel):
+    """Schema for updating a teacher."""
+
+    full_name: str | None = Field(default=None, min_length=2, max_length=255)
+    email: EmailStr | None = None
+    status: str | None = Field(default=None, pattern="^(ACTIVE|INACTIVE|ON_LEAVE)$")
+    can_enroll_biometric: bool | None = None
+
+    @field_validator("full_name", mode="before")
+    @classmethod
+    def validate_name(cls, v: str | None) -> str | None:
+        if v is not None and not v.strip():
+            raise ValueError("El nombre no puede estar vacío")
+        return v.strip() if v else v
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def validate_email(cls, v: str | None) -> str | None:
+        if v is not None:
+            v = v.strip().lower()
+            if v and "@" not in v:
+                raise ValueError("Email inválido")
+        return v if v else None
+
+
+class TeacherFilters(BaseModel):
+    """Filters for listing teachers."""
+
+    status: str | None = Field(default=None)
+    search: str | None = Field(None, max_length=100)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class TeacherWithStats(TeacherRead):
+    """Teacher with statistics."""
+
+    courses_count: int = 0
+
+
+class PaginatedTeachers(BaseModel):
+    """Paginated response for teachers."""
+
+    items: list[TeacherRead]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+    @classmethod
+    def create(
+        cls, items: list[TeacherRead], total: int, limit: int, offset: int
+    ) -> "PaginatedTeachers":
+        """Factory method with correct has_more calculation."""
+        return cls(
+            items=items,
+            total=total,
+            limit=limit,
+            offset=offset,
+            has_more=(offset + len(items)) < total,
+        )
+
+
+class TeacherListResponse(BaseModel):
+    """Paginated list of teachers (legacy format)."""
+
+    items: list[TeacherRead]
+    total: int
+    page: int
+    page_size: int
+    pages: int
 
 
 class TeacherCourseRead(BaseModel):
@@ -43,8 +154,9 @@ class TeacherMeResponse(BaseModel):
     courses: list[TeacherCourseRead]
 
 
-class AttendanceType(str, Enum):
+class AttendanceType(StrEnum):
     """R3-V10 fix: Valid attendance event types."""
+
     IN = "IN"
     OUT = "OUT"
 

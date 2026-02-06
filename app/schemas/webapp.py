@@ -1,8 +1,8 @@
 """Schemas for the web-app integration payloads."""
 
 from datetime import date
-from enum import Enum
-from typing import Literal
+from enum import StrEnum
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -13,11 +13,12 @@ class StudentSummary(BaseModel):
     id: int
     full_name: str
     course_id: int
+    course_name: str | None = None  # Denormalized for kiosk display
     photo_pref_opt_in: bool = False
 
 
 # R8-V4 fix: Define valid contact types
-class ContactType(str, Enum):
+class ContactType(StrEnum):
     WHATSAPP = "whatsapp"
     EMAIL = "email"
     PHONE = "phone"
@@ -41,6 +42,7 @@ class CourseSummary(BaseModel):
     id: int
     name: str
     grade: str
+    status: str = "ACTIVE"
     teacher_ids: list[int] = Field(default_factory=list)
 
 
@@ -71,6 +73,7 @@ class AttendanceEventSummary(BaseModel):
     ts: str
     device_id: str
     photo_ref: str | None = None
+    source: str | None = None
 
 
 class DeviceSummary(BaseModel):
@@ -104,6 +107,8 @@ class NotificationSummary(BaseModel):
     channel: str
     sent_at: str | None = None
     status: str
+    template: str | None = None  # e.g., INGRESO_OK, SALIDA_OK
+    payload: dict[str, Any] | None = None  # Contains student_name, time, date, etc.
 
 
 class TeacherSummary(BaseModel):
@@ -126,6 +131,7 @@ class DashboardEvent(BaseModel):
     device_id: str
     photo_ref: str | None = None
     photo_url: str | None = None
+    source: str | None = None
 
 
 class DashboardStats(BaseModel):
@@ -164,6 +170,63 @@ class ReportsSnapshot(BaseModel):
     trend: list[ReportTrendPoint] = Field(default_factory=list)
 
 
+class AuthorizedPickupSummary(BaseModel):
+    id: int
+    full_name: str
+    relationship_type: str
+    national_id: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    photo_url: str | None = None
+    is_active: bool
+    student_ids: list[int] = Field(default_factory=list)
+    has_photo: bool = False
+    has_qr: bool = False
+
+
+class WithdrawalSummary(BaseModel):
+    id: int
+    student_id: int
+    status: str
+    authorized_pickup_id: int | None = None
+    pickup_name: str | None = None
+    pickup_relationship: str | None = None
+    initiated_at: str | None = None
+    completed_at: str | None = None
+    reason: str | None = None
+    # Additional fields for detail view
+    student_name: str | None = None
+    course_name: str | None = None
+    verification_method: str | None = None
+    device_id: str | None = None
+    pickup_photo_ref: str | None = None
+    signature_data: str | None = None
+
+
+class WithdrawalRequestSummary(BaseModel):
+    id: int
+    student_id: int
+    authorized_pickup_id: int
+    status: str
+    scheduled_date: date
+    scheduled_time: str | None = None
+    reason: str | None = None
+    pickup_name: str | None = None
+    pickup_relationship: str | None = None
+    student_name: str | None = None
+    review_notes: str | None = None
+    created_at: str
+    # Link to actual withdrawal when COMPLETED
+    student_withdrawal_id: int | None = None
+
+
+class PendingCounts(BaseModel):
+    """Counts of pending items for staff notification bell."""
+
+    absences: int = 0
+    withdrawal_requests: int = 0
+
+
 class WebAppBootstrap(BaseModel):
     current_user: SessionUser
     students: list[StudentSummary] = Field(default_factory=list)
@@ -176,3 +239,7 @@ class WebAppBootstrap(BaseModel):
     absences: list[AbsenceSummary] = Field(default_factory=list)
     notifications: list[NotificationSummary] = Field(default_factory=list)
     teachers: list[TeacherSummary] = Field(default_factory=list)
+    withdrawals: list[WithdrawalSummary] = Field(default_factory=list)
+    authorized_pickups: list[AuthorizedPickupSummary] = Field(default_factory=list)
+    withdrawal_requests: list[WithdrawalRequestSummary] = Field(default_factory=list)
+    pending_counts: PendingCounts | None = None  # Only populated for staff roles

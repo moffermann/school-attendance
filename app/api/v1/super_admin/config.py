@@ -7,8 +7,8 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import deps
-from app.db.repositories.tenants import TenantRepository
 from app.db.repositories.tenant_configs import TenantConfigRepository
+from app.db.repositories.tenants import TenantRepository
 
 router = APIRouter()
 
@@ -39,6 +39,12 @@ class S3ConfigUpdate(BaseModel):
     prefix: str | None = None
 
 
+class BrandingConfigUpdate(BaseModel):
+    """Branding configuration update."""
+
+    school_display_name: str | None = None
+
+
 class TenantConfigSummary(BaseModel):
     """Summary of tenant configuration (no secrets)."""
 
@@ -51,6 +57,8 @@ class TenantConfigSummary(BaseModel):
     s3_bucket: str | None
     s3_prefix: str | None
     device_api_key_configured: bool
+    school_display_name: str | None = None
+    timezone: str | None = None
 
 
 # ==================== Endpoints ====================
@@ -63,6 +71,8 @@ async def get_tenant_config(
     session: AsyncSession = Depends(deps.get_public_db),
 ) -> TenantConfigSummary:
     """Get tenant configuration summary (secrets are masked)."""
+    from loguru import logger
+
     tenant_repo = TenantRepository(session)
     config_repo = TenantConfigRepository(session)
 
@@ -76,6 +86,8 @@ async def get_tenant_config(
         config = await config_repo.create(tenant_id)
         await session.commit()
 
+    logger.info("get_tenant_config: tenant_id={}, school_display_name='{}'", tenant_id, config.school_display_name)
+
     return TenantConfigSummary(
         tenant_id=tenant_id,
         whatsapp_configured=config.whatsapp_access_token_encrypted is not None,
@@ -86,6 +98,8 @@ async def get_tenant_config(
         s3_bucket=config.s3_bucket,
         s3_prefix=config.s3_prefix,
         device_api_key_configured=config.device_api_key_encrypted is not None,
+        school_display_name=config.school_display_name,
+        timezone=config.timezone,
     )
 
 
@@ -95,7 +109,7 @@ async def update_whatsapp_config(
     payload: WhatsAppConfigUpdate,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
-) -> dict:
+) -> dict[str, str]:
     """Update tenant's WhatsApp credentials."""
     tenant_repo = TenantRepository(session)
     config_repo = TenantConfigRepository(session)
@@ -124,7 +138,7 @@ async def update_ses_config(
     payload: SESConfigUpdate,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
-) -> dict:
+) -> dict[str, str]:
     """Update tenant's SES email credentials."""
     tenant_repo = TenantRepository(session)
     config_repo = TenantConfigRepository(session)
@@ -155,7 +169,7 @@ async def update_s3_config(
     payload: S3ConfigUpdate,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
-) -> dict:
+) -> dict[str, str]:
     """Update tenant's S3 storage configuration."""
     tenant_repo = TenantRepository(session)
     config_repo = TenantConfigRepository(session)
@@ -183,7 +197,7 @@ async def generate_device_api_key(
     tenant_id: int,
     admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
     session: AsyncSession = Depends(deps.get_public_db),
-) -> dict:
+) -> dict[str, str]:
     """Generate a new device API key for the tenant."""
     tenant_repo = TenantRepository(session)
     config_repo = TenantConfigRepository(session)
@@ -203,3 +217,45 @@ async def generate_device_api_key(
         "message": "Device API key generada exitosamente",
         "device_api_key": new_key,  # Only shown once!
     }
+
+
+@router.put("/{tenant_id}/config/branding")
+async def update_branding_config(
+    tenant_id: int,
+    payload: BrandingConfigUpdate,
+    admin: deps.SuperAdminUser = Depends(deps.get_current_super_admin),
+    session: AsyncSession = Depends(deps.get_public_db),
+) -> dict[str, str]:
+    """Update tenant's branding configuration (school display name for emails)."""
+    from loguru import logger
+
+    logger.info(
+        "update_branding_config called: tenant_id={}, payload.school_display_name='{}'",
+        tenant_id,
+        payload.school_display_name,
+    )
+
+    tenant_repo = TenantRepository(session)
+    config_repo = TenantConfigRepository(session)
+
+    tenant = await tenant_repo.get(tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant no encontrado")
+
+    config = await config_repo.get(tenant_id)
+    if not config:
+        config = await config_repo.create(tenant_id)
+
+    logger.info("Before update: config.school_display_name='{}'", config.school_display_name)
+
+    await config_repo.update_branding(
+        tenant_id,
+        school_display_name=payload.school_display_name,
+    )
+    await session.commit()
+
+    # Verify the update
+    updated_config = await config_repo.get(tenant_id)
+    logger.info("After update: config.school_display_name='{}'", updated_config.school_display_name if updated_config else "None")
+
+    return {"message": "Configuración de branding actualizada exitosamente"}

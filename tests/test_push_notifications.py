@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.guardian import Guardian
 from app.db.models.push_subscription import PushSubscription
 from app.db.repositories.push_subscriptions import PushSubscriptionRepository
-
 
 # ============================================================================
 # Repository Tests
@@ -274,6 +272,7 @@ class TestPushSubscriptionRepository:
 # Check if pywebpush is available
 try:
     import pywebpush
+
     HAS_PYWEBPUSH = True
 except ImportError:
     HAS_PYWEBPUSH = False
@@ -345,8 +344,10 @@ class TestSendPushWorker:
         }
         payload = {"title": "Real Test", "body": "Body"}
 
-        with patch("app.workers.jobs.send_push.settings") as mock_settings, \
-             patch("app.workers.jobs.send_push.webpush") as mock_webpush:
+        with (
+            patch("app.workers.jobs.send_push.settings") as mock_settings,
+            patch("app.workers.jobs.send_push.webpush") as mock_webpush,
+        ):
             mock_settings.enable_real_notifications = True
             mock_settings.vapid_private_key = "test-private-key"
             mock_settings.vapid_public_key = "test-public-key"
@@ -365,13 +366,16 @@ class TestSendPushWorker:
     def test_send_push_notification_webpush_error(self):
         """Test push notification handles WebPushException."""
         from pywebpush import WebPushException  # noqa: F401 - available due to skipif
+
         from app.workers.jobs.send_push import send_push_notification
 
         subscription_info = {"endpoint": "https://test.com", "keys": {}}
         payload = {"title": "Test"}
 
-        with patch("app.workers.jobs.send_push.settings") as mock_settings, \
-             patch("app.workers.jobs.send_push.webpush") as mock_webpush:
+        with (
+            patch("app.workers.jobs.send_push.settings") as mock_settings,
+            patch("app.workers.jobs.send_push.webpush") as mock_webpush,
+        ):
             mock_settings.enable_real_notifications = True
             mock_settings.vapid_private_key = "test-private-key"
             mock_settings.vapid_public_key = "test-public-key"
@@ -444,9 +448,10 @@ class TestPushSubscriptionAPI:
 
     def test_get_vapid_public_key_success(self):
         """Test getting VAPID public key when configured."""
+        import asyncio
+
         from app.api.v1.push_subscriptions import get_vapid_public_key
         from app.schemas.push_subscription import VapidPublicKeyResponse
-        import asyncio
 
         with patch("app.api.v1.push_subscriptions.settings") as mock_settings:
             mock_settings.vapid_public_key = "test-vapid-public-key"
@@ -458,9 +463,11 @@ class TestPushSubscriptionAPI:
 
     def test_get_vapid_public_key_not_configured(self):
         """Test getting VAPID public key when not configured."""
-        from app.api.v1.push_subscriptions import get_vapid_public_key
-        from fastapi import HTTPException
         import asyncio
+
+        from fastapi import HTTPException
+
+        from app.api.v1.push_subscriptions import get_vapid_public_key
 
         with patch("app.api.v1.push_subscriptions.settings") as mock_settings:
             mock_settings.vapid_public_key = ""
@@ -512,9 +519,10 @@ class TestPushSubscriptionAPI:
         mock_user_without_guardian,
     ):
         """Test that non-guardians cannot subscribe."""
+        from fastapi import HTTPException
+
         from app.api.v1.push_subscriptions import subscribe
         from app.schemas.push_subscription import PushSubscriptionCreate, PushSubscriptionKeys
-        from fastapi import HTTPException
 
         push_repo = PushSubscriptionRepository(db_session)
 
@@ -566,8 +574,9 @@ class TestPushSubscriptionAPI:
         mock_user_with_guardian,
     ):
         """Test unsubscribe fails for different guardian."""
-        from app.api.v1.push_subscriptions import unsubscribe
         from fastapi import HTTPException
+
+        from app.api.v1.push_subscriptions import unsubscribe
 
         mock_user_with_guardian.guardian_id = 999  # Different guardian
         push_repo = PushSubscriptionRepository(db_session)
@@ -631,8 +640,9 @@ class TestPushSubscriptionAPI:
         mock_user_with_guardian,
     ):
         """Test deleting non-existent subscription."""
-        from app.api.v1.push_subscriptions import delete_subscription
         from fastapi import HTTPException
+
+        from app.api.v1.push_subscriptions import delete_subscription
 
         push_repo = PushSubscriptionRepository(db_session)
 

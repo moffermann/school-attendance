@@ -1,6 +1,6 @@
 """Attendance endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Request, UploadFile, File, status
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Request, UploadFile, status
 from loguru import logger
 
 from app.core import deps
@@ -8,7 +8,6 @@ from app.core.auth import AuthUser
 from app.core.rate_limiter import limiter
 from app.schemas.attendance import AttendanceEventCreate, AttendanceEventRead
 from app.services.attendance_service import AttendanceService
-
 
 router = APIRouter()
 
@@ -33,8 +32,7 @@ async def register_event(
         # TDD-BUG2 fix: Log error details but only return safe message to client
         logger.warning(f"Validation error in register_event: {exc}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Datos de asistencia inválidos"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Datos de asistencia inválidos"
         ) from exc
 
 

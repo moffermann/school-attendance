@@ -7,9 +7,9 @@ import pytest
 from app.core.security import (
     create_access_token,
     create_refresh_token,
+    decode_session,
     decode_token,
     encode_session,
-    decode_session,
     hash_password,
     verify_password,
 )
@@ -58,6 +58,7 @@ class TestJWTTokens:
     def test_decode_token_expired(self):
         """Should raise error for expired token."""
         from fastapi import HTTPException
+
         # Create token that expired 1 minute ago
         token = create_access_token("789", expires_minutes=-1)
         with pytest.raises(HTTPException) as exc_info:
@@ -105,6 +106,7 @@ class TestSessionTokens:
     def test_decode_session_invalid(self):
         """Should raise error for invalid session."""
         from fastapi import HTTPException
+
         with pytest.raises(HTTPException) as exc_info:
             decode_session("invalid_token_12345")
         assert exc_info.value.status_code == 401

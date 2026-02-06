@@ -1,5 +1,5 @@
 // Service Worker for offline caching
-const CACHE_NAME = 'kiosk-cache-v4';
+const CACHE_NAME = 'kiosk-cache-v23';
 
 // Static assets - cache first, update in background
 const STATIC_ASSETS = [
@@ -19,6 +19,13 @@ const STATIC_ASSETS = [
   '/js/views/settings.js',
   '/js/views/help.js',
   '/js/views/admin_panel.js',
+  '/js/views/biometric_auth.js',
+  '/js/views/biometric_enroll.js',
+  '/js/views/withdrawal_scan.js',
+  '/js/views/withdrawal_select.js',
+  '/js/views/withdrawal_verify.js',
+  '/js/views/withdrawal_signature.js',
+  '/js/views/withdrawal_confirm.js',
   '/assets/logo.svg',
   '/assets/placeholder_photo.jpg',
   '/assets/qr_placeholder.svg',
@@ -49,6 +56,12 @@ self.addEventListener('install', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
+  // Skip cross-origin requests (e.g., API calls to different port/host)
+  // Let them pass through to the network without SW interception
+  if (url.origin !== self.location.origin) {
+    return; // Don't call respondWith - let browser handle normally
+  }
+
   // Dynamic data: stale-while-revalidate
   if (isDynamicData(url.pathname)) {
     event.respondWith(
@@ -63,8 +76,12 @@ self.addEventListener('fetch', event => {
               return networkResponse;
             })
             .catch(() => {
-              // Network failed, return cached if available
-              return cachedResponse;
+              // Network failed, return cached if available or reject
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+              // No cache available - throw to indicate failure
+              throw new Error('Network failed and no cache available');
             });
 
           // Return cached immediately, update in background

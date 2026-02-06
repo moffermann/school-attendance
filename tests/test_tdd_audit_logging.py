@@ -9,9 +9,9 @@ Bug categories tested:
 
 from __future__ import annotations
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 import inspect
+
+import pytest
 
 
 class TestBug5_1_AuditLogIPAddress:
@@ -28,30 +28,21 @@ class TestBug5_1_AuditLogIPAddress:
         Should extract IP from request.client.host and pass to audit log.
         """
         from app.api.v1.super_admin import tenants
-        import inspect
 
         source = inspect.getsource(tenants.impersonate_tenant)
 
         # Should extract IP from request
-        has_ip_extraction = (
-            "request.client.host" in source
-            or "client_ip" in source
-        )
-        assert has_ip_extraction, (
-            "impersonate_tenant should extract IP from request.client.host"
-        )
+        has_ip_extraction = "request.client.host" in source or "client_ip" in source
+        assert has_ip_extraction, "impersonate_tenant should extract IP from request.client.host"
 
         # Should pass IP to audit log
         has_ip_logging = "ip_address" in source
-        assert has_ip_logging, (
-            "impersonate_tenant should pass ip_address to audit log"
-        )
+        assert has_ip_logging, "impersonate_tenant should pass ip_address to audit log"
 
     @pytest.mark.asyncio
     async def test_audit_log_repository_accepts_ip_address(self):
         """TenantAuditLogRepository.log should accept ip_address parameter."""
         from app.db.repositories.tenant_audit_logs import TenantAuditLogRepository
-        import inspect
 
         sig = inspect.signature(TenantAuditLogRepository.log)
         params = sig.parameters
@@ -103,7 +94,6 @@ class TestBug5_2_EndImpersonationLog:
     async def test_end_impersonation_logs_duration(self):
         """end_impersonation should log the session duration."""
         from app.api.v1.super_admin import tenants
-        import inspect
 
         source = inspect.getsource(tenants.end_impersonation)
 
@@ -113,9 +103,7 @@ class TestBug5_2_EndImpersonationLog:
             or "IMPERSONATION_ENDED" in source
             or "end" in source.lower()
         )
-        assert has_duration, (
-            "end_impersonation should log impersonation end with duration"
-        )
+        assert has_duration, "end_impersonation should log impersonation end with duration"
 
 
 class TestBug5_3_AuditActionConstants:
@@ -131,14 +119,12 @@ class TestBug5_3_AuditActionConstants:
         Currently uses string literal "IMPERSONATE", should use the constant.
         """
         from app.api.v1.super_admin import tenants
-        import inspect
 
         source = inspect.getsource(tenants.impersonate_tenant)
 
         # Should use the constant, not raw string
         uses_constant = (
-            "ACTION_IMPERSONATION_STARTED" in source
-            or "TenantAuditLog.ACTION" in source
+            "ACTION_IMPERSONATION_STARTED" in source or "TenantAuditLog.ACTION" in source
         )
         # Or should not use the literal "IMPERSONATE" (old value)
         uses_literal = 'action="IMPERSONATE"' in source
@@ -154,10 +140,7 @@ class TestBug5_3_AuditActionConstants:
         from app.db.models.tenant_audit_log import TenantAuditLog
 
         # Get all ACTION_ constants
-        action_constants = [
-            attr for attr in dir(TenantAuditLog)
-            if attr.startswith("ACTION_")
-        ]
+        action_constants = [attr for attr in dir(TenantAuditLog) if attr.startswith("ACTION_")]
 
         assert len(action_constants) >= 10, (
             f"TenantAuditLog should have at least 10 action constants, "
@@ -183,15 +166,12 @@ class TestBug5_4_RateLimiting:
         Should use @limiter.limit or similar rate limiting mechanism.
         """
         from app.api.v1.super_admin import tenants
-        import inspect
 
         source = inspect.getsource(tenants.impersonate_tenant)
 
         # Check for rate limit decorator or implementation
         has_rate_limit = (
-            "limiter" in source.lower()
-            or "rate" in source.lower()
-            or "throttle" in source.lower()
+            "limiter" in source.lower() or "rate" in source.lower() or "throttle" in source.lower()
         )
 
         # Alternative: check module-level imports or decorators
@@ -215,18 +195,21 @@ class TestBug5_4_RateLimiting:
 
         try:
             from app.core.rate_limit import limiter
+
             rate_limiter_exists = True
         except ImportError:
             pass
 
         try:
             from app.core.deps import limiter
+
             rate_limiter_exists = True
         except ImportError:
             pass
 
         try:
             from app.main import limiter
+
             rate_limiter_exists = True
         except ImportError:
             pass
@@ -235,11 +218,11 @@ class TestBug5_4_RateLimiting:
         if not rate_limiter_exists:
             try:
                 import slowapi
+
                 rate_limiter_exists = True  # Library available, just needs config
             except ImportError:
                 pass
 
         assert rate_limiter_exists, (
-            "Rate limiter should be configured. "
-            "Consider using slowapi: pip install slowapi"
+            "Rate limiter should be configured. Consider using slowapi: pip install slowapi"
         )

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Acceso al Portal NEUVOX</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#0ea5e9", // Adjusting primary to match the blue in the logo
+              brand: {
+                blue: "#0ea5e9",
+                darkblue: "#000080",
+                purple: "#a855f7"
+              },
+              "background-light": "#f8fafc",
+              "background-dark": "#0f172a",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+              sans: ["Inter", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.75rem",
+              'xl': '1.5rem',
+              '2xl': '2.5rem',
+            },
+          },
+        },
+      };
+    </script>
+<style type="text/tailwindcss">
+        :root {
+            --primary-color: #0ea5e9;
+        }
+        .bg-gradient-mesh {
+            background-color: #0ea5e9;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(225, 39%, 30%, 1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(280, 49%, 30%, 1) 0, transparent 50%);
+        }
+        .dark .bg-gradient-mesh {
+            background-color: #020617;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(263, 83%, 12%, 1) 0, transparent 50%), 
+                radial-gradient(at 100% 100%, hsla(224, 71%, 15%, 1) 0, transparent 50%);
+        }
+    </style>
+</head>
+<body class="font-sans antialiased text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center bg-gradient-mesh overflow-hidden relative px-4">
+<div class="absolute inset-0 pointer-events-none overflow-hidden">
+<div class="absolute -top-24 -left-24 w-96 h-96 bg-primary/20 rounded-full blur-3xl"></div>
+<div class="absolute top-1/2 -right-24 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl"></div>
+<div class="absolute -bottom-24 left-1/4 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl"></div>
+</div>
+<main class="relative z-10 w-full max-w-[480px]">
+<div class="bg-white dark:bg-slate-900 shadow-2xl rounded-[2.5rem] p-8 md:p-12 border border-slate-200/50 dark:border-slate-800/50 transition-all duration-300">
+<div class="text-center mb-10">
+<div class="flex flex-col items-center mb-8">
+<div class="w-20 h-20 mb-3">
+<svg class="w-full h-full" fill="none" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+<circle cx="50" cy="50" r="45" stroke="url(#logo_grad)" stroke-width="8"></circle>
+<path d="M50 82V65M38 58V42M44 62V38M56 62V38M62 58V42" stroke="url(#logo_grad)" stroke-linecap="round" stroke-width="5"></path>
+<circle cx="50" cy="50" fill="url(#logo_grad)" r="10"></circle>
+<defs>
+<linearGradient gradientUnits="userSpaceOnUse" id="logo_grad" x1="0" x2="100" y1="0" y2="100">
+<stop stop-color="#0ea5e9"></stop>
+<stop offset="1" stop-color="#a855f7"></stop>
+</linearGradient>
+</defs>
+</svg>
+</div>
+<div class="flex items-center text-3xl font-black tracking-tighter uppercase">
+<span class="text-brand-darkblue dark:text-brand-blue">NEUVOX</span>
+<span class="text-brand-blue dark:text-brand-purple">.AI</span>
+</div>
+</div>
+<h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">
+                    Control de Asistencia Escolar
+                </h1>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                    Sistema de registro de ingreso y salida
+                </p>
+<div class="mt-8 flex items-center justify-center space-x-2">
+<span class="h-px w-8 bg-slate-200 dark:bg-slate-700"></span>
+<span class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Selecciona tu perfil</span>
+<span class="h-px w-8 bg-slate-200 dark:bg-slate-700"></span>
+</div>
+</div>
+<div class="space-y-4">
+<button class="group relative w-full flex items-start gap-5 p-6 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 hover:border-primary hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-primary/20">
+<div class="flex-shrink-0 w-14 h-14 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm group-hover:bg-primary group-hover:text-white transition-colors duration-200">
+<span class="material-symbols-rounded text-3xl text-primary group-hover:text-white">school</span>
+</div>
+<div class="flex-1">
+<h3 class="font-bold text-slate-900 dark:text-white text-lg leading-tight mb-1 group-hover:text-primary transition-colors">
+                            Dirección / Inspectoría
+                        </h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm">
+                            Gestión administrativa del colegio y control de registros.
+                        </p>
+</div>
+<div class="flex-shrink-0 self-center">
+<span class="material-symbols-rounded text-slate-300 dark:text-slate-600 group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</button>
+<button class="group relative w-full flex items-start gap-5 p-6 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 hover:border-primary hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-primary/20">
+<div class="flex-shrink-0 w-14 h-14 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm group-hover:bg-primary group-hover:text-white transition-colors duration-200">
+<span class="material-symbols-rounded text-3xl text-primary group-hover:text-white">family_restroom</span>
+</div>
+<div class="flex-1">
+<h3 class="font-bold text-slate-900 dark:text-white text-lg leading-tight mb-1 group-hover:text-primary transition-colors">
+                            Apoderado
+                        </h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm">
+                            Consulta de asistencia de sus hijos en tiempo real.
+                        </p>
+</div>
+<div class="flex-shrink-0 self-center">
+<span class="material-symbols-rounded text-slate-300 dark:text-slate-600 group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</button>
+</div>
+<div class="mt-10 text-center">
+<p class="text-slate-400 dark:text-slate-500 text-xs">
+                    Plataforma Educativa NEUVOX © 2024
+                </p>
+<div class="mt-6 flex justify-center gap-4">
+<button class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-primary transition-colors" id="themeToggle">
+<span class="material-symbols-rounded text-lg" id="themeIcon">dark_mode</span>
+</button>
+<button class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-rounded text-lg">help_outline</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<script>
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const html = document.documentElement;
+        themeToggle.addEventListener('click', () => {
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                themeIcon.innerText = 'dark_mode';
+            } else {
+                html.classList.add('dark');
+                themeIcon.innerText = 'light_mode';
+            }
+        });
+        // Initialize theme based on preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            html.classList.add('dark');
+            themeIcon.innerText = 'light_mode';
+        }
+    </script>
+
+</body></html>

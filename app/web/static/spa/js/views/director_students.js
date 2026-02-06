@@ -156,7 +156,7 @@ Views.directorStudents = function() {
   Views.directorStudents.saveStudent = function(studentId = null) {
     const name = document.getElementById('student-name').value.trim();
     const courseId = parseInt(document.getElementById('student-course').value);
-    const rut = document.getElementById('student-rut')?.value.trim() || '';
+    const nationalId = document.getElementById('student-rut')?.value.trim() || '';
     const photoOptIn = document.getElementById('student-photo').checked;
 
     if (!name || !courseId) {
@@ -167,7 +167,7 @@ Views.directorStudents = function() {
     const studentData = {
       full_name: name,
       course_id: courseId,
-      rut: rut,
+      national_id: nationalId,
       photo_pref_opt_in: photoOptIn
     };
 
@@ -206,7 +206,7 @@ Views.directorStudents = function() {
         </div>
         <div class="form-group">
           <label class="form-label">RUT</label>
-          <input type="text" id="student-rut" class="form-input" value="${Components.escapeHtml(student.rut || '')}">
+          <input type="text" id="student-rut" class="form-input" value="${Components.escapeHtml(student.national_id || '')}">
         </div>
         <div class="form-group">
           <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
@@ -268,7 +268,7 @@ Views.directorStudents = function() {
           <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
             <div><strong>Nombre:</strong><br>${Components.escapeHtml(student.full_name)}</div>
             <div><strong>Curso:</strong><br>${course ? Components.escapeHtml(course.name + ' - ' + course.grade) : '-'}</div>
-            <div><strong>RUT:</strong><br>${student.rut || 'No registrado'}</div>
+            <div><strong>RUT/Matrícula:</strong><br>${student.national_id || 'No registrado'}</div>
             <div><strong>ID:</strong><br>${student.id}</div>
           </div>
         </div>

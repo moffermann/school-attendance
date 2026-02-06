@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Ajustes de Apoderado NEUVOX Móvil</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6366f1", // Purple/Indigo base
+                        secondary: "#0ea5e9", // Blue accent
+                        "background-light": "#f8fafc", // Very light gray for clean look
+                        "background-dark": "#0f172a",
+                        "sidebar-dark": "#1e1b4b",
+                        "sidebar-hover": "#312e81",
+                        "card-light": "#ffffff",
+                        "card-dark": "#1e293b",
+                        "text-light": "#1f2937",
+                        "text-dark": "#e2e8f0",
+                        "muted-light": "#6b7280",
+                        "muted-dark": "#94a3b8",
+                        "border-light": "#e5e7eb",
+                        "border-dark": "#334155",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        'lg': '0.75rem',
+                        'xl': '1rem',
+                        '2xl': '1.5rem',
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                    }
+                },
+            },
+        };
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .nav-item.active {
+            color: #6366f1;
+        }
+        .nav-item.active span {
+            font-variation-settings: 'FILL' 1;
+        }.toggle-checkbox:checked {
+            right: 0;
+            border-color: #6366f1;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #6366f1;
+        }
+        .toggle-checkbox:checked + .toggle-label:before {
+            transform: translateX(100%);
+        }
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 antialiased h-screen flex flex-col overflow-hidden">
+<main class="flex-1 flex flex-col overflow-hidden relative bg-[#f8fafc] dark:bg-background-dark">
+<header class="h-16 px-4 bg-white dark:bg-card-dark border-b border-gray-200 dark:border-border-dark flex items-center justify-between z-30 sticky top-0 shadow-sm">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center shadow-lg text-white font-bold">
+                    N
+                </div>
+<h1 class="text-lg font-bold tracking-tight text-indigo-900 dark:text-white">NEUVOX</h1>
+</div>
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors">
+<span class="material-symbols-outlined text-xl">logout</span>
+<span class="text-sm font-medium">Salir</span>
+</button>
+</header>
+<div class="flex-1 overflow-y-auto p-4 scroll-smooth pb-36">
+<div class="max-w-3xl mx-auto space-y-6">
+<div class="mb-4">
+<h3 class="text-lg font-bold text-gray-900 dark:text-white">Notificaciones</h3>
+<p class="text-sm text-gray-500 dark:text-gray-400">Personaliza cómo y cuándo quieres recibir alertas.</p>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-soft border border-gray-100 dark:border-border-dark overflow-hidden">
+<div class="px-5 py-4 border-b border-gray-50 dark:border-gray-800 flex items-center gap-2 bg-gray-50/50 dark:bg-gray-800/20">
+<span class="material-symbols-outlined text-indigo-500 text-lg">notifications</span>
+<h4 class="font-semibold text-gray-900 dark:text-white text-sm">Canales de Notificación</h4>
+</div>
+<div class="divide-y divide-gray-100 dark:divide-gray-800">
+<div class="p-5 flex items-center justify-between">
+<div class="flex items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 dark:bg-blue-900/20 dark:text-blue-400">
+<span class="material-symbols-outlined text-xl">login</span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-gray-900 dark:text-white">Ingreso Registrado</span>
+<span class="text-xs text-gray-500 dark:text-gray-400">Cuando tu hijo/a llega al colegio</span>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+</label>
+</div>
+<div class="p-5 flex items-center justify-between">
+<div class="flex items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 dark:bg-blue-900/20 dark:text-blue-400">
+<span class="material-symbols-outlined text-xl">logout</span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-gray-900 dark:text-white">Salida Registrada</span>
+<span class="text-xs text-gray-500 dark:text-gray-400">Cuando tu hijo/a se retira</span>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+</label>
+</div>
+<div class="p-5 flex items-center justify-between">
+<div class="flex items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0 dark:bg-amber-900/20 dark:text-amber-400">
+<span class="material-symbols-outlined text-xl">warning</span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-gray-900 dark:text-white">Alerta de no ingreso</span>
+<span class="text-xs text-gray-500 dark:text-gray-400">Si no llega antes de la hora límite</span>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+</label>
+</div>
+</div>
+</div>
+<div class="mt-8 mb-4">
+<h3 class="text-lg font-bold text-gray-900 dark:text-white">Tipo de Evidencia</h3>
+<p class="text-sm text-gray-500 dark:text-gray-400">Selecciona qué evidencia capturar al registrar asistencia.</p>
+</div>
+<div class="space-y-4">
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-soft border border-gray-100 dark:border-border-dark overflow-hidden p-5">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-8 h-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                            L
+                        </div>
+<div>
+<h4 class="text-sm font-bold text-gray-900 dark:text-white">Luna Torres Prada</h4>
+<p class="text-xs text-gray-500 dark:text-gray-400">2º Básico B</p>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-2">
+<button class="flex flex-col items-center justify-center p-3 rounded-lg border-2 border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 transition-all">
+<span class="material-symbols-outlined mb-1">photo_camera</span>
+<span class="text-xs font-medium">Foto</span>
+</button>
+<button class="flex flex-col items-center justify-center p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+<span class="material-symbols-outlined mb-1">mic</span>
+<span class="text-xs font-medium">Audio</span>
+</button>
+<button class="flex flex-col items-center justify-center p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+<span class="material-symbols-outlined mb-1">block</span>
+<span class="text-xs font-medium">Nada</span>
+</button>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-soft border border-gray-100 dark:border-border-dark overflow-hidden p-5">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-8 h-8 rounded-lg bg-purple-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                            N
+                        </div>
+<div>
+<h4 class="text-sm font-bold text-gray-900 dark:text-white">Noah Josefina</h4>
+<p class="text-xs text-gray-500 dark:text-gray-400">5º Básico A</p>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-2">
+<button class="flex flex-col items-center justify-center p-3 rounded-lg border-2 border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 transition-all">
+<span class="material-symbols-outlined mb-1">photo_camera</span>
+<span class="text-xs font-medium">Foto</span>
+</button>
+<button class="flex flex-col items-center justify-center p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+<span class="material-symbols-outlined mb-1">mic</span>
+<span class="text-xs font-medium">Audio</span>
+</button>
+<button class="flex flex-col items-center justify-center p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+<span class="material-symbols-outlined mb-1">block</span>
+<span class="text-xs font-medium">Nada</span>
+</button>
+</div>
+</div>
+</div>
+<div class="mt-8 mb-4">
+<h3 class="text-lg font-bold text-gray-900 dark:text-white">Contactos Registrados</h3>
+<p class="text-sm text-gray-500 dark:text-gray-400">Métodos de contacto para comunicaciones importantes.</p>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-soft border border-gray-100 dark:border-border-dark overflow-hidden">
+<div class="divide-y divide-gray-100 dark:divide-gray-800">
+<div class="p-5 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0 dark:bg-indigo-900/20 dark:text-indigo-400">
+<span class="material-symbols-outlined text-xl">mail</span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-gray-900 dark:text-white">padre@email.com</span>
+<span class="text-xs text-gray-500 dark:text-gray-400">Email</span>
+</div>
+</div>
+<span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-900/30 dark:text-green-400">Verificado</span>
+</div>
+<div class="p-5 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0 dark:bg-indigo-900/20 dark:text-indigo-400">
+<span class="material-symbols-outlined text-xl">call</span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-gray-900 dark:text-white">+56 9 1234 5678</span>
+<span class="text-xs text-gray-500 dark:text-gray-400">Teléfono</span>
+</div>
+</div>
+<span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-900/30 dark:text-green-400">Verificado</span>
+</div>
+</div>
+<div class="p-4 bg-gray-50/50 dark:bg-gray-800/20 border-t border-gray-100 dark:border-gray-800">
+<button class="w-full flex items-center justify-center gap-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors">
+<span class="material-symbols-outlined text-lg">edit_square</span>
+            Editar contactos
+        </button>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-soft border border-gray-100 dark:border-border-dark overflow-hidden mt-6">
+<div class="px-5 py-4 border-b border-gray-50 dark:border-gray-800 flex items-center gap-2 bg-gray-50/50 dark:bg-gray-800/20">
+<span class="material-symbols-outlined text-purple-500 text-lg">fingerprint</span>
+<h4 class="font-semibold text-gray-900 dark:text-white text-sm">Seguridad</h4>
+</div>
+<div class="p-5">
+<p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Activa FaceID o huella digital para un acceso más rápido.</p>
+<button class="w-full py-3 px-4 bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 rounded-lg flex items-center justify-center gap-2 font-medium hover:bg-purple-100 transition-colors">
+<span class="material-symbols-outlined">face</span>
+                        Activar Acceso Biométrico
+                    </button>
+</div>
+</div>
+<div class="fixed bottom-16 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent dark:from-background-dark dark:via-background-dark z-20 pointer-events-none">
+<div class="pointer-events-auto max-w-3xl mx-auto">
+<button class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-lg shadow-lg shadow-indigo-200 dark:shadow-none hover:shadow-xl transition-all active:scale-[0.98]">
+                        Guardar Preferencias
+                    </button>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark border-t border-gray-200 dark:border-border-dark flex justify-around items-center h-16 px-2 z-30 pb-safe fixed bottom-0 left-0 right-0">
+<a class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">home</span>
+<span class="text-[10px] font-medium">Inicio</span>
+</a>
+<a class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">history</span>
+<span class="text-[10px] font-medium">Historial</span>
+</a>
+<a class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">event_busy</span>
+<span class="text-[10px] font-medium">Ausencias</span>
+</a>
+<a class="nav-item active flex flex-col items-center justify-center w-full h-full text-indigo-600 dark:text-indigo-400" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">settings</span>
+<span class="text-[10px] font-medium">Ajustes</span>
+</a>
+</div>
+</main>
+</body></html>

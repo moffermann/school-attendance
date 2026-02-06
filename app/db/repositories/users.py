@@ -18,7 +18,20 @@ class UserRepository:
     async def get(self, user_id: int) -> User | None:
         return await self.session.get(User, user_id)
 
-    async def create(self, *, email: str, full_name: str, role: str, hashed_password: str, guardian_id: int | None = None) -> User:
+    async def get_by_guardian_id(self, guardian_id: int) -> User | None:
+        stmt = select(User).where(User.guardian_id == guardian_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def create(
+        self,
+        *,
+        email: str,
+        full_name: str,
+        role: str,
+        hashed_password: str,
+        guardian_id: int | None = None,
+    ) -> User:
         user = User(
             email=email,
             full_name=full_name,

@@ -8,9 +8,8 @@ Create Date: 2025-12-02
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision = "0008_add_evidence_preference"
 down_revision = "0007_merge_0006_heads"
@@ -26,9 +25,7 @@ def upgrade() -> None:
     )
 
     # Migrate existing photo_pref_opt_in=true to evidence_preference="photo"
-    op.execute(
-        "UPDATE students SET evidence_preference = 'photo' WHERE photo_pref_opt_in = true"
-    )
+    op.execute("UPDATE students SET evidence_preference = 'photo' WHERE photo_pref_opt_in = true")
 
     # Add audio_ref column to attendance_events
     op.add_column(

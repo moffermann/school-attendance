@@ -36,7 +36,7 @@ async def _send_push_async(
         data = json.dumps(payload)
 
         # Send push notification
-        response = webpush(
+        webpush(
             subscription_info=subscription_info,
             data=data,
             vapid_private_key=settings.vapid_private_key,
@@ -44,7 +44,9 @@ async def _send_push_async(
         )
 
         log_id = notification_id or "unknown"
-        logger.info(f"[Push] Sent notification {log_id} to {subscription_info.get('endpoint', '')[:50]}...")
+        logger.info(
+            f"[Push] Sent notification {log_id} to {subscription_info.get('endpoint', '')[:50]}..."
+        )
         return True
 
     except WebPushException as e:
@@ -68,6 +70,7 @@ def send_push_notification(
     subscription_info: dict[str, Any],
     payload: dict[str, Any],
     tenant_id: int | None = None,
+    tenant_schema: str | None = None,
 ) -> bool:
     """Worker job to send a push notification.
 
@@ -76,6 +79,7 @@ def send_push_notification(
         subscription_info: Push subscription (endpoint, keys.p256dh, keys.auth)
         payload: Notification content (title, body, icon, url, tag, etc.)
         tenant_id: Optional tenant ID for multi-tenant support
+        tenant_schema: Optional tenant schema for multi-tenant support (not used yet)
 
     Returns:
         True if successful, False otherwise
@@ -83,7 +87,9 @@ def send_push_notification(
     log_prefix = f"[Push][Tenant:{tenant_id or 'default'}]"
 
     if not settings.enable_real_notifications:
-        logger.info(f"{log_prefix} SIMULATED push to {subscription_info.get('endpoint', '')[:50]}...")
+        logger.info(
+            f"{log_prefix} SIMULATED push to {subscription_info.get('endpoint', '')[:50]}..."
+        )
         logger.debug(f"{log_prefix} Payload: {payload}")
         return True
 

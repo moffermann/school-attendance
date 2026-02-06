@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kiosco Home Móvil NEUVOX</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#441ff9",
+                        "background-light": "#f6f5f8",
+                        "background-dark": "#130f23",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0816;
+        }
+        .scanner-frame {
+            position: relative;
+        }
+        .scanner-corner {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 4px solid #441ff9;
+            filter: drop-shadow(0 0 8px #441ff9);
+        }
+        .top-left { top: -2px; left: -2px; border-right: none; border-bottom: none; border-top-left-radius: 12px; }
+        .top-right { top: -2px; right: -2px; border-left: none; border-bottom: none; border-top-right-radius: 12px; }
+        .bottom-left { bottom: -2px; left: -2px; border-right: none; border-top: none; border-bottom-left-radius: 12px; }
+        .bottom-right { bottom: -2px; right: -2px; border-left: none; border-top: none; border-bottom-right-radius: 12px; }
+        
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #441ff9, transparent);
+            top: 50%;
+            box-shadow: 0 0 15px 2px #441ff9;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-white overflow-hidden font-display">
+<!-- Desktop Wrapper to simulate Mobile Kiosk on Screen -->
+<div class="flex items-center justify-center min-h-screen bg-slate-950 px-4">
+<!-- Mobile Container (Simulated Smartphone) -->
+<div class="relative w-full max-w-[420px] aspect-[9/19.5] bg-background-dark rounded-xl shadow-2xl border border-white/10 flex flex-col overflow-hidden">
+<!-- Subtle Background Gradient Glow -->
+<div class="absolute inset-0 pointer-events-none overflow-hidden">
+<div class="absolute -top-20 -right-20 w-64 h-64 bg-primary/20 rounded-full blur-[80px]"></div>
+<div class="absolute -bottom-20 -left-20 w-64 h-64 bg-blue-600/10 rounded-full blur-[80px]"></div>
+</div>
+<!-- TopNavBar (Logo NEUVOX reducido) -->
+<header class="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/5 bg-background-dark/50 backdrop-blur-md">
+<div class="flex items-center gap-2">
+<div class="size-6 text-primary">
+<svg fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M4 4H17.3334V17.3334H30.6666V30.6666H44V44H4V4Z" fill="currentColor"></path>
+</svg>
+</div>
+<h2 class="text-white text-base font-bold tracking-tight">NEUVOX</h2>
+</div>
+<button class="flex items-center justify-center rounded-full size-10 bg-white/5 hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-white text-[20px]">notifications</span>
+</button>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col items-center justify-start pt-10 px-6 relative z-10">
+<!-- HeadlineText -->
+<div class="w-full text-center mb-8">
+<h1 class="text-white text-2xl font-bold leading-tight tracking-tight">Escanea tu código</h1>
+<p class="text-white/50 text-sm mt-2 font-normal">Coloca tu credencial frente a la cámara</p>
+</div>
+<!-- QR Visor Central (80% width) -->
+<div class="w-[85%] aspect-square relative mb-12 group">
+<!-- Scanner Viewport -->
+<div class="w-full h-full bg-black/40 rounded-lg overflow-hidden flex items-center justify-center relative border border-white/5 shadow-inner">
+<img alt="Student portrait placeholder for camera view" class="w-full h-full object-cover opacity-60 mix-blend-luminosity grayscale" data-alt="Blurred grayscale view of a camera input" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDcZQCOKl9VX3q6k6783aeGeKVqEr3heYiDyndXPFy2XVbMFRWb5WgAUShvvAhw9IM2YfB-4HGw4_akuGQBtB-SWmKUHedXGSRI9N0gIx5wowLkW02LHkyieUAY16_qJPRJwbPDkr-IOZ49sLB1psnOuQ7o-OO8Fn5XHfKI1hFX-Kj9OqfQ5fx12CefAL1W5_9qmaGjCRh2cjpD4rICnLJJhpUX3OmtEFz5jw937XJWA1j3YsLVKOu6EDWt18h0Pdbn9CKGF0m1Hlc"/>
+<div class="scan-line"></div>
+<!-- Visual indicator icons inside visor -->
+<div class="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
+<span class="material-symbols-outlined text-7xl text-white">qr_code_scanner</span>
+</div>
+</div>
+<!-- Neon Corners -->
+<div class="scanner-corner top-left"></div>
+<div class="scanner-corner top-right"></div>
+<div class="scanner-corner bottom-left"></div>
+<div class="scanner-corner bottom-right"></div>
+</div>
+<!-- MetaText -->
+<div class="mb-4">
+<p class="text-[#a09bbb] text-sm font-normal leading-normal text-center">
+                        Asegúrate de que el código esté dentro del recuadro de neón
+                    </p>
+</div>
+</main>
+<!-- Bottom Action Stack (Botones Apilados) -->
+<footer class="p-6 pb-10 relative z-10">
+<div class="flex flex-col gap-4 w-full">
+<!-- Button: ACTIVAR NFC -->
+<button class="flex items-center justify-center gap-3 w-full h-14 bg-primary hover:bg-primary/90 text-white rounded-full font-bold text-lg transition-all active:scale-95 shadow-lg shadow-primary/30">
+<span class="material-symbols-outlined">nfc</span>
+<span class="truncate">ACTIVAR NFC</span>
+</button>
+<!-- Button: HUELLA DIGITAL -->
+<button class="flex items-center justify-center gap-3 w-full h-14 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-full font-bold text-lg transition-all active:scale-95">
+<span class="material-symbols-outlined">fingerprint</span>
+<span class="truncate">HUELLA DIGITAL</span>
+</button>
+</div>
+</footer>
+<!-- Home Indicator (iOS style bar for mobile feel) -->
+<div class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/10 rounded-full"></div>
+</div>
+<!-- Background decorative text for desktop view context -->
+<div class="fixed top-10 left-10 hidden xl:block opacity-10 pointer-events-none">
+<h3 class="text-white text-6xl font-black uppercase tracking-widest">ACCESS<br/>KIOSK</h3>
+</div>
+<div class="fixed bottom-10 right-10 hidden xl:block opacity-10 pointer-events-none">
+<h3 class="text-white text-6xl font-black uppercase tracking-widest text-right">SYSTEM<br/>MOBILE</h3>
+</div>
+</div>
+</body></html>

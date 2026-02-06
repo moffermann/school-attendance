@@ -8,9 +8,8 @@ Create Date: 2025-12-04
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision = "0009_add_user_teacher_id"
 down_revision = "0008_add_evidence_preference"

@@ -4,29 +4,22 @@ from __future__ import annotations
 
 import asyncio
 import os
-from datetime import datetime, time, date
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+from datetime import datetime, time
 
 import pytest
-from sqlalchemy import event, MetaData
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # Skip tenant middleware in tests (uses SQLite, not PostgreSQL)
 os.environ.setdefault("SKIP_TENANT_MIDDLEWARE", "true")
 
 from app.db.base import Base
-from app.db.models.student import Student
-from app.db.models.guardian import Guardian
 from app.db.models.course import Course
-from app.db.models.schedule import Schedule
-from app.db.models.tag import Tag
 from app.db.models.device import Device
-from app.db.models.attendance_event import AttendanceEvent, AttendanceTypeEnum
-from app.db.models.notification import Notification
-from app.db.models.absence_request import AbsenceRequest
-from app.db.models.no_show_alert import NoShowAlert
-from app.db.models.push_subscription import PushSubscription
-
+from app.db.models.guardian import Guardian
+from app.db.models.schedule import Schedule
+from app.db.models.student import Student
 
 # Use SQLite in-memory for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -126,7 +119,9 @@ async def sample_guardian(db_session: AsyncSession) -> Guardian:
 
 
 @pytest.fixture
-async def sample_student(db_session: AsyncSession, sample_course: Course, sample_guardian: Guardian) -> Student:
+async def sample_student(
+    db_session: AsyncSession, sample_course: Course, sample_guardian: Guardian
+) -> Student:
     """Create a sample student for testing."""
     student = Student(
         full_name="Pedro González",
@@ -137,6 +132,7 @@ async def sample_student(db_session: AsyncSession, sample_course: Course, sample
 
     # Associate guardian with student using the association table directly
     from app.db.models.associations import student_guardian_table
+
     await db_session.execute(
         student_guardian_table.insert().values(
             student_id=student.id,

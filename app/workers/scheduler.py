@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from loguru import logger
 
-from app.workers.jobs.detect_no_ingreso import _detect_and_notify
 from app.workers.jobs.cleanup_photos import _cleanup
+from app.workers.jobs.detect_no_ingreso import _detect_and_notify
+from app.workers.jobs.mark_devices_offline import _mark_devices_offline
 
 
 async def run_scheduler() -> None:
@@ -33,9 +33,17 @@ async def run_scheduler() -> None:
         max_instances=1,
         coalesce=True,
     )
+    # Mark devices offline if no heartbeat in 5 minutes
+    scheduler.add_job(
+        _mark_devices_offline,
+        CronTrigger(minute="*/2"),  # Run every 2 minutes
+        name="mark_devices_offline",
+        max_instances=1,
+        coalesce=True,
+    )
 
     scheduler.start()
-    logger.info("Scheduler started with jobs: %s", scheduler.get_jobs())
+    logger.info("Scheduler started with jobs: {}", scheduler.get_jobs())
 
     try:
         while True:

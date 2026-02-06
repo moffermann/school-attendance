@@ -1,6 +1,6 @@
 """Push subscription model for Web Push notifications."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -9,7 +9,11 @@ from app.db.base import Base
 
 
 class PushSubscription(Base):
-    """Web Push subscription for a guardian's device."""
+    """Web Push subscription for a guardian's browser/device.
+
+    Guardians can subscribe to push notifications via the parent web app
+    to receive real-time attendance alerts on their devices.
+    """
 
     __tablename__ = "push_subscriptions"
 
@@ -19,24 +23,23 @@ class PushSubscription(Base):
     )
 
     # Push subscription data from browser
-    endpoint: Mapped[str] = mapped_column(Text, nullable=False)
+    endpoint: Mapped[str] = mapped_column(Text, unique=True, nullable=False, index=True)
     p256dh: Mapped[str] = mapped_column(String(255), nullable=False)
     auth: Mapped[str] = mapped_column(String(255), nullable=False)
 
+    # Status
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
     # Metadata
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
     device_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False,
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
 
-    # Relationship
-    guardian = relationship("Guardian", backref="push_subscriptions")
+    # Relationship to Guardian
+    guardian = relationship("Guardian", back_populates="push_subscriptions")

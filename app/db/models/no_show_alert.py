@@ -14,10 +14,7 @@ class NoShowAlert(Base):
     # Unique constraint to prevent duplicate alerts for the same student/guardian/date
     # This prevents race conditions when multiple workers detect no-shows simultaneously
     __table_args__ = (
-        UniqueConstraint(
-            "student_id", "guardian_id", "alert_date",
-            name="uq_no_show_alert_unique"
-        ),
+        UniqueConstraint("student_id", "guardian_id", "alert_date", name="uq_no_show_alert_unique"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -38,4 +35,3 @@ class NoShowAlert(Base):
     guardian = relationship("Guardian")
     course = relationship("Course")
     schedule = relationship("Schedule")
-

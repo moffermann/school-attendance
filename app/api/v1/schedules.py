@@ -12,7 +12,6 @@ from app.schemas.schedules import (
 )
 from app.services.schedule_service import ScheduleService
 
-
 router = APIRouter()
 
 
@@ -26,7 +25,9 @@ async def list_course_schedule(
     return await service.list_course_schedule(course_id)
 
 
-@router.post("/courses/{course_id}", response_model=ScheduleRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/courses/{course_id}", response_model=ScheduleRead, status_code=status.HTTP_201_CREATED
+)
 async def create_schedule_entry(
     payload: ScheduleCreate,
     course_id: int = Path(..., ge=1, description="ID del curso"),
@@ -36,7 +37,9 @@ async def create_schedule_entry(
     return await service.create_schedule(course_id, payload)
 
 
-@router.post("/exceptions", response_model=ScheduleExceptionRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/exceptions", response_model=ScheduleExceptionRead, status_code=status.HTTP_201_CREATED
+)
 async def create_exception(
     payload: ScheduleExceptionCreate,
     service: ScheduleService = Depends(deps.get_schedule_service),
@@ -56,7 +59,9 @@ async def update_schedule_entry(
         return await service.update_schedule_entry(schedule_id, payload)
     except ValueError:
         # R4-S3 fix: Use generic message to avoid information disclosure
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Horario no encontrado")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Horario no encontrado"
+        ) from None
 
 
 @router.delete("/exceptions/{exception_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -69,4 +74,6 @@ async def delete_schedule_exception(
         await service.delete_exception(exception_id)
     except ValueError:
         # R4-S3 fix: Use generic message to avoid information disclosure
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Excepción no encontrada")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Excepción no encontrada"
+        ) from None

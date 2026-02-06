@@ -6,7 +6,7 @@
  * - Offline fallback to index.html
  */
 
-const CACHE_NAME = 'parent-pwa-v2';
+const CACHE_NAME = 'parent-pwa-v7';
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
@@ -29,8 +29,9 @@ const STATIC_ASSETS = [
   './js/views/parent_history.js',
   './js/views/parent_prefs.js',
   './js/views/parent_absences.js',
+  './js/views/parent_pickups.js',
   // Assets
-  './assets/logo.svg',
+  './assets/logo.png',
   './assets/badge.svg',
   // Shared library
   '/lib/api-base.js'

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login NEUVOX Móvil</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#6366f1",
+              brand: {
+                blue: "#0ea5e9",
+                darkblue: "#000080",
+                purple: "#a855f7"
+              },
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+            },
+            borderRadius: {
+              'xl': '1.5rem',
+              '2xl': '2.5rem',
+            },
+          },
+        },
+      };
+    </script>
+<style type="text/tailwindcss">
+        :root {
+            --primary-color: #6366f1;
+        }
+        .bg-gradient-mesh {
+            background-color: #6366f1;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(253, 50%, 40%, 1) 0, transparent 50%), 
+                radial-gradient(at 100% 100%, hsla(280, 50%, 40%, 1) 0, transparent 50%),
+                radial-gradient(at 50% 50%, hsla(240, 60%, 50%, 1) 0, transparent 100%);
+        }
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center bg-gradient-mesh p-4 sm:p-0">
+<main class="relative z-10 w-full max-w-[450px]">
+<div class="bg-white dark:bg-slate-900 shadow-2xl rounded-[2.5rem] p-8 md:p-10 border border-slate-200/50 dark:border-slate-800/50 w-full">
+<div class="text-center mb-8">
+<div class="flex flex-col items-center mb-4">
+<div class="w-16 h-16 mb-3 bg-gradient-to-br from-brand-blue to-brand-purple rounded-full flex items-center justify-center p-0.5">
+<div class="w-full h-full bg-white dark:bg-slate-900 rounded-full flex items-center justify-center">
+<div class="w-8 h-8 bg-gradient-to-br from-brand-blue to-brand-purple rounded-md flex items-center justify-center">
+<div class="w-2 h-2 bg-white rounded-full"></div>
+</div>
+</div>
+</div>
+<div class="flex items-center text-2xl font-black tracking-tighter uppercase">
+<span class="text-brand-darkblue dark:text-brand-blue">NEUVOX</span>
+<span class="text-brand-blue dark:text-brand-purple">.AI</span>
+</div>
+</div>
+<h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white mb-1">
+                Control de Asistencia Escolar
+            </h1>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-medium">
+                Sistema de registro de ingreso y salida
+            </p>
+</div>
+<div class="text-center mb-6">
+<p class="text-slate-600 dark:text-slate-400 text-sm">Iniciar sesión - Apoderado</p>
+</div>
+<div class="mb-6">
+<button class="w-full h-14 bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl font-semibold flex items-center justify-center gap-2 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-500/20 transition-colors">
+<span class="material-symbols-outlined">fingerprint</span>
+                Iniciar con huella / Face ID
+            </button>
+</div>
+<div class="relative flex items-center mb-6">
+<div class="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+<span class="flex-shrink mx-4 text-xs font-medium text-slate-400 uppercase tracking-wider">o con contraseña</span>
+<div class="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+</div>
+<form class="space-y-6">
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 text-center" for="email">Email</label>
+<input class="w-full h-14 px-5 rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-center" id="email" placeholder="usuario@colegio.cl" type="email"/>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 text-center" for="password">Contraseña</label>
+<input class="w-full h-14 px-5 rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-center" id="password" placeholder="••••••••" type="password"/>
+</div>
+<div class="flex flex-col sm:flex-row gap-3 pt-4">
+<button class="flex-1 h-14 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" type="button">
+                    Volver
+                </button>
+<button class="flex-[2] h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 transition-all" type="submit">
+                    Iniciar Sesión
+                </button>
+</div>
+</form>
+<div class="mt-8 text-center">
+<p class="text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-widest">
+                Plataforma Educativa NEUVOX © 2024
+            </p>
+<div class="mt-4 flex justify-center gap-4">
+<button class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-primary transition-colors" id="themeToggle">
+<span class="material-symbols-outlined text-lg" id="themeIcon">dark_mode</span>
+</button>
+<button class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-lg">help</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<script>
+    const themeToggle = document.getElementById('themeToggle');
+    const themeIcon = document.getElementById('themeIcon');
+    const html = document.documentElement;
+    themeToggle.addEventListener('click', () => {
+        if (html.classList.contains('dark')) {
+            html.classList.remove('dark');
+            themeIcon.innerText = 'dark_mode';
+        } else {
+            html.classList.add('dark');
+            themeIcon.innerText = 'light_mode';
+        }
+    });
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        html.classList.add('dark');
+        themeIcon.innerText = 'light_mode';
+    }
+</script>
+
+</body></html>

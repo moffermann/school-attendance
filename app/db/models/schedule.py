@@ -2,7 +2,7 @@
 
 from datetime import time
 
-from sqlalchemy import ForeignKey, Integer, SmallInteger, Time
+from sqlalchemy import ForeignKey, Integer, SmallInteger, Time, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -10,6 +10,7 @@ from app.db.base import Base
 
 class Schedule(Base):
     __tablename__ = "schedules"
+    __table_args__ = (UniqueConstraint("course_id", "weekday", name="uq_schedule_course_weekday"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     course_id: Mapped[int] = mapped_column(ForeignKey("courses.id"), nullable=False, index=True)

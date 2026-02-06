@@ -33,7 +33,7 @@ class ConsentService:
             existing_prefs = guardian.notification_prefs or {}
             # Convert ChannelPreference objects to dicts for JSON serialization
             new_prefs = {
-                k: v.model_dump() if hasattr(v, 'model_dump') else v
+                k: v.model_dump() if hasattr(v, "model_dump") else v
                 for k, v in payload.preferences.items()
             }
             guardian.notification_prefs = {**existing_prefs, **new_prefs}

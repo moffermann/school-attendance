@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html class="h-full" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kiosco - Confirmación de Registro NEUVOX</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3B82F6", // Professional Vibrant Blue
+                        "background-light": "#F8FAFC",
+                        "background-dark": "#0F172A",
+                        "card-light": "#FFFFFF",
+                        "card-dark": "#1E293B",
+                        "success": "#22C55E",
+                        "danger": "#EF4444",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                        sans: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "1rem",
+                        'xl': '1.5rem',
+                        '2xl': '2rem',
+                        '3xl': '2.5rem',
+                    },
+                    boxShadow: {
+                        'heavy': '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                    }
+                },
+            },
+        };
+    </script>
+<style>
+        .material-symbols-rounded {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 48;
+        }
+        .countdown-circle {
+            transition: stroke-dashoffset 1s linear;
+        }
+    </style>
+</head>
+<body class="h-full font-sans antialiased bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 transition-colors duration-300 overflow-hidden select-none">
+<div class="h-full flex flex-col items-center justify-center p-6 sm:p-12">
+<div class="absolute top-10 left-10 flex items-center space-x-3">
+<div class="bg-primary p-2 rounded-xl shadow-lg">
+<span class="material-symbols-rounded text-white text-3xl">school</span>
+</div>
+<span class="text-2xl font-extrabold tracking-tight text-slate-800 dark:text-white">NEUVOX</span>
+</div>
+<button class="absolute top-10 right-10 p-3 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:scale-110 transition-transform" onclick="document.documentElement.classList.toggle('dark')">
+<span class="material-symbols-rounded">dark_mode</span>
+</button>
+<main class="w-full max-w-4xl bg-card-light dark:bg-card-dark rounded-3xl shadow-heavy p-8 sm:p-12 flex flex-col items-center animate-in fade-in zoom-in duration-500">
+<div class="relative mb-8">
+<div class="w-48 h-48 rounded-full border-8 border-slate-100 dark:border-slate-800 overflow-hidden shadow-inner">
+<img alt="Foto del alumno Martín González" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBYYSE2dMOjQodZEIWGIElyZYCmYjPd8jc9jRUEu41Ebfei-sj6LqI-3uItPzzF6RliVQ6sFa4DcivYLCP8IztLfRXxl_qwzE2GLlsG85_SOS5p9JhxIjuLbGIQFyQ9JuYTLgcSxqTynJNxRigzPZ7GA7EcHH14HJnB-U9uvgY2ITOnlsmltAODB5lNZRRAI4ZJEBJxe_m0v7cVH3379gA372Z-_36AeT85rqzpPq12HJ-hQX2MwkEu9jOHmdbq3AU11OGbiRZCdEc"/>
+</div>
+<div class="absolute -bottom-2 -right-2 bg-success text-white p-2 rounded-full shadow-lg border-4 border-card-light dark:border-card-dark">
+<span class="material-symbols-rounded text-2xl">check_circle</span>
+</div>
+</div>
+<div class="text-center mb-10">
+<h1 class="text-5xl font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight uppercase">MARTÍN GONZÁLEZ</h1>
+<p class="text-2xl font-semibold text-slate-500 dark:text-slate-400">4° BÁSICO A</p>
+<div class="mt-6 inline-flex items-center space-x-2 px-6 py-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-full font-medium border border-emerald-100 dark:border-emerald-900/50">
+<span class="material-symbols-rounded text-xl">verified</span>
+<span>Identidad Verificada Correctamente</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+<button class="group relative flex flex-col items-center justify-center p-8 bg-success hover:bg-emerald-600 text-white rounded-3xl transition-all duration-300 active:scale-95 shadow-xl hover:shadow-2xl shadow-emerald-500/20">
+<span class="material-symbols-rounded text-6xl mb-4 group-hover:scale-110 transition-transform">login</span>
+<span class="text-2xl font-bold tracking-wide">REGISTRAR INGRESO</span>
+</button>
+<button class="group relative flex flex-col items-center justify-center p-8 bg-orange-500 hover:bg-orange-600 text-white rounded-3xl transition-all duration-300 active:scale-95 shadow-xl hover:shadow-2xl shadow-orange-500/20">
+<span class="material-symbols-rounded text-6xl mb-4 group-hover:scale-110 transition-transform">logout</span>
+<span class="text-2xl font-bold tracking-wide">REGISTRAR SALIDA</span>
+</button>
+</div>
+</main>
+<div class="mt-12 flex flex-col items-center">
+<div class="relative flex items-center justify-center">
+<svg class="w-16 h-16 transform -rotate-90">
+<circle class="text-slate-200 dark:text-slate-800" cx="32" cy="32" fill="transparent" r="28" stroke="currentColor" stroke-width="4"></circle>
+<circle class="text-primary countdown-circle" cx="32" cy="32" fill="transparent" id="progress-circle" r="28" stroke="currentColor" stroke-dasharray="176" stroke-dashoffset="0" stroke-width="4"></circle>
+</svg>
+<div class="absolute flex flex-col items-center">
+<span class="text-lg font-bold" id="seconds">8</span>
+</div>
+</div>
+<p class="mt-3 text-slate-500 dark:text-slate-400 font-medium">Volviendo al inicio en <span id="timer-label">8</span>s...</p>
+</div>
+</div>
+<script>
+        let secondsLeft = 8;
+        const totalSeconds = 8;
+        const circle = document.getElementById('progress-circle');
+        const secondsEl = document.getElementById('seconds');
+        const labelEl = document.getElementById('timer-label');
+        const dashArray = 176;
+        const countdown = setInterval(() => {
+            secondsLeft--;
+            if (secondsLeft <= 0) {
+                clearInterval(countdown);
+                secondsLeft = 0;
+                // Typically here you would redirect: window.location.href = '/kiosk-home';
+            }
+            secondsEl.textContent = secondsLeft;
+            labelEl.textContent = secondsLeft;
+            // Calculate offset
+            const offset = dashArray - (dashArray * secondsLeft / totalSeconds);
+            circle.style.strokeDashoffset = offset;
+        }, 1000);
+    </script>
+
+</body></html>

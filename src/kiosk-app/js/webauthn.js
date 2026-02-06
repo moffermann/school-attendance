@@ -120,6 +120,7 @@ const WebAuthn = {
    */
   async authenticateStudent() {
     const config = this.getApiConfig();
+    console.log('[WebAuthn] Starting authentication, config:', config);
 
     if (!config.deviceKey) {
       return { success: false, error: 'No hay API key configurada' };
@@ -131,6 +132,7 @@ const WebAuthn = {
 
     try {
       // Step 1: Get authentication options from server
+      console.log('[WebAuthn] Step 1: Requesting auth options from server...');
       const startResponse = await fetch(`${config.baseUrl}/webauthn/kiosk/authenticate/start`, {
         method: 'POST',
         headers: {
@@ -139,21 +141,33 @@ const WebAuthn = {
         }
       });
 
+      console.log('[WebAuthn] Step 1 response status:', startResponse.status);
+
       if (!startResponse.ok) {
         const error = await startResponse.json().catch(() => ({}));
+        console.error('[WebAuthn] Step 1 failed:', error);
         return { success: false, error: error.detail || 'Error al iniciar autenticación' };
       }
 
-      const { challenge_id, options } = await startResponse.json();
+      const startData = await startResponse.json();
+      console.log('[WebAuthn] Step 1 success, challenge_id:', startData.challenge_id);
+      console.log('[WebAuthn] Step 1 options:', JSON.stringify(startData.options, null, 2));
+
+      const { challenge_id, options } = startData;
 
       // Step 2: Get credential assertion from authenticator
+      console.log('[WebAuthn] Step 2: Requesting credential from browser...');
       const assertion = await this.getCredential(options);
 
       if (!assertion) {
+        console.log('[WebAuthn] Step 2: User cancelled');
         return { success: false, error: 'El usuario canceló la autenticación' };
       }
 
+      console.log('[WebAuthn] Step 2 success, credential id:', assertion.id);
+
       // Step 3: Verify assertion with server
+      console.log('[WebAuthn] Step 3: Verifying with server...');
       const verifyResponse = await fetch(`${config.baseUrl}/webauthn/kiosk/authenticate/verify`, {
         method: 'POST',
         headers: {
@@ -166,16 +180,20 @@ const WebAuthn = {
         })
       });
 
+      console.log('[WebAuthn] Step 3 response status:', verifyResponse.status);
+
       if (!verifyResponse.ok) {
         const error = await verifyResponse.json().catch(() => ({}));
+        console.error('[WebAuthn] Step 3 failed:', error);
         return { success: false, error: error.detail || 'Huella no reconocida' };
       }
 
       const student = await verifyResponse.json();
+      console.log('[WebAuthn] Step 3 success, student:', student);
       return { success: true, student: student };
 
     } catch (err) {
-      console.error('WebAuthn authentication error:', err);
+      console.error('[WebAuthn] Authentication error:', err);
 
       if (err.name === 'NotAllowedError') {
         return { success: false, error: 'El usuario canceló o el tiempo expiró' };

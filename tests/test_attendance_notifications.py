@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models.associations import student_guardian_table
 from app.db.models.attendance_event import AttendanceEvent
+from app.db.models.course import Course
 from app.db.models.guardian import Guardian
 from app.db.models.student import Student
-from app.db.models.course import Course
-from app.db.models.associations import student_guardian_table
 from app.services.attendance_notification_service import AttendanceNotificationService
 
 
@@ -142,9 +142,7 @@ class TestAttendanceNotificationService:
         db_session.add(event)
         await db_session.flush()
 
-        with patch.object(
-            AttendanceNotificationService, "_enqueue_notification"
-        ) as mock_enqueue:
+        with patch.object(AttendanceNotificationService, "_enqueue_notification") as mock_enqueue:
             service = AttendanceNotificationService(db_session)
             notification_ids = await service.notify_attendance_event(event)
             await db_session.commit()
@@ -176,9 +174,7 @@ class TestAttendanceNotificationService:
         db_session.add(event)
         await db_session.flush()
 
-        with patch.object(
-            AttendanceNotificationService, "_enqueue_notification"
-        ) as mock_enqueue:
+        with patch.object(AttendanceNotificationService, "_enqueue_notification") as mock_enqueue:
             service = AttendanceNotificationService(db_session)
             notification_ids = await service.notify_attendance_event(event)
             await db_session.commit()
@@ -219,9 +215,7 @@ class TestAttendanceNotificationService:
         db_session.add(event)
         await db_session.flush()
 
-        with patch.object(
-            AttendanceNotificationService, "_enqueue_notification"
-        ) as mock_enqueue:
+        with patch.object(AttendanceNotificationService, "_enqueue_notification") as mock_enqueue:
             service = AttendanceNotificationService(db_session)
             notification_ids = await service.notify_attendance_event(event)
             await db_session.commit()
@@ -332,9 +326,7 @@ class TestAttendanceNotificationService:
         ):
             service = AttendanceNotificationService(db_session)
             # Try to send with photo URL - should be excluded
-            await service.notify_attendance_event(
-                event, photo_url="https://example.com/photo.jpg"
-            )
+            await service.notify_attendance_event(event, photo_url="https://example.com/photo.jpg")
             await db_session.commit()
 
             # Photo should not be included due to no consent

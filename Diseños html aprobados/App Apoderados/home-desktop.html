@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Portal de Apoderados NEUVOX Desktop</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6366f1", // Purple/Indigo base
+                        secondary: "#0ea5e9", // Blue accent
+                        "background-light": "#f8fafc", // Very light gray for clean look
+                        "background-dark": "#0f172a",
+                        "sidebar-dark": "#1e1b4b",
+                        "sidebar-hover": "#312e81",
+                        "card-light": "#ffffff",
+                        "card-dark": "#1e293b",
+                        "text-light": "#1f2937",
+                        "text-dark": "#e2e8f0",
+                        "muted-light": "#6b7280",
+                        "muted-dark": "#94a3b8",
+                        "border-light": "#e5e7eb",
+                        "border-dark": "#334155",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        'lg': '0.75rem',
+                        'xl': '1rem',
+                        '2xl': '1.5rem',
+                    },
+                },
+            },
+        };
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .nav-item.active {
+            color: #6366f1;
+        }
+        .nav-item.active span {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 antialiased h-screen flex flex-col md:flex-row overflow-hidden">
+<aside class="w-64 bg-white dark:bg-card-dark border-r border-gray-200 dark:border-border-dark flex-shrink-0 flex flex-col transition-all duration-300 hidden md:flex z-20">
+<div class="h-20 flex items-center px-6 border-b border-gray-100 dark:border-border-dark">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center shadow-lg text-white font-bold">
+                N
+            </div>
+<h1 class="text-xl font-bold tracking-tight text-indigo-900 dark:text-white">NEUVOX</h1>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto py-6 space-y-1 px-3">
+<a class="flex items-center px-3 py-2.5 bg-indigo-50 text-indigo-700 rounded-lg group transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">home</span>
+<span class="font-medium text-sm">Inicio</span>
+</a>
+<a class="flex items-center px-3 py-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-indigo-600 rounded-lg group transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">history</span>
+<span class="font-medium text-sm">Historial</span>
+</a>
+<a class="flex items-center px-3 py-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-indigo-600 rounded-lg group transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">event_busy</span>
+<span class="font-medium text-sm">Ausencias</span>
+</a>
+<a class="flex items-center px-3 py-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-indigo-600 rounded-lg group transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">settings</span>
+<span class="font-medium text-sm">Ajustes</span>
+</a>
+</nav>
+</aside>
+<main class="flex-1 flex flex-col overflow-hidden relative bg-[#f8fafc] dark:bg-background-dark">
+<header class="h-auto py-4 md:h-20 bg-white dark:bg-card-dark border-b border-gray-200 dark:border-border-dark flex flex-col md:flex-row items-center justify-between px-6 md:px-8 z-10 shadow-sm gap-4 md:gap-0">
+<div class="flex items-center gap-4 w-full md:w-auto">
+<h2 class="text-xl font-bold text-gray-900 dark:text-white">Portal de Apoderados</h2>
+</div>
+<div class="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+<div class="hidden md:block text-sm text-gray-500 mr-4">
+                Jueves, 22 De Enero De 2026
+            </div>
+<div class="flex items-center gap-3">
+<button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+<span class="material-symbols-outlined text-xl">refresh</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm font-medium text-gray-700 dark:text-gray-300">
+<span class="material-symbols-outlined text-xl">logout</span>
+<span class="hidden sm:inline">Salir</span>
+</button>
+</div>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
+<div class="max-w-5xl mx-auto space-y-8">
+<div>
+<h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-1">Estado de Hoy</h3>
+<p class="text-sm text-gray-500 dark:text-gray-400 md:hidden">Jueves, 22 De Enero De 2026</p>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-gray-100 dark:border-border-dark overflow-hidden">
+<div class="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-gray-50 dark:border-gray-800">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-indigo-500 text-white flex items-center justify-center text-xl font-bold flex-shrink-0">
+                            L
+                        </div>
+<div>
+<h4 class="text-lg font-bold text-gray-900 dark:text-white">Luna Torres Prada</h4>
+<p class="text-xs text-gray-500 dark:text-gray-400 font-medium">2º Básico B • 2º Básico</p>
+</div>
+</div>
+<button class="w-full md:w-auto px-4 py-2 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 flex items-center justify-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-lg">history</span> Ver Historial
+                    </button>
+</div>
+<div class="bg-red-50 dark:bg-red-900/10 p-4 flex items-center gap-3">
+<span class="material-symbols-outlined text-red-500">help</span>
+<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                        Aún no registra ingreso
+                    </span>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-gray-100 dark:border-border-dark overflow-hidden">
+<div class="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-gray-50 dark:border-gray-800">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-purple-500 text-white flex items-center justify-center text-xl font-bold flex-shrink-0">
+                            N
+                        </div>
+<div>
+<h4 class="text-lg font-bold text-gray-900 dark:text-white">Noah Josefina</h4>
+<p class="text-xs text-gray-500 dark:text-gray-400 font-medium">5º Básico A • 5º Básico</p>
+</div>
+</div>
+<button class="w-full md:w-auto px-4 py-2 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 flex items-center justify-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-lg">history</span> Ver Historial
+                    </button>
+</div>
+<div class="bg-red-50 dark:bg-red-900/10 p-4 flex items-center gap-3">
+<span class="material-symbols-outlined text-red-500">help</span>
+<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                        Aún no registra ingreso
+                    </span>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-gray-100 dark:border-border-dark overflow-hidden">
+<div class="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-gray-50 dark:border-gray-800">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-blue-500 text-white flex items-center justify-center text-xl font-bold flex-shrink-0">
+                            M
+                        </div>
+<div>
+<h4 class="text-lg font-bold text-gray-900 dark:text-white">Mateo Ignacio</h4>
+<p class="text-xs text-gray-500 dark:text-gray-400 font-medium">8º Básico C • 8º Básico</p>
+</div>
+</div>
+<button class="w-full md:w-auto px-4 py-2 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 flex items-center justify-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-lg">history</span> Ver Historial
+                    </button>
+</div>
+<div class="bg-green-50 dark:bg-green-900/10 p-4 flex items-center gap-3">
+<span class="material-symbols-outlined text-green-600">check_circle</span>
+<span class="text-sm font-medium text-green-700 dark:text-green-300">
+                        Ingreso Registrado: 08:15 AM
+                    </span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+<button class="group flex items-center justify-center gap-3 p-4 bg-white dark:bg-card-dark border border-gray-200 dark:border-gray-700 rounded-xl hover:shadow-md transition-all">
+<span class="material-symbols-outlined text-gray-500 group-hover:text-indigo-600 transition-colors">settings</span>
+<span class="font-medium text-gray-700 dark:text-gray-200">Preferencias de Notificación</span>
+</button>
+<button class="group flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none hover:shadow-xl transition-all transform hover:-translate-y-0.5">
+<span class="material-symbols-outlined text-white">calendar_today</span>
+<span class="font-bold text-white">Solicitar Ausencia</span>
+</button>
+</div>
+</div>
+</div>
+<div class="md:hidden bg-white dark:bg-card-dark border-t border-gray-200 dark:border-border-dark flex justify-around items-center h-16 px-2 z-30 pb-safe">
+<a class="nav-item active flex flex-col items-center justify-center w-full h-full text-indigo-600 dark:text-indigo-400" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">home</span>
+<span class="text-[10px] font-medium">Inicio</span>
+</a>
+<a class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">history</span>
+<span class="text-[10px] font-medium">Historial</span>
+</a>
+<a class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">event_busy</span>
+<span class="text-[10px] font-medium">Ausencias</span>
+</a>
+<a class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1">settings</span>
+<span class="text-[10px] font-medium">Ajustes</span>
+</a>
+</div>
+</main>
+
+</body></html>

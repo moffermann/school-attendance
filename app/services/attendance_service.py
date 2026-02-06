@@ -2,23 +2,25 @@
 
 from __future__ import annotations
 
-from typing import List, TYPE_CHECKING
-
-from datetime import datetime, timedelta, timezone
+import asyncio
 import uuid
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
+from app.core.config import settings
 from app.db.repositories.attendance import AttendanceRepository
 from app.db.repositories.guardians import GuardianRepository
-from app.db.repositories.schedules import ScheduleRepository
-from app.db.repositories.students import StudentRepository
 from app.db.repositories.no_show_alerts import NoShowAlertRepository
+from app.db.repositories.schedules import ScheduleRepository
+from app.db.repositories.sequence_corrections import SequenceCorrectionRepository
+from app.db.repositories.students import StudentRepository
 from app.schemas.attendance import AttendanceEventCreate, AttendanceEventRead
-from app.core.config import settings
 from app.services.photo_service import PhotoService
 
 if TYPE_CHECKING:
+    from app.db.models.attendance_event import AttendanceEvent
     from app.services.attendance_notification_service import AttendanceNotificationService
 
 
@@ -31,6 +33,7 @@ class AttendanceService:
         self.guardian_repo = GuardianRepository(session)
         self.photo_service = PhotoService()
         self.no_show_repo = NoShowAlertRepository(session)
+        self.correction_repo = SequenceCorrectionRepository(session)
         self._notification_service = notification_service
 
     async def register_event(self, payload: AttendanceEventCreate) -> AttendanceEventRead:
@@ -38,17 +41,33 @@ class AttendanceService:
         if not student:
             raise ValueError("Student not found")
 
+        # Validate and correct sequence if feature flag enabled
+        if settings.enable_sequence_validation:
+            corrected_type, was_corrected = await self._validate_and_correct_sequence(
+                student_id=payload.student_id,
+                requested_type=payload.type.value,
+                occurred_at=payload.occurred_at,
+            )
+        else:
+            corrected_type, was_corrected = payload.type.value, False
+
         event = await self.attendance_repo.create_event(
             student_id=payload.student_id,
-            event_type=payload.type.value,
+            event_type=corrected_type,
             gate_id=payload.gate_id,
             device_id=payload.device_id,
             occurred_at=payload.occurred_at,
             photo_ref=payload.photo_ref,
             local_seq=payload.local_seq,
+            source=payload.source.value if payload.source else None,
+            conflict_corrected=was_corrected,
         )
 
         await self.session.commit()
+
+        # If sequence was corrected, create audit record and alert staff
+        if was_corrected:
+            await self._create_conflict_alert(event, payload.type.value, corrected_type)
 
         # Trigger notifications to guardians
         # R12-P1 fix: Pass student to avoid duplicate fetch
@@ -56,10 +75,102 @@ class AttendanceService:
 
         return AttendanceEventRead.model_validate(event, from_attributes=True)
 
+    async def _validate_and_correct_sequence(
+        self,
+        student_id: int,
+        requested_type: str,
+        occurred_at: datetime,
+    ) -> tuple[str, bool]:
+        """Validate event sequence against chronologically previous event.
+
+        Uses FOR UPDATE lock to prevent race conditions.
+        Validates against timestamp, not creation order.
+        Includes timeout to avoid deadlocks in high concurrency.
+
+        Returns:
+            Tuple of (corrected_type, was_corrected)
+        """
+        target_date = occurred_at.date()
+
+        try:
+            # CRITICAL: Find event BEFORE timestamp (not last created)
+            # Use FOR UPDATE for row lock to prevent race conditions
+            # 5 second timeout to avoid deadlocks
+            previous_event = await asyncio.wait_for(
+                self.attendance_repo.get_event_before_timestamp(
+                    student_id=student_id,
+                    before_timestamp=occurred_at,
+                    target_date=target_date,
+                    for_update=True,
+                ),
+                timeout=5.0,
+            )
+        except TimeoutError:
+            # Lock timeout - fail gracefully, don't correct
+            logger.warning(f"Lock timeout for student {student_id}, skipping sequence validation")
+            return requested_type, False
+
+        # Determine expected type based on chronologically previous event
+        if previous_event is None:
+            # No event before this timestamp today → must be IN
+            expected_type = "IN"
+        else:
+            # Toggle from previous event
+            expected_type = "OUT" if previous_event.type == "IN" else "IN"
+
+        # Check if correction needed
+        if requested_type != expected_type:
+            logger.warning(
+                f"Sequence correction for student {student_id}: "
+                f"requested={requested_type}, expected={expected_type}, "
+                f"previous_event={previous_event.type if previous_event else 'None'}, "
+                f"occurred_at={occurred_at}"
+            )
+            return expected_type, True
+
+        return requested_type, False
+
+    async def _create_conflict_alert(
+        self,
+        event: AttendanceEvent,
+        requested_type: str,
+        corrected_type: str,
+    ) -> None:
+        """Create audit record when event sequence was auto-corrected."""
+        # 1. Create structured audit record
+        await self.correction_repo.create(
+            event_id=event.id,
+            student_id=event.student_id,
+            requested_type=requested_type,
+            corrected_type=corrected_type,
+            device_id=event.device_id,
+            gate_id=event.gate_id,
+            occurred_at=event.occurred_at,
+        )
+
+        # 2. Structured log for monitoring (ELK/CloudWatch)
+        logger.warning(
+            "Sequence correction applied",
+            extra={
+                "event_id": event.id,
+                "student_id": event.student_id,
+                "requested_type": requested_type,
+                "corrected_type": corrected_type,
+                "device_id": event.device_id,
+                "gate_id": event.gate_id,
+                "occurred_at": event.occurred_at.isoformat() if event.occurred_at else None,
+            },
+        )
+
     async def _send_attendance_notifications(self, event, student=None) -> None:
         """Send notifications to guardians after attendance event is registered."""
+        # DEBUG: Trace notification flow
+        logger.info(f"[DEBUG-NOTIF] Starting notification flow for event {event.id}")
+        logger.info(f"[DEBUG-NOTIF] notification_service is: {type(self._notification_service)}")
+
         if not self._notification_service:
             logger.debug("Notification service not configured, skipping notifications")
+            logger.warning("[DEBUG-NOTIF] SKIPPED: notification_service is None!")
             return
 
         try:
@@ -81,43 +192,49 @@ class AttendanceService:
                             expires=24 * 3600,  # 24 hours
                         )
 
+            logger.info(
+                f"[DEBUG-NOTIF] Calling notify_attendance_event for event {event.id}, photo_url: {bool(photo_url)}"
+            )
             notification_ids = await self._notification_service.notify_attendance_event(
                 event=event,
                 photo_url=photo_url,
             )
+            logger.info(f"[DEBUG-NOTIF] notify_attendance_event returned: {notification_ids}")
             await self.session.commit()
+            logger.info("[DEBUG-NOTIF] Session committed after notifications")
 
             if notification_ids:
-                logger.info(
-                    f"Queued {len(notification_ids)} notifications for event {event.id}"
-                )
+                logger.info(f"Queued {len(notification_ids)} notifications for event {event.id}")
+            else:
+                logger.warning(f"[DEBUG-NOTIF] NO notifications created for event {event.id}")
         except Exception as e:
             # Don't fail the attendance registration if notifications fail
             logger.error(f"Failed to send notifications for event {event.id}: {e}")
+            logger.exception("[DEBUG-NOTIF] Full exception trace:")
 
-    async def list_events_by_student(self, student_id: int) -> List[AttendanceEventRead]:
+    async def list_events_by_student(self, student_id: int) -> list[AttendanceEventRead]:
         events = await self.attendance_repo.list_by_student(student_id)
         return [AttendanceEventRead.model_validate(event, from_attributes=True) for event in events]
 
-    async def detect_no_show_alerts(self, current_dt: datetime) -> list[dict]:
+    async def detect_no_show_alerts(self, current_dt: datetime) -> list[dict[str, Any]]:
         # R15-DT2 fix: Work with timezone-aware datetimes consistently
         # Ensure current_dt is UTC-aware for consistent comparisons
         if current_dt.tzinfo:
-            current_dt_utc = current_dt.astimezone(timezone.utc)
+            current_dt_utc = current_dt.astimezone(UTC)
         else:
             # Assume naive datetime is UTC
-            current_dt_utc = current_dt.replace(tzinfo=timezone.utc)
+            current_dt_utc = current_dt.replace(tzinfo=UTC)
 
         weekday = current_dt_utc.weekday()
         schedules = await self.schedule_repo.list_by_weekday(weekday)
         grace = timedelta(minutes=settings.no_show_grace_minutes)
         target_date = current_dt_utc.date()
-        alerts: list[dict] = []
+        alerts: list[dict[str, Any]] = []
 
         for schedule in schedules:
             # Course is eager-loaded via selectinload in list_by_weekday
             # R15-DT2 fix: datetime.combine with explicit UTC timezone to avoid naive datetime
-            threshold = datetime.combine(target_date, schedule.in_time, tzinfo=timezone.utc) + grace
+            threshold = datetime.combine(target_date, schedule.in_time, tzinfo=UTC) + grace
             if current_dt_utc < threshold:
                 continue
 
@@ -153,6 +270,7 @@ class AttendanceService:
                             "guardian": guardian,
                             "student": student,
                             "course": schedule.course,
+                            "schedule": schedule,
                         }
                     )
 

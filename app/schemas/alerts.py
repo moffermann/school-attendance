@@ -1,12 +1,12 @@
 """Schemas for no-show alerts."""
 
 from datetime import date, datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel
 
 
-class NoShowAlertStatus(str, Enum):
+class NoShowAlertStatus(StrEnum):
     PENDING = "PENDING"
     RESOLVED = "RESOLVED"
 

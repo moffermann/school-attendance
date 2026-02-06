@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from sqlalchemy import text
@@ -19,10 +20,10 @@ engine = create_async_engine(
     settings.database_url,
     echo=False,
     future=True,
-    pool_size=20,          # Default connections in pool
-    max_overflow=10,       # Extra connections when pool exhausted
-    pool_pre_ping=True,    # Verify connection before use (detect stale)
-    pool_recycle=3600,     # Recycle connections after 1 hour
+    pool_size=20,  # Default connections in pool
+    max_overflow=10,  # Extra connections when pool exhausted
+    pool_pre_ping=True,  # Verify connection before use (detect stale)
+    pool_recycle=3600,  # Recycle connections after 1 hour
 )
 
 async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
@@ -58,6 +59,7 @@ def validate_schema_name(schema_name: str) -> bool:
     return True
 
 
+@asynccontextmanager
 async def get_tenant_session(schema_name: str) -> AsyncGenerator[AsyncSession, None]:
     """
     Get a database session with search_path set to tenant schema.
@@ -83,22 +85,30 @@ async def get_tenant_session(schema_name: str) -> AsyncGenerator[AsyncSession, N
     async with async_session() as session:
         # Set schema search path for this connection
         await session.execute(text(f"SET search_path TO {schema_name}, public"))
+        error_occurred = False
         try:
             yield session
-        finally:
-            # Reset to default on connection return to pool
-            # First rollback any failed transaction to allow the SET command
+            # BUG-FIX: Commit if no error occurred (was missing - caused rollback of valid data)
+            await session.commit()
+        except Exception:
+            error_occurred = True
+            # Rollback on error
             try:
                 await session.rollback()
             except Exception:
-                pass  # Ignore if no transaction or already rolled back
-            try:
-                await session.execute(text("SET search_path TO public"))
-            except Exception:
-                pass  # Connection may be in bad state, will be recycled
+                pass  # Ignore if already rolled back
+            raise  # Re-raise the original exception
+        finally:
+            # Reset search_path to default on connection return to pool
+            # Only rollback in finally if we didn't already handle it
+            if not error_occurred:
+                try:
+                    await session.execute(text("SET search_path TO public"))
+                except Exception:
+                    pass  # Connection may be in bad state, will be recycled
 
 
-async def get_session_for_tenant(tenant: "Tenant") -> AsyncGenerator[AsyncSession, None]:
+async def get_session_for_tenant(tenant: Tenant) -> AsyncGenerator[AsyncSession, None]:
     """
     Get a database session for a specific tenant.
 
@@ -109,7 +119,7 @@ async def get_session_for_tenant(tenant: "Tenant") -> AsyncGenerator[AsyncSessio
         AsyncSession with search_path configured for the tenant
     """
     schema_name = f"tenant_{tenant.slug}"
-    async for session in get_tenant_session(schema_name):
+    async with get_tenant_session(schema_name) as session:
         yield session
 
 
@@ -160,9 +170,67 @@ async def schema_exists(schema_name: str) -> bool:
     async with async_session() as session:
         result = await session.execute(
             text(
-                "SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = :schema)"
+                "SELECT EXISTS("
+                "SELECT 1 FROM information_schema.schemata WHERE schema_name = :schema)"
             ),
             {"schema": schema_name},
         )
         row = result.scalar()
         return bool(row)
+
+
+# ============================================================================
+# WORKER SESSION FACTORY
+# ============================================================================
+# RQ workers run in separate processes with their own event loops.
+# The main async engine is tied to FastAPI's event loop and doesn't work
+# correctly when called from asyncio.run() in workers.
+# These functions create fresh engines for each worker job.
+
+
+def create_worker_engine():
+    """
+    Create a fresh async engine for worker jobs.
+
+    This creates a new engine independent of the FastAPI application's
+    connection pool, suitable for use in RQ worker processes.
+    """
+    return create_async_engine(
+        settings.database_url,
+        echo=False,
+        future=True,
+        pool_size=5,  # Smaller pool for workers
+        max_overflow=5,
+        pool_pre_ping=True,
+        pool_recycle=300,  # Shorter recycle for workers
+    )
+
+
+@asynccontextmanager
+async def get_worker_session(schema_name: str | None = None) -> AsyncGenerator[AsyncSession, None]:
+    """
+    Get a database session for worker jobs.
+
+    Creates a fresh engine and session for each invocation, avoiding
+    connection pool issues when running in RQ worker processes.
+
+    Args:
+        schema_name: Optional tenant schema name. If provided, sets search_path.
+
+    Yields:
+        AsyncSession configured for the worker job
+    """
+    worker_engine = create_worker_engine()
+    worker_session_factory = async_sessionmaker(
+        worker_engine, expire_on_commit=False, class_=AsyncSession
+    )
+
+    async with worker_session_factory() as session:
+        try:
+            if schema_name:
+                validate_schema_name(schema_name)
+                await session.execute(text(f"SET search_path TO {schema_name}, public"))
+            yield session
+        finally:
+            # Clean up the engine after use
+            await worker_engine.dispose()

@@ -1,7 +1,5 @@
 """Dispatcher for notifications."""
 
-import asyncio
-
 from loguru import logger
 from redis import Redis
 from rq import Queue
@@ -9,12 +7,18 @@ from rq import Queue
 from app.core.config import settings
 from app.db.repositories.guardians import GuardianRepository
 from app.db.repositories.notifications import NotificationRepository
-from app.schemas.notifications import NotificationDispatchRequest, NotificationRead, NotificationChannel
+from app.schemas.notifications import (
+    NotificationChannel,
+    NotificationDispatchRequest,
+    NotificationRead,
+)
 
 
 class NotificationDispatcher:
-    def __init__(self, session):
+    def __init__(self, session, tenant_id: int | None = None, tenant_schema: str | None = None):
         self.session = session
+        self.tenant_id = tenant_id
+        self.tenant_schema = tenant_schema
         self.repository = NotificationRepository(session)
         self.guardian_repo = GuardianRepository(session)
         self._redis = Redis.from_url(settings.redis_url)
@@ -22,15 +26,23 @@ class NotificationDispatcher:
 
     def __del__(self):
         """Close Redis connection on cleanup (B7 fix)."""
-        if hasattr(self, '_redis') and self._redis:
+        if hasattr(self, "_redis") and self._redis:
             try:
                 self._redis.close()
             except Exception as exc:
                 # R2-B13 fix: Log errors instead of silently ignoring
-                logger.debug("Error closing Redis connection in destructor: %s", exc)
+                logger.debug("Error closing Redis connection in destructor: {}", exc)
 
-    async def enqueue_manual_notification(self, payload: NotificationDispatchRequest) -> NotificationRead:
+    async def enqueue_manual_notification(
+        self, payload: NotificationDispatchRequest
+    ) -> NotificationRead:
+        logger.debug(
+            "[Dispatcher] enqueue_manual_notification called for guardian={}",
+            payload.guardian_id,
+        )
+        logger.debug("[Dispatcher] Fetching guardian from DB...")
         guardian = await self.guardian_repo.get(payload.guardian_id)
+        logger.debug("[Dispatcher] Guardian fetched successfully")
         if not guardian:
             raise ValueError("Guardian not found")
 
@@ -43,6 +55,7 @@ class NotificationDispatcher:
         if not recipient:
             raise ValueError(f"Guardian has no {payload.channel.value.lower()} configured")
 
+        logger.debug("[Dispatcher] Creating notification record...")
         notification = await self.repository.create(
             guardian_id=payload.guardian_id,
             channel=payload.channel.value,
@@ -50,14 +63,24 @@ class NotificationDispatcher:
             payload=payload.variables,
             event_id=None,
         )
+        logger.debug("[Dispatcher] Notification created, committing...")
         await self.session.commit()
+        logger.debug("[Dispatcher] Committed successfully")
 
         job_func = {
             NotificationChannel.WHATSAPP: "app.workers.jobs.send_whatsapp.send_whatsapp_message",
             NotificationChannel.EMAIL: "app.workers.jobs.send_email.send_email_message",
         }[payload.channel]
 
-        job_args = (notification.id, recipient, payload.template.value, payload.variables)
+        # MT-WORKER-FIX: Pass tenant context so worker can find notification in correct schema
+        job_args = (
+            notification.id,
+            recipient,
+            payload.template.value,
+            payload.variables,
+            self.tenant_id,
+            self.tenant_schema,
+        )
         self._queue.enqueue(job_func, *job_args)
 
         return NotificationRead.model_validate(notification, from_attributes=True)

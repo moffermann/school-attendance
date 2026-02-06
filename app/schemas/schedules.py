@@ -1,7 +1,7 @@
 """Schedule schemas."""
 
 from datetime import date, time
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, field_validator, model_validator
 
@@ -30,7 +30,7 @@ class ScheduleRead(ScheduleCreate):
     course_id: int
 
 
-class ScheduleExceptionScope(str, Enum):
+class ScheduleExceptionScope(StrEnum):
     GLOBAL = "GLOBAL"
     COURSE = "COURSE"
 

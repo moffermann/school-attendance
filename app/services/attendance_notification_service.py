@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from zoneinfo import ZoneInfo
 
 from loguru import logger
 from redis import Redis
 from rq import Queue
+from sqlalchemy import text
 
 from app.core.config import settings
 from app.db.repositories.guardians import GuardianRepository
@@ -24,7 +26,13 @@ if TYPE_CHECKING:
 class AttendanceNotificationService:
     """Handles notification dispatch when attendance events occur."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        tenant_id: int | None = None,
+        tenant_schema: str | None = None,
+        tenant_timezone: str | None = None,
+    ) -> None:
         self.session = session
         self.notification_repo = NotificationRepository(session)
         self.guardian_repo = GuardianRepository(session)
@@ -32,10 +40,15 @@ class AttendanceNotificationService:
         self.push_repo = PushSubscriptionRepository(session)
         self._redis: Redis | None = None
         self._queue: Queue | None = None
+        # MT-WORKER-FIX: Store tenant context for job enqueueing
+        self.tenant_id = tenant_id
+        self.tenant_schema = tenant_schema
+        # MT-TIMEZONE-FIX: Per-tenant timezone for notification display
+        self.tenant_timezone = tenant_timezone
 
     def __del__(self):
         """Close Redis connection on cleanup (B8 fix)."""
-        if hasattr(self, '_redis') and self._redis:
+        if hasattr(self, "_redis") and self._redis:
             try:
                 self._redis.close()
             except Exception:
@@ -46,10 +59,11 @@ class AttendanceNotificationService:
         """Lazy-load Redis queue with graceful fallback if unavailable."""
         if self._queue is None:
             try:
-                self._redis = Redis.from_url(settings.redis_url)
+                redis_conn: Redis = Redis.from_url(settings.redis_url)  # type: ignore[assignment]
                 # Test connection
-                self._redis.ping()
-                self._queue = Queue("notifications", connection=self._redis)
+                redis_conn.ping()
+                self._redis = redis_conn
+                self._queue = Queue("notifications", connection=redis_conn)
             except Exception as e:
                 logger.error(f"Redis unavailable, notifications disabled: {e}")
                 return None
@@ -70,21 +84,33 @@ class AttendanceNotificationService:
         Returns:
             List of notification IDs created
         """
+        # MT-POOL-FIX: Re-set search_path in case connection was released and re-acquired after commit
+        # This can happen when register_event commits and the connection returns to pool.
+        # The next query may get a different connection without search_path set.
+        if self.tenant_schema:
+            await self.session.execute(text(f"SET search_path TO {self.tenant_schema}, public"))
+            logger.debug(f"[DEBUG-NOTIF-SVC] Re-set search_path to {self.tenant_schema}")
+
+        logger.info(
+            f"[DEBUG-NOTIF-SVC] notify_attendance_event called for event {event.id}, student {event.student_id}"
+        )
+
         student = await self.student_repo.get_with_guardians(event.student_id)
         if not student:
             logger.warning(f"Student {event.student_id} not found for notification")
             return []
 
         guardians = getattr(student, "guardians", [])
+        logger.info(
+            f"[DEBUG-NOTIF-SVC] Found {len(guardians)} guardians for student {event.student_id}"
+        )
         if not guardians:
             logger.info(f"No guardians found for student {event.student_id}")
             return []
 
         # Determine notification type based on event
         notification_type = (
-            NotificationType.INGRESO_OK
-            if event.type == "IN"
-            else NotificationType.SALIDA_OK
+            NotificationType.INGRESO_OK if event.type == "IN" else NotificationType.SALIDA_OK
         )
 
         # R15-STATE3 fix: Use effective_evidence_preference instead of legacy photo_pref_opt_in
@@ -98,6 +124,9 @@ class AttendanceNotificationService:
             # Check guardian notification preferences
             prefs = guardian.notification_prefs or {}
             event_prefs = prefs.get(notification_type.value, {})
+            logger.info(
+                f"[DEBUG-NOTIF-SVC] Guardian {guardian.id}: prefs={prefs}, event_prefs={event_prefs}"
+            )
 
             # Build payload with event details
             payload = self._build_payload(
@@ -108,7 +137,9 @@ class AttendanceNotificationService:
 
             # Process each enabled channel
             for channel in NotificationChannel:
-                if not self._is_channel_enabled(event_prefs, channel):
+                is_enabled = self._is_channel_enabled(event_prefs, channel)
+                logger.debug(f"[DEBUG-NOTIF-SVC] Channel {channel.value}: enabled={is_enabled}")
+                if not is_enabled:
                     continue
 
                 # PUSH channel is handled separately - uses subscriptions, not contacts
@@ -118,26 +149,43 @@ class AttendanceNotificationService:
                         notification_type=notification_type,
                         payload=payload,
                         event_id=event.id,
+                        context_id=student.id,
                     )
                     notification_ids.extend(push_ids)
                     continue
 
                 recipient = self._get_recipient(guardian, channel)
+                logger.info(f"[DEBUG-NOTIF-SVC] Channel {channel.value}: recipient={recipient}")
                 if not recipient:
-                    logger.debug(
-                        f"Guardian {guardian.id} has no {channel.value} contact"
-                    )
+                    logger.debug(f"Guardian {guardian.id} has no {channel.value} contact")
                     continue
 
-                # Create notification record
-                notification = await self.notification_repo.create(
+                logger.info(
+                    f"[DEBUG-NOTIF-SVC] Creating notification for guardian {guardian.id}, channel {channel.value}"
+                )
+                # Create notification record (with deduplication)
+                notification, created = await self.notification_repo.get_or_create(
                     guardian_id=guardian.id,
                     channel=channel.value,
                     template=notification_type.value,
                     payload=payload,
                     event_id=event.id,
+                    context_id=student.id,
+                )
+
+                if not created:
+                    # Duplicate - already sent today for this student/channel/type
+                    logger.info(
+                        f"Skipped duplicate {channel.value} notification for "
+                        f"guardian {guardian.id}, student {student.id}"
+                    )
+                    continue
+
+                logger.info(
+                    f"[DEBUG-NOTIF-SVC] Created notification {notification.id} for guardian {guardian.id}"
                 )
                 await self.session.flush()
+                logger.info("[DEBUG-NOTIF-SVC] Session flushed")
 
                 # Enqueue for async delivery
                 self._enqueue_notification(
@@ -154,6 +202,9 @@ class AttendanceNotificationService:
                     f"for guardian {guardian.id} (event {event.id})"
                 )
 
+        logger.info(
+            f"[DEBUG-NOTIF-SVC] Returning {len(notification_ids)} notification IDs: {notification_ids}"
+        )
         return notification_ids
 
     def _build_payload(
@@ -161,17 +212,37 @@ class AttendanceNotificationService:
         student,
         event: AttendanceEvent,
         photo_url: str | None,
-    ) -> dict:
-        """Build the notification payload with event details."""
+    ) -> dict[str, Any]:
+        """Build the notification payload with event details.
+
+        Times are converted to the tenant's local timezone for display.
+        Uses tenant-specific timezone if configured, falls back to global setting.
+        """
         occurred_at = event.occurred_at
+
+        # Convert to tenant's local timezone for display
+        # MT-TIMEZONE-FIX: Use tenant timezone with fallback to global setting
+        timezone_name = self.tenant_timezone or settings.school_timezone
+        local_time = None
+        if occurred_at:
+            try:
+                school_tz = ZoneInfo(timezone_name)
+                # If occurred_at is naive, assume it's UTC
+                if occurred_at.tzinfo is None:
+                    occurred_at = occurred_at.replace(tzinfo=ZoneInfo("UTC"))
+                local_time = occurred_at.astimezone(school_tz)
+            except Exception as e:
+                logger.warning(f"Failed to convert timezone '{timezone_name}': {e}, using UTC")
+                local_time = occurred_at
+
         return {
             "student_name": student.full_name,
             "student_id": student.id,
             "type": event.type,
             "event_id": event.id,
             "occurred_at": occurred_at.isoformat() if occurred_at else None,
-            "date": occurred_at.strftime("%d/%m/%Y") if occurred_at else None,
-            "time": occurred_at.strftime("%H:%M") if occurred_at else None,
+            "date": local_time.strftime("%d/%m/%Y") if local_time else None,
+            "time": local_time.strftime("%H:%M") if local_time else None,
             "gate_id": event.gate_id,
             "photo_url": photo_url,
             "has_photo": photo_url is not None,
@@ -179,7 +250,7 @@ class AttendanceNotificationService:
 
     def _is_channel_enabled(
         self,
-        event_prefs: dict,
+        event_prefs: dict[str, Any],
         channel: NotificationChannel,
     ) -> bool:
         """Check if a notification channel is enabled for this event type."""
@@ -203,7 +274,7 @@ class AttendanceNotificationService:
         channel: NotificationChannel,
         recipient: str,
         template: str,
-        payload: dict,
+        payload: dict[str, Any],
     ) -> bool:
         """Enqueue notification for async processing by worker.
 
@@ -212,9 +283,7 @@ class AttendanceNotificationService:
         """
         queue = self.queue
         if queue is None:
-            logger.warning(
-                f"Skipping notification {notification_id}: Redis unavailable"
-            )
+            logger.warning(f"Skipping notification {notification_id}: Redis unavailable")
             return False
 
         job_func_map = {
@@ -227,13 +296,15 @@ class AttendanceNotificationService:
             logger.error(f"Unknown notification channel: {channel}")
             return False
 
-        # Pass notification_id, recipient, template name, and variables
+        # MT-WORKER-FIX: Pass tenant context so worker can find notification in correct schema
         queue.enqueue(
             job_func,
             notification_id,
             recipient,
             template,
             payload,
+            self.tenant_id,
+            self.tenant_schema,
         )
         return True
 
@@ -241,8 +312,9 @@ class AttendanceNotificationService:
         self,
         guardian,
         notification_type: NotificationType,
-        payload: dict,
+        payload: dict[str, Any],
         event_id: int,
+        context_id: int | None = None,
     ) -> list[int]:
         """Process push notifications for a guardian's subscriptions.
 
@@ -251,6 +323,7 @@ class AttendanceNotificationService:
             notification_type: Type of notification
             payload: Notification payload
             event_id: The attendance event ID
+            context_id: Student ID for deduplication
 
         Returns:
             List of notification IDs created
@@ -272,14 +345,20 @@ class AttendanceNotificationService:
         push_payload = self._build_push_payload(notification_type, payload)
 
         for subscription in subscriptions:
-            # Create notification record
-            notification = await self.notification_repo.create(
+            # Create notification record (with deduplication)
+            notification, created = await self.notification_repo.get_or_create(
                 guardian_id=guardian.id,
                 channel=NotificationChannel.PUSH.value,
                 template=notification_type.value,
                 payload=payload,
                 event_id=event_id,
+                context_id=context_id,
             )
+
+            if not created:
+                logger.info(f"Skipped duplicate PUSH for guardian {guardian.id}")
+                continue
+
             await self.session.flush()
 
             # Enqueue push notification
@@ -300,12 +379,12 @@ class AttendanceNotificationService:
     def _build_push_payload(
         self,
         notification_type: NotificationType,
-        payload: dict,
-    ) -> dict:
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
         """Build the push notification payload."""
         student_name = payload.get("student_name", "Estudiante")
         time_str = payload.get("time", "")
-        event_type = payload.get("type", "")
+        payload.get("type", "")
 
         # Build title and body based on notification type
         if notification_type == NotificationType.INGRESO_OK:
@@ -335,7 +414,7 @@ class AttendanceNotificationService:
         self,
         notification_id: int,
         subscription,
-        push_payload: dict,
+        push_payload: dict[str, Any],
     ) -> bool:
         """Enqueue a push notification for async processing.
 
@@ -360,10 +439,13 @@ class AttendanceNotificationService:
             },
         }
 
+        # MT-WORKER-FIX: Pass tenant context so worker can find notification in correct schema
         queue.enqueue(
             "app.workers.jobs.send_push.send_push_notification",
             notification_id,
             subscription_info,
             push_payload,
+            self.tenant_id,
+            self.tenant_schema,
         )
         return True

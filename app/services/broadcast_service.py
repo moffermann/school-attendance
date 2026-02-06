@@ -1,7 +1,6 @@
 """Broadcast service implementation."""
 
 import secrets
-from typing import Set
 
 from loguru import logger
 from redis import Redis
@@ -14,8 +13,10 @@ from app.schemas.notifications import BroadcastCreate, BroadcastPreview
 
 
 class BroadcastService:
-    def __init__(self, session):
+    def __init__(self, session, tenant_id: int | None = None, tenant_schema: str | None = None):
         self.session = session
+        self.tenant_id = tenant_id
+        self.tenant_schema = tenant_schema
         self.guardian_repo = GuardianRepository(session)
         self.student_repo = StudentRepository(session)
         self.redis = Redis.from_url(settings.redis_url)
@@ -26,9 +27,9 @@ class BroadcastService:
         if self.redis:
             self.redis.close()
 
-    async def _resolve_guardian_ids(self, payload: BroadcastCreate) -> Set[int]:
+    async def _resolve_guardian_ids(self, payload: BroadcastCreate) -> set[int]:
         audience = payload.audience
-        guardian_ids: Set[int] = set()
+        guardian_ids: set[int] = set()
 
         # R7-S6 fix: Use elif to prevent multiple scopes being processed
         if audience.scope.lower() == "global":
@@ -67,6 +68,8 @@ class BroadcastService:
                     "job_id": job_id,
                     "payload": payload.model_dump(),
                     "guardian_ids": guardian_ids,
+                    "tenant_id": self.tenant_id,
+                    "tenant_schema": self.tenant_schema,
                 },
                 job_id=job_id,
             )

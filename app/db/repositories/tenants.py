@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.models.tenant import Tenant
-from app.db.models.tenant_config import TenantConfig
-from app.db.models.tenant_feature import TenantFeature
 
 
 class TenantRepository:
@@ -42,13 +42,13 @@ class TenantRepository:
 
     async def get_by_domain(self, domain: str) -> Tenant | None:
         """Get tenant by custom domain."""
-        stmt = select(Tenant).where(Tenant.domain == domain, Tenant.is_active == True)
+        stmt = select(Tenant).where(Tenant.domain == domain, Tenant.is_active)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_subdomain(self, subdomain: str) -> Tenant | None:
         """Get tenant by subdomain."""
-        stmt = select(Tenant).where(Tenant.subdomain == subdomain, Tenant.is_active == True)
+        stmt = select(Tenant).where(Tenant.subdomain == subdomain, Tenant.is_active)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -56,7 +56,7 @@ class TenantRepository:
         """List all tenants."""
         stmt = select(Tenant).order_by(Tenant.name)
         if not include_inactive:
-            stmt = stmt.where(Tenant.is_active == True)
+            stmt = stmt.where(Tenant.is_active)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -64,7 +64,7 @@ class TenantRepository:
         """Count total tenants."""
         stmt = select(func.count(Tenant.id))
         if not include_inactive:
-            stmt = stmt.where(Tenant.is_active == True)
+            stmt = stmt.where(Tenant.is_active)
         result = await self.session.execute(stmt)
         return result.scalar() or 0
 
@@ -102,7 +102,7 @@ class TenantRepository:
         plan: str | None = None,
         max_students: int | None = None,
         is_active: bool | None = None,
-        config: dict | None = None,
+        config: dict[str, Any] | None = None,
     ) -> Tenant | None:
         """Update tenant fields."""
         tenant = await self.get(tenant_id)

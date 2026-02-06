@@ -4,12 +4,14 @@ This module provides types that work with both PostgreSQL and SQLite,
 enabling tests to run with SQLite in-memory while production uses PostgreSQL.
 """
 
+from typing import Any
+
 from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import TypeDecorator
 
 
-class JSONBCompatible(TypeDecorator):
+class JSONBCompatible(TypeDecorator[Any]):
     """A JSON type that uses JSONB on PostgreSQL and JSON on SQLite.
 
     This allows tests to run with SQLite in-memory database while

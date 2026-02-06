@@ -2,25 +2,25 @@
 
 from __future__ import annotations
 
-from datetime import datetime, date, time, timezone, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.repositories.attendance import AttendanceRepository
-from app.db.repositories.tags import TagRepository
-from app.db.repositories.devices import DeviceRepository
-from app.db.repositories.no_show_alerts import NoShowAlertRepository
-from app.db.repositories.students import StudentRepository
-from app.db.repositories.schedules import ScheduleRepository
-from app.db.models.student import Student
 from app.db.models.course import Course
 from app.db.models.guardian import Guardian
-
+from app.db.models.student import Student
+from app.db.repositories.attendance import AttendanceRepository
+from app.db.repositories.devices import DeviceRepository
+from app.db.repositories.no_show_alerts import NoShowAlertRepository
+from app.db.repositories.schedules import ScheduleRepository
+from app.db.repositories.students import StudentRepository
+from app.db.repositories.tags import TagRepository
 
 # ============================================================================
 # AttendanceRepository Tests
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_attendance_repo_create_event(db_session: AsyncSession, sample_student: Student):
@@ -32,7 +32,7 @@ async def test_attendance_repo_create_event(db_session: AsyncSession, sample_stu
         event_type="IN",
         gate_id="GATE-A",
         device_id="DEV-001",
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
 
     assert event.id is not None
@@ -53,7 +53,7 @@ async def test_attendance_repo_list_by_student(db_session: AsyncSession, sample_
             event_type="IN" if i % 2 == 0 else "OUT",
             gate_id="GATE-A",
             device_id="DEV-001",
-            occurred_at=datetime.now(timezone.utc) - timedelta(hours=i),
+            occurred_at=datetime.now(UTC) - timedelta(hours=i),
         )
 
     events = await repo.list_by_student(sample_student.id)
@@ -64,7 +64,9 @@ async def test_attendance_repo_list_by_student(db_session: AsyncSession, sample_
 
 
 @pytest.mark.asyncio
-async def test_attendance_repo_has_in_event_on_date(db_session: AsyncSession, sample_student: Student):
+async def test_attendance_repo_has_in_event_on_date(
+    db_session: AsyncSession, sample_student: Student
+):
     """Test checking for IN event on a specific date."""
     repo = AttendanceRepository(db_session)
 
@@ -98,7 +100,7 @@ async def test_attendance_repo_update_photo_ref(db_session: AsyncSession, sample
         event_type="IN",
         gate_id="GATE-A",
         device_id="DEV-001",
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
 
     assert event.photo_ref is None
@@ -111,6 +113,7 @@ async def test_attendance_repo_update_photo_ref(db_session: AsyncSession, sample
 # ============================================================================
 # TagRepository Tests
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_tag_repo_create_pending(db_session: AsyncSession, sample_student: Student):
@@ -151,7 +154,9 @@ async def test_tag_repo_get_by_preview(db_session: AsyncSession, sample_student:
 
 
 @pytest.mark.asyncio
-async def test_tag_repo_confirm_by_preview_atomic(db_session: AsyncSession, sample_student: Student):
+async def test_tag_repo_confirm_by_preview_atomic(
+    db_session: AsyncSession, sample_student: Student
+):
     """Test atomic confirmation of a tag."""
     repo = TagRepository(db_session)
 
@@ -193,6 +198,7 @@ async def test_tag_repo_revoke(db_session: AsyncSession, sample_student: Student
 # ============================================================================
 # DeviceRepository Tests
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_device_repo_upsert_creates_new(db_session: AsyncSession):
@@ -249,9 +255,13 @@ async def test_device_repo_list_all(db_session: AsyncSession, sample_device):
 # NoShowAlertRepository Tests
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_no_show_alert_repo_get_or_create_creates(
-    db_session: AsyncSession, sample_student: Student, sample_guardian: Guardian, sample_course: Course
+    db_session: AsyncSession,
+    sample_student: Student,
+    sample_guardian: Guardian,
+    sample_course: Course,
 ):
     """Test get_or_create creates new alert when it doesn't exist."""
     repo = NoShowAlertRepository(db_session)
@@ -262,7 +272,7 @@ async def test_no_show_alert_repo_get_or_create_creates(
         course_id=sample_course.id,
         schedule_id=None,
         alert_date=date.today(),
-        alerted_at=datetime.now(timezone.utc),
+        alerted_at=datetime.now(UTC),
     )
 
     assert created is True
@@ -272,7 +282,10 @@ async def test_no_show_alert_repo_get_or_create_creates(
 
 @pytest.mark.asyncio
 async def test_no_show_alert_repo_get_or_create_gets_existing(
-    db_session: AsyncSession, sample_student: Student, sample_guardian: Guardian, sample_course: Course
+    db_session: AsyncSession,
+    sample_student: Student,
+    sample_guardian: Guardian,
+    sample_course: Course,
 ):
     """Test get_or_create returns existing alert when it exists."""
     repo = NoShowAlertRepository(db_session)
@@ -285,7 +298,7 @@ async def test_no_show_alert_repo_get_or_create_gets_existing(
         course_id=sample_course.id,
         schedule_id=None,
         alert_date=today,
-        alerted_at=datetime.now(timezone.utc),
+        alerted_at=datetime.now(UTC),
     )
 
     # Try to create again - should return existing
@@ -295,7 +308,7 @@ async def test_no_show_alert_repo_get_or_create_gets_existing(
         course_id=sample_course.id,
         schedule_id=None,
         alert_date=today,
-        alerted_at=datetime.now(timezone.utc),
+        alerted_at=datetime.now(UTC),
     )
 
     assert created1 is True
@@ -305,7 +318,10 @@ async def test_no_show_alert_repo_get_or_create_gets_existing(
 
 @pytest.mark.asyncio
 async def test_no_show_alert_repo_mark_resolved(
-    db_session: AsyncSession, sample_student: Student, sample_guardian: Guardian, sample_course: Course
+    db_session: AsyncSession,
+    sample_student: Student,
+    sample_guardian: Guardian,
+    sample_course: Course,
 ):
     """Test marking an alert as resolved."""
     repo = NoShowAlertRepository(db_session)
@@ -316,13 +332,13 @@ async def test_no_show_alert_repo_mark_resolved(
         course_id=sample_course.id,
         schedule_id=None,
         alert_date=date.today(),
-        alerted_at=datetime.now(timezone.utc),
+        alerted_at=datetime.now(UTC),
     )
 
     resolved = await repo.mark_resolved(
         alert.id,
         notes="Student arrived late",
-        resolved_at=datetime.now(timezone.utc),
+        resolved_at=datetime.now(UTC),
     )
 
     assert resolved.status == "RESOLVED"
@@ -333,6 +349,7 @@ async def test_no_show_alert_repo_mark_resolved(
 # ============================================================================
 # StudentRepository Tests
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_student_repo_get(db_session: AsyncSession, sample_student: Student):
@@ -346,7 +363,9 @@ async def test_student_repo_get(db_session: AsyncSession, sample_student: Studen
 
 
 @pytest.mark.asyncio
-async def test_student_repo_list_by_course(db_session: AsyncSession, sample_student: Student, sample_course: Course):
+async def test_student_repo_list_by_course(
+    db_session: AsyncSession, sample_student: Student, sample_course: Course
+):
     """Test listing students by course with guardians eager loaded."""
     repo = StudentRepository(db_session)
 
@@ -362,6 +381,7 @@ async def test_student_repo_list_by_course(db_session: AsyncSession, sample_stud
 # ============================================================================
 # ScheduleRepository Tests
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_schedule_repo_list_by_weekday(db_session: AsyncSession, sample_schedule):

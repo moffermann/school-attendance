@@ -9,16 +9,15 @@ Bug categories tested:
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from fastapi import HTTPException
 from starlette.requests import Request
 
 from app.core.deps import (
     get_current_tenant_user,
     get_tenant_db,
-    get_tenant,
-    require_feature,
 )
 from app.core.security import create_tenant_access_token
 from app.core.tenant_middleware import TenantMiddleware
@@ -157,7 +156,7 @@ class TestBug1_2_FallbackPublicSchema:
 
         # require_tenant_db should REJECT
         with pytest.raises(HTTPException) as exc_info:
-            async for session in require_tenant_db(request):
+            async for _session in require_tenant_db(request):
                 pytest.fail("Should have raised HTTPException")
 
         assert exc_info.value.status_code == 400
@@ -231,6 +230,7 @@ class TestBug1_3_XTenantIDHeader:
 
         # Verify the token is NOT super_admin
         from app.core.security import decode_token
+
         payload = decode_token(token)
         assert payload.get("typ") == "tenant", "Token should be tenant type"
         assert payload.get("typ") != "super_admin"
@@ -240,8 +240,10 @@ class TestBug1_3_XTenantIDHeader:
         # rejected for non-super_admin tokens.
 
         # Check that middleware code does NOT validate token before using X-Tenant-ID
-        from app.core import tenant_middleware
         import inspect
+
+        from app.core import tenant_middleware
+
         source = inspect.getsource(tenant_middleware.TenantMiddleware._resolve_tenant)
 
         # The current code reads X-Tenant-ID header without token validation
@@ -322,8 +324,9 @@ class TestBug1_4_CrossTenantParent:
         Currently FAILS because deps.get_consent_service uses get_db
         at deps.py:198-201 which returns public schema.
         """
-        from app.core import deps
         import inspect
+
+        from app.core import deps
 
         # Get the source of get_consent_service
         source = inspect.getsource(deps.get_consent_service)
@@ -343,8 +346,9 @@ class TestBug1_4_CrossTenantParent:
 
         It should also check tenant_id if we want cross-tenant isolation.
         """
-        from app.api.v1 import parents
         import inspect
+
+        from app.api.v1 import parents
 
         source = inspect.getsource(parents.get_preferences)
 
@@ -356,6 +360,4 @@ class TestBug1_4_CrossTenantParent:
 
         # This will fail until we add tenant validation
         has_tenant_check = "tenant_id" in source or "tenant" in source.lower()
-        assert has_tenant_check, (
-            "get_preferences should validate tenant context"
-        )
+        assert has_tenant_check, "get_preferences should validate tenant context"

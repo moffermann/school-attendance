@@ -2,25 +2,22 @@
 
 from __future__ import annotations
 
-from datetime import datetime, time, timezone
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.course import Course
 from app.db.models.guardian import Guardian
-from app.db.models.notification import Notification
 from app.db.models.student import Student
 from app.db.models.teacher import Teacher
-from app.db.repositories.notifications import NotificationRepository
-from app.db.repositories.teachers import TeacherRepository
 from app.db.repositories.guardians import GuardianRepository
+from app.db.repositories.notifications import NotificationRepository
 from app.db.repositories.students import StudentRepository
-
+from app.db.repositories.teachers import TeacherRepository
 
 # =============================================================================
 # Teacher Repository Tests
 # =============================================================================
+
 
 class TestTeacherRepository:
     """Tests for TeacherRepository."""
@@ -72,10 +69,7 @@ class TestTeacherRepository:
     @pytest.mark.asyncio
     async def test_create_teacher(self, teacher_repo):
         """Should create a new teacher."""
-        teacher = await teacher_repo.create(
-            full_name="Prof. López",
-            email="lopez@school.com"
-        )
+        teacher = await teacher_repo.create(full_name="Prof. López", email="lopez@school.com")
         assert teacher.id is not None
         assert teacher.full_name == "Prof. López"
         assert teacher.email == "lopez@school.com"
@@ -92,10 +86,7 @@ class TestTeacherRepository:
     @pytest.mark.asyncio
     async def test_assign_course(self, teacher_repo, sample_teacher, sample_course_for_teacher):
         """Should assign course to teacher."""
-        result = await teacher_repo.assign_course(
-            sample_teacher.id,
-            sample_course_for_teacher.id
-        )
+        result = await teacher_repo.assign_course(sample_teacher.id, sample_course_for_teacher.id)
         assert result is True
 
         # Verify assignment
@@ -145,8 +136,7 @@ class TestTeacherRepository:
         await db_session.flush()
 
         students = await teacher_repo.list_course_students(
-            sample_teacher.id,
-            sample_course_for_teacher.id
+            sample_teacher.id, sample_course_for_teacher.id
         )
         assert len(students) == 2
 
@@ -156,8 +146,7 @@ class TestTeacherRepository:
     ):
         """Should return empty list if teacher not assigned to course."""
         students = await teacher_repo.list_course_students(
-            sample_teacher.id,
-            sample_course_for_teacher.id
+            sample_teacher.id, sample_course_for_teacher.id
         )
         assert students == []
 
@@ -165,6 +154,7 @@ class TestTeacherRepository:
 # =============================================================================
 # Notification Repository Tests
 # =============================================================================
+
 
 class TestNotificationRepository:
     """Tests for NotificationRepository."""
@@ -269,7 +259,9 @@ class TestNotificationRepository:
         assert len(results) >= 2
 
     @pytest.mark.asyncio
-    async def test_list_notifications_filter_by_channel(self, notif_repo, sample_guardian_for_notif):
+    async def test_list_notifications_filter_by_channel(
+        self, notif_repo, sample_guardian_for_notif
+    ):
         """Should filter notifications by channel."""
         await notif_repo.create(
             guardian_id=sample_guardian_for_notif.id,
@@ -309,7 +301,9 @@ class TestNotificationRepository:
         assert all(n.status == "sent" for n in results)
 
     @pytest.mark.asyncio
-    async def test_list_notifications_filter_by_guardian(self, db_session, notif_repo, sample_guardian_for_notif):
+    async def test_list_notifications_filter_by_guardian(
+        self, db_session, notif_repo, sample_guardian_for_notif
+    ):
         """Should filter notifications by guardian IDs."""
         # Create another guardian
         guardian2 = Guardian(
@@ -333,15 +327,14 @@ class TestNotificationRepository:
             payload={},
         )
 
-        results = await notif_repo.list_notifications(
-            guardian_ids=[sample_guardian_for_notif.id]
-        )
+        results = await notif_repo.list_notifications(guardian_ids=[sample_guardian_for_notif.id])
         assert all(n.guardian_id == sample_guardian_for_notif.id for n in results)
 
 
 # =============================================================================
 # Guardian Repository Tests
 # =============================================================================
+
 
 class TestGuardianRepository:
     """Tests for GuardianRepository."""
@@ -373,6 +366,7 @@ class TestGuardianRepository:
 # =============================================================================
 # Student Repository Tests
 # =============================================================================
+
 
 class TestStudentRepository:
     """Tests for StudentRepository."""

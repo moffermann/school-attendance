@@ -2,7 +2,7 @@
  * QR Enrollment Service - Unit Tests
  * Tests run in browser context using Playwright's evaluate()
  */
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 async function setupPage(page) {
   await page.goto('/');
@@ -64,7 +64,7 @@ test.describe('QREnrollment Service - Unit Tests', () => {
 
   test('buildStudentData() should return complete data object', async ({ page }) => {
     const data = await page.evaluate(() => {
-      const student = { id: 1, full_name: 'Test Student', rut: '12345678-9', course_id: 1 };
+      const student = { id: 1, full_name: 'Test Student', national_id: '12345678-9', course_id: 1 };
       const course = { id: 1, name: '1A', grade: '1ro Basico' };
       const guardians = [{ full_name: 'Parent Name', contacts: [] }];
       const token = 'test_token_123';
@@ -74,7 +74,7 @@ test.describe('QREnrollment Service - Unit Tests', () => {
     expect(data.id).toBe(1);
     expect(data.token).toBe('test_token_123');
     expect(data.name).toBe('Test Student');
-    expect(data.rut).toBe('12345678-9');
+    expect(data.national_id).toBe('12345678-9');
     expect(data.course.name).toBe('1A');
     expect(data.guardians).toHaveLength(1);
     expect(data.school).toHaveProperty('name');
@@ -148,7 +148,7 @@ test.describe('QREnrollment Service - Unit Tests', () => {
         type: 'student',
         name: 'Test Student',
         token: 'qr_test',
-        rut: '12345678-9',
+        national_id: '12345678-9',
         course: { name: '1A', grade: '1ro' },
         school: {
           name: 'Test School',
@@ -369,7 +369,7 @@ test.describe('QREnrollment - Data Integrity', () => {
       const student = {
         id: 42,
         full_name: 'Complete Student',
-        rut: '12.345.678-9',
+        national_id: '12.345.678-9',
         course_id: 1
       };
       const course = { id: 1, name: '1A', grade: '1ro Basico' };
@@ -385,7 +385,7 @@ test.describe('QREnrollment - Data Integrity', () => {
     expect(data.id).toBe(42);
     expect(data.token).toBe('qr_test_token');
     expect(data.name).toBe('Complete Student');
-    expect(data.rut).toBe('12.345.678-9');
+    expect(data.national_id).toBe('12.345.678-9');
     expect(data.course.name).toBe('1A');
     expect(data.guardians).toHaveLength(2);
     expect(data.school.name).toBeDefined();
@@ -426,13 +426,13 @@ test.describe('QREnrollment - Edge Cases', () => {
     await setupPage(page);
   });
 
-  test('should handle student without RUT', async ({ page }) => {
+  test('should handle student without national_id', async ({ page }) => {
     const data = await page.evaluate(() => {
-      const student = { id: 1, full_name: 'No RUT Student', course_id: 1 };
+      const student = { id: 1, full_name: 'No ID Student', course_id: 1 };
       const course = { id: 1, name: '1A', grade: '1ro' };
       return QREnrollment.buildStudentData(student, course, [], 'token');
     });
-    expect(data.rut).toBe('');
+    expect(data.national_id).toBe('');
   });
 
   test('should handle student without course', async ({ page }) => {
@@ -472,7 +472,7 @@ test.describe('QREnrollment - Edge Cases', () => {
 
   test('should handle special characters in names', async ({ page }) => {
     const data = await page.evaluate(() => {
-      const student = { id: 1, full_name: "María José O'Connor", rut: '12.345.678-K' };
+      const student = { id: 1, full_name: "María José O'Connor", national_id: '12.345.678-K' };
       const course = { id: 1, name: '1°A', grade: '1° Básico' };
       const guardians = [{ full_name: 'José "Pepe" García', contacts: [] }];
       return QREnrollment.buildStudentData(student, course, guardians, 'token');

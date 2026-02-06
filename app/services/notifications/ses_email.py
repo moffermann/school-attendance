@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -57,7 +57,7 @@ class SESEmailClient:
 
     async def send_email(self, to: str, subject: str, body_html: str) -> None:
         if not settings.enable_real_notifications:
-            logger.info("[SES] Dry-run email to=%s subject=%s", mask_email(to), subject)
+            logger.info("[SES] Dry-run email to={} subject={}", mask_email(to), subject)
             return
 
         client = self._get_client()
@@ -78,14 +78,14 @@ class SESEmailClient:
         try:
             await asyncio.to_thread(_send)
         except (ClientError, BotoCoreError) as exc:  # pragma: no cover - network side effect
-            logger.error("SES send failed: %s", exc)
+            logger.error("SES send failed: {}", exc)
             raise
 
 
 class TenantSESEmailClient:
     """SES email client using tenant-specific credentials."""
 
-    def __init__(self, config: "DecryptedTenantConfig") -> None:
+    def __init__(self, config: DecryptedTenantConfig) -> None:
         """
         Initialize with decrypted tenant configuration.
 
@@ -136,7 +136,7 @@ class TenantSESEmailClient:
         """Send an email using tenant's SES configuration."""
         if not settings.enable_real_notifications:
             logger.info(
-                "[SES:tenant=%s] Dry-run email to=%s subject=%s",
+                "[SES:tenant={}] Dry-run email to={} subject={}",
                 self._tenant_id,
                 mask_email(to),
                 subject,
@@ -159,7 +159,7 @@ class TenantSESEmailClient:
 
         try:
             await asyncio.to_thread(_send)
-            logger.info("[SES:tenant=%s] Email sent to=%s", self._tenant_id, mask_email(to))
+            logger.info("[SES:tenant={}] Email sent to={}", self._tenant_id, mask_email(to))
         except (ClientError, BotoCoreError) as exc:
-            logger.error("[SES:tenant=%s] Send failed: %s", self._tenant_id, exc)
+            logger.error("[SES:tenant={}] Send failed: {}", self._tenant_id, exc)
             raise

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gestión de Cursos | NEUVOX</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+        :root {
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .sidebar-item.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #818cf8;
+            color: #ffffff;
+        }
+        .bg-primary-gradient {
+            background: var(--primary-gradient);
+        }
+    </style>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6366f1",
+                        secondary: "#0ea5e9",
+                        "sidebar-dark": "#1e1b4b",
+                        "card-dark": "#1e293b",
+                        "border-light": "#e5e7eb",
+                    },
+                    borderRadius: {
+                        'custom': '12px',
+                    },
+                },
+            },
+        };
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-900 antialiased h-screen flex overflow-hidden">
+<aside class="w-64 bg-sidebar-dark text-gray-400 flex-shrink-0 flex flex-col hidden md:flex z-20">
+<div class="h-20 flex items-center px-6 mb-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg">
+<div class="w-4 h-4 bg-sidebar-dark rounded-full"></div>
+</div>
+<h1 class="text-xl font-bold tracking-tight text-white">NEUVOX</h1>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto space-y-1 px-3 pb-4">
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">dashboard</span>
+<span class="text-sm font-medium">Tablero</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">analytics</span>
+<span class="text-sm font-medium">Reportes</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">bar_chart</span>
+<span class="text-sm font-medium">Métricas</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">schedule</span>
+<span class="text-sm font-medium">Horarios</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">event_busy</span>
+<span class="text-sm font-medium">Excepciones</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">campaign</span>
+<span class="text-sm font-medium">Comunicados</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">devices</span>
+<span class="text-sm font-medium">Dispositivos</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">school</span>
+<span class="text-sm font-medium">Alumnos</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">family_restroom</span>
+<span class="text-sm font-medium">Apoderados</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">badge</span>
+<span class="text-sm font-medium">Profesores</span>
+</a>
+<a class="sidebar-item active flex items-center px-4 py-3 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">class</span>
+<span class="text-sm font-medium">Cursos</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">person_off</span>
+<span class="text-sm font-medium">Ausencias</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">notifications</span>
+<span class="text-sm font-medium">Notificaciones</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">fingerprint</span>
+<span class="text-sm font-medium">Biometría</span>
+</a>
+</nav>
+</aside>
+<main class="flex-1 flex flex-col overflow-hidden">
+<header class="h-20 bg-white border-b border-border-light flex items-center justify-between px-8 shrink-0 shadow-sm z-10">
+<h2 class="text-xl font-bold text-gray-800">Gestión de Cursos</h2>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-500">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="h-8 w-px bg-gray-200"></div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<p class="text-sm font-semibold text-gray-800">Director</p>
+<p class="text-xs text-gray-500">Administrador</p>
+</div>
+<img alt="Director" class="w-10 h-10 rounded-full border border-gray-200" src="https://lh3.googleusercontent.com/aida-public/AB6AXuATXMQmi4tc7pyne9xfBmiC-sFhXXQQEdTxo6ZDE0Q-eRWdGZBH2BTfopIwMNch7WMQs3jqypUW8CwaAibyRPmpxYHhg6FanoPAy_lwRfvUTluZBH2vXxXbvuLktNGGnny4MP-PI-hEiex0Uy6LJ2PKivLuLYTXEgc405KL9Fg9II3UevScTAVd93VMXTXnd3BHsG9sTm8mg0IlVXQ538Inht1J82954c4vIe5loFMc5hsCAYmN4JZv8yafQ7w00rthZa7fCeHlKV0"/>
+<button class="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-red-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+<span class="material-symbols-outlined text-lg">logout</span>
+<span>Salir</span>
+</button>
+</div>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto p-8 space-y-6">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<div>
+<h3 class="text-xl font-bold text-gray-800">Gestión de Cursos <span class="text-gray-400 font-normal ml-1">(7)</span></h3>
+<p class="text-sm text-gray-500">Administración de niveles académicos y secciones</p>
+</div>
+<button class="bg-primary-gradient text-white px-6 py-2.5 rounded-custom font-semibold flex items-center gap-2 shadow-lg shadow-indigo-200 hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined">add</span>
+                Nuevo Curso
+            </button>
+</div>
+<div class="bg-white rounded-custom p-6 shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+<div class="md:col-span-4">
+<label class="block text-xs font-bold text-gray-500 uppercase mb-2">Buscar curso</label>
+<div class="relative">
+<span class="absolute left-3 top-2.5 text-gray-400 material-symbols-outlined text-xl">search</span>
+<input class="w-full pl-10 pr-4 py-2 border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm" placeholder="Nombre del curso..." type="text"/>
+</div>
+</div>
+<div class="md:col-span-3">
+<label class="block text-xs font-bold text-gray-500 uppercase mb-2">Grado</label>
+<select class="w-full px-3 py-2 border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm appearance-none bg-no-repeat bg-[right_0.5rem_center] bg-[length:1.5em_1.5em]">
+<option>Todos</option>
+<option>1° Básico</option>
+<option>2° Básico</option>
+<option>3° Básico</option>
+<option>4° Básico</option>
+<option>5° Básico</option>
+</select>
+</div>
+<div class="md:col-span-5 flex gap-2">
+<button class="flex-1 px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-lg">filter_list</span> Filtrar
+                </button>
+<button class="flex-1 px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-lg">download</span> Exportar
+                </button>
+</div>
+</div>
+<div class="bg-white rounded-custom shadow-sm border border-gray-100 overflow-hidden">
+<div class="px-6 py-4 border-b border-gray-50">
+<h4 class="font-bold text-gray-800">Lista de Cursos (7)</h4>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-gray-50 border-b border-gray-100">
+<th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre</th>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Grado</th>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Alumnos</th>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Horarios</th>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-gray-50">
+<tr class="hover:bg-gray-50/50 transition-colors">
+<td class="px-6 py-4"><span class="font-bold text-gray-800">1° Básico A Rt</span></td>
+<td class="px-6 py-4 text-sm text-gray-600">1° Básico</td>
+<td class="px-6 py-4 text-sm text-gray-600">20</td>
+<td class="px-6 py-4 text-sm text-gray-600">5</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Activo
+                                </span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<button class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Ver Detalle">
+<span class="material-symbols-outlined text-xl">visibility</span>
+</button>
+<button class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar">
+<span class="material-symbols-outlined text-xl">edit</span>
+</button>
+<button class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
+<span class="material-symbols-outlined text-xl">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-gray-50/50 transition-colors">
+<td class="px-6 py-4"><span class="font-bold text-gray-800">1° Básico B r</span></td>
+<td class="px-6 py-4 text-sm text-gray-600">1° Básico</td>
+<td class="px-6 py-4 text-sm text-gray-600">20</td>
+<td class="px-6 py-4 text-sm text-gray-600">5</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Activo
+                                </span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<button class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><span class="material-symbols-outlined text-xl">visibility</span></button>
+<button class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><span class="material-symbols-outlined text-xl">edit</span></button>
+<button class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><span class="material-symbols-outlined text-xl">delete</span></button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-gray-50/50 transition-colors">
+<td class="px-6 py-4"><span class="font-bold text-gray-800">2° Básico A</span></td>
+<td class="px-6 py-4 text-sm text-gray-600">2° Básico</td>
+<td class="px-6 py-4 text-sm text-gray-600">20</td>
+<td class="px-6 py-4 text-sm text-gray-600">5</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Activo
+                                </span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<button class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><span class="material-symbols-outlined text-xl">visibility</span></button>
+<button class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><span class="material-symbols-outlined text-xl">edit</span></button>
+<button class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><span class="material-symbols-outlined text-xl">delete</span></button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-gray-50/50 transition-colors">
+<td class="px-6 py-4"><span class="font-bold text-gray-800">2° Básico B</span></td>
+<td class="px-6 py-4 text-sm text-gray-600">2° Básico</td>
+<td class="px-6 py-4 text-sm text-gray-600">1</td>
+<td class="px-6 py-4 text-sm text-gray-600">5</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Activo
+                                </span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<button class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><span class="material-symbols-outlined text-xl">visibility</span></button>
+<button class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><span class="material-symbols-outlined text-xl">edit</span></button>
+<button class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><span class="material-symbols-outlined text-xl">delete</span></button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-gray-50/50 transition-colors">
+<td class="px-6 py-4"><span class="font-bold text-gray-800">3° Básico A</span></td>
+<td class="px-6 py-4 text-sm text-gray-600">3° Básico</td>
+<td class="px-6 py-4 text-sm text-gray-600">1</td>
+<td class="px-6 py-4 text-sm text-gray-600">5</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Activo
+                                </span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<button class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><span class="material-symbols-outlined text-xl">visibility</span></button>
+<button class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><span class="material-symbols-outlined text-xl">edit</span></button>
+<button class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><span class="material-symbols-outlined text-xl">delete</span></button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-6 py-4 border-t border-gray-50 flex items-center justify-between text-sm text-gray-500">
+<span>Mostrando 1 a 5 de 7 registros</span>
+<div class="flex gap-2">
+<button class="p-1 rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined text-xl">chevron_left</span>
+</button>
+<button class="p-1 rounded border border-gray-200 hover:bg-gray-50">
+<span class="material-symbols-outlined text-xl">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<footer class="text-center text-xs text-gray-400 py-4">
+            © 2026 NEUVOX. Todos los derechos reservados.
+        </footer>
+</div>
+</main>
+
+</body></html>

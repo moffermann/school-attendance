@@ -3,19 +3,46 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#10b981">
+  <meta name="theme-color" content="#6366f1">
   <title>Control de Ingreso/Salida Escolar</title>
+
+  <!-- Google Fonts: Inter + Material Icons Round + Material Symbols Outlined -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS compilado -->
+  <link rel="stylesheet" href="css/tailwind.css">
+  <!-- CSS legacy para otras vistas (mantener compatibilidad) -->
   <link rel="stylesheet" href="css/styles.css">
   <!-- PWA Manifest -->
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="assets/logo.svg">
+  <link rel="apple-touch-icon" href="assets/logo.png">
   <!-- jsPDF for PDF generation -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+  <!-- Chart.js for metrics charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <!-- QRCode for QR generation (local library) -->
   <script src="js/lib/qrcode.js"></script>
   <!-- Shared API base client -->
   <script src="/lib/api-base.js"></script>
+  <!-- Default API configuration -->
+  <script>
+    // Preview app uses isolated config to avoid affecting production settings
+    (function() {
+      const configKey = 'webAppPreviewConfig';
+      const config = JSON.parse(localStorage.getItem(configKey) || '{}');
+      if (!config.apiUrl) {
+        config.apiUrl = '/api/v1';  // Relative path works for local and production
+        localStorage.setItem(configKey, JSON.stringify(config));
+      }
+      // Override the config key for API client
+      window.PREVIEW_CONFIG_KEY = configKey;
+    })();
+  </script>
 </head>
 <body>
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
@@ -47,13 +74,21 @@
   <script src="js/views/director_students.js"></script>
   <script src="js/views/director_guardians.js"></script>
   <script src="js/views/director_teachers.js"></script>
+  <script src="js/views/director_courses.js"></script>
+  <script src="js/views/director_course_detail.js"></script>
   <script src="js/views/director_absences.js"></script>
+  <script src="js/views/director_withdrawals.js"></script>
   <script src="js/views/director_notifications.js"></script>
   <script src="js/views/director_biometric.js"></script>
   <script src="js/views/parent_home.js"></script>
   <script src="js/views/parent_history.js"></script>
   <script src="js/views/parent_prefs.js"></script>
   <script src="js/views/parent_absences.js"></script>
+
+  <!-- Parent registration & password recovery -->
+  <script src="js/views/parent_setup.js"></script>
+  <script src="js/views/forgot_password.js"></script>
+  <script src="js/views/reset_password.js"></script>
 
   <!-- Super Admin -->
   <script src="js/super-admin-api.js"></script>

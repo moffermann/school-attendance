@@ -1,7 +1,7 @@
 """RQ worker bootstrap (stub)."""
 
-from rq import Worker
 from redis import Redis
+from rq import Worker
 
 from app.core.config import settings
 

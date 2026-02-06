@@ -1,10 +1,35 @@
 /**
  * Teacher PWA - Take Attendance E2E Tests
  */
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 test.describe('Take Attendance', () => {
   test.beforeEach(async ({ page }) => {
+    // Mock API endpoints BEFORE navigating - this prevents State.init() from hanging
+    await page.route('**/api/v1/teachers/me', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          teacher: { id: 1, full_name: 'Profesor Test' },
+          courses: [{ id: 1, name: '1° Básico A', grade: '1', section: 'A' }]
+        })
+      });
+    });
+
+    // Mock bootstrap endpoint
+    await page.route('**/api/v1/bootstrap**', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          students: [],
+          courses: [{ id: 1, name: '1° Básico A', grade: '1', section: 'A' }],
+          teachers: [{ id: 1, full_name: 'Profesor Test' }]
+        })
+      });
+    });
+
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
@@ -63,6 +88,30 @@ test.describe('Take Attendance', () => {
 
 test.describe('Roster View', () => {
   test.beforeEach(async ({ page }) => {
+    // Mock API endpoints BEFORE navigating
+    await page.route('**/api/v1/teachers/me', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          teacher: { id: 1, full_name: 'Profesor Test' },
+          courses: [{ id: 1, name: '1° Básico A', grade: '1', section: 'A' }]
+        })
+      });
+    });
+
+    await page.route('**/api/v1/bootstrap**', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          students: [{ id: 1, full_name: 'Alumno Test', course_id: 1 }],
+          courses: [{ id: 1, name: '1° Básico A' }],
+          teachers: [{ id: 1, full_name: 'Profesor Test' }]
+        })
+      });
+    });
+
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 

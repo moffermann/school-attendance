@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Bitácora de Notificaciones | NEUVOX</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+        :root {
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .sidebar-item.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #818cf8;
+            color: #ffffff;
+        }
+        .bg-primary-gradient {
+            background: var(--primary-gradient);
+        }
+    </style>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6366f1",
+                        secondary: "#0ea5e9",
+                        "sidebar-dark": "#1e1b4b",
+                        "border-light": "#e5e7eb",
+                    },
+                    borderRadius: {
+                        'custom': '12px',
+                    },
+                },
+            },
+        };
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-900 antialiased h-screen flex overflow-hidden">
+<aside class="w-64 bg-sidebar-dark text-gray-400 flex-shrink-0 flex flex-col hidden md:flex z-20">
+<div class="h-20 flex items-center px-6 mb-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg">
+<div class="w-4 h-4 bg-sidebar-dark rounded-full"></div>
+</div>
+<h1 class="text-xl font-bold tracking-tight text-white">NEUVOX</h1>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto space-y-1 px-3 pb-4">
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">dashboard</span>
+<span class="text-sm font-medium">Tablero</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">analytics</span>
+<span class="text-sm font-medium">Reportes</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">bar_chart</span>
+<span class="text-sm font-medium">Métricas</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">schedule</span>
+<span class="text-sm font-medium">Horarios</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">event_busy</span>
+<span class="text-sm font-medium">Excepciones</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">campaign</span>
+<span class="text-sm font-medium">Comunicados</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">devices</span>
+<span class="text-sm font-medium">Dispositivos</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">school</span>
+<span class="text-sm font-medium">Alumnos</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">family_restroom</span>
+<span class="text-sm font-medium">Apoderados</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">badge</span>
+<span class="text-sm font-medium">Profesores</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">class</span>
+<span class="text-sm font-medium">Cursos</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">person_off</span>
+<span class="text-sm font-medium">Ausencias</span>
+</a>
+<a class="sidebar-item active flex items-center px-4 py-3 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">notifications</span>
+<span class="text-sm font-medium">Notificaciones</span>
+</a>
+<a class="sidebar-item flex items-center px-4 py-3 rounded-lg hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[20px]">fingerprint</span>
+<span class="text-sm font-medium">Biometría</span>
+</a>
+</nav>
+</aside>
+<main class="flex-1 flex flex-col overflow-hidden">
+<header class="h-20 bg-white border-b border-border-light flex items-center justify-between px-8 shrink-0 shadow-sm z-10">
+<h2 class="text-xl font-bold text-gray-800">Bitácora de Notificaciones</h2>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-500">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="h-8 w-px bg-gray-200"></div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<p class="text-sm font-semibold text-gray-800">Director</p>
+<p class="text-xs text-gray-500">Administrador</p>
+</div>
+<img alt="Director" class="w-10 h-10 rounded-full border border-gray-200 shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuATXMQmi4tc7pyne9xfBmiC-sFhXXQQEdTxo6ZDE0Q-eRWdGZBH2BTfopIwMNch7WMQs3jqypUW8CwaAibyRPmpxYHhg6FanoPAy_lwRfvUTluZBH2vXxXbvuLktNGGnny4MP-PI-hEiex0Uy6LJ2PKivLuLYTXEgc405KL9Fg9II3UevScTAVd93VMXTXnd3BHsG9sTm8mg0IlVXQ538Inht1J82954c4vIe5loFMc5hsCAYmN4JZv8yafQ7w00rthZa7fCeHlKV0"/>
+<button class="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-red-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+<span class="material-symbols-outlined text-lg">logout</span>
+<span>Salir</span>
+</button>
+</div>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto p-8 space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+<div class="bg-white p-6 rounded-custom shadow-sm border-t-4 border-purple-500">
+<p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">TOTAL ENVIADAS</p>
+<p class="text-4xl font-bold text-purple-600">300</p>
+</div>
+<div class="bg-white p-6 rounded-custom shadow-sm border-t-4 border-emerald-500">
+<p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">ENTREGADAS</p>
+<p class="text-4xl font-bold text-emerald-600">242</p>
+</div>
+<div class="bg-white p-6 rounded-custom shadow-sm border-t-4 border-rose-500">
+<p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">FALLIDAS</p>
+<p class="text-4xl font-bold text-rose-500">17</p>
+</div>
+<div class="bg-white p-6 rounded-custom shadow-sm border-t-4 border-orange-400">
+<p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">PENDIENTES</p>
+<p class="text-4xl font-bold text-orange-500">7</p>
+</div>
+</div>
+<div class="bg-white rounded-custom p-6 shadow-sm border border-gray-100">
+<div class="flex justify-between items-center mb-6">
+<h4 class="text-sm font-bold text-gray-700 uppercase tracking-tight">Filtros</h4>
+<button class="px-4 py-2 text-xs font-bold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">download</span>
+                    Exportar CSV
+                </button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+<div>
+<label class="block text-xs font-bold text-gray-500 uppercase mb-2">Estado</label>
+<select class="w-full px-3 py-2 border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+<option>Todos</option>
+<option>Entregada</option>
+<option>Fallida</option>
+<option>Pendiente</option>
+</select>
+</div>
+<div>
+<label class="block text-xs font-bold text-gray-500 uppercase mb-2">Canal</label>
+<select class="w-full px-3 py-2 border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+<option>Todos</option>
+<option>WhatsApp</option>
+<option>Email</option>
+</select>
+</div>
+<div>
+<label class="block text-xs font-bold text-gray-500 uppercase mb-2">Tipo</label>
+<select class="w-full px-3 py-2 border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+<option>Todos</option>
+<option>Ingreso</option>
+<option>Salida</option>
+<option>Broadcast</option>
+</select>
+</div>
+<div>
+<label class="block text-xs font-bold text-gray-500 uppercase mb-2">Desde</label>
+<input class="w-full px-3 py-2 border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm" type="date"/>
+</div>
+<div>
+<label class="block text-xs font-bold text-gray-500 uppercase mb-2">Hasta</label>
+<input class="w-full px-3 py-2 border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm" type="date"/>
+</div>
+</div>
+<div class="mt-4 flex items-center justify-between">
+<button class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                    Limpiar Filtros
+                </button>
+<span class="text-xs text-gray-400">300 notificación(es) encontrada(s)</span>
+</div>
+</div>
+<div class="bg-white rounded-custom shadow-sm border border-gray-100 overflow-hidden">
+<div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+<h4 class="text-sm font-bold text-gray-700 uppercase tracking-tight">Historial de Notificaciones</h4>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-gray-50 border-b border-gray-100">
+<th class="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Fecha/Hora</th>
+<th class="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Alumno</th>
+<th class="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Apoderado</th>
+<th class="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Tipo</th>
+<th class="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Canal</th>
+<th class="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Estado</th>
+<th class="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Mensaje</th>
+<th class="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-gray-50">
+<tr class="hover:bg-gray-50/50 transition-colors">
+<td class="px-6 py-4 text-xs text-gray-600">16-01-2024 14:38</td>
+<td class="px-6 py-4 text-xs text-gray-400 font-medium">-</td>
+<td class="px-6 py-4 text-xs text-gray-700 font-medium">Apoderado #102</td>
+<td class="px-6 py-4 text-[10px] text-gray-500 font-bold uppercase">Broadcast</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-bold border border-blue-100">
+<span class="material-symbols-outlined text-xs">mail</span> EMAIL
+                                </span>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-0.5 rounded bg-orange-50 text-orange-600 text-[10px] font-bold uppercase">Pendiente</span>
+</td>
+<td class="px-6 py-4 text-xs text-gray-400">-</td>
+<td class="px-6 py-4">
+<button class="text-indigo-600 hover:underline text-[11px] font-bold">Ver detalle</button>
+</td>
+</tr>
+<tr class="hover:bg-gray-50/50 transition-colors">
+<td class="px-6 py-4 text-xs text-gray-600">16-01-2024 14:37</td>
+<td class="px-6 py-4 text-xs text-gray-700 font-medium">Luna Torres Prada</td>
+<td class="px-6 py-4 text-xs text-gray-700 font-medium">Apoderado #101</td>
+<td class="px-6 py-4 text-[10px] text-gray-500 font-bold uppercase">SALIDA_OK</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold border border-emerald-100">
+<span class="material-symbols-outlined text-xs">chat</span> WHATSAPP
+                                </span>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-0.5 rounded bg-rose-50 text-rose-600 text-[10px] font-bold uppercase">Fallida</span>
+</td>
+<td class="px-6 py-4 text-xs text-gray-400 truncate max-w-[120px]">Su hijo ha retirado...</td>
+<td class="px-6 py-4">
+<div class="flex flex-col gap-1 items-start">
+<button class="text-rose-600 border border-rose-200 px-2 py-0.5 rounded text-[10px] font-bold hover:bg-rose-50 transition-colors">Reintentar</button>
+<button class="text-indigo-600 hover:underline text-[11px] font-bold">Ver detalle</button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-gray-50/50 transition-colors">
+<td class="px-6 py-4 text-xs text-gray-600">16-01-2024 14:30</td>
+<td class="px-6 py-4 text-xs text-gray-700 font-medium">Noah Josefina</td>
+<td class="px-6 py-4 text-xs text-gray-700 font-medium">Apoderado #105</td>
+<td class="px-6 py-4 text-[10px] text-gray-500 font-bold uppercase">INGRESO_OK</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold border border-emerald-100">
+<span class="material-symbols-outlined text-xs">chat</span> WHATSAPP
+                                </span>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase">Entregada</span>
+</td>
+<td class="px-6 py-4 text-xs text-gray-400 truncate max-w-[120px]">Registro de ingreso...</td>
+<td class="px-6 py-4">
+<button class="text-indigo-600 hover:underline text-[11px] font-bold">Ver detalle</button>
+</td>
+</tr>
+<tr class="hover:bg-gray-50/50 transition-colors">
+<td class="px-6 py-4 text-xs text-gray-600">16-01-2024 14:24</td>
+<td class="px-6 py-4 text-xs text-gray-400 font-medium">-</td>
+<td class="px-6 py-4 text-xs text-gray-700 font-medium">Apoderado #102</td>
+<td class="px-6 py-4 text-[10px] text-gray-500 font-bold uppercase">Broadcast</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-bold border border-blue-100">
+<span class="material-symbols-outlined text-xs">mail</span> EMAIL
+                                </span>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase">Entregada</span>
+</td>
+<td class="px-6 py-4 text-xs text-gray-400">-</td>
+<td class="px-6 py-4">
+<button class="text-indigo-600 hover:underline text-[11px] font-bold">Ver detalle</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-6 py-4 border-t border-gray-50 flex items-center justify-between text-xs text-gray-500">
+<button class="px-4 py-2 border border-gray-200 rounded hover:bg-gray-50 transition-colors disabled:opacity-50">Anterior</button>
+<span class="font-medium">Página 1 de 20</span>
+<button class="px-4 py-2 border border-gray-200 rounded hover:bg-gray-50 transition-colors">Siguiente</button>
+</div>
+</div>
+<footer class="text-center text-[10px] text-gray-400 pb-8">
+            © 2026 NEUVOX. Todos los derechos reservados.
+        </footer>
+</div>
+</main>
+
+</body></html>
